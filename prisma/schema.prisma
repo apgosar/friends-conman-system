@@ -1,0 +1,495 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = "file:./dev.db"
+}
+
+// ─────────────────────────────────────────────
+// AUTH
+// ─────────────────────────────────────────────
+
+model User {
+  id            String    @id @default(cuid())
+  name          String
+  email         String    @unique
+  password      String
+  role String @default("VIEWER")
+  isActive      Boolean   @default(true)
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+  auditLogs     AuditLog[]
+
+  @@map("users")
+}
+
+// ─────────────────────────────────────────────
+// INQUIRY (Quotes generated for Units)
+// ─────────────────────────────────────────────
+
+model Inquiry {
+  id              String   @id @default(cuid())
+  unitId          String
+  customerName    String
+  mobileNumber    String
+  agreementValue  Float
+  parkingIncluded Boolean  @default(false)
+  stampDuty       Float
+  gst             Float
+  registration    Float
+  totalCost       Float
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  unit            Unit     @relation(fields: [unitId], references: [id], onDelete: Cascade)
+
+  @@map("inquiries")
+}
+
+// ─────────────────────────────────────────────
+// PROJECT
+// ─────────────────────────────────────────────
+
+model Project {
+  id                  String          @id @default(cuid())
+  name                String
+  reraNumber          String?
+  address             String
+  city                String
+  state               String          @default("Maharashtra")
+  type String @default("FRESH")
+  status String @default("PLANNING")
+  launchDate          DateTime?
+  expectedCompletion  DateTime?
+  companyName         String
+  companyAddress      String
+  companyGstin        String?
+  stampDutyPercent    Float         @default(5) 
+  regChargesPercent   Float         @default(1) 
+  carParkingCharges   Float         @default(500000)  // Default car parking price from project template
+  createdAt           DateTime        @default(now())
+  updatedAt           DateTime        @updatedAt
+
+  wings               Wing[]
+  milestones          ConstructionMilestone[]
+  templates           Template[]
+  tenants             Tenant[]
+  sales               Sale[]
+  auditLogs           AuditLog[]
+
+  @@map("projects")
+}
+
+
+
+
+
+model Wing {
+  id          String  @id @default(cuid())
+  projectId   String
+  name        String  // A, B, Tower 1
+  totalFloors Int
+  createdAt   DateTime @default(now())
+
+  project     Project @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  floors      Floor[]
+
+  @@map("wings")
+}
+
+model Floor {
+  id              String  @id @default(cuid())
+  wingId          String
+  floorNumber     Int
+  floorPlanUrl    String?
+  createdAt       DateTime @default(now())
+
+  wing            Wing    @relation(fields: [wingId], references: [id], onDelete: Cascade)
+  units           Unit[]
+
+  @@map("floors")
+}
+
+model Unit {
+  id                  String      @id @default(cuid())
+  floorId             String
+  unitNumber          String      // A-301
+  configuration       String      // 1BHK, 2BHK, 3BHK
+  carpetAreaSqft      Float     
+  builtupAreaSqft     Float?    
+  basePricePerSqft    Float?    
+  status String @default("AVAILABLE")
+  createdAt           DateTime    @default(now())
+  updatedAt           DateTime    @updatedAt
+
+  floor               Floor       @relation(fields: [floorId], references: [id], onDelete: Cascade)
+  sales               Sale[]
+  inquiries           Inquiry[]
+  tenant              Tenant?
+
+  @@map("units")
+}
+
+
+
+// ─────────────────────────────────────────────
+// TENANT (Redevelopment)
+// ─────────────────────────────────────────────
+
+model Tenant {
+  id                  String    @id @default(cuid())
+  projectId           String
+  newUnitId           String?   @unique
+  name                String
+  oldFlatNumber       String
+  oldAreaSqft         Float   
+  extraAreaSqft       Float   @default(0) 
+  whatsappNumber      String?
+  email               String?
+  receiveComms        Boolean   @default(true)
+  createdAt           DateTime  @default(now())
+  updatedAt           DateTime  @updatedAt
+
+  project             Project   @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  newUnit             Unit?     @relation(fields: [newUnitId], references: [id])
+  sale                Sale?
+
+  @@map("tenants")
+}
+
+// ─────────────────────────────────────────────
+// SALE
+// ─────────────────────────────────────────────
+
+model Sale {
+  id                    String      @id @default(cuid())
+  saleNumber            String      @unique // PRJ-001
+  projectId             String
+  unitId                String
+  tenantId              String?     @unique
+  saleType              String      @default("FRESH")
+  agreementValue        Float     
+  gstAmount             Float      // 5% of agreementValue
+  stampDuty             Float?    
+  registrationCharges   Float?    
+  carParking            Boolean     @default(false)
+  carParkingCharges     Float?      // Actual car parking amount charged
+  parkingPodiumLevel    String?
+  parkingFloor          String?
+  parkingNumber         String?
+  bookingAmount         Float?      // Custom booking amount received
+  bookingDate           DateTime
+  agreementDate         DateTime?
+  possessionDate        DateTime?
+  status                String      @default("BOOKED")
+  nameChangeHistory     Json?       // array of {oldName, newName, date, userId}
+  createdAt             DateTime    @default(now())
+  updatedAt             DateTime    @updatedAt
+
+  project               Project     @relation(fields: [projectId], references: [id])
+  unit                  Unit        @relation(fields: [unitId], references: [id])
+  tenant                Tenant?     @relation(fields: [tenantId], references: [id])
+  buyers                Buyer[]
+  paymentSchedules      PaymentSchedule[]
+  payments              Payment[]
+  documents             Document[]
+  communicationLogs     CommunicationLog[]
+  loans                 Loan[]
+
+  @@map("sales")
+}
+
+
+
+
+
+// ─────────────────────────────────────────────
+// BUYER
+// ─────────────────────────────────────────────
+
+model Buyer {
+  id                  String      @id @default(cuid())
+  saleId              String
+  fullName            String
+  email               String?
+  whatsappNumber      String?
+  panNumber           String?
+  aadhaarNumber       String?
+  address             String?
+  isPrimary           Boolean     @default(false)
+  sequence            Int         @default(1)
+  receiveComms        Boolean     @default(true)
+  createdAt           DateTime    @default(now())
+  updatedAt           DateTime    @updatedAt
+
+  sale                Sale        @relation(fields: [saleId], references: [id], onDelete: Cascade)
+  kycDocuments        KycDocument[]
+  communicationLogs   CommunicationLog[]
+
+  @@map("buyers")
+}
+
+model KycDocument {
+  id              String        @id @default(cuid())
+  buyerId         String
+  docType String
+  fileUrl         String
+  status String @default("UPLOADED")
+  rejectionReason String?
+  verifiedAt      DateTime?
+  createdAt       DateTime      @default(now())
+  updatedAt       DateTime      @updatedAt
+
+  buyer           Buyer         @relation(fields: [buyerId], references: [id], onDelete: Cascade)
+
+  @@map("kyc_documents")
+}
+
+
+
+
+
+// ─────────────────────────────────────────────
+// PAYMENT SCHEDULE & PAYMENTS
+// ─────────────────────────────────────────────
+
+model ConstructionMilestone {
+  id                      String              @id @default(cuid())
+  projectId               String
+  name                    String              // Plinth Complete, 5th Slab
+  sequence                Int
+  percentOfAV             Float               @default(0)   // % of Agreement Value for payment plan
+  plannedDate             DateTime?
+  actualDate              DateTime?
+  status String @default("UPCOMING")
+  architectCertificateUrl String?
+  completedAt             DateTime?
+  createdAt               DateTime            @default(now())
+  updatedAt               DateTime            @updatedAt
+
+  project                 Project             @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  paymentSchedules        PaymentSchedule[]
+
+  @@map("construction_milestones")
+}
+
+
+
+model PaymentSchedule {
+  id                      String          @id @default(cuid())
+  saleId                  String
+  milestoneId             String?
+  description             String          // On Booking, On Plinth
+  principalAmount         Float         
+  gstAmount               Float         @default(0) 
+  dueDate                 DateTime?
+  demandGeneratedDate     DateTime?
+  interestAmount          Float         @default(0) 
+  status String @default("UPCOMING")
+  reminderCount           Int             @default(0)
+  lastReminderAt          DateTime?
+  managementEscalated     Boolean         @default(false)
+  managementApprovedStern Boolean         @default(false)
+  managementApprovedAt    DateTime?
+  managementApprovedBy    String?
+  createdAt               DateTime        @default(now())
+  updatedAt               DateTime        @updatedAt
+
+  sale                    Sale            @relation(fields: [saleId], references: [id], onDelete: Cascade)
+  milestone               ConstructionMilestone? @relation(fields: [milestoneId], references: [id])
+  payments                Payment[]
+
+  @@map("payment_schedules")
+}
+
+
+
+model Payment {
+  id              String        @id @default(cuid())
+  scheduleId      String
+  saleId          String
+  amount          Float       
+  gstPaid         Float       @default(0) 
+  mode String
+  referenceNumber String?       // UTR, cheque number
+  bankName        String?
+  remark          String?
+  paymentDate     DateTime
+  clearedDate     DateTime?
+  receiptNumber   String        @unique // RCP-PRJ-0001
+  receiptPdfUrl   String?
+  receiptSent     Boolean       @default(false)
+  createdAt       DateTime      @default(now())
+  updatedAt       DateTime      @updatedAt
+
+  schedule        PaymentSchedule @relation(fields: [scheduleId], references: [id])
+  sale            Sale            @relation(fields: [saleId], references: [id])
+  tdsRecord       TdsRecord?
+
+  @@map("payments")
+}
+
+
+
+model TdsRecord {
+  id                  String    @id @default(cuid())
+  paymentId           String    @unique
+  saleId              String
+  tdsAmount           Float    // 1% of payment
+  form26QBAckNumber   String?
+  tdsDepositedDate    DateTime?
+  certificateUrl      String?
+  status String @default("PENDING")
+  createdAt           DateTime  @default(now())
+  updatedAt           DateTime  @updatedAt
+
+  payment             Payment   @relation(fields: [paymentId], references: [id])
+
+  @@map("tds_records")
+}
+
+
+
+// ─────────────────────────────────────────────
+// LOAN
+// ─────────────────────────────────────────────
+
+model Loan {
+  id                  String      @id @default(cuid())
+  saleId              String
+  bankName            String
+  sanctionedAmount    Float     
+  sanctionLetterUrl   String?
+  totalDisbursed      Float     @default(0) 
+  status String @default("APPLIED")
+  disbursements       LoanDisbursement[]
+  createdAt           DateTime    @default(now())
+  updatedAt           DateTime    @updatedAt
+
+  sale                Sale        @relation(fields: [saleId], references: [id], onDelete: Cascade)
+
+  @@map("loans")
+}
+
+
+
+model LoanDisbursement {
+  id          String    @id @default(cuid())
+  loanId      String
+  amount      Float   
+  date        DateTime
+  referenceNo String?
+  notes       String?
+  createdAt   DateTime  @default(now())
+
+  loan        Loan      @relation(fields: [loanId], references: [id], onDelete: Cascade)
+
+  @@map("loan_disbursements")
+}
+
+// ─────────────────────────────────────────────
+// TEMPLATES & DOCUMENTS
+// ─────────────────────────────────────────────
+
+model Template {
+  id              String        @id @default(cuid())
+  projectId       String
+  type String
+  name            String
+  templateHtml    String?       // HTML with {{variables}} for PDFs
+  fileUrl         String?       // S3/Local URL for .docx templates
+  version         Int           @default(1)
+  isActive        Boolean       @default(true)
+  createdAt       DateTime      @default(now())
+  updatedAt       DateTime      @updatedAt
+
+  project         Project       @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  documents       Document[]
+
+  @@map("templates")
+}
+
+
+
+model Document {
+  id              String        @id @default(cuid())
+  saleId          String
+  templateId      String?
+  type String
+  pdfUrl          String?
+  status String @default("DRAFT")
+  generatedAt     DateTime?
+  sentAt          DateTime?
+  createdAt       DateTime      @default(now())
+  updatedAt       DateTime      @updatedAt
+
+  sale            Sale          @relation(fields: [saleId], references: [id], onDelete: Cascade)
+  template        Template?     @relation(fields: [templateId], references: [id])
+  communicationLogs CommunicationLog[]
+
+  @@map("documents")
+}
+
+
+
+
+
+// ─────────────────────────────────────────────
+// COMMUNICATION LOG
+// ─────────────────────────────────────────────
+
+model CommunicationLog {
+  id                  String      @id @default(cuid())
+  saleId              String
+  buyerId             String?
+  documentId          String?
+  channel String
+  type String
+  messageContent      String?
+  status String @default("QUEUED")
+  providerMessageId   String?
+  sentAt              DateTime?
+  deliveredAt         DateTime?
+  readAt              DateTime?
+  failureReason       String?
+  createdAt           DateTime    @default(now())
+
+  sale                Sale        @relation(fields: [saleId], references: [id], onDelete: Cascade)
+  buyer               Buyer?      @relation(fields: [buyerId], references: [id])
+  document            Document?   @relation(fields: [documentId], references: [id])
+
+  @@map("communication_logs")
+}
+
+
+
+
+
+
+
+// ─────────────────────────────────────────────
+// AUDIT LOG
+// ─────────────────────────────────────────────
+
+model AuditLog {
+  id          String    @id @default(cuid())
+  userId      String?
+  projectId   String?
+  entityType  String    // sale, payment, document, unit...
+  entityId    String
+  action      String    // created, updated, deleted, sent, generated, verified
+  oldValues   Json?
+  newValues   Json?
+  ipAddress   String?
+  userAgent   String?
+  createdAt   DateTime  @default(now())
+
+  user        User?     @relation(fields: [userId], references: [id])
+  project     Project?  @relation(fields: [projectId], references: [id])
+
+  @@index([entityType, entityId])
+  @@index([createdAt])
+  @@map("audit_logs")
+}
