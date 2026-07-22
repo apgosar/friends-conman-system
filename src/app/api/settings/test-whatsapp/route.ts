@@ -17,7 +17,7 @@ export async function POST(req: NextRequest) {
       to: phone,
       message: 'BuildSight WhatsApp Integration Test',
       templateName: 'demands_and_receipts',
-      templateLanguage: 'en_US',
+      templateLanguage: 'en',
       templateBodyParams: [
         'Ankur Gosar',              // {{1}} Buyer Name
         'Sea View Heights',         // {{2}} Project Name

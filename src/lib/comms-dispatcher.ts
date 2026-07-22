@@ -213,7 +213,7 @@ export async function dispatchCommunicationLog(logId: string): Promise<DispatchR
         to: phone.replace(/\D/g, ''), // strip non-digits
         message: plainText,
         templateName: 'demands_and_receipts',
-        templateLanguage: 'en_US',
+        templateLanguage: 'en',
         templateBodyParams: [
           buyerName,      // {{1}}
           projectName,    // {{2}}

@@ -64,7 +64,7 @@ export async function sendWhatsApp(msg: WhatsAppMessage): Promise<WhatsAppResult
       type: 'template',
       template: {
         name: msg.templateName,
-        language: { code: msg.templateLanguage ?? 'en_US' },
+        language: { code: msg.templateLanguage ?? 'en' },
         ...(components.length > 0 ? { components } : {}),
       },
     }
