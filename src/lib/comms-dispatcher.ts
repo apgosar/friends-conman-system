@@ -155,12 +155,27 @@ export async function dispatchCommunicationLog(logId: string): Promise<DispatchR
         plainText += `\n\nLink to ${attachMatch[1]}: ${fullUrl}`
       }
 
+      // Fetch sale + unit details for template parameters
+      const saleDetails = log.sale
+        ? await prisma.sale.findUnique({
+            where: { id: log.sale.id },
+            include: {
+              project: { select: { name: true } },
+              unit: { select: { unitNumber: true, configuration: true } },
+            },
+          })
+        : null
+
+      const projectName = saleDetails?.project?.name ?? 'Your Project'
+      const unitNumber = saleDetails?.unit?.unitNumber ?? 'N/A'
+      const configuration = saleDetails?.unit?.configuration ?? 'N/A'
+
       const result = await sendWhatsApp({
         to: phone.replace(/\D/g, ''), // strip non-digits
         message: plainText,
-        documentUrl: docUrl,
-        documentFilename: docFilename,
-        caption: plainText.split('\n')[0], // first line as caption
+        templateName: 'demands_and_receipts',
+        templateLanguage: 'en_US',
+        templateBodyParams: [projectName, unitNumber, configuration],
       })
 
       await prisma.communicationLog.update({

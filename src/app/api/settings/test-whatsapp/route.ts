@@ -16,8 +16,10 @@ export async function POST(req: NextRequest) {
     const result = await sendWhatsApp({
       to: phone,
       message: 'BuildSight WhatsApp Integration Test',
-      templateName: 'hello_world', // Use default Meta template to bypass 24hr block
-      templateLanguage: 'en_US'
+      templateName: 'demands_and_receipts',
+      templateLanguage: 'en_US',
+      // Sample values for {{1}} projectName, {{2}} unitNumber, {{3}} configuration
+      templateBodyParams: ['Sea View Heights', 'A-101', '2BHK'],
     })
 
     return Response.json({ success: true, messageId: result.messageId, status: result.status })

@@ -7,14 +7,21 @@
  *   WHATSAPP_ACCESS_TOKEN     — permanent system user token from Meta Business Manager
  */
 
+export interface WhatsAppTemplateParam {
+  type: 'text' | 'currency' | 'date_time'
+  text?: string
+}
+
 export interface WhatsAppMessage {
   to: string           // phone with country code, no +  e.g. "919876543210"
-  message: string      // plain-text body
+  message: string      // plain-text body (used as fallback / logging)
   documentUrl?: string // publicly accessible URL of a PDF/DOCX to attach
   documentFilename?: string
   caption?: string
+  // Template fields
   templateName?: string
   templateLanguage?: string
+  templateBodyParams?: string[]  // ordered list of {{1}}, {{2}}, {{3}} values
 }
 
 export interface WhatsAppResult {
@@ -37,16 +44,29 @@ export async function sendWhatsApp(msg: WhatsAppMessage): Promise<WhatsAppResult
   const url = `https://graph.facebook.com/v19.0/${phoneNumberId}/messages`
 
   let body: any
-  
+
   if (msg.templateName) {
+    // Build template components with body parameters if provided
+    const components: any[] = []
+    if (msg.templateBodyParams && msg.templateBodyParams.length > 0) {
+      components.push({
+        type: 'body',
+        parameters: msg.templateBodyParams.map((text) => ({
+          type: 'text',
+          text,
+        })),
+      })
+    }
+
     body = {
       messaging_product: 'whatsapp',
       to: msg.to,
       type: 'template',
       template: {
         name: msg.templateName,
-        language: { code: msg.templateLanguage ?? 'en_US' }
-      }
+        language: { code: msg.templateLanguage ?? 'en_US' },
+        ...(components.length > 0 ? { components } : {}),
+      },
     }
   } else if (msg.documentUrl) {
     body = {
