@@ -22,6 +22,6 @@ export async function POST(req: NextRequest) {
 
     return Response.json({ success: true, messageId: result.messageId, status: result.status })
   } catch (err: any) {
-    return Response.json({ success: false, error: err.message }, { status: 500 })
+    return Response.json({ success: false, error: err.message, detail: err.stack }, { status: 500 })
   }
 }
