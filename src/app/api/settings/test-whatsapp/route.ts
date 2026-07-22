@@ -15,7 +15,9 @@ export async function POST(req: NextRequest) {
 
     const result = await sendWhatsApp({
       to: phone,
-      message: `✅ *BuildSight — WhatsApp Integration Test*\n\nThis is a test message from BuildSight Property Management.\n\nYour WhatsApp Cloud API configuration is working correctly. Demand letters and receipts will be delivered to buyers via WhatsApp automatically.\n\nSent at: ${new Date().toLocaleString('en-IN')}`,
+      message: 'BuildSight WhatsApp Integration Test',
+      templateName: 'hello_world', // Use default Meta template to bypass 24hr block
+      templateLanguage: 'en_US'
     })
 
     return Response.json({ success: true, messageId: result.messageId, status: result.status })

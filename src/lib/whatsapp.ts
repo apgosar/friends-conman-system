@@ -13,6 +13,8 @@ export interface WhatsAppMessage {
   documentUrl?: string // publicly accessible URL of a PDF/DOCX to attach
   documentFilename?: string
   caption?: string
+  templateName?: string
+  templateLanguage?: string
 }
 
 export interface WhatsAppResult {
@@ -34,25 +36,37 @@ export async function sendWhatsApp(msg: WhatsAppMessage): Promise<WhatsAppResult
 
   const url = `https://graph.facebook.com/v19.0/${phoneNumberId}/messages`
 
-  // If there's a document, send as document message with caption
-  // Otherwise send as a plain text message
-  const body = msg.documentUrl
-    ? {
-        messaging_product: 'whatsapp',
-        to: msg.to,
-        type: 'document',
-        document: {
-          link: msg.documentUrl,
-          filename: msg.documentFilename ?? 'Document.pdf',
-          caption: msg.caption ?? msg.message,
-        },
+  let body: any
+  
+  if (msg.templateName) {
+    body = {
+      messaging_product: 'whatsapp',
+      to: msg.to,
+      type: 'template',
+      template: {
+        name: msg.templateName,
+        language: { code: msg.templateLanguage ?? 'en_US' }
       }
-    : {
-        messaging_product: 'whatsapp',
-        to: msg.to,
-        type: 'text',
-        text: { body: msg.message, preview_url: false },
-      }
+    }
+  } else if (msg.documentUrl) {
+    body = {
+      messaging_product: 'whatsapp',
+      to: msg.to,
+      type: 'document',
+      document: {
+        link: msg.documentUrl,
+        filename: msg.documentFilename ?? 'Document.pdf',
+        caption: msg.caption ?? msg.message,
+      },
+    }
+  } else {
+    body = {
+      messaging_product: 'whatsapp',
+      to: msg.to,
+      type: 'text',
+      text: { body: msg.message, preview_url: false },
+    }
+  }
 
   const res = await fetch(url, {
     method: 'POST',
@@ -66,7 +80,8 @@ export async function sendWhatsApp(msg: WhatsAppMessage): Promise<WhatsAppResult
   const data = await res.json()
 
   if (!res.ok) {
-    throw new Error(data?.error?.message ?? `WhatsApp API error: ${res.status}`)
+    const errorMsg = data?.error ? JSON.stringify(data.error) : res.statusText
+    throw new Error(`WhatsApp API error: ${errorMsg}`)
   }
 
   const messageId = data?.messages?.[0]?.id ?? 'unknown'
