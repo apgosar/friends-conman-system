@@ -22,7 +22,7 @@ export async function generatePdf(htmlTemplate: string, data: TemplateContext): 
     const page = await browser.newPage()
     
     // Set HTML content
-    await page.setContent(finalHtml, { waitUntil: 'networkidle0' })
+    await page.setContent(finalHtml, { waitUntil: 'load' })
     
     // Generate PDF
     const pdfBuffer = await page.pdf({

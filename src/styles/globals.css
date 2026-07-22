@@ -224,6 +224,7 @@ p { color: var(--text-secondary); }
 }
 .btn-primary:hover {
   background: var(--color-primary-hover);
+  color: #fff;
   box-shadow: var(--shadow-glow);
   transform: translateY(-1px);
 }

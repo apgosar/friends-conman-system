@@ -1,8 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/db'
 import { generateDocx } from '@/lib/docx'
-import { generatePdf } from '@/lib/pdf'
-import { numberToWords, formatDate } from '@/lib/template-engine'
+import { numberToWords, formatDate, renderTemplate } from '@/lib/template-engine'
 import fs from 'fs'
 import path from 'path'
 
@@ -59,14 +58,21 @@ export async function GET(req: NextRequest) {
     }
 
     // Map all schedules for the payment plan table
-    const paymentPlan = sale.paymentSchedules.map((ps, index) => {
+    const paymentPlan = sale.paymentSchedules.filter((ps) => Number(ps.principalAmount) > 0).map((ps, index) => {
       const principal = Number(ps.principalAmount)
       const gst = Number(ps.gstAmount)
-      const pct = ps.milestone?.percentOfAV
+      
+      let pctLabel = '—'
+      const descLower = ps.description.toLowerCase()
+      if (!descLower.includes('stamp duty') && !descLower.includes('parking') && !descLower.includes('registration')) {
+         const calculatedPct = Number(((principal / Number(sale.agreementValue)) * 100).toFixed(2))
+         pctLabel = calculatedPct > 0 ? `${calculatedPct}%` : '—'
+      }
+
       return {
         index: index + 1,
         description: ps.description,
-        percentOfAV: pct ? `${pct}%` : '—',
+        percentOfAV: pctLabel,
         principalAmount: fmtCur(principal),
         gstAmount: fmtCur(gst),
         totalAmount: fmtCur(principal + gst)
@@ -84,6 +90,9 @@ export async function GET(req: NextRequest) {
         }
       })
     })
+
+    const bookingSchedule = sale.paymentSchedules.find(ps => ps.description.toLowerCase().includes('booking')) || sale.paymentSchedules[0]
+    const actualBookingAmount = bookingSchedule ? Number(bookingSchedule.principalAmount) : (sale.bookingAmount || 0)
 
     const docxData = {
       companyName: sale.project.companyName,
@@ -124,8 +133,10 @@ export async function GET(req: NextRequest) {
       agreementValue: fmtCur(sale.agreementValue),
       agreementValueWords: numberToWords(Number(sale.agreementValue)),
       gstAmount: fmtCur(sale.gstAmount),
-      bookingAmount: fmtCur(sale.bookingAmount ?? sale.paymentSchedules[0]?.principalAmount),
-      bookingAmountWords: numberToWords(Number(sale.bookingAmount ?? sale.paymentSchedules[0]?.principalAmount ?? 0)),
+      bookingAmount: fmtCur(actualBookingAmount),
+      bookingAmountWords: numberToWords(actualBookingAmount),
+      balanceAmount: fmtCur(sale.agreementValue - actualBookingAmount),
+      balanceAmountWords: numberToWords(sale.agreementValue - actualBookingAmount),
       bookingDate: formatDate(sale.bookingDate),
       todayDate: formatDate(new Date()),
       
@@ -161,20 +172,62 @@ export async function GET(req: NextRequest) {
       
       const templateBuffer = fs.readFileSync(templatePath)
       outBuffer = generateDocx(templateBuffer, docxData)
-      return new Response(outBuffer, {
+      return new Response(new Uint8Array(outBuffer), {
         headers: {
           'Content-Type': 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
           'Content-Disposition': `inline; filename="Receipt_${payment.receiptNumber || payment.id}.docx"`
         }
       })
     } else if (template.templateHtml) {
-      // It's an HTML template for PDF
-      outBuffer = await generatePdf(template.templateHtml, docxData as any)
-      return new Response(outBuffer, {
-        headers: {
-          'Content-Type': 'application/pdf',
-          'Content-Disposition': `inline; filename="Receipt_${payment.receiptNumber || payment.id}.pdf"`
-        }
+      // Client-Side PDF Generation
+      const rawHtml = renderTemplate(template.templateHtml, docxData as any)
+      
+      const clientSideScript = `
+        <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
+        <script>
+          window.onload = function() {
+            var element = document.body;
+            var opt = {
+              margin:       10,
+              filename:     'Receipt_${payment.receiptNumber || payment.id}.pdf',
+              image:        { type: 'jpeg', quality: 0.98 },
+              html2canvas:  { 
+                scale: 2,
+                ignoreElements: function(node) {
+                  return node.id === 'pdf-banner';
+                }
+              },
+              jsPDF:        { unit: 'mm', format: 'a4', orientation: 'portrait' }
+            };
+            
+            var banner = document.createElement('div');
+            banner.id = 'pdf-banner';
+            banner.style.padding = '10px';
+            banner.style.background = '#2563eb';
+            banner.style.color = 'white';
+            banner.style.textAlign = 'center';
+            banner.style.fontFamily = 'sans-serif';
+            banner.style.fontWeight = 'bold';
+            banner.style.position = 'fixed';
+            banner.style.top = '0';
+            banner.style.left = '0';
+            banner.style.right = '0';
+            banner.style.zIndex = '9999';
+            banner.innerText = 'Generating PDF... Please wait.';
+            document.body.prepend(banner);
+
+            html2pdf().set(opt).from(element).save().then(function() {
+              banner.innerText = 'PDF Downloaded!';
+              setTimeout(function() { banner.remove(); }, 3000);
+            });
+          };
+        </script>
+      `
+      
+      const finalHtml = `${rawHtml}${clientSideScript}`
+      
+      return new Response(finalHtml, {
+        headers: { 'Content-Type': 'text/html; charset=utf-8' }
       })
     } else {
       throw new Error('Template is missing both HTML and File URL')

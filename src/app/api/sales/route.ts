@@ -1,6 +1,7 @@
 import { NextRequest } from 'next/server'
 import { prisma } from '@/lib/db'
 import { auth } from '@/lib/auth'
+import { dispatchAllPending } from '@/lib/comms-dispatcher'
 import { generateSaleNumber } from '@/lib/receipt-number'
 import { createAuditLog } from '@/lib/audit'
 
@@ -56,6 +57,10 @@ export async function POST(req: NextRequest) {
         isPrimary: i === 0, sequence: i + 1, receiveComms: b.receiveComms !== false,
       })),
     })
+    
+    // Fetch the primary buyer we just created to attach to comm logs
+    const createdPrimaryBuyer = await tx.buyer.findFirst({ where: { saleId: newSale.id, isPrimary: true } })
+
     if (paymentSchedules?.length) {
       // Fetch milestone statuses to see if they are already completed
       const milestoneIds = paymentSchedules.map((ps: any) => ps.milestoneId).filter(Boolean)
@@ -110,39 +115,48 @@ export async function POST(req: NextRequest) {
         dueSchedules.forEach((schedule: any) => {
           const milestone = milestoneMap.get(schedule.milestoneId!)
           const amount = Number(schedule.principalAmount) + Number(schedule.gstAmount)
-          const content = `Dear ${primaryBuyer?.fullName || 'Customer'},\nThe milestone '${milestone?.name}' is now complete. Please find the attached Demand Letter for ₹${amount.toLocaleString('en-IN')} and the Architect Completion Certificate.\nDue Date: ${schedule.dueDate ? new Date(schedule.dueDate).toLocaleDateString('en-IN') : 'N/A'}.\n\nATTACHMENTS:\nArchitect Certificate|${milestone?.architectCertificateUrl || ''}\nDemand Letter|/dummy-demand-letter.pdf`
+          const isTaxOrParking = schedule.description.toLowerCase().includes('stamp duty') || schedule.description.toLowerCase().includes('registration') || schedule.description.toLowerCase().includes('parking')
+          
+          let content = ''
+          if (isTaxOrParking) {
+             content = `Dear ${primaryBuyer?.fullName || 'Customer'},\nPayment for '${schedule.description}' is now due. Please find the attached Demand Letter for ₹${amount.toLocaleString('en-IN')}.\nDue Date: ${schedule.dueDate ? new Date(schedule.dueDate).toLocaleDateString('en-IN') : 'N/A'}.\n\nATTACHMENTS:\nDemand Letter|/api/documents/preview/demand-letter?saleId=${newSale.id}&milestoneName=${encodeURIComponent(schedule.description)}`
+          } else {
+             content = `Dear ${primaryBuyer?.fullName || 'Customer'},\nThe milestone '${milestone?.name}' is now complete. Please find the attached Demand Letter for ₹${amount.toLocaleString('en-IN')} and the Architect Completion Certificate.\nDue Date: ${schedule.dueDate ? new Date(schedule.dueDate).toLocaleDateString('en-IN') : 'N/A'}.\n\nATTACHMENTS:\nArchitect Certificate|${milestone?.architectCertificateUrl || ''}\nDemand Letter|/api/documents/preview/demand-letter?saleId=${newSale.id}&milestoneName=${encodeURIComponent(milestone?.name || '')}`
+          }
           
           // Email Log
           commLogs.push({
             saleId: newSale.id,
+            buyerId: createdPrimaryBuyer?.id,
             channel: 'EMAIL',
             type: 'DEMAND_LETTER',
             messageContent: content,
-            status: 'DELIVERED',
-            sentAt: new Date(),
-            deliveredAt: new Date()
+            status: 'PENDING',
           })
 
           // WhatsApp Log
           commLogs.push({
             saleId: newSale.id,
+            buyerId: createdPrimaryBuyer?.id,
             channel: 'WHATSAPP',
             type: 'DEMAND_LETTER',
             messageContent: content,
-            status: 'DELIVERED',
-            sentAt: new Date(),
-            deliveredAt: new Date()
+            status: 'PENDING',
           })
         })
         
         await tx.communicationLog.createMany({
           data: commLogs
         })
+
+        // Dispatch immediately after the transaction completes — done outside tx below
       }
     }
     await tx.unit.update({ where: { id: unitId }, data: { status: 'BOOKED' } })
     return newSale
   })
   await createAuditLog({ userId: session.user.id, projectId, entityType: 'sale', entityId: sale.id, action: 'created', newValues: { saleNumber, saleType, agreementValue } })
+  // Dispatch pending comm logs (booking demand notifications)
+  dispatchAllPending().catch(console.error) // fire-and-forget so it doesn't block the response
   return Response.json({ success: true, data: sale }, { status: 201 })
 }

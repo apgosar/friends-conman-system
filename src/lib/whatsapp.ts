@@ -1,16 +1,18 @@
 /**
- * Pluggable WhatsApp provider interface.
- * Supports Gupshup and Wati. Set WHATSAPP_PROVIDER env var.
+ * WhatsApp Cloud API (Meta/official) integration.
+ * Uses the free WhatsApp Business Cloud API directly — no third-party provider needed.
+ *
+ * Required env vars:
+ *   WHATSAPP_PHONE_NUMBER_ID  — from Meta Developer Console → WhatsApp → API Setup
+ *   WHATSAPP_ACCESS_TOKEN     — permanent system user token from Meta Business Manager
  */
 
 export interface WhatsAppMessage {
-  to: string // phone with country code, no +
-  templateName?: string
-  templateParams?: string[]
-  message?: string
-  mediaUrl?: string
-  mediaType?: 'document' | 'image'
-  mediaFilename?: string
+  to: string           // phone with country code, no +  e.g. "919876543210"
+  message: string      // plain-text body
+  documentUrl?: string // publicly accessible URL of a PDF/DOCX to attach
+  documentFilename?: string
+  caption?: string
 }
 
 export interface WhatsAppResult {
@@ -18,56 +20,55 @@ export interface WhatsAppResult {
   status: string
 }
 
-async function sendViaGupshup(msg: WhatsAppMessage): Promise<WhatsAppResult> {
-  const apiKey = process.env.GUPSHUP_API_KEY!
-  const appName = process.env.GUPSHUP_APP_NAME!
-  const url = 'https://api.gupshup.io/sm/api/v1/msg'
+export async function sendWhatsApp(msg: WhatsAppMessage): Promise<WhatsAppResult> {
+  const phoneNumberId = process.env.WHATSAPP_PHONE_NUMBER_ID
+  const accessToken = process.env.WHATSAPP_ACCESS_TOKEN
 
-  const params = new URLSearchParams({
-    channel: 'whatsapp',
-    source: appName,
-    destination: msg.to,
-    'src.name': appName,
-    message: JSON.stringify(
-      msg.mediaUrl
-        ? {
-            type: msg.mediaType ?? 'document',
-            url: msg.mediaUrl,
-            filename: msg.mediaFilename ?? 'document.pdf',
-            caption: msg.message ?? '',
-          }
-        : { type: 'text', text: msg.message ?? '' }
-    ),
-  })
+  // Simulation mode — log to console when credentials are not configured
+  if (!phoneNumberId || !accessToken) {
+    console.log('[WhatsApp SIMULATION] Would send to:', msg.to)
+    console.log('[WhatsApp SIMULATION] Message:', msg.message)
+    if (msg.documentUrl) console.log('[WhatsApp SIMULATION] Document:', msg.documentUrl)
+    return { messageId: `sim_${Date.now()}`, status: 'simulated' }
+  }
+
+  const url = `https://graph.facebook.com/v19.0/${phoneNumberId}/messages`
+
+  // If there's a document, send as document message with caption
+  // Otherwise send as a plain text message
+  const body = msg.documentUrl
+    ? {
+        messaging_product: 'whatsapp',
+        to: msg.to,
+        type: 'document',
+        document: {
+          link: msg.documentUrl,
+          filename: msg.documentFilename ?? 'Document.pdf',
+          caption: msg.caption ?? msg.message,
+        },
+      }
+    : {
+        messaging_product: 'whatsapp',
+        to: msg.to,
+        type: 'text',
+        text: { body: msg.message, preview_url: false },
+      }
 
   const res = await fetch(url, {
     method: 'POST',
-    headers: { apikey: apiKey, 'Content-Type': 'application/x-www-form-urlencoded' },
-    body: params,
+    headers: {
+      Authorization: `Bearer ${accessToken}`,
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify(body),
   })
+
   const data = await res.json()
-  return { messageId: data.messageId ?? data.messageIdList?.[0] ?? 'unknown', status: data.status }
-}
 
-async function sendViaWati(msg: WhatsAppMessage): Promise<WhatsAppResult> {
-  const apiUrl = process.env.WATI_API_URL!
-  const token = process.env.WATI_API_TOKEN!
+  if (!res.ok) {
+    throw new Error(data?.error?.message ?? `WhatsApp API error: ${res.status}`)
+  }
 
-  const res = await fetch(`${apiUrl}/api/v1/sendTemplateMessage?whatsappNumber=${msg.to}`, {
-    method: 'POST',
-    headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
-    body: JSON.stringify({
-      template_name: msg.templateName,
-      broadcast_name: msg.templateName,
-      parameters: msg.templateParams?.map((v, i) => ({ name: `param${i + 1}`, value: v })),
-    }),
-  })
-  const data = await res.json()
-  return { messageId: data.id ?? 'unknown', status: data.result ? 'sent' : 'failed' }
-}
-
-export async function sendWhatsApp(msg: WhatsAppMessage): Promise<WhatsAppResult> {
-  const provider = process.env.WHATSAPP_PROVIDER ?? 'gupshup'
-  if (provider === 'wati') return sendViaWati(msg)
-  return sendViaGupshup(msg)
+  const messageId = data?.messages?.[0]?.id ?? 'unknown'
+  return { messageId, status: 'sent' }
 }

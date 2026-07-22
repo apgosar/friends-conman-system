@@ -22,7 +22,7 @@ async function main() {
       city: 'Mumbai',
       type: 'MIXED',
       status: 'UNDER_CONSTRUCTION',
-      companyName: 'Friends ConMan Developers Pvt Ltd',
+      companyName: 'PARADIGM FRIENDS REALTORS LLP',
       companyAddress: '45 Builder Tower, Mumbai',
       companyGstin: '27AADCB2230M1Z2',
       stampDutyPercent: 5.0,
@@ -125,7 +125,7 @@ async function main() {
       city: 'Mumbai',
       type: 'MIXED',
       status: 'PLANNING',
-      companyName: 'Friends ConMan Developers Pvt Ltd',
+      companyName: 'PARADIGM FRIENDS REALTORS LLP',
       companyAddress: '45 Builder Tower, Mumbai',
       wings: {
         create: [

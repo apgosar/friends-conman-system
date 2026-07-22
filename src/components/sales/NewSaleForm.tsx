@@ -171,51 +171,79 @@ export default function NewSaleWizard({ projects }: { projects: any[] }) {
       m.name.toLowerCase().includes('possession')
     )
 
-    // Filter out 0% milestones except the very first (booking slot)
-    const activeMilestones = milestones.filter((m: any, idx: number) =>
-      idx === 0 || (m.percentOfAV && m.percentOfAV > 0)
-    )
+    const completedMilestones = milestones.filter((m: any) => m.status === 'COMPLETED')
+    const latestCompleted = completedMilestones.length > 1 ? completedMilestones[completedMilestones.length - 1] : null
 
-    const rows: ScheduleRow[] = activeMilestones.flatMap((m: any, index: number) => {
-      let basePrincipal = Math.round(agreementValue * (m.percentOfAV / 100))
+    let spillOverCredit = 0
+    const rows: ScheduleRow[] = []
 
-      if (bookingAmount !== '' && Number(bookingAmount) > 0) {
-        if (index === 0) {
-          basePrincipal = Number(bookingAmount)
-        } else if (index === 1) {
-          const originalFirst = Math.round(agreementValue * (activeMilestones[0].percentOfAV / 100))
-          basePrincipal += (originalFirst - Number(bookingAmount))
+    milestones.forEach((m: any, index: number) => {
+      const isPlinth = m.name.toLowerCase().includes('plinth') && m.percentOfAV > 0
+      
+      let shouldKeep = false
+      let basePrincipal = 0
+
+      if (index === 0) {
+        shouldKeep = true
+        basePrincipal = (bookingAmount !== '' && Number(bookingAmount) > 0) ? Number(bookingAmount) : Math.round(agreementValue * (m.percentOfAV / 100))
+        const originalFirst = Math.round(agreementValue * (m.percentOfAV / 100))
+        spillOverCredit = originalFirst - basePrincipal
+      } else if (latestCompleted && m.id === latestCompleted.id) {
+        shouldKeep = true
+        const totalCompletedPercent = completedMilestones.reduce((acc: number, curr: any) => acc + (curr.percentOfAV || 0), 0)
+        let targetPrincipal = Math.round(agreementValue * (totalCompletedPercent / 100))
+        const actualBooking = (bookingAmount !== '' && Number(bookingAmount) > 0) ? Number(bookingAmount) : Math.round(agreementValue * (milestones[0].percentOfAV / 100))
+        
+        targetPrincipal -= actualBooking
+        
+        if (targetPrincipal < 0) {
+          basePrincipal = 0
+          spillOverCredit = targetPrincipal
+        } else {
+          basePrincipal = targetPrincipal
+          spillOverCredit = 0
+        }
+      } else if (m.status === 'COMPLETED' && latestCompleted) {
+        shouldKeep = false
+      } else if (m.percentOfAV > 0) {
+        shouldKeep = true
+        basePrincipal = Math.round(agreementValue * (m.percentOfAV / 100))
+        
+        if (spillOverCredit !== 0) {
+          basePrincipal += spillOverCredit
+          if (basePrincipal < 0) {
+            spillOverCredit = basePrincipal
+            basePrincipal = 0
+          } else {
+            spillOverCredit = 0
+          }
         }
       }
 
-      const isPlinth = m.id === plinthMilestone?.id
-      const gstAmt = Math.round(basePrincipal * GST_RATE)
-
-      const pct = Number(((basePrincipal / agreementValue) * 100).toFixed(2))
-      const milestoneRow: ScheduleRow = {
-        milestoneId: m.id,
-        description: m.name,
-        principalAmount: basePrincipal,
-        gstAmount: gstAmt,
-        isPlinth: false,
-        sequence: m.sequence,
-        percentOfAV: pct,
+      if (shouldKeep && (basePrincipal > 0 || index === 0)) {
+        const pct = Number(((basePrincipal / agreementValue) * 100).toFixed(2))
+        const gstAmt = Math.round(basePrincipal * GST_RATE)
+        rows.push({
+          milestoneId: m.id,
+          description: m.name,
+          principalAmount: basePrincipal,
+          gstAmount: gstAmt,
+          isPlinth: false,
+          sequence: m.sequence,
+          percentOfAV: pct,
+        })
       }
 
-      // Insert Stamp Duty & Registration as a separate row IMMEDIATELY after Plinth Completion
       if (isPlinth && (stampDuty > 0 || regCharges > 0)) {
-        const stampDutyRow: ScheduleRow = {
-          milestoneId: plinthMilestone?.id || '',
+        rows.push({
+          milestoneId: m.id,
           description: 'Stamp Duty and Registration',
           principalAmount: stampDuty + regCharges,
           gstAmount: 0,
           isPlinth: true,
           sequence: m.sequence,
-        }
-        return [milestoneRow, stampDutyRow]
+        })
       }
-
-      return [milestoneRow]
     })
 
     // Add car parking as a separate row if selected — NO GST on parking
@@ -274,7 +302,7 @@ export default function NewSaleWizard({ projects }: { projects: any[] }) {
         bookingAmount: bookingAmount !== '' ? Number(bookingAmount) : undefined,
         bookingDate,
         buyers: buyers.map((b, i) => ({ ...b, isPrimary: i === 0, sequence: i + 1 })),
-        paymentSchedules: schedules.map(s => ({
+        paymentSchedules: schedules.filter(s => s.principalAmount > 0).map(s => ({
           milestoneId: s.milestoneId || undefined,
           description: s.description,
           principalAmount: s.principalAmount,  // already includes stamp duty + reg for plinth row

@@ -192,6 +192,10 @@ export default function BuildingViewer({ projectId }: { projectId: string }) {
   const [hoveredUnit, setHoveredUnit] = useState<{ unit: UnitData; x: number; y: number } | null>(null)
   const [selectedUnit, setSelectedUnit] = useState<UnitData | null>(null)
 
+  // Filters
+  const [filterStatus, setFilterStatus] = useState<string>('ALL')
+  const [filterType, setFilterType] = useState<string>('ALL')
+
   // Quote form state
   const [showQuoteForm, setShowQuoteForm] = useState(false)
   const [quoteData, setQuoteData] = useState({ customerName: '', mobileNumber: '', agreementValue: '', rate: '', parkingIncluded: false })
@@ -240,15 +244,24 @@ export default function BuildingViewer({ projectId }: { projectId: string }) {
 
     const polygons = new Map<string, { pts: [number, number][]; unit: UnitData }>()
 
-    const maxUnitsPerFloor = Math.max(...wing.floors.map((f) => f.units.length), 1)
-    const numFloors = wing.floors.length
+    const visibleFloors = wing.floors.filter(floor => {
+      if (filterStatus === 'ALL' && filterType === 'ALL') return true
+      return floor.units.some(unit => {
+        const matchesStatus = filterStatus === 'ALL' || unit.status === filterStatus
+        const matchesType = filterType === 'ALL' || unit.configuration === filterType
+        return matchesStatus && matchesType
+      })
+    })
+
+    const maxUnitsPerFloor = Math.max(...visibleFloors.map((f) => f.units.length), 1)
+    const numFloors = visibleFloors.length
 
     // Canvas origin — center horizontally, leave room at top
     const originX = 90 + (logicalW - 90 - maxUnitsPerFloor * (TW + GAP)) / 2
     const originY = 80 + numFloors * ((TH / 2 + TD + FLOOR_GAP))
 
     // Draw floors bottom → top so higher floors render on top
-    const sortedFloors = [...wing.floors].sort((a, b) => a.floorNumber - b.floorNumber)
+    const sortedFloors = [...visibleFloors].sort((a, b) => a.floorNumber - b.floorNumber)
     const rowStep = TH / 2 + TD + FLOOR_GAP
 
     // ── Pass 1: draw all tile geometry (no labels) ──
@@ -264,8 +277,14 @@ export default function BuildingViewer({ projectId }: { projectId: string }) {
         const colors = getStatusColor(unit.status)
         const isHovered = hoveredUnit?.unit.id === unit.id
         const tileLabel = `${unit.unitNumber} ${unit.configuration}`
+        
+        const matchesStatus = filterStatus === 'ALL' || unit.status === filterStatus
+        const matchesType = filterType === 'ALL' || unit.configuration === filterType
+        const isMatched = matchesStatus && matchesType
 
-        drawTile(ctx, x, y, colors, isHovered)
+        ctx.globalAlpha = isMatched ? 1 : 0.15
+        drawTile(ctx, x, y, colors, isHovered && isMatched)
+        ctx.globalAlpha = 1
 
         // Queue label for second pass
         labelQueue.push({ x, y, label: tileLabel, highlighted: isHovered })
@@ -306,7 +325,7 @@ export default function BuildingViewer({ projectId }: { projectId: string }) {
 
     ctx.restore() // remove DPR scale
     unitPolygonsRef.current = polygons
-  }, [wings, selectedWingIdx, hoveredUnit])
+  }, [wings, selectedWingIdx, hoveredUnit, filterStatus, filterType])
 
   useEffect(() => { draw() }, [draw])
 
@@ -317,9 +336,18 @@ export default function BuildingViewer({ projectId }: { projectId: string }) {
     const wing = wings[selectedWingIdx]
     if (!wing) return
 
+    const visibleFloors = wing.floors.filter(floor => {
+      if (filterStatus === 'ALL' && filterType === 'ALL') return true
+      return floor.units.some(unit => {
+        const matchesStatus = filterStatus === 'ALL' || unit.status === filterStatus
+        const matchesType = filterType === 'ALL' || unit.configuration === filterType
+        return matchesStatus && matchesType
+      })
+    })
+
     const dpr = window.devicePixelRatio || 1
-    const maxUnits = Math.max(...wing.floors.map((f) => f.units.length), 4)
-    const numFloors = wing.floors.length
+    const maxUnits = Math.max(...visibleFloors.map((f) => f.units.length), 4)
+    const numFloors = visibleFloors.length
     const rowStep = TH / 2 + TD + FLOOR_GAP
 
     // Logical (CSS) size
@@ -335,7 +363,7 @@ export default function BuildingViewer({ projectId }: { projectId: string }) {
     canvas.style.height = `${logicalH}px`
 
     draw()
-  }, [wings, selectedWingIdx, draw])
+  }, [wings, selectedWingIdx, draw, filterStatus, filterType])
 
   // ── Point-in-polygon hit test ──
   function pointInPolygon(px: number, py: number, pts: [number, number][]) {
@@ -463,11 +491,16 @@ export default function BuildingViewer({ projectId }: { projectId: string }) {
   }
 
   const activeWing = wings[selectedWingIdx]
+  
+  const availableTypes = activeWing 
+    ? Array.from(new Set(activeWing.floors.flatMap(f => f.units.map(u => u.configuration)))).filter(Boolean).sort()
+    : []
 
   return (
     <div style={{ position: 'relative' }}>
-      {/* Wing selector */}
-      <div style={{ display: 'flex', gap: 8, marginBottom: 16, flexWrap: 'wrap' }}>
+      {/* Filters and Wing selector */}
+      <div style={{ display: 'flex', gap: 16, marginBottom: 16, flexWrap: 'wrap', alignItems: 'center' }}>
+        <div style={{ display: 'flex', gap: 8 }}>
         {wings.map((wing, idx) => (
           <button
             key={wing.id}
@@ -478,6 +511,59 @@ export default function BuildingViewer({ projectId }: { projectId: string }) {
             Wing {wing.name}
           </button>
         ))}
+        </div>
+        
+        <div style={{ flex: 1 }} />
+        
+        <div style={{ display: 'flex', gap: 16, alignItems: 'center', flexWrap: 'wrap' }}>
+          <div style={{ display: 'flex', gap: 6 }}>
+            <button 
+              onClick={() => setFilterType('ALL')}
+              className={`badge ${filterType === 'ALL' ? 'badge-primary' : 'badge-muted'}`}
+              style={{ cursor: 'pointer', background: filterType === 'ALL' ? 'var(--color-primary)' : 'transparent', color: filterType === 'ALL' ? '#fff' : 'var(--text-secondary)' }}
+            >
+              All Types
+            </button>
+            {availableTypes.map(type => (
+              <button 
+                key={type as string}
+                onClick={() => setFilterType(type as string)}
+                className={`badge ${filterType === type ? 'badge-primary' : 'badge-muted'}`}
+                style={{ cursor: 'pointer', background: filterType === type ? 'var(--color-primary)' : 'transparent', color: filterType === type ? '#fff' : 'var(--text-secondary)' }}
+              >
+                {type as string}
+              </button>
+            ))}
+          </div>
+
+          <div style={{ width: 1, height: 20, background: 'var(--border-color)' }} />
+
+          <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
+            <button 
+              onClick={() => setFilterStatus('ALL')}
+              className={`badge ${filterStatus === 'ALL' ? 'badge-primary' : 'badge-muted'}`}
+              style={{ cursor: 'pointer', background: filterStatus === 'ALL' ? 'var(--color-primary)' : 'transparent', color: filterStatus === 'ALL' ? '#fff' : 'var(--text-secondary)' }}
+            >
+              All Status
+            </button>
+            {Object.keys(STATUS_COLOR).map(status => (
+              <button 
+                key={status}
+                onClick={() => setFilterStatus(status)}
+                className="badge"
+                style={{ 
+                  cursor: 'pointer',
+                  background: filterStatus === status ? STATUS_COLOR[status].top : 'transparent',
+                  color: filterStatus === status ? '#fff' : 'var(--text-secondary)',
+                  border: `1px solid ${filterStatus === status ? STATUS_COLOR[status].stroke : 'var(--border-color)'}`,
+                  opacity: filterStatus !== 'ALL' && filterStatus !== status ? 0.5 : 1
+                }}
+              >
+                {STATUS_COLOR[status].label}
+              </button>
+            ))}
+          </div>
+        </div>
       </div>
 
       {/* Canvas + Panel layout */}

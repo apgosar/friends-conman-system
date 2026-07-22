@@ -94,7 +94,7 @@ export default function NewProjectPage() {
               <div className="grid grid-2 gap-4 mb-4">
                 <div className="form-group">
                   <label className="form-label">Company Name *</label>
-                  <input name="companyName" className="form-input" required placeholder="Friends Construction Pvt. Ltd." />
+                  <input name="companyName" className="form-input" required placeholder="PARADIGM FRIENDS REALTORS LLP" />
                 </div>
                 <div className="form-group">
                   <label className="form-label">GSTIN</label>

@@ -31,8 +31,9 @@ export default function CommunicationLogTable({ logs }: { logs: any[] }) {
           <tbody>
             {logs.map(log => {
               const demandMatch = log.messageContent?.match(/The milestone '(.*?)' is now complete/)
+              const paymentMatch = log.messageContent?.match(/Payment for '(.*?)' is now due/)
               const receiptMatch = log.messageContent?.match(/MILESTONE:\s*(.*?)(?:\n|$)/)
-              const milestoneName = demandMatch ? demandMatch[1] : (receiptMatch ? receiptMatch[1] : '—')
+              const milestoneName = demandMatch ? demandMatch[1] : (paymentMatch ? paymentMatch[1] : (receiptMatch ? receiptMatch[1] : '—'))
               return (
                 <tr 
                   key={log.id} 
@@ -79,6 +80,9 @@ export default function CommunicationLogTable({ logs }: { logs: any[] }) {
                 <span className="badge badge-info">{selectedLog.type.replace(/_/g, ' ')}</span>
                 <span className={`badge ${selectedLog.status === 'DELIVERED' ? 'badge-success' : 'badge-muted'}`}>
                   {selectedLog.status}
+                </span>
+                <span className="badge" style={{ background: 'var(--bg-card)', border: '1px solid var(--border-color)', color: 'var(--text-secondary)' }}>
+                  Channel: {selectedLog.channel}
                 </span>
               </div>
 

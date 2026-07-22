@@ -1,6 +1,7 @@
 import { NextRequest } from 'next/server'
 import { prisma } from '@/lib/db'
 import { auth } from '@/lib/auth'
+import { dispatchAllPending } from '@/lib/comms-dispatcher'
 
 export async function POST(req: NextRequest, props: { params: Promise<{ id: string }> }) {
   const session = await auth()
@@ -63,7 +64,14 @@ export async function POST(req: NextRequest, props: { params: Promise<{ id: stri
       affectedSchedules.forEach(schedule => {
         const primaryBuyer = schedule.sale.buyers[0]
         const amount = Number(schedule.principalAmount) + Number(schedule.gstAmount)
-        const content = `Dear ${primaryBuyer?.fullName || 'Customer'},\nThe milestone '${milestone.name}' is now complete. Please find the attached Demand Letter for ₹${amount.toLocaleString('en-IN')} and the Architect Completion Certificate.\nDue Date: ${dueDate.toLocaleDateString('en-IN')}.\n\nATTACHMENTS:\nArchitect Certificate|${architectCertificateUrl}\nDemand Letter|/dummy-demand-letter.pdf`
+        const isTaxOrParking = schedule.description.toLowerCase().includes('stamp duty') || schedule.description.toLowerCase().includes('registration') || schedule.description.toLowerCase().includes('parking')
+        
+        let content = ''
+        if (isTaxOrParking) {
+           content = `Dear ${primaryBuyer?.fullName || 'Customer'},\nPayment for '${schedule.description}' is now due. Please find the attached Demand Letter for ₹${amount.toLocaleString('en-IN')}.\nDue Date: ${dueDate.toLocaleDateString('en-IN')}.\n\nATTACHMENTS:\nDemand Letter|/api/documents/preview/demand-letter?saleId=${schedule.saleId}&milestoneName=${encodeURIComponent(schedule.description)}`
+        } else {
+           content = `Dear ${primaryBuyer?.fullName || 'Customer'},\nThe milestone '${milestone.name}' is now complete. Please find the attached Demand Letter for ₹${amount.toLocaleString('en-IN')} and the Architect Completion Certificate.\nDue Date: ${dueDate.toLocaleDateString('en-IN')}.\n\nATTACHMENTS:\nArchitect Certificate|${architectCertificateUrl}\nDemand Letter|/api/documents/preview/demand-letter?saleId=${schedule.saleId}&milestoneName=${encodeURIComponent(milestone.name)}`
+        }
         
         // Email Log
         commLogs.push({
@@ -72,7 +80,7 @@ export async function POST(req: NextRequest, props: { params: Promise<{ id: stri
           channel: 'EMAIL',
           type: 'DEMAND_LETTER',
           messageContent: content,
-          status: 'DELIVERED',
+          status: 'PENDING',
           sentAt: new Date(),
           deliveredAt: new Date()
         })
@@ -84,7 +92,7 @@ export async function POST(req: NextRequest, props: { params: Promise<{ id: stri
           channel: 'WHATSAPP',
           type: 'DEMAND_LETTER',
           messageContent: content,
-          status: 'DELIVERED',
+          status: 'PENDING',
           sentAt: new Date(),
           deliveredAt: new Date()
         })
@@ -93,6 +101,9 @@ export async function POST(req: NextRequest, props: { params: Promise<{ id: stri
       await prisma.communicationLog.createMany({
         data: commLogs
       })
+
+      // Dispatch immediately — sends real emails and WhatsApp messages
+      await dispatchAllPending()
     }
     
     return Response.json({ success: true, data: milestone })

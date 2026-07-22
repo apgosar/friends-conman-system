@@ -51,19 +51,29 @@ export async function POST(req: NextRequest) {
     const payment = sale.paymentSchedules.find(ps => dueStatuses.includes(ps.status))
     
     // Map all schedules for the payment plan table
-    const paymentPlan = sale.paymentSchedules.map((ps, index) => {
+    const paymentPlan = sale.paymentSchedules.filter((ps) => Number(ps.principalAmount) > 0).map((ps, index) => {
       const principal = Number(ps.principalAmount)
       const gst = Number(ps.gstAmount)
-      const pct = ps.milestone?.percentOfAV
+      
+      let pctLabel = '—'
+      const descLower = ps.description.toLowerCase()
+      if (!descLower.includes('stamp duty') && !descLower.includes('parking') && !descLower.includes('registration')) {
+         const calculatedPct = Number(((principal / Number(sale.agreementValue)) * 100).toFixed(2))
+         pctLabel = calculatedPct > 0 ? `${calculatedPct}%` : '—'
+      }
+
       return {
         index: index + 1,
         description: ps.description,
-        percentOfAV: pct ? `${pct}%` : '—',
+        percentOfAV: pctLabel,
         principalAmount: fmtCur(principal),
         gstAmount: fmtCur(gst),
         totalAmount: fmtCur(principal + gst)
       }
     })
+
+    const bookingSchedule = sale.paymentSchedules.find(ps => ps.description.toLowerCase().includes('booking')) || sale.paymentSchedules[0]
+    const actualBookingAmount = bookingSchedule ? Number(bookingSchedule.principalAmount) : (sale.bookingAmount || 0)
 
     const docxData = {
       companyName: sale.project.companyName,
@@ -110,10 +120,10 @@ export async function POST(req: NextRequest) {
       parkingPodiumLevel: sale.parkingPodiumLevel ?? '',
       parkingFloor: sale.parkingFloor ?? '',
       parkingNumber: sale.parkingNumber ?? '',
-      bookingAmount: fmtCur(sale.bookingAmount ?? sale.paymentSchedules[0]?.principalAmount),
-      bookingAmountWords: numberToWords(Number(sale.bookingAmount ?? sale.paymentSchedules[0]?.principalAmount ?? 0)),
-      balanceAmount: fmtCur(sale.agreementValue - (sale.bookingAmount ?? sale.paymentSchedules[0]?.principalAmount ?? 0)),
-      balanceAmountWords: numberToWords(sale.agreementValue - (sale.bookingAmount ?? sale.paymentSchedules[0]?.principalAmount ?? 0)),
+      bookingAmount: fmtCur(actualBookingAmount),
+      bookingAmountWords: numberToWords(actualBookingAmount),
+      balanceAmount: fmtCur(sale.agreementValue - actualBookingAmount),
+      balanceAmountWords: numberToWords(sale.agreementValue - actualBookingAmount),
       tdsAmount: fmtCur(sale.agreementValue * 0.01),
       tdsAmountWords: numberToWords(sale.agreementValue * 0.01),
       bookingDate: formatDate(sale.bookingDate),

@@ -1,3 +1,4 @@
+import { Prisma } from '@prisma/client'
 import { prisma } from '@/lib/db'
 
 export async function createAuditLog({
@@ -16,8 +17,8 @@ export async function createAuditLog({
   entityType: string
   entityId: string
   action: string
-  oldValues?: Record<string, unknown>
-  newValues?: Record<string, unknown>
+  oldValues?: any
+  newValues?: any
   ipAddress?: string
   userAgent?: string
 }) {
@@ -29,8 +30,8 @@ export async function createAuditLog({
         entityType,
         entityId,
         action,
-        oldValues: oldValues ?? undefined,
-        newValues: newValues ?? undefined,
+        oldValues: oldValues ? (oldValues as Prisma.InputJsonValue) : Prisma.JsonNull,
+        newValues: newValues ? (newValues as Prisma.InputJsonValue) : Prisma.JsonNull,
         ipAddress,
         userAgent,
       },

@@ -1,7 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { auth } from '@/lib/auth'
 import { prisma } from '@/lib/db'
-import puppeteer from 'puppeteer'
 import { formatCurrency, formatDate } from '@/lib/template-engine'
 import fs from 'fs'
 import path from 'path'
@@ -170,23 +169,53 @@ export async function GET(
     </html>
     `
 
-    const browser = await puppeteer.launch({
-      headless: true,
-      args: ['--no-sandbox', '--disable-setuid-sandbox'],
-    })
-    const page = await browser.newPage()
-    await page.setContent(html, { waitUntil: 'networkidle0' })
-    const pdfBuffer = await page.pdf({
-      format: 'A4',
-      printBackground: true,
-      margin: { top: '0', right: '0', bottom: '0', left: '0' },
-    })
-    await browser.close()
+    const clientSideScript = `
+      <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
+      <script>
+        window.onload = function() {
+          var element = document.body;
+          var opt = {
+            margin:       10,
+            filename:     'Quote-${unit.unitNumber}-${inquiry.customerName.replace(/\s+/g, '-')}.pdf',
+            image:        { type: 'jpeg', quality: 0.98 },
+            html2canvas:  { 
+              scale: 2,
+              ignoreElements: function(node) {
+                return node.id === 'pdf-banner';
+              }
+            },
+            jsPDF:        { unit: 'mm', format: 'a4', orientation: 'portrait' }
+          };
+          
+          var banner = document.createElement('div');
+          banner.id = 'pdf-banner';
+          banner.style.padding = '10px';
+          banner.style.background = '#2563eb';
+          banner.style.color = 'white';
+          banner.style.textAlign = 'center';
+          banner.style.fontFamily = 'sans-serif';
+          banner.style.fontWeight = 'bold';
+          banner.style.position = 'fixed';
+          banner.style.top = '0';
+          banner.style.left = '0';
+          banner.style.right = '0';
+          banner.style.zIndex = '9999';
+          banner.innerText = 'Generating PDF... Please wait.';
+          document.body.prepend(banner);
 
-    return new NextResponse(pdfBuffer, {
+          html2pdf().set(opt).from(element).save().then(function() {
+            banner.innerText = 'PDF Downloaded!';
+            setTimeout(function() { banner.remove(); }, 3000);
+          });
+        };
+      </script>
+    `
+
+    const finalHtml = html.replace('</body>', `${clientSideScript}</body>`)
+
+    return new NextResponse(finalHtml, {
       headers: {
-        'Content-Type': 'application/pdf',
-        'Content-Disposition': 'inline; filename="Quote-' + unit.unitNumber + '-' + inquiry.customerName.replace(/\s+/g, '-') + '.pdf"'
+        'Content-Type': 'text/html; charset=utf-8'
       }
     })
   } catch (error: any) {

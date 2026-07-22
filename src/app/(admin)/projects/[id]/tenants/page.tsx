@@ -73,10 +73,10 @@ export default async function ProjectTenantsPage(props: PageProps<'/projects/[id
                         )}
                       </td>
                       <td>
-                        {t.rehabCostPaid ? (
-                          <span className="badge badge-success">Yes</span>
+                        {t.extraAreaSqft > 0 ? (
+                          <span className="badge badge-success">+{t.extraAreaSqft} sqft</span>
                         ) : (
-                          <span className="badge badge-muted">No</span>
+                          <span className="badge badge-muted">Nil</span>
                         )}
                       </td>
                     </tr>

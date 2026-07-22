@@ -37,7 +37,7 @@ export default function AgingChart({ data }: { data: AgingData[] }) {
             tickFormatter={formatVal}
           />
           <Tooltip
-            formatter={(val: number) => [`₹${val.toLocaleString('en-IN')}`, 'Amount']}
+            formatter={(val: any) => [`₹${Number(val).toLocaleString('en-IN')}`, 'Amount'] as any}
             contentStyle={{
               background: '#18181b',
               border: '1px solid rgba(255,255,255,0.1)',

@@ -2,7 +2,7 @@
 
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
-import { signOut } from 'next-auth/react'
+import { signOut, useSession } from 'next-auth/react'
 
 const NAV_ITEMS = [
   {
@@ -46,21 +46,40 @@ const NAV_ITEMS = [
 
 export default function Sidebar() {
   const pathname = usePathname()
+  const { data: session } = useSession()
+  const role = session?.user?.role || 'SALES'
+
+  // Filter NAV_ITEMS based on role
+  const visibleNavItems = NAV_ITEMS.map(section => {
+    let items = section.items
+    
+    // SALES cannot view Dashboard
+    if (role === 'SALES' && section.section === 'Overview') {
+      items = items.filter(i => i.href !== '/dashboard')
+    }
+    
+    // Only SUPER_ADMIN can view Audit, Users, Settings
+    if (role !== 'SUPER_ADMIN' && section.section === 'System') {
+      items = items.filter(i => !['/audit', '/users', '/settings'].includes(i.href))
+    }
+    
+    return { ...section, items }
+  }).filter(section => section.items.length > 0)
 
   return (
     <aside className="sidebar">
       <Link href="/dashboard" className="sidebar-logo">
-        <div className="sidebar-logo-icon">FC</div>
+        <div className="sidebar-logo-icon">BS</div>
         <div>
           <div className="sidebar-logo-text">
-            Friends ConMan
+            BuildSight
             <span className="sidebar-logo-sub">Property Management</span>
           </div>
         </div>
       </Link>
 
       <nav className="sidebar-nav">
-        {NAV_ITEMS.map((section) => (
+        {visibleNavItems.map((section) => (
           <div key={section.section}>
             <div className="nav-section-label">{section.section}</div>
             {section.items.map((item) => {

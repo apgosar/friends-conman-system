@@ -34,7 +34,7 @@ export default function LoginPage() {
         <div className="login-logo">
           <div className="login-logo-icon">FC</div>
           <div>
-            <div className="login-logo-name">Friends ConMan</div>
+            <div className="login-logo-name">BuildSight</div>
             <div className="login-logo-sub">Property Management System</div>
           </div>
         </div>

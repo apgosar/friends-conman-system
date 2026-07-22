@@ -45,6 +45,7 @@ export default async function NewSalePage() {
         name: m.name,
         sequence: m.sequence,
         percentOfAV: m.percentOfAV,
+        status: m.status,
       }))
     }
   })

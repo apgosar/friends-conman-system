@@ -8,11 +8,19 @@ import UpcomingDues from '@/components/dashboard/UpcomingDues'
 import EscalationAlerts from '@/components/dashboard/EscalationAlerts'
 
 async function getDashboardData() {
+  const now = new Date()
+  const monthStart = new Date(now.getFullYear(), now.getMonth(), 1)
+
   const [schedules, recentPayments, escalations] = await Promise.all([
+    // All unpaid, non-upcoming schedules (DUE + OVERDUE)
     prisma.paymentSchedule.findMany({
-      where: { status: { notIn: ['PAID', 'UPCOMING'] } },
-      include: {
-        sale: { select: { projectId: true, unit: { select: { unitNumber: true } } } },
+      where: { status: { in: ['DUE', 'OVERDUE'] } },
+      select: {
+        principalAmount: true,
+        gstAmount: true,
+        interestAmount: true,
+        dueDate: true,
+        status: true,
       },
     }),
     prisma.payment.findMany({
@@ -43,25 +51,25 @@ async function getDashboardData() {
     }),
   ])
 
-  const now = new Date()
-  const monthStart = new Date(now.getFullYear(), now.getMonth(), 1)
-
-  let totalOutstanding = 0, current = 0, o7 = 0, o15 = 0, o30 = 0, o30plus = 0, interestAccrued = 0
+  // ── Compute aging buckets from dueDate diff ──────────────────────────────
+  let totalOutstanding = 0, current = 0, o15 = 0, o30 = 0, o30plus = 0, interestAccrued = 0
 
   for (const s of schedules) {
     const principal = Number(s.principalAmount)
-    const gst = Number(s.gstAmount)
-    const interest = Number(s.interestAmount)
-    const total = principal + gst + interest
+    const gst       = Number(s.gstAmount)
+    const interest  = Number(s.interestAmount)
+    const total     = principal + gst + interest
     totalOutstanding += total
-    interestAccrued += interest
-    switch (s.status) {
-      case 'DUE': current += total; break
-      case 'OVERDUE_7': o7 += total; break
-      case 'OVERDUE_15': o15 += total; break
-      case 'OVERDUE_30': o30 += total; break
-      case 'OVERDUE_30PLUS': o30plus += total; break
-    }
+    interestAccrued  += interest
+
+    if (!s.dueDate) { current += total; continue }
+
+    const daysPast = Math.floor((now.getTime() - new Date(s.dueDate).getTime()) / 86400000)
+
+    if (daysPast <= 0)        current  += total
+    else if (daysPast <= 15)  o15      += total
+    else if (daysPast <= 30)  o30      += total
+    else                      o30plus  += total
   }
 
   const [collectedThisMonth, tdsPending] = await Promise.all([
@@ -76,13 +84,14 @@ async function getDashboardData() {
     where: { dueDate: { gte: monthStart, lte: now }, status: { not: 'UPCOMING' } },
     _sum: { principalAmount: true, gstAmount: true },
   })
-  const dueAmt = Number(totalDueThisMonth._sum.principalAmount ?? 0) + Number(totalDueThisMonth._sum.gstAmount ?? 0)
+  const dueAmt       = Number(totalDueThisMonth._sum.principalAmount ?? 0) + Number(totalDueThisMonth._sum.gstAmount ?? 0)
   const collectedAmt = Number(collectedThisMonth._sum.amount ?? 0)
-  const efficiency = dueAmt > 0 ? Math.round((collectedAmt / dueAmt) * 100) : 100
+  const efficiency   = dueAmt > 0 ? Math.round((collectedAmt / dueAmt) * 100) : 100
 
+  // Upcoming dues: next 30 days PLUS anything already overdue (so dashboard shows both)
   const upcomingDues = await prisma.paymentSchedule.findMany({
     where: {
-      status: { in: ['UPCOMING', 'DUE'] },
+      status: { in: ['UPCOMING', 'DUE', 'OVERDUE'] },
       dueDate: { lte: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000) },
     },
     include: {
@@ -103,7 +112,6 @@ async function getDashboardData() {
     stats: {
       totalOutstanding,
       current,
-      overdue7: o7,
       overdue15: o15,
       overdue30: o30,
       overdue30Plus: o30plus,
@@ -124,9 +132,9 @@ export default async function DashboardPage() {
 
   const agingData = [
     { label: 'Current', amount: stats.current, count: 0, color: '#10b981' },
-    { label: '7-15 Days', amount: stats.overdue7, count: 0, color: '#f59e0b' },
-    { label: '15-30 Days', amount: stats.overdue15, count: 0, color: '#f97316' },
-    { label: '30+ Days', amount: stats.overdue30 + stats.overdue30Plus, count: 0, color: '#ef4444' },
+    { label: '0–15 Days', amount: stats.overdue15, count: 0, color: '#f59e0b' },
+    { label: '15–30 Days', amount: stats.overdue30, count: 0, color: '#f97316' },
+    { label: '30+ Days', amount: stats.overdue30Plus, count: 0, color: '#ef4444' },
   ]
 
   return (
@@ -169,9 +177,9 @@ export default async function DashboardPage() {
         {/* Aging Buckets */}
         <div className="grid grid-4 gap-4 mb-6">
           <AgingBucketCard label="Current Due" amount={stats.current} color="var(--color-success)" />
-          <AgingBucketCard label="Overdue 7-15 Days" amount={stats.overdue7} color="var(--color-warning)" />
-          <AgingBucketCard label="Overdue 15-30 Days" amount={stats.overdue15} color="var(--color-orange)" />
-          <AgingBucketCard label="Overdue 30+ Days" amount={stats.overdue30 + stats.overdue30Plus} color="var(--color-danger)" critical />
+          <AgingBucketCard label="Overdue 0–15 Days" amount={stats.overdue15} color="var(--color-warning)" />
+          <AgingBucketCard label="Overdue 15–30 Days" amount={stats.overdue30} color="var(--color-orange)" />
+          <AgingBucketCard label="Overdue 30+ Days" amount={stats.overdue30Plus} color="var(--color-danger)" critical />
         </div>
 
         {escalations.length > 0 && (

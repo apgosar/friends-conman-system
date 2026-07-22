@@ -22,27 +22,25 @@ export type {
   AuditLog,
 } from '@prisma/client'
 
-export type {
-  UserRole,
-  ProjectType,
-  ProjectStatus,
-  UnitStatus,
-  SaleType,
-  SaleStatus,
-  KycDocType,
-  KycStatus,
-  MilestoneStatus,
-  ScheduleStatus,
-  PaymentMode,
-  TdsStatus,
-  LoanStatus,
-  TemplateType,
-  DocumentType,
-  DocumentStatus,
-  CommChannel,
-  CommType,
-  CommStatus,
-} from '@prisma/client'
+export type UserRole = 'SUPER_ADMIN' | 'ADMIN' | 'SALES'
+export type ProjectType = 'FRESH' | 'REDEVELOPMENT' | 'MIXED'
+export type ProjectStatus = 'UPCOMING' | 'ONGOING' | 'COMPLETED'
+export type UnitStatus = 'AVAILABLE' | 'BOOKED' | 'SOLD' | 'BLOCKED'
+export type SaleType = 'FRESH' | 'REDEVELOPMENT'
+export type SaleStatus = 'BOOKED' | 'REGISTERED' | 'CANCELLED'
+export type KycDocType = 'PAN' | 'AADHAAR' | 'PASSPORT' | 'OTHER'
+export type KycStatus = 'PENDING' | 'VERIFIED' | 'REJECTED'
+export type MilestoneStatus = 'UPCOMING' | 'COMPLETED'
+export type ScheduleStatus = 'UPCOMING' | 'DUE' | 'PAID' | 'OVERDUE'
+export type PaymentMode = 'CHEQUE' | 'NEFT' | 'RTGS' | 'UPI' | 'CASH'
+export type TdsStatus = 'PENDING' | 'PAID'
+export type LoanStatus = 'PENDING' | 'APPROVED' | 'DISBURSED' | 'REJECTED'
+export type TemplateType = 'DEMAND_LETTER' | 'RECEIPT' | 'AGREEMENT' | 'ALLOTMENT_LETTER'
+export type DocumentType = 'DEMAND_LETTER' | 'RECEIPT' | 'AGREEMENT' | 'ALLOTMENT_LETTER' | 'NOC'
+export type DocumentStatus = 'GENERATED' | 'SIGNED'
+export type CommChannel = 'EMAIL' | 'WHATSAPP' | 'SMS'
+export type CommType = 'DEMAND_LETTER' | 'RECEIPT' | 'MANUAL'
+export type CommStatus = 'PENDING' | 'SENT' | 'SIMULATED' | 'DELIVERED' | 'FAILED'
 
 // Dashboard types
 export interface AgingBucket {

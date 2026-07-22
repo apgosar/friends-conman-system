@@ -54,8 +54,8 @@ export async function POST(req: NextRequest) {
       
       await tx.communicationLog.createMany({
         data: [
-          { saleId, buyerId: primaryBuyer?.id, channel: 'EMAIL', type: 'RECEIPT', messageContent: content, status: 'DELIVERED', sentAt: new Date(), deliveredAt: new Date() },
-          { saleId, buyerId: primaryBuyer?.id, channel: 'WHATSAPP', type: 'RECEIPT', messageContent: content, status: 'DELIVERED', sentAt: new Date(), deliveredAt: new Date() }
+          { saleId, buyerId: primaryBuyer?.id, channel: 'EMAIL', type: 'RECEIPT', messageContent: content, status: 'PENDING', sentAt: new Date() },
+          { saleId, buyerId: primaryBuyer?.id, channel: 'WHATSAPP', type: 'RECEIPT', messageContent: content, status: 'PENDING', sentAt: new Date() }
         ]
       })
       
