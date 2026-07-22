@@ -1,15 +1,6 @@
-import nodemailer from 'nodemailer'
+import { Resend } from 'resend'
 
-const transporter = nodemailer.createTransport({
-  host: 'smtp.gmail.com',
-  port: 465,
-  secure: true,
-  auth: {
-    user: process.env.GMAIL_USER,
-    pass: process.env.GMAIL_APP_PASSWORD,
-  },
-  family: 4 // Force IPv4 (fixes connection timeouts on Railway/DigitalOcean)
-})
+const resend = new Resend(process.env.RESEND_API_KEY)
 
 export interface EmailPayload {
   to: string | string[]
@@ -23,9 +14,11 @@ export interface EmailPayload {
 }
 
 export async function sendEmail(payload: EmailPayload): Promise<{ messageId: string }> {
-  const info = await transporter.sendMail({
-    from: `"${process.env.COMPANY_NAME}" <${process.env.GMAIL_USER}>`,
-    to: Array.isArray(payload.to) ? payload.to.join(', ') : payload.to,
+  const fromAddress = process.env.RESEND_FROM_ADDRESS || `${process.env.COMPANY_NAME || 'BuildSight'} <onboarding@resend.dev>`
+
+  const { data, error } = await resend.emails.send({
+    from: fromAddress,
+    to: Array.isArray(payload.to) ? payload.to : [payload.to],
     subject: payload.subject,
     html: payload.html,
     attachments: payload.attachments?.map((a) => ({
@@ -34,5 +27,10 @@ export async function sendEmail(payload: EmailPayload): Promise<{ messageId: str
       contentType: a.contentType,
     })),
   })
-  return { messageId: info.messageId }
+
+  if (error) {
+    throw new Error(`Resend error: ${error.message}`)
+  }
+
+  return { messageId: data?.id ?? 'unknown' }
 }

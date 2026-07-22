@@ -24,7 +24,7 @@ export async function POST(req: NextRequest) {
           <div style="padding: 32px; background: #fff;">
             <h2 style="color: #0F2A4A;">Email Integration Working ✅</h2>
             <p style="color: #333; line-height: 1.6;">
-              This is a test email from BuildSight. Your Gmail SMTP configuration is working correctly.
+              This is a test email from BuildSight. Your Resend email integration is working correctly.
               Demand letters, receipts, and notifications will be delivered to buyer email addresses automatically.
             </p>
             <p style="color: #666; font-size: 13px; margin-top: 24px;">
