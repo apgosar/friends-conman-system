@@ -102,6 +102,13 @@ export default function Sidebar() {
       </nav>
 
       <div className="sidebar-footer">
+        {session?.user && (
+          <div className="sidebar-user" style={{ padding: '0 1rem 1rem 1rem', fontSize: '0.875rem' }}>
+            <div style={{ fontWeight: '600', color: '#f9fafb' }}>{session.user.name}</div>
+            <div style={{ color: '#9ca3af', fontSize: '0.75rem', marginTop: '0.25rem' }}>{session.user.role}</div>
+            <div style={{ color: '#9ca3af', fontSize: '0.75rem' }}>{session.user.email}</div>
+          </div>
+        )}
         <button
           className="nav-item w-full"
           style={{ border: 'none', cursor: 'pointer', background: 'transparent' }}
