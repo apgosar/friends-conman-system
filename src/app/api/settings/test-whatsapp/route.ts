@@ -18,8 +18,15 @@ export async function POST(req: NextRequest) {
       message: 'BuildSight WhatsApp Integration Test',
       templateName: 'demands_and_receipts',
       templateLanguage: 'en_US',
-      // Sample values for {{1}} projectName, {{2}} unitNumber, {{3}} configuration
-      templateBodyParams: ['Sea View Heights', 'A-101', '2BHK'],
+      templateBodyParams: [
+        'Ankur Gosar',              // {{1}} Buyer Name
+        'Sea View Heights',         // {{2}} Project Name
+        'A-101',                    // {{3}} Unit Number
+        '2 BHK',                    // {{4}} Configuration
+        'Demand Letter - Test',     // {{5}} Document Type
+        '1,00,000',                 // {{6}} Amount
+        'Due Date: 31/07/2026',     // {{7}} Additional Info
+      ],
     })
 
     return Response.json({ success: true, messageId: result.messageId, status: result.status })

@@ -166,16 +166,63 @@ export async function dispatchCommunicationLog(logId: string): Promise<DispatchR
           })
         : null
 
+      // ── Build all 7 template parameters ────────────────────────────────────
+      // {{1}} Buyer Name
+      const buyerName = buyer?.fullName ?? 'Valued Customer'
+
+      // {{2}} Project Name
       const projectName = saleDetails?.project?.name ?? 'Your Project'
+
+      // {{3}} Unit Number
       const unitNumber = saleDetails?.unit?.unitNumber ?? 'N/A'
+
+      // {{4}} Configuration
       const configuration = saleDetails?.unit?.configuration ?? 'N/A'
+
+      // {{5}} Document Type — derived from log.type
+      const docTypeMap: Record<string, string> = {
+        DEMAND_LETTER: 'Demand Letter',
+        RECEIPT: 'Payment Receipt',
+        BOOKING_CONFIRMATION: 'Booking Confirmation',
+        GENERAL: 'Important Notice',
+      }
+      const documentType = docTypeMap[log.type] ?? 'Notification'
+
+      // {{6}} Amount — extract ₹ figure from message content
+      const amountMatch = plainText.match(/₹\s*([\d,]+(?:\.\d{2})?)/i)
+        ?? plainText.match(/Amount[:\s]+Rs\.?\s*([\d,]+(?:\.\d{2})?)/i)
+      const amount = amountMatch ? amountMatch[1] : 'As per schedule'
+
+      // {{7}} Additional Info — due date for demands, payment mode for receipts
+      let additionalInfo = ''
+      if (log.type === 'RECEIPT') {
+        const modeMatch = plainText.match(/(?:paid|payment).+?via\s+([^\n]+)/i)
+          ?? plainText.match(/Mode:\s*([^\n]+)/i)
+        additionalInfo = modeMatch
+          ? `Paid successfully via ${modeMatch[1].trim()}`
+          : 'Payment received successfully. Thank you!'
+      } else {
+        const dueDateMatch = plainText.match(/Due\s*Date[:\s]+([^\n]+)/i)
+          ?? plainText.match(/due by\s+([^\n]+)/i)
+        additionalInfo = dueDateMatch
+          ? `Due Date: ${dueDateMatch[1].trim()}`
+          : 'Please pay at the earliest to avoid interest charges.'
+      }
 
       const result = await sendWhatsApp({
         to: phone.replace(/\D/g, ''), // strip non-digits
         message: plainText,
         templateName: 'demands_and_receipts',
         templateLanguage: 'en_US',
-        templateBodyParams: [projectName, unitNumber, configuration],
+        templateBodyParams: [
+          buyerName,      // {{1}}
+          projectName,    // {{2}}
+          unitNumber,     // {{3}}
+          configuration,  // {{4}}
+          documentType,   // {{5}}
+          amount,         // {{6}}
+          additionalInfo, // {{7}}
+        ],
       })
 
       await prisma.communicationLog.update({
