@@ -15,13 +15,15 @@ export interface WhatsAppTemplateParam {
 export interface WhatsAppMessage {
   to: string           // phone with country code, no +  e.g. "919876543210"
   message: string      // plain-text body (used as fallback / logging)
-  documentUrl?: string // publicly accessible URL of a PDF/DOCX to attach
+  documentUrl?: string // publicly accessible URL of a PDF/DOCX to attach (free-form message)
   documentFilename?: string
   caption?: string
   // Template fields
   templateName?: string
   templateLanguage?: string
-  templateBodyParams?: string[]  // ordered list of {{1}}, {{2}}, {{3}} values
+  templateBodyParams?: string[]    // ordered list of {{1}}, {{2}}, {{3}} values
+  documentHeaderUrl?: string       // if the template has a DOCUMENT header — publicly accessible PDF URL
+  documentHeaderFilename?: string  // filename shown in WhatsApp (e.g. "Demand_Letter.pdf")
 }
 
 export interface WhatsAppResult {
@@ -46,8 +48,26 @@ export async function sendWhatsApp(msg: WhatsAppMessage): Promise<WhatsAppResult
   let body: any
 
   if (msg.templateName) {
-    // Build template components with body parameters if provided
+    // Build template components
     const components: any[] = []
+
+    // Add DOCUMENT header component if template has one
+    if (msg.documentHeaderUrl) {
+      components.push({
+        type: 'header',
+        parameters: [
+          {
+            type: 'document',
+            document: {
+              link: msg.documentHeaderUrl,
+              filename: msg.documentHeaderFilename ?? 'Document.pdf',
+            },
+          },
+        ],
+      })
+    }
+
+    // Add body parameters {{1}}, {{2}}, ...
     if (msg.templateBodyParams && msg.templateBodyParams.length > 0) {
       components.push({
         type: 'body',

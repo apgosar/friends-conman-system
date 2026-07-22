@@ -103,10 +103,37 @@ export async function dispatchCommunicationLog(logId: string): Promise<DispatchR
         return { id: logId, channel: 'EMAIL', status: 'skipped', reason: 'No email address' }
       }
 
+      // Fetch PDF attachment from the document preview URL if present
+      const attachMatch = content.match(/ATTACHMENTS:[\s\S]*?\n([^|]+)\|(\S+)/)
+      let emailAttachments: Array<{ filename: string; content: Buffer; contentType: string }> = []
+      if (attachMatch?.[2]) {
+        const docPath = attachMatch[2].startsWith('/') ? attachMatch[2] : attachMatch[2]
+        const docFullUrl = docPath.startsWith('http') ? docPath : `${process.env.APP_URL}${docPath}`
+        const docLabel = attachMatch[1].trim()
+        try {
+          const docRes = await fetch(docFullUrl)
+          if (docRes.ok) {
+            const contentType = docRes.headers.get('content-type') ?? 'application/pdf'
+            const isDocx = contentType.includes('wordprocessingml') || docFullUrl.includes('.docx')
+            const ext = isDocx ? 'docx' : 'pdf'
+            const filename = `${docLabel.replace(/[^a-zA-Z0-9 ]/g, '').trim()}.${ext}`
+            const arrayBuffer = await docRes.arrayBuffer()
+            emailAttachments.push({
+              filename,
+              content: Buffer.from(arrayBuffer),
+              contentType,
+            })
+          }
+        } catch (fetchErr) {
+          console.warn('[Dispatcher] Could not fetch email attachment:', fetchErr)
+        }
+      }
+
       const result = await sendEmail({
         to: email,
         subject: extractSubject(content, log.type),
         html: formatMessageAsHtml(content),
+        attachments: emailAttachments.length > 0 ? emailAttachments : undefined,
       })
 
       await prisma.communicationLog.update({
@@ -209,11 +236,20 @@ export async function dispatchCommunicationLog(logId: string): Promise<DispatchR
           : 'Please pay at the earliest to avoid interest charges.'
       }
 
+      const cleanPhone = phone.replace(/\D/g, '')
+
+      // Send the approved template with the PDF attached as a document header.
+      // NOTE: This requires the demands_and_receipts template to have a DOCUMENT header
+      // component configured in Meta Business Manager. If the template has no header,
+      // omit documentHeaderUrl — the body text will still be delivered.
       const result = await sendWhatsApp({
-        to: phone.replace(/\D/g, ''), // strip non-digits
+        to: cleanPhone,
         message: plainText,
         templateName: 'demands_and_receipts',
         templateLanguage: 'en',
+        // Pass document as header only when URL is available and publicly accessible
+        documentHeaderUrl: (docUrl && !docUrl.includes('localhost')) ? docUrl : undefined,
+        documentHeaderFilename: docFilename,
         templateBodyParams: [
           buyerName,      // {{1}}
           projectName,    // {{2}}
