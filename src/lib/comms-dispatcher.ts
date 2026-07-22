@@ -251,13 +251,14 @@ export async function dispatchCommunicationLog(logId: string): Promise<DispatchR
         documentHeaderUrl: (docUrl && !docUrl.includes('localhost')) ? docUrl : undefined,
         documentHeaderFilename: docFilename,
         templateBodyParams: [
-          buyerName,      // {{1}}
-          projectName,    // {{2}}
-          unitNumber,     // {{3}}
-          configuration,  // {{4}}
-          documentType,   // {{5}}
-          amount,         // {{6}}
-          additionalInfo, // {{7}}
+          buyerName,                               // {{1}}
+          projectName,                             // {{2}}
+          unitNumber,                              // {{3}}
+          configuration,                           // {{4}}
+          documentType,                            // {{5}}
+          amount,                                  // {{6}}
+          additionalInfo,                          // {{7}}
+          process.env.COMPANY_NAME || 'BuildSight',// {{8}}
         ],
       })
 

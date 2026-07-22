@@ -19,13 +19,14 @@ export async function POST(req: NextRequest) {
       templateName: 'demands_and_receipts',
       templateLanguage: 'en',
       templateBodyParams: [
-        'Ankur Gosar',              // {{1}} Buyer Name
-        'Sea View Heights',         // {{2}} Project Name
-        'A-101',                    // {{3}} Unit Number
-        '2 BHK',                    // {{4}} Configuration
-        'Demand Letter - Test',     // {{5}} Document Type
-        '1,00,000',                 // {{6}} Amount
-        'Due Date: 31/07/2026',     // {{7}} Additional Info
+        'Ankur Gosar',                        // {{1}} Buyer Name
+        'Sea View Heights',                   // {{2}} Project Name
+        'A-101',                              // {{3}} Unit Number
+        '2 BHK',                              // {{4}} Configuration
+        'Demand Letter - Test',               // {{5}} Document Type
+        '1,00,000',                           // {{6}} Amount
+        'Due Date: 31/07/2026',               // {{7}} Additional Info
+        process.env.COMPANY_NAME || 'BuildSight', // {{8}} Company Name
       ],
     })
 
