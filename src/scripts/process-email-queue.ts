@@ -21,6 +21,7 @@ async function generatePdfFromUrl(urlPath: string) {
   console.log('Generating PDF via Puppeteer...')
   const browser = await puppeteer.launch({
     headless: true,
+    executablePath: process.env.PUPPETEER_EXECUTABLE_PATH || undefined,
     args: ['--no-sandbox', '--disable-setuid-sandbox'],
   })
   

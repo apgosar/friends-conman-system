@@ -15,6 +15,7 @@ export async function generatePdf(htmlTemplate: string, data: TemplateContext): 
   // For standard Node.js / Docker, standard puppeteer works.
   const browser = await puppeteer.launch({
     headless: true,
+    executablePath: process.env.PUPPETEER_EXECUTABLE_PATH || undefined,
     args: ['--no-sandbox', '--disable-setuid-sandbox']
   })
 
