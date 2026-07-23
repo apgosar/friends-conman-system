@@ -18,6 +18,8 @@ export async function POST(req: NextRequest) {
       message: 'BuildSight WhatsApp Integration Test',
       templateName: 'demands_and_receipts',
       templateLanguage: 'en',
+      documentHeaderUrl: 'https://www.w3.org/WAI/ER/tests/xhtml/testfiles/resources/pdf/dummy.pdf',
+      documentHeaderFilename: 'Test_Document.pdf',
       templateBodyParams: [
         'Ankur Gosar',                        // {{1}} Buyer Name
         'Sea View Heights',                   // {{2}} Project Name

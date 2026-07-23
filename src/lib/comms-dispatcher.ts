@@ -13,8 +13,54 @@
 import { prisma } from '@/lib/db'
 import { sendEmail } from '@/lib/email'
 import { sendWhatsApp } from '@/lib/whatsapp'
+import { PDFDocument } from 'pdf-lib'
+import { writeFileSync, mkdirSync, existsSync } from 'fs'
+import { join } from 'path'
+import { v4 as uuidv4 } from 'uuid'
 
 // ── Helpers ─────────────────────────────────────────────────────────────────
+
+async function fetchAllAttachments(content: string) {
+  let fetchedAttachments: Array<{ filename: string; content: Buffer; contentType: string }> = []
+  
+  const attachmentsIdx = content.indexOf('ATTACHMENTS:')
+  if (attachmentsIdx !== -1) {
+    const attachBlock = content.substring(attachmentsIdx + 'ATTACHMENTS:'.length).trim()
+    const lines = attachBlock.split('\n').map(l => l.trim()).filter(Boolean)
+    
+    for (const line of lines) {
+      if (!line.includes('|')) continue
+      const [docLabel, docPath] = line.split('|')
+      if (!docPath) continue
+      
+      let docFullUrl = docPath.startsWith('http') ? docPath : `${process.env.APP_URL}${docPath}`
+      
+      // Force server-side PDF generation for document previews
+      if (docFullUrl.includes('/preview/') && !docFullUrl.includes('format=pdf')) {
+        docFullUrl += docFullUrl.includes('?') ? '&format=pdf' : '?format=pdf'
+      }
+
+      try {
+        const docRes = await fetch(docFullUrl)
+        if (docRes.ok) {
+          const contentType = docRes.headers.get('content-type') ?? 'application/pdf'
+          const isDocx = contentType.includes('wordprocessingml') || docFullUrl.includes('.docx')
+          const ext = isDocx ? 'docx' : 'pdf'
+          const filename = `${docLabel.replace(/[^a-zA-Z0-9 ]/g, '').trim()}.${ext}`
+          const arrayBuffer = await docRes.arrayBuffer()
+          fetchedAttachments.push({
+            filename,
+            content: Buffer.from(arrayBuffer),
+            contentType,
+          })
+        }
+      } catch (fetchErr) {
+        console.warn(`[Dispatcher] Could not fetch attachment ${docLabel}:`, fetchErr)
+      }
+    }
+  }
+  return fetchedAttachments
+}
 
 function formatMessageAsHtml(text: string): string {
   const lines = text.split('\n')
@@ -103,45 +149,7 @@ export async function dispatchCommunicationLog(logId: string): Promise<DispatchR
         return { id: logId, channel: 'EMAIL', status: 'skipped', reason: 'No email address' }
       }
 
-      // Parse ALL attachments from the ATTACHMENTS block
-      let emailAttachments: Array<{ filename: string; content: Buffer; contentType: string }> = []
-      
-      const attachmentsIdx = content.indexOf('ATTACHMENTS:')
-      if (attachmentsIdx !== -1) {
-        const attachBlock = content.substring(attachmentsIdx + 'ATTACHMENTS:'.length).trim()
-        const lines = attachBlock.split('\n').map(l => l.trim()).filter(Boolean)
-        
-        for (const line of lines) {
-          if (!line.includes('|')) continue
-          const [docLabel, docPath] = line.split('|')
-          if (!docPath) continue
-          
-          let docFullUrl = docPath.startsWith('http') ? docPath : `${process.env.APP_URL}${docPath}`
-          
-          // Force server-side PDF generation for document previews
-          if (docFullUrl.includes('/preview/') && !docFullUrl.includes('format=pdf')) {
-            docFullUrl += docFullUrl.includes('?') ? '&format=pdf' : '?format=pdf'
-          }
-
-          try {
-            const docRes = await fetch(docFullUrl)
-            if (docRes.ok) {
-              const contentType = docRes.headers.get('content-type') ?? 'application/pdf'
-              const isDocx = contentType.includes('wordprocessingml') || docFullUrl.includes('.docx')
-              const ext = isDocx ? 'docx' : 'pdf'
-              const filename = `${docLabel.replace(/[^a-zA-Z0-9 ]/g, '').trim()}.${ext}`
-              const arrayBuffer = await docRes.arrayBuffer()
-              emailAttachments.push({
-                filename,
-                content: Buffer.from(arrayBuffer),
-                contentType,
-              })
-            }
-          } catch (fetchErr) {
-            console.warn(`[Dispatcher] Could not fetch email attachment ${docLabel}:`, fetchErr)
-          }
-        }
-      }
+      const emailAttachments = await fetchAllAttachments(content)
 
       const result = await sendEmail({
         to: email,
@@ -171,33 +179,60 @@ export async function dispatchCommunicationLog(logId: string): Promise<DispatchR
         return { id: logId, channel: 'WHATSAPP', status: 'skipped', reason: 'No WhatsApp number' }
       }
 
-      // Extract first document URL from ATTACHMENTS section if present
-      // Example: "ATTACHMENTS:\nDemand Letter|/api/documents/preview/demand-letter?saleId=123"
-      const attachMatch = content.match(/ATTACHMENTS:[\s\S]*?\n([^|]+)\|(\S+)/)
-      let docUrl = attachMatch?.[2]
-        ? (attachMatch[2].startsWith('/') ? `${process.env.APP_URL}${attachMatch[2]}` : attachMatch[2])
-        : undefined
+      let finalDocUrl: string | undefined = undefined
+      let finalDocFilename = 'Document.pdf'
+      
+      const fetchedAttachments = await fetchAllAttachments(content)
 
-      if (docUrl && docUrl.includes('/preview/') && !docUrl.includes('format=pdf')) {
-        docUrl += docUrl.includes('?') ? '&format=pdf' : '?format=pdf'
+      if (fetchedAttachments.length > 1 && fetchedAttachments.every(a => a.contentType === 'application/pdf')) {
+        try {
+          const mergedPdf = await PDFDocument.create()
+          for (const attachment of fetchedAttachments) {
+            const pdf = await PDFDocument.load(attachment.content)
+            const copiedPages = await mergedPdf.copyPages(pdf, pdf.getPageIndices())
+            copiedPages.forEach((page) => mergedPdf.addPage(page))
+          }
+          const mergedPdfBytes = await mergedPdf.save()
+          
+          const uploadsDir = join(process.cwd(), 'public', 'uploads')
+          if (!existsSync(uploadsDir)) mkdirSync(uploadsDir, { recursive: true })
+          
+          const mergedFilename = `Merged_Document_${uuidv4()}.pdf`
+          writeFileSync(join(uploadsDir, mergedFilename), mergedPdfBytes)
+          
+          finalDocUrl = `${process.env.APP_URL}/uploads/${mergedFilename}`
+          finalDocFilename = 'Demand_and_Certificates.pdf'
+        } catch (mergeErr) {
+          console.error('[Dispatcher] Error merging PDFs for WhatsApp:', mergeErr)
+        }
       }
 
-      const docFilename = attachMatch?.[1] ? `${attachMatch[1].replace(/[^a-zA-Z0-9]/g, '_')}.pdf` : 'Document.pdf'
+      if (!finalDocUrl) {
+        const attachMatch = content.match(/ATTACHMENTS:[\s\S]*?\n([^|]+)\|(\S+)/)
+        finalDocUrl = attachMatch?.[2]
+          ? (attachMatch[2].startsWith('/') ? `${process.env.APP_URL}${attachMatch[2]}` : attachMatch[2])
+          : undefined
 
-      // Meta's WhatsApp API cannot download documents from localhost.
-      // If we are testing locally, we MUST fallback to sending a plain text message,
-      // otherwise Meta will accept the request but fail to deliver it.
-      if (docUrl && docUrl.includes('localhost')) {
-        docUrl = undefined // fallback to plain text below
+        if (finalDocUrl && finalDocUrl.includes('/preview/') && !finalDocUrl.includes('format=pdf')) {
+          finalDocUrl += finalDocUrl.includes('?') ? '&format=pdf' : '?format=pdf'
+        }
+        finalDocFilename = attachMatch?.[1] ? `${attachMatch[1].replace(/[^a-zA-Z0-9]/g, '_')}.pdf` : 'Document.pdf'
+      }
+
+      if (finalDocUrl && finalDocUrl.includes('localhost')) {
+        finalDocUrl = undefined
       }
 
       // Build clean plain-text message (strip ATTACHMENTS section for WhatsApp)
       let plainText = content.split('ATTACHMENTS:')[0].trim()
       
       // If we had a document but couldn't attach it natively (e.g. localhost), just append the link
-      if (!docUrl && attachMatch?.[2]) {
-        const fullUrl = attachMatch[2].startsWith('/') ? `${process.env.APP_URL}${attachMatch[2]}` : attachMatch[2]
-        plainText += `\n\nLink to ${attachMatch[1]}: ${fullUrl}`
+      if (!finalDocUrl) {
+        const attachMatch = content.match(/ATTACHMENTS:[\s\S]*?\n([^|]+)\|(\S+)/)
+        if (attachMatch?.[2]) {
+          const fullUrl = attachMatch[2].startsWith('/') ? `${process.env.APP_URL}${attachMatch[2]}` : attachMatch[2]
+          plainText += `\n\nLink to ${attachMatch[1]}: ${fullUrl}`
+        }
       }
 
       // Fetch sale + unit details for template parameters
@@ -266,8 +301,8 @@ export async function dispatchCommunicationLog(logId: string): Promise<DispatchR
         templateName: 'demands_and_receipts',
         templateLanguage: 'en',
         // Pass document as header only when URL is available and publicly accessible
-        documentHeaderUrl: (docUrl && !docUrl.includes('localhost')) ? docUrl : undefined,
-        documentHeaderFilename: docFilename,
+        documentHeaderUrl: (finalDocUrl && !finalDocUrl.includes('localhost')) ? finalDocUrl : undefined,
+        documentHeaderFilename: finalDocFilename,
         templateBodyParams: [
           buyerName,                               // {{1}}
           projectName,                             // {{2}}

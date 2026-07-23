@@ -3,12 +3,34 @@
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { formatDate } from '@/lib/template-engine'
+import { useSession } from 'next-auth/react'
 
 export default function MilestoneRow({ m }: { m: any }) {
   const router = useRouter()
+  const { data: session } = useSession()
+  const isSuperAdmin = session?.user?.role === 'SUPER_ADMIN'
+
   const [loading, setLoading] = useState(false)
   const [showModal, setShowModal] = useState(false)
+  const [showDeleteModal, setShowDeleteModal] = useState(false)
   const [certificateFile, setCertificateFile] = useState<File | null>(null)
+
+  const handleDelete = async () => {
+    setLoading(true)
+    try {
+      const res = await fetch(`/api/milestones/${m.id}`, { method: 'DELETE' })
+      if (!res.ok) {
+        const data = await res.json()
+        throw new Error(data.error || 'Failed to delete milestone')
+      }
+      setShowDeleteModal(false)
+      router.refresh()
+    } catch (err: any) {
+      alert(err.message || String(err))
+    } finally {
+      setLoading(false)
+    }
+  }
 
   const handleComplete = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -77,6 +99,16 @@ export default function MilestoneRow({ m }: { m: any }) {
               Mark Complete
             </button>
           )}
+
+          {isSuperAdmin && (
+            <button
+              className="btn btn-sm"
+              style={{ background: 'var(--bg-error)', color: 'var(--text-on-error)', border: 'none' }}
+              onClick={() => setShowDeleteModal(true)}
+            >
+              🗑️ Delete
+            </button>
+          )}
         </div>
       </td>
 
@@ -119,6 +151,41 @@ export default function MilestoneRow({ m }: { m: any }) {
                   </button>
                 </div>
               </form>
+            </div>
+          </div>
+        </td>
+      )}
+
+      {showDeleteModal && (
+        <td colSpan={0}>
+          <div style={{ position: 'fixed', inset: 0, zIndex: 1000, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+            <div style={{ position: 'absolute', inset: 0, background: 'rgba(0,0,0,0.5)', backdropFilter: 'blur(2px)' }} onClick={() => setShowDeleteModal(false)} />
+            <div style={{ position: 'relative', background: 'var(--bg-card)', width: '100%', maxWidth: 500, borderRadius: '12px', boxShadow: 'var(--shadow-xl)', overflow: 'hidden', border: '1px solid var(--border-color)' }}>
+              <div style={{ padding: '20px 24px', borderBottom: '1px solid var(--border-color)', display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: 'var(--bg-error)', color: 'var(--text-on-error)' }}>
+                <div>
+                  <h3 style={{ fontSize: '1.25rem', fontWeight: 600, margin: 0, color: 'white' }}>Delete Milestone</h3>
+                  <p style={{ margin: '4px 0 0', fontSize: '0.8125rem', color: 'rgba(255,255,255,0.8)' }}>{m.name}</p>
+                </div>
+                <button onClick={() => setShowDeleteModal(false)} style={{ background: 'transparent', border: 'none', color: 'white', fontSize: '1.2rem', cursor: 'pointer' }}>×</button>
+              </div>
+              
+              <div style={{ padding: 24 }}>
+                <p style={{ color: 'var(--text-primary)', marginBottom: 16 }}>
+                  Are you sure you want to delete this milestone?
+                </p>
+                <p style={{ color: 'var(--text-muted)', fontSize: '0.9rem', marginBottom: 24, padding: 12, background: 'var(--bg-surface)', borderRadius: 8, borderLeft: '4px solid var(--color-warning)' }}>
+                  This will also delete <strong>all pending payment schedules (Demand Letters)</strong> generated for this milestone across all sales. If payments have already been made against these schedules, deletion will be blocked to preserve financial data integrity.
+                </p>
+                
+                <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 12 }}>
+                  <button type="button" className="btn" style={{ background: 'var(--bg-surface)', border: '1px solid var(--border-color)', color: 'var(--text-primary)', borderRadius: '8px' }} onClick={() => setShowDeleteModal(false)}>
+                    Cancel
+                  </button>
+                  <button type="button" onClick={handleDelete} className="btn" style={{ background: 'var(--bg-error)', color: 'var(--text-on-error)', borderRadius: '8px', border: 'none' }} disabled={loading}>
+                    {loading ? 'Deleting...' : 'Yes, Delete Milestone'}
+                  </button>
+                </div>
+              </div>
             </div>
           </div>
         </td>
