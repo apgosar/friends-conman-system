@@ -175,7 +175,7 @@ export async function GET(req: NextRequest) {
       if (format === 'pdf') {
         const { generatePdf } = await import('@/lib/pdf')
         const pdfBuffer = await generatePdf(template.templateHtml, docxData as any)
-        return new Response(pdfBuffer, {
+        return new Response(new Uint8Array(pdfBuffer), {
           headers: {
             'Content-Type': 'application/pdf',
             'Content-Disposition': `inline; filename="Demand_Letter_${sale.saleNumber}.pdf"`
