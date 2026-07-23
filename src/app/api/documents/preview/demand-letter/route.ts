@@ -169,12 +169,11 @@ export async function GET(req: NextRequest) {
         }
       })
     } else if (template.templateHtml) {
-      const { generatePdf } = require('@/lib/pdf')
-      
       const format = searchParams.get('format')
       const rawHtml = renderTemplate(template.templateHtml, docxData as any)
 
       if (format === 'pdf') {
+        const { generatePdf } = await import('@/lib/pdf')
         const pdfBuffer = await generatePdf(template.templateHtml, docxData)
         return new Response(pdfBuffer, {
           headers: {

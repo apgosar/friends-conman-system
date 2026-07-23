@@ -7,5 +7,6 @@ services:
       - "3000:3000"
     volumes:
       - ./prisma/data:/app/prisma/data
+      - ./public/uploads:/app/public/uploads
     env_file:
       - .env
