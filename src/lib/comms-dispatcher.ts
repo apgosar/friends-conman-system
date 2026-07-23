@@ -103,29 +103,43 @@ export async function dispatchCommunicationLog(logId: string): Promise<DispatchR
         return { id: logId, channel: 'EMAIL', status: 'skipped', reason: 'No email address' }
       }
 
-      // Fetch PDF attachment from the document preview URL if present
-      const attachMatch = content.match(/ATTACHMENTS:[\s\S]*?\n([^|]+)\|(\S+)/)
+      // Parse ALL attachments from the ATTACHMENTS block
       let emailAttachments: Array<{ filename: string; content: Buffer; contentType: string }> = []
-      if (attachMatch?.[2]) {
-        const docPath = attachMatch[2].startsWith('/') ? attachMatch[2] : attachMatch[2]
-        const docFullUrl = docPath.startsWith('http') ? docPath : `${process.env.APP_URL}${docPath}`
-        const docLabel = attachMatch[1].trim()
-        try {
-          const docRes = await fetch(docFullUrl)
-          if (docRes.ok) {
-            const contentType = docRes.headers.get('content-type') ?? 'application/pdf'
-            const isDocx = contentType.includes('wordprocessingml') || docFullUrl.includes('.docx')
-            const ext = isDocx ? 'docx' : 'pdf'
-            const filename = `${docLabel.replace(/[^a-zA-Z0-9 ]/g, '').trim()}.${ext}`
-            const arrayBuffer = await docRes.arrayBuffer()
-            emailAttachments.push({
-              filename,
-              content: Buffer.from(arrayBuffer),
-              contentType,
-            })
+      
+      const attachmentsIdx = content.indexOf('ATTACHMENTS:')
+      if (attachmentsIdx !== -1) {
+        const attachBlock = content.substring(attachmentsIdx + 'ATTACHMENTS:'.length).trim()
+        const lines = attachBlock.split('\n').map(l => l.trim()).filter(Boolean)
+        
+        for (const line of lines) {
+          if (!line.includes('|')) continue
+          const [docLabel, docPath] = line.split('|')
+          if (!docPath) continue
+          
+          let docFullUrl = docPath.startsWith('http') ? docPath : `${process.env.APP_URL}${docPath}`
+          
+          // Force server-side PDF generation for document previews
+          if (docFullUrl.includes('/preview/') && !docFullUrl.includes('format=pdf')) {
+            docFullUrl += docFullUrl.includes('?') ? '&format=pdf' : '?format=pdf'
           }
-        } catch (fetchErr) {
-          console.warn('[Dispatcher] Could not fetch email attachment:', fetchErr)
+
+          try {
+            const docRes = await fetch(docFullUrl)
+            if (docRes.ok) {
+              const contentType = docRes.headers.get('content-type') ?? 'application/pdf'
+              const isDocx = contentType.includes('wordprocessingml') || docFullUrl.includes('.docx')
+              const ext = isDocx ? 'docx' : 'pdf'
+              const filename = `${docLabel.replace(/[^a-zA-Z0-9 ]/g, '').trim()}.${ext}`
+              const arrayBuffer = await docRes.arrayBuffer()
+              emailAttachments.push({
+                filename,
+                content: Buffer.from(arrayBuffer),
+                contentType,
+              })
+            }
+          } catch (fetchErr) {
+            console.warn(`[Dispatcher] Could not fetch email attachment ${docLabel}:`, fetchErr)
+          }
         }
       }
 
@@ -163,6 +177,10 @@ export async function dispatchCommunicationLog(logId: string): Promise<DispatchR
       let docUrl = attachMatch?.[2]
         ? (attachMatch[2].startsWith('/') ? `${process.env.APP_URL}${attachMatch[2]}` : attachMatch[2])
         : undefined
+
+      if (docUrl && docUrl.includes('/preview/') && !docUrl.includes('format=pdf')) {
+        docUrl += docUrl.includes('?') ? '&format=pdf' : '?format=pdf'
+      }
 
       const docFilename = attachMatch?.[1] ? `${attachMatch[1].replace(/[^a-zA-Z0-9]/g, '_')}.pdf` : 'Document.pdf'
 

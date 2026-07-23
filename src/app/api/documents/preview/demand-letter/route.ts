@@ -169,9 +169,22 @@ export async function GET(req: NextRequest) {
         }
       })
     } else if (template.templateHtml) {
-      // Client-Side PDF Generation
-      const rawHtml = renderTemplate(template.templateHtml, docxData as any)
+      const { generatePdf } = require('@/lib/pdf')
       
+      const format = searchParams.get('format')
+      const rawHtml = renderTemplate(template.templateHtml, docxData as any)
+
+      if (format === 'pdf') {
+        const pdfBuffer = await generatePdf(template.templateHtml, docxData)
+        return new Response(pdfBuffer, {
+          headers: {
+            'Content-Type': 'application/pdf',
+            'Content-Disposition': `inline; filename="Demand_Letter_${sale.saleNumber}.pdf"`
+          }
+        })
+      }
+
+      // Client-Side PDF Generation
       const clientSideScript = `
         <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
         <script>
