@@ -11,19 +11,20 @@ export interface EmailPayload {
   }>
 }
 
-// Create a reusable transporter object using the default SMTP transport
+// Create a reusable transporter object using the default SMTP transport for Gmail
 const transporter = nodemailer.createTransport({
-  host: process.env.SMTP_HOST,
+  host: process.env.SMTP_HOST || 'smtp.gmail.com',
   port: parseInt(process.env.SMTP_PORT || '587', 10),
   secure: process.env.SMTP_SECURE === 'true', // true for 465, false for other ports
   auth: {
-    user: process.env.SMTP_USER,
-    pass: process.env.SMTP_PASS,
+    user: process.env.GMAIL_USER || process.env.SMTP_USER,
+    pass: process.env.GMAIL_APP_PASSWORD || process.env.SMTP_PASS,
   },
 })
 
 export async function sendEmail(payload: EmailPayload): Promise<{ messageId: string }> {
-  const fromAddress = process.env.SMTP_FROM_ADDRESS || `${process.env.COMPANY_NAME || 'BuildSight'} <noreply@buildsight.in>`
+  const defaultFrom = process.env.GMAIL_USER || 'noreply@buildsight.in'
+  const fromAddress = process.env.SMTP_FROM_ADDRESS || `${process.env.COMPANY_NAME || 'BuildSight'} <${defaultFrom}>`
 
   try {
     const info = await transporter.sendMail({
