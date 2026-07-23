@@ -173,9 +173,11 @@ export default function SettingsPage() {
                 </ol>
               </details>
 
-              <div className="alert" style={{ background: 'rgba(255,200,0,0.1)', border: '1px solid rgba(255,200,0,0.3)', borderRadius: 8, padding: '12px 16px', marginBottom: 20, fontSize: '0.875rem', color: 'var(--color-warning)' }}>
-                ⚡ <strong>Simulation Mode Active</strong> — Until credentials are set, messages are logged to the console but not actually sent. The Communications inbox will show status as <em>SIMULATED</em>.
-              </div>
+              {process.env.NEXT_PUBLIC_WHATSAPP_CONFIGURED !== 'true' && (
+                <div className="alert" style={{ background: 'rgba(255,200,0,0.1)', border: '1px solid rgba(255,200,0,0.3)', borderRadius: 8, padding: '12px 16px', marginBottom: 20, fontSize: '0.875rem', color: 'var(--color-warning)' }}>
+                  ⚡ <strong>Simulation Mode Active</strong> — Until credentials are set, messages are logged to the console but not actually sent. The Communications inbox will show status as <em>SIMULATED</em>.
+                </div>
+              )}
 
               <form onSubmit={handleTestWhatsApp} style={{ display: 'flex', gap: 12, alignItems: 'flex-end' }}>
                 <div style={{ flex: 1 }}>

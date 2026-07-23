@@ -43,14 +43,13 @@ export async function POST(req: NextRequest, props: { params: Promise<{ id: stri
       }
     })
 
-    // Fetch affected sales to generate communications
     const affectedSchedules = await prisma.paymentSchedule.findMany({
       where: { milestoneId: id, status: 'DUE' },
       include: {
         sale: {
           include: {
             buyers: {
-              where: { isPrimary: true }
+              where: { receiveComms: true }
             }
           }
         }
@@ -62,39 +61,44 @@ export async function POST(req: NextRequest, props: { params: Promise<{ id: stri
       const commLogs: any[] = []
       
       affectedSchedules.forEach(schedule => {
-        const primaryBuyer = schedule.sale.buyers[0]
         const amount = Number(schedule.principalAmount) + Number(schedule.gstAmount)
         const isTaxOrParking = schedule.description.toLowerCase().includes('stamp duty') || schedule.description.toLowerCase().includes('registration') || schedule.description.toLowerCase().includes('parking')
         
-        let content = ''
-        if (isTaxOrParking) {
-           content = `Dear ${primaryBuyer?.fullName || 'Customer'},\nPayment for '${schedule.description}' is now due. Please find the attached Demand Letter for ₹${amount.toLocaleString('en-IN')}.\nDue Date: ${dueDate.toLocaleDateString('en-IN')}.\n\nATTACHMENTS:\nDemand Letter|/api/documents/preview/demand-letter?saleId=${schedule.saleId}&milestoneName=${encodeURIComponent(schedule.description)}`
-        } else {
-           content = `Dear ${primaryBuyer?.fullName || 'Customer'},\nThe milestone '${milestone.name}' is now complete. Please find the attached Demand Letter for ₹${amount.toLocaleString('en-IN')} and the Architect Completion Certificate.\nDue Date: ${dueDate.toLocaleDateString('en-IN')}.\n\nATTACHMENTS:\nArchitect Certificate|${architectCertificateUrl}\nDemand Letter|/api/documents/preview/demand-letter?saleId=${schedule.saleId}&milestoneName=${encodeURIComponent(milestone.name)}`
-        }
-        
-        // Email Log
-        commLogs.push({
-          saleId: schedule.saleId,
-          buyerId: primaryBuyer?.id,
-          channel: 'EMAIL',
-          type: 'DEMAND_LETTER',
-          messageContent: content,
-          status: 'PENDING',
-          sentAt: new Date(),
-          deliveredAt: new Date()
-        })
+        schedule.sale.buyers.forEach(buyer => {
+          let content = ''
+          if (isTaxOrParking) {
+             content = `Dear ${buyer.fullName || 'Customer'},\nPayment for '${schedule.description}' is now due. Please find the attached Demand Letter for ₹${amount.toLocaleString('en-IN')}.\nDue Date: ${dueDate.toLocaleDateString('en-IN')}.\n\nATTACHMENTS:\nDemand Letter|/api/documents/preview/demand-letter?saleId=${schedule.saleId}&milestoneName=${encodeURIComponent(schedule.description)}`
+          } else {
+             content = `Dear ${buyer.fullName || 'Customer'},\nThe milestone '${milestone.name}' is now complete. Please find the attached Demand Letter for ₹${amount.toLocaleString('en-IN')} and the Architect Completion Certificate.\nDue Date: ${dueDate.toLocaleDateString('en-IN')}.\n\nATTACHMENTS:\nArchitect Certificate|${architectCertificateUrl}\nDemand Letter|/api/documents/preview/demand-letter?saleId=${schedule.saleId}&milestoneName=${encodeURIComponent(milestone.name)}`
+          }
+          
+          // Email Log
+          if (buyer.email) {
+            commLogs.push({
+              saleId: schedule.saleId,
+              buyerId: buyer.id,
+              channel: 'EMAIL',
+              type: 'DEMAND_LETTER',
+              messageContent: content,
+              status: 'PENDING',
+              sentAt: new Date(),
+              deliveredAt: new Date()
+            })
+          }
 
-        // WhatsApp Log
-        commLogs.push({
-          saleId: schedule.saleId,
-          buyerId: primaryBuyer?.id,
-          channel: 'WHATSAPP',
-          type: 'DEMAND_LETTER',
-          messageContent: content,
-          status: 'PENDING',
-          sentAt: new Date(),
-          deliveredAt: new Date()
+          // WhatsApp Log
+          if (buyer.whatsappNumber) {
+            commLogs.push({
+              saleId: schedule.saleId,
+              buyerId: buyer.id,
+              channel: 'WHATSAPP',
+              type: 'DEMAND_LETTER',
+              messageContent: content,
+              status: 'PENDING',
+              sentAt: new Date(),
+              deliveredAt: new Date()
+            })
+          }
         })
       })
       
