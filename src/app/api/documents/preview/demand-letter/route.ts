@@ -174,7 +174,7 @@ export async function GET(req: NextRequest) {
 
       if (format === 'pdf') {
         const { generatePdf } = await import('@/lib/pdf')
-        const pdfBuffer = await generatePdf(template.templateHtml, docxData)
+        const pdfBuffer = await generatePdf(template.templateHtml, docxData as any)
         return new Response(pdfBuffer, {
           headers: {
             'Content-Type': 'application/pdf',
