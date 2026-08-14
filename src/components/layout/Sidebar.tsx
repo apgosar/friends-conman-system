@@ -66,9 +66,16 @@ export default function Sidebar() {
     return { ...section, items }
   }).filter(section => section.items.length > 0)
 
+  const closeSidebar = () => {
+    document.querySelector('.sidebar')?.classList.remove('open')
+    document.querySelector('.mobile-overlay')?.classList.remove('open')
+  }
+
   return (
-    <aside className="sidebar">
-      <Link href="/dashboard" className="sidebar-logo">
+    <>
+      <div className="mobile-overlay" onClick={closeSidebar} />
+      <aside className="sidebar">
+        <Link href="/dashboard" className="sidebar-logo" onClick={closeSidebar}>
         <div className="sidebar-logo-icon">NC</div>
         <div>
           <div className="sidebar-logo-text">
@@ -91,6 +98,7 @@ export default function Sidebar() {
                   key={item.href}
                   href={item.href}
                   className={`nav-item ${isActive ? 'active' : ''}`}
+                  onClick={closeSidebar}
                 >
                   <span className="nav-item-icon">{item.icon}</span>
                   <span>{item.label}</span>
@@ -120,5 +128,6 @@ export default function Sidebar() {
         </button>
       </div>
     </aside>
+    </>
   )
 }

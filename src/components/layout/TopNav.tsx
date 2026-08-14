@@ -19,9 +19,17 @@ export default function TopNav({ title, subtitle }: { title?: string; subtitle?:
     VIEWER: 'Viewer',
   }
 
+  const toggleSidebar = () => {
+    document.querySelector('.sidebar')?.classList.toggle('open')
+    document.querySelector('.mobile-overlay')?.classList.toggle('open')
+  }
+
   return (
     <header className="topnav">
       <div className="topnav-left">
+        <button className="mobile-menu-btn" onClick={toggleSidebar}>
+          ☰
+        </button>
         {title && (
           <div>
             <h1 style={{ fontSize: '1.125rem', fontWeight: 600, margin: 0 }}>{title}</h1>

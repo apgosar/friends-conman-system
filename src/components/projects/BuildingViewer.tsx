@@ -780,7 +780,7 @@ export default function BuildingViewer({ projectId }: { projectId: string }) {
                           {inq.mobileNumber} · ₹{inq.totalCost.toLocaleString('en-IN')}
                         </div>
                         <a
-                          href={`/quotes/${inq.id}.pdf`}
+                          href={`/api/units/${selectedUnit.id}/quotes/${inq.id}/pdf`}
                           target="_blank"
                           rel="noreferrer"
                           className="btn btn-secondary"
@@ -855,7 +855,8 @@ export default function BuildingViewer({ projectId }: { projectId: string }) {
                 
                 <div style={{ flex: 1 }}>
                   <label style={{ display: 'block', fontSize: '0.8125rem', fontWeight: 500, color: 'var(--text-secondary)', marginBottom: 6 }}>Mobile Number</label>
-                  <input required type="tel" value={quoteData.mobileNumber} onChange={e => setQuoteData({...quoteData, mobileNumber: e.target.value})} 
+                  <input required type="tel" pattern="[0-9]{10}" title="Please enter a valid 10-digit mobile number" maxLength={10} minLength={10} 
+                    value={quoteData.mobileNumber} onChange={e => setQuoteData({...quoteData, mobileNumber: e.target.value.replace(/\D/g, '')})} 
                     style={{ width: '100%', padding: '10px 14px', borderRadius: 8, border: '1px solid var(--border-color)', background: 'var(--bg-surface)', outline: 'none', fontSize: '0.9rem', color: 'var(--text-primary)', transition: 'border 0.2s', boxSizing: 'border-box' }}
                     onFocus={e => e.target.style.borderColor = 'var(--color-primary)'} onBlur={e => e.target.style.borderColor = 'var(--border-color)'}
                   />
