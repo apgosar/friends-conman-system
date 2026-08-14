@@ -1,4 +1,7 @@
+'use client'
+
 import { formatCurrency, formatDate } from '@/lib/template-engine'
+import { useRouter } from 'next/navigation'
 
 const MODE_LABELS: Record<string, string> = {
   CHEQUE: 'Cheque', RTGS_NEFT: 'RTGS/NEFT', UPI: 'UPI',
@@ -6,6 +9,8 @@ const MODE_LABELS: Record<string, string> = {
 }
 
 export default function RecentPayments({ payments }: { payments: any[] }) {
+  const router = useRouter()
+  
   return (
     <div className="card">
       <div className="card-header">
@@ -31,7 +36,12 @@ export default function RecentPayments({ payments }: { payments: any[] }) {
             </thead>
             <tbody>
               {payments.map((p) => (
-                <tr key={p.id}>
+                <tr 
+                  key={p.id} 
+                  onClick={() => router.push(`/sales/${p.saleId}`)}
+                  style={{ cursor: 'pointer' }}
+                  className="hoverable-row"
+                >
                   <td>
                     <span className="badge badge-primary">{p.receiptNumber}</span>
                   </td>

@@ -68,7 +68,7 @@ function formatMessageAsHtml(text: string): string {
     <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; background: #f9f9f9; padding: 0;">
       <div style="background: #0F2A4A; padding: 24px 32px;">
         <h1 style="color: #fff; margin: 0; font-size: 20px;">PARADIGM FRIENDS REALTORS LLP</h1>
-        <p style="color: #a0bbd8; margin: 4px 0 0; font-size: 13px;">BuildSight Property Management</p>
+        <p style="color: #a0bbd8; margin: 4px 0 0; font-size: 13px;">Neev CMS Property Management</p>
       </div>
       <div style="padding: 32px; background: #fff;">
   `
@@ -93,7 +93,7 @@ function formatMessageAsHtml(text: string): string {
   html += `
       </div>
       <div style="padding:16px 32px;background:#f0f0f0;text-align:center">
-        <p style="font-size:11px;color:#999;margin:0">This is an automated message from BuildSight. Please do not reply to this email.</p>
+        <p style="font-size:11px;color:#999;margin:0">This is an automated message from Neev CMS. Please do not reply to this email.</p>
       </div>
     </div>
   `
@@ -259,7 +259,18 @@ export async function dispatchCommunicationLog(logId: string): Promise<DispatchR
       // {{4}} Configuration
       const configuration = saleDetails?.unit?.configuration ?? 'N/A'
 
-      // {{5}} Document Type — derived from log.type
+      // {{5}} Milestone/Purpose
+      let milestonePurpose = 'General Notification'
+      if (log.type === 'DEMAND_LETTER') {
+        const mm = plainText.match(/milestone '(.*?)' is now complete/i)
+        const pm = plainText.match(/Payment for '(.*?)' is now due/i)
+        milestonePurpose = mm?.[1] ?? pm?.[1] ?? 'Scheduled Payment'
+      } else if (log.type === 'RECEIPT') {
+        const rcm = plainText.match(/received for '(.*?)'/i)
+        milestonePurpose = rcm?.[1] ?? 'Payment Received'
+      }
+
+      // {{6}} Document Type — derived from log.type
       const docTypeMap: Record<string, string> = {
         DEMAND_LETTER: 'Demand Letter',
         RECEIPT: 'Payment Receipt',
@@ -268,12 +279,12 @@ export async function dispatchCommunicationLog(logId: string): Promise<DispatchR
       }
       const documentType = docTypeMap[log.type] ?? 'Notification'
 
-      // {{6}} Amount — extract ₹ figure from message content
+      // {{7}} Amount — extract ₹ figure from message content
       const amountMatch = plainText.match(/₹\s*([\d,]+(?:\.\d{2})?)/i)
         ?? plainText.match(/Amount[:\s]+Rs\.?\s*([\d,]+(?:\.\d{2})?)/i)
       const amount = amountMatch ? amountMatch[1] : 'As per schedule'
 
-      // {{7}} Additional Info — due date for demands, payment mode for receipts
+      // {{8}} Additional Info — due date for demands, payment mode for receipts
       let additionalInfo = ''
       if (log.type === 'RECEIPT') {
         const modeMatch = plainText.match(/(?:paid|payment).+?via\s+([^\n]+)/i)
@@ -308,10 +319,11 @@ export async function dispatchCommunicationLog(logId: string): Promise<DispatchR
           projectName,                             // {{2}}
           unitNumber,                              // {{3}}
           configuration,                           // {{4}}
-          documentType,                            // {{5}}
-          amount,                                  // {{6}}
-          additionalInfo,                          // {{7}}
-          process.env.COMPANY_NAME || 'BuildSight',// {{8}}
+          milestonePurpose,                        // {{5}}
+          documentType,                            // {{6}}
+          amount,                                  // {{7}}
+          additionalInfo,                          // {{8}}
+          process.env.COMPANY_NAME || 'Neev CMS',// {{9}}
         ],
       })
 

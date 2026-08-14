@@ -23,8 +23,8 @@ const transporter = nodemailer.createTransport({
 })
 
 export async function sendEmail(payload: EmailPayload): Promise<{ messageId: string }> {
-  const defaultFrom = process.env.GMAIL_USER || 'noreply@buildsight.in'
-  const fromAddress = process.env.SMTP_FROM_ADDRESS || `${process.env.COMPANY_NAME || 'BuildSight'} <${defaultFrom}>`
+  const defaultFrom = process.env.GMAIL_USER || 'noreply@neevcms.in'
+  const fromAddress = process.env.SMTP_FROM_ADDRESS || `${process.env.COMPANY_NAME || 'Neev CMS'} <${defaultFrom}>`
 
   try {
     const info = await transporter.sendMail({

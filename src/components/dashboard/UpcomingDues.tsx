@@ -1,4 +1,5 @@
 import { formatCurrency, formatDate } from '@/lib/template-engine'
+import Link from 'next/link'
 
 export default function UpcomingDues({ dues }: { dues: any[] }) {
   return (
@@ -13,8 +14,9 @@ export default function UpcomingDues({ dues }: { dues: any[] }) {
       ) : (
         <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
           {dues.map((d) => (
-            <div
+            <Link
               key={d.id}
+              href={`/sales/${d.saleId}`}
               style={{
                 display: 'flex',
                 alignItems: 'center',
@@ -23,6 +25,7 @@ export default function UpcomingDues({ dues }: { dues: any[] }) {
                 background: 'var(--bg-input)',
                 borderRadius: 'var(--radius-md)',
                 gap: 12,
+                textDecoration: 'none',
               }}
             >
               <div style={{ flex: 1, minWidth: 0 }}>
@@ -41,7 +44,7 @@ export default function UpcomingDues({ dues }: { dues: any[] }) {
                   Due {d.dueDate ? formatDate(d.dueDate) : 'On milestone'}
                 </div>
               </div>
-            </div>
+            </Link>
           ))}
         </div>
       )}

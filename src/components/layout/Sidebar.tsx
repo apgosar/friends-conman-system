@@ -69,10 +69,10 @@ export default function Sidebar() {
   return (
     <aside className="sidebar">
       <Link href="/dashboard" className="sidebar-logo">
-        <div className="sidebar-logo-icon">BS</div>
+        <div className="sidebar-logo-icon">NC</div>
         <div>
           <div className="sidebar-logo-text">
-            BuildSight
+            Neev CMS
             <span className="sidebar-logo-sub">Property Management</span>
           </div>
         </div>

@@ -99,7 +99,7 @@ export default function SettingsPage() {
 
               <div style={{ background: 'var(--bg-input)', borderRadius: 8, padding: '16px 20px', fontFamily: 'monospace', fontSize: '0.85rem', color: 'var(--color-success)', marginBottom: 20, lineHeight: 2 }}>
                 <div><span style={{ color: 'var(--text-muted)' }}># Email (Gmail App Password)</span></div>
-                <div>GMAIL_USER=<span style={{ color: 'var(--color-warning)' }}>buildsight.ai@gmail.com</span></div>
+                <div>GMAIL_USER=<span style={{ color: 'var(--color-warning)' }}>neevcms@gmail.com</span></div>
                 <div>GMAIL_APP_PASSWORD=<span style={{ color: 'var(--color-warning)' }}>xxxx-xxxx-xxxx-xxxx</span></div>
                 <div>COMPANY_NAME=<span style={{ color: 'var(--color-warning)' }}>PARADIGM FRIENDS REALTORS LLP</span></div>
               </div>
@@ -109,10 +109,10 @@ export default function SettingsPage() {
                   📖 How to create a Gmail App Password
                 </summary>
                 <ol style={{ marginTop: 12, paddingLeft: 20, fontSize: '0.875rem', color: 'var(--text-muted)', lineHeight: 1.8 }}>
-                  <li>Sign in to <strong>buildsight.ai@gmail.com</strong></li>
+                  <li>Sign in to <strong>neevcms@gmail.com</strong></li>
                   <li>Go to <strong>Google Account → Security → 2-Step Verification</strong> (enable it first)</li>
                   <li>At the bottom, click <strong>App passwords</strong></li>
-                  <li>Select App: <em>Mail</em>, Device: <em>Other</em> → type "BuildSight Server"</li>
+                  <li>Select App: <em>Mail</em>, Device: <em>Other</em> → type "Neev CMS Server"</li>
                   <li>Copy the 16-character password and paste it as <code>GMAIL_APP_PASSWORD</code></li>
                 </ol>
               </details>
@@ -173,11 +173,7 @@ export default function SettingsPage() {
                 </ol>
               </details>
 
-              {process.env.NEXT_PUBLIC_WHATSAPP_CONFIGURED !== 'true' && (
-                <div className="alert" style={{ background: 'rgba(255,200,0,0.1)', border: '1px solid rgba(255,200,0,0.3)', borderRadius: 8, padding: '12px 16px', marginBottom: 20, fontSize: '0.875rem', color: 'var(--color-warning)' }}>
-                  ⚡ <strong>Simulation Mode Active</strong> — Until credentials are set, messages are logged to the console but not actually sent. The Communications inbox will show status as <em>SIMULATED</em>.
-                </div>
-              )}
+
 
               <form onSubmit={handleTestWhatsApp} style={{ display: 'flex', gap: 12, alignItems: 'flex-end' }}>
                 <div style={{ flex: 1 }}>

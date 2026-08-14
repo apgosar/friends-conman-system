@@ -32,9 +32,9 @@ export default function LoginPage() {
     <div className="login-page">
       <div className="login-card">
         <div className="login-logo">
-          <div className="login-logo-icon">FC</div>
+          <div className="login-logo-icon">NC</div>
           <div>
-            <div className="login-logo-name">BuildSight</div>
+            <div className="login-logo-name">Neev CMS</div>
             <div className="login-logo-sub">Property Management System</div>
           </div>
         </div>

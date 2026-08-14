@@ -14,17 +14,17 @@ export async function POST(req: NextRequest) {
 
     const result = await sendEmail({
       to,
-      subject: '✅ BuildSight — Email Integration Test',
+      subject: '✅ Neev CMS — Email Integration Test',
       html: `
         <div style="font-family: Arial, sans-serif; max-width: 560px; margin: 0 auto;">
           <div style="background: #0F2A4A; padding: 24px 32px;">
             <h1 style="color: #fff; margin: 0; font-size: 20px;">PARADIGM FRIENDS REALTORS LLP</h1>
-            <p style="color: #a0bbd8; margin: 4px 0 0; font-size: 13px;">BuildSight Property Management</p>
+            <p style="color: #a0bbd8; margin: 4px 0 0; font-size: 13px;">Neev CMS - Construction Management Systems</p>
           </div>
           <div style="padding: 32px; background: #fff;">
             <h2 style="color: #0F2A4A;">Email Integration Working ✅</h2>
             <p style="color: #333; line-height: 1.6;">
-              This is a test email from BuildSight. Your SMTP email integration is working correctly.
+              This is a test email from Neev CMS. Your SMTP email integration is working correctly.
               Demand letters, receipts, and notifications will be delivered to buyer email addresses automatically.
             </p>
             <p style="color: #666; font-size: 13px; margin-top: 24px;">

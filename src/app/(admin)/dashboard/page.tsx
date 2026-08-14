@@ -1,4 +1,5 @@
 import { auth } from '@/lib/auth'
+import Link from 'next/link'
 import { prisma } from '@/lib/db'
 import { formatCurrency } from '@/lib/template-engine'
 import TopNav from '@/components/layout/TopNav'
@@ -66,7 +67,7 @@ async function getDashboardData() {
 
     const daysPast = Math.floor((now.getTime() - new Date(s.dueDate).getTime()) / 86400000)
 
-    if (daysPast <= 0)        current  += total
+    if (daysPast <= 7)        current  += total
     else if (daysPast <= 15)  o15      += total
     else if (daysPast <= 30)  o30      += total
     else                      o30plus  += total
@@ -132,8 +133,8 @@ export default async function DashboardPage() {
 
   const agingData = [
     { label: 'Current', amount: stats.current, count: 0, color: '#10b981' },
-    { label: '0–15 Days', amount: stats.overdue15, count: 0, color: '#f59e0b' },
-    { label: '15–30 Days', amount: stats.overdue30, count: 0, color: '#f97316' },
+    { label: '8–15 Days', amount: stats.overdue15, count: 0, color: '#f59e0b' },
+    { label: '16–30 Days', amount: stats.overdue30, count: 0, color: '#f97316' },
     { label: '30+ Days', amount: stats.overdue30Plus, count: 0, color: '#ef4444' },
   ]
 
@@ -176,10 +177,10 @@ export default async function DashboardPage() {
 
         {/* Aging Buckets */}
         <div className="grid grid-4 gap-4 mb-6">
-          <AgingBucketCard label="Current Due" amount={stats.current} color="var(--color-success)" />
-          <AgingBucketCard label="Overdue 0–15 Days" amount={stats.overdue15} color="var(--color-warning)" />
-          <AgingBucketCard label="Overdue 15–30 Days" amount={stats.overdue30} color="var(--color-orange)" />
-          <AgingBucketCard label="Overdue 30+ Days" amount={stats.overdue30Plus} color="var(--color-danger)" critical />
+          <AgingBucketCard label="Current Due" amount={stats.current} color="var(--color-success)" bucket="current" />
+          <AgingBucketCard label="Overdue 8–15 Days" amount={stats.overdue15} color="var(--color-warning)" bucket="8-15" />
+          <AgingBucketCard label="Overdue 16–30 Days" amount={stats.overdue30} color="var(--color-orange)" bucket="16-30" />
+          <AgingBucketCard label="Overdue 30+ Days" amount={stats.overdue30Plus} color="var(--color-danger)" critical bucket="30plus" />
         </div>
 
         {escalations.length > 0 && (
@@ -214,15 +215,16 @@ function StatCard({ label, value, sub, icon, gradient }: {
   )
 }
 
-function AgingBucketCard({ label, amount, color, critical }: {
-  label: string; amount: number; color: string; critical?: boolean
+function AgingBucketCard({ label, amount, color, critical, bucket }: {
+  label: string; amount: number; color: string; critical?: boolean; bucket?: string
 }) {
-  return (
+  const content = (
     <div
-      className="card"
+      className="card hoverable-card"
       style={{
         borderColor: critical && amount > 0 ? 'rgba(239,68,68,0.3)' : undefined,
         background: critical && amount > 0 ? 'rgba(239,68,68,0.05)' : undefined,
+        cursor: 'pointer',
       }}
     >
       <div className="flex items-center gap-2 mb-2">
@@ -244,4 +246,9 @@ function AgingBucketCard({ label, amount, color, critical }: {
       </div>
     </div>
   )
+
+  if (bucket) {
+    return <Link href={`/receivables?bucket=${bucket}`} style={{ textDecoration: 'none' }}>{content}</Link>
+  }
+  return content
 }

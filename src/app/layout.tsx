@@ -2,7 +2,7 @@ import type { Metadata } from 'next'
 import '@/styles/globals.css'
 
 export const metadata: Metadata = {
-  title: 'BuildSight — Property Management',
+  title: 'Neev CMS — Property Management',
   description: 'Property Developer Sales & Document Management System',
 }
 

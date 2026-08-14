@@ -15,7 +15,7 @@ export async function POST(req: NextRequest) {
 
     const result = await sendWhatsApp({
       to: phone,
-      message: 'BuildSight WhatsApp Integration Test',
+      message: 'Neev CMS WhatsApp Integration Test',
       templateName: 'demands_and_receipts',
       templateLanguage: 'en',
       documentHeaderUrl: 'https://www.w3.org/WAI/ER/tests/xhtml/testfiles/resources/pdf/dummy.pdf',
@@ -28,7 +28,7 @@ export async function POST(req: NextRequest) {
         'Demand Letter - Test',               // {{5}} Document Type
         '1,00,000',                           // {{6}} Amount
         'Due Date: 31/07/2026',               // {{7}} Additional Info
-        process.env.COMPANY_NAME || 'BuildSight', // {{8}} Company Name
+        process.env.COMPANY_NAME || 'Neev CMS', // {{9}} Company Name
       ],
     })
 

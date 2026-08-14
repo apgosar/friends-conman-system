@@ -49,7 +49,6 @@
     "react-hook-form": "^7.80.0",
     "recharts": "^3.9.1",
     "sharp": "^0.35.2",
-    "tesseract.js": "^7.0.0",
     "uuid": "^14.0.1",
     "zod": "^4.4.3"
   },
@@ -60,6 +59,7 @@
     "@types/react": "^19",
     "@types/react-dom": "^19",
     "docx": "^9.7.1",
+    "dotenv": "^17.4.2",
     "eslint": "^9",
     "eslint-config-next": "16.2.9",
     "tsx": "^4.22.4",
