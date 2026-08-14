@@ -5,7 +5,8 @@ import { createAuditLog } from '@/lib/audit'
 
 export async function POST(req: NextRequest) {
   const session = await auth()
-  if (!session) return Response.json({ error: 'Unauthorized' }, { status: 401 })
+  if (!session?.user) return Response.json({ error: 'Unauthorized' }, { status: 401 })
+  if (!['SUPER_ADMIN', 'ADMIN'].includes(session.user.role)) { return Response.json({ error: 'Forbidden' }, { status: 403 }) }
   const { scheduleId } = await req.json()
   if (!scheduleId) return Response.json({ error: 'scheduleId required' }, { status: 400 })
   const schedule = await prisma.paymentSchedule.update({

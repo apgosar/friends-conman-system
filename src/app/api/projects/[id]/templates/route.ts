@@ -1,7 +1,11 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/db'
+import { auth } from '@/lib/auth'
 
 export async function GET(req: NextRequest, props: { params: Promise<{ id: string }> }) {
+  const session = await auth()
+  if (!session?.user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+
   try {
     const { id: projectId } = await props.params
     const templates = await prisma.template.findMany({
@@ -10,11 +14,17 @@ export async function GET(req: NextRequest, props: { params: Promise<{ id: strin
     })
     return NextResponse.json({ success: true, data: templates })
   } catch (error: any) {
-    return NextResponse.json({ success: false, error: error.message }, { status: 500 })
+    return NextResponse.json({ success: false, error: 'Internal server error' }, { status: 500 })
   }
 }
 
 export async function POST(req: NextRequest, props: { params: Promise<{ id: string }> }) {
+  const session = await auth()
+  if (!session?.user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+  if (session.user.role !== 'SUPER_ADMIN' && session.user.role !== 'ADMIN') {
+    return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
+  }
+
   try {
     const { id: projectId } = await props.params
     const { name, type, fileUrl, templateHtml } = await req.json()
@@ -38,6 +48,6 @@ export async function POST(req: NextRequest, props: { params: Promise<{ id: stri
 
     return NextResponse.json({ success: true, data: template })
   } catch (error: any) {
-    return NextResponse.json({ success: false, error: error.message }, { status: 500 })
+    return NextResponse.json({ success: false, error: 'Internal server error' }, { status: 500 })
   }
 }

@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/db'
+import { auth } from '@/lib/auth'
 import { generateDocx } from '@/lib/docx'
 import { generatePdf } from '@/lib/pdf'
 import { uploadFile } from '@/lib/storage'
@@ -15,6 +16,9 @@ const fmtCur = (amount: number | string | null | undefined) => {
 }
 
 export async function POST(req: NextRequest) {
+  const session = await auth()
+  if (!session?.user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+
   try {
     const { saleId, type } = await req.json()
 
@@ -191,7 +195,7 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ success: true, data: document })
 
   } catch (err: any) {
-    console.error('Doc gen error:', err)
-    return NextResponse.json({ success: false, error: err.message }, { status: 500 })
+    console.error('[documents/generate] Error:', err)
+    return NextResponse.json({ success: false, error: 'Document generation failed' }, { status: 500 })
   }
 }

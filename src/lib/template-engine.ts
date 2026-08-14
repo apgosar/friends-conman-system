@@ -1,4 +1,5 @@
 import { TemplateContext } from '@/types'
+import { escapeHtml } from '@/lib/html-escape'
 
 /**
  * Replaces all {{variable.path}} placeholders in a template string
@@ -12,7 +13,7 @@ export function renderTemplate(template: string, context: TemplateContext): stri
       if (value === null || value === undefined) return match
       value = (value as Record<string, unknown>)[key]
     }
-    return value !== undefined && value !== null ? String(value) : match
+    return value !== undefined && value !== null ? escapeHtml(String(value)) : match
   })
 }
 

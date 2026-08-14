@@ -4,6 +4,9 @@ import { auth } from '@/lib/auth'
 import { createAuditLog } from '@/lib/audit'
 
 export async function GET() {
+  const session = await auth()
+  if (!session?.user) return Response.json({ error: 'Unauthorized' }, { status: 401 })
+
   const projects = await prisma.project.findMany({
     include: { wings: true, _count: { select: { sales: true } } },
     orderBy: { createdAt: 'desc' },
@@ -13,7 +16,10 @@ export async function GET() {
 
 export async function POST(req: NextRequest) {
   const session = await auth()
-  if (!session) return Response.json({ error: 'Unauthorized' }, { status: 401 })
+  if (!session?.user) return Response.json({ error: 'Unauthorized' }, { status: 401 })
+  if (!['SUPER_ADMIN', 'ADMIN'].includes(session.user.role)) {
+    return Response.json({ error: 'Forbidden: insufficient permissions' }, { status: 403 })
+  }
   const body = await req.json()
   const { name, reraNumber, address, city, state, type, status, companyName, companyAddress, companyGstin, launchDate, expectedCompletion, stampDutyPercent, regChargesPercent } = body
   if (!name || !address || !city || !companyName || !companyAddress) {

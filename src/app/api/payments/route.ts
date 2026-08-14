@@ -5,7 +5,8 @@ import { generateReceiptNumber } from '@/lib/receipt-number'
 
 export async function POST(req: NextRequest) {
   const session = await auth()
-  if (!session) return Response.json({ error: 'Unauthorized' }, { status: 401 })
+  if (!session?.user) return Response.json({ error: 'Unauthorized' }, { status: 401 })
+  if (!['SUPER_ADMIN', 'ADMIN'].includes(session.user.role)) { return Response.json({ error: 'Forbidden' }, { status: 403 }) }
   
   const body = await req.json()
   const { scheduleId, saleId, amount, gstPaid, mode, referenceNumber, remark, bankName, paymentDate } = body
@@ -64,6 +65,6 @@ export async function POST(req: NextRequest) {
     
     return Response.json({ success: true, data: payment }, { status: 201 })
   } catch (err: any) {
-    return Response.json({ error: err.message }, { status: 500 })
+    return Response.json({ error: 'Internal Server Error' }, { status: 500 })
   }
 }

@@ -3,7 +3,7 @@ generator client {
 }
 
 datasource db {
-  provider = "sqlite"
+  provider = "postgresql"
   url      = env("DATABASE_URL")
 }
 
@@ -45,6 +45,7 @@ model Inquiry {
 
   unit            Unit     @relation(fields: [unitId], references: [id], onDelete: Cascade)
 
+  @@index([unitId])
   @@map("inquiries")
 }
 
@@ -96,6 +97,7 @@ model Wing {
   project     Project @relation(fields: [projectId], references: [id], onDelete: Cascade)
   floors      Floor[]
 
+  @@index([projectId])
   @@map("wings")
 }
 
@@ -109,6 +111,7 @@ model Floor {
   wing            Wing    @relation(fields: [wingId], references: [id], onDelete: Cascade)
   units           Unit[]
 
+  @@index([wingId])
   @@map("floors")
 }
 
@@ -129,6 +132,8 @@ model Unit {
   inquiries           Inquiry[]
   tenant              Tenant?
 
+  @@index([floorId])
+  @@index([status])
   @@map("units")
 }
 
@@ -156,6 +161,7 @@ model Tenant {
   newUnit             Unit?     @relation(fields: [newUnitId], references: [id])
   sale                Sale?
 
+  @@index([projectId])
   @@map("tenants")
 }
 
@@ -188,8 +194,8 @@ model Sale {
   createdAt             DateTime    @default(now())
   updatedAt             DateTime    @updatedAt
 
-  project               Project     @relation(fields: [projectId], references: [id])
-  unit                  Unit        @relation(fields: [unitId], references: [id])
+  project               Project     @relation(fields: [projectId], references: [id], onDelete: Restrict)
+  unit                  Unit        @relation(fields: [unitId], references: [id], onDelete: Restrict)
   tenant                Tenant?     @relation(fields: [tenantId], references: [id])
   buyers                Buyer[]
   paymentSchedules      PaymentSchedule[]
@@ -198,6 +204,9 @@ model Sale {
   communicationLogs     CommunicationLog[]
   loans                 Loan[]
 
+  @@index([projectId])
+  @@index([unitId])
+  @@index([status])
   @@map("sales")
 }
 
@@ -228,6 +237,7 @@ model Buyer {
   kycDocuments        KycDocument[]
   communicationLogs   CommunicationLog[]
 
+  @@index([saleId])
   @@map("buyers")
 }
 
@@ -244,6 +254,8 @@ model KycDocument {
 
   buyer           Buyer         @relation(fields: [buyerId], references: [id], onDelete: Cascade)
 
+  @@index([buyerId])
+  @@index([status])
   @@map("kyc_documents")
 }
 
@@ -272,6 +284,7 @@ model ConstructionMilestone {
   project                 Project             @relation(fields: [projectId], references: [id], onDelete: Cascade)
   paymentSchedules        PaymentSchedule[]
 
+  @@index([projectId])
   @@map("construction_milestones")
 }
 
@@ -301,6 +314,8 @@ model PaymentSchedule {
   milestone               ConstructionMilestone? @relation(fields: [milestoneId], references: [id])
   payments                Payment[]
 
+  @@index([saleId])
+  @@index([status])
   @@map("payment_schedules")
 }
 
@@ -324,10 +339,12 @@ model Payment {
   createdAt       DateTime      @default(now())
   updatedAt       DateTime      @updatedAt
 
-  schedule        PaymentSchedule @relation(fields: [scheduleId], references: [id])
+  schedule        PaymentSchedule @relation(fields: [scheduleId], references: [id], onDelete: Restrict)
   sale            Sale            @relation(fields: [saleId], references: [id])
   tdsRecord       TdsRecord?
 
+  @@index([saleId])
+  @@index([scheduleId])
   @@map("payments")
 }
 
@@ -345,7 +362,7 @@ model TdsRecord {
   createdAt           DateTime  @default(now())
   updatedAt           DateTime  @updatedAt
 
-  payment             Payment   @relation(fields: [paymentId], references: [id])
+  payment             Payment   @relation(fields: [paymentId], references: [id], onDelete: Restrict)
 
   @@map("tds_records")
 }
@@ -370,6 +387,7 @@ model Loan {
 
   sale                Sale        @relation(fields: [saleId], references: [id], onDelete: Cascade)
 
+  @@index([saleId])
   @@map("loans")
 }
 
@@ -398,7 +416,7 @@ model Template {
   projectId       String
   type String
   name            String
-  templateHtml    String?       // HTML with {{variables}} for PDFs
+  templateHtml    String?       @db.Text
   fileUrl         String?       // S3/Local URL for .docx templates
   version         Int           @default(1)
   isActive        Boolean       @default(true)
@@ -408,6 +426,7 @@ model Template {
   project         Project       @relation(fields: [projectId], references: [id], onDelete: Cascade)
   documents       Document[]
 
+  @@index([projectId])
   @@map("templates")
 }
 
@@ -429,6 +448,8 @@ model Document {
   template        Template?     @relation(fields: [templateId], references: [id])
   communicationLogs CommunicationLog[]
 
+  @@index([saleId])
+  @@index([status])
   @@map("documents")
 }
 
@@ -447,7 +468,7 @@ model CommunicationLog {
   documentId          String?
   channel String
   type String
-  messageContent      String?
+  messageContent      String?   @db.Text
   status String @default("QUEUED")
   providerMessageId   String?
   sentAt              DateTime?
@@ -461,6 +482,8 @@ model CommunicationLog {
   buyer               Buyer?      @relation(fields: [buyerId], references: [id])
   document            Document?   @relation(fields: [documentId], references: [id])
 
+  @@index([saleId])
+  @@index([status])
   @@map("communication_logs")
 }
 

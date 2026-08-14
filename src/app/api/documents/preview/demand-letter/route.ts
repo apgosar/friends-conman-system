@@ -4,6 +4,7 @@ import { generateDocx } from '@/lib/docx'
 import { numberToWords, formatDate, renderTemplate } from '@/lib/template-engine'
 import fs from 'fs'
 import path from 'path'
+import { auth } from '@/lib/auth'
 
 const fmtCur = (amount: number | string | null | undefined) => {
   if (!amount) return '0.00'
@@ -11,6 +12,9 @@ const fmtCur = (amount: number | string | null | undefined) => {
 }
 
 export async function GET(req: NextRequest) {
+  const session = await auth()
+  if (!session?.user) return new Response('Unauthorized', { status: 401 })
+
   try {
     const { searchParams } = new URL(req.url)
     const saleId = searchParams.get('saleId')
@@ -237,6 +241,6 @@ export async function GET(req: NextRequest) {
 
   } catch (err: any) {
     console.error('Doc gen error:', err)
-    return new Response(err.message, { status: 500 })
+    return new Response('Internal server error', { status: 500 })
   }
 }

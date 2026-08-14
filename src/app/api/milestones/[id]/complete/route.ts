@@ -5,7 +5,8 @@ import { dispatchAllPending } from '@/lib/comms-dispatcher'
 
 export async function POST(req: NextRequest, props: { params: Promise<{ id: string }> }) {
   const session = await auth()
-  if (!session) return Response.json({ error: 'Unauthorized' }, { status: 401 })
+  if (!session?.user) return Response.json({ error: 'Unauthorized' }, { status: 401 })
+  if (!['SUPER_ADMIN', 'ADMIN'].includes(session.user.role)) { return Response.json({ error: 'Forbidden' }, { status: 403 }) }
   
   const { id } = await props.params
 
@@ -112,6 +113,6 @@ export async function POST(req: NextRequest, props: { params: Promise<{ id: stri
     
     return Response.json({ success: true, data: milestone })
   } catch (err: any) {
-    return Response.json({ error: err.message }, { status: 500 })
+    return Response.json({ error: 'Internal Server Error' }, { status: 500 })
   }
 }

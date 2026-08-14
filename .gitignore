@@ -44,7 +44,16 @@ next-env.d.ts
 
 # generated data
 *.db
+/prisma/dev.db
+/prisma/*.db
 /eng.traineddata
 /public/uploads/
 
 /public/quotes/
+
+# SSH / PEM keys — never commit private keys
+*.pem
+*.key
+
+# Secrets — use .env.example as template
+# .env.local is the actual secrets file; never commit it
