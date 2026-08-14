@@ -8,6 +8,9 @@ import { dispatchCommunicationLog } from '@/lib/comms-dispatcher'
 export async function POST(req: NextRequest) {
   const session = await auth()
   if (!session) return Response.json({ error: 'Unauthorized' }, { status: 401 })
+  if (session.user.role !== 'SUPER_ADMIN' && session.user.role !== 'ADMIN') {
+    return Response.json({ error: 'Forbidden' }, { status: 403 })
+  }
 
   try {
     const body = await req.json()
@@ -31,7 +34,7 @@ export async function POST(req: NextRequest) {
     const result = await dispatchCommunicationLog(log.id)
     return Response.json({ success: true, logId: log.id, result })
   } catch (err: any) {
-    return Response.json({ error: err.message }, { status: 500 })
+    return Response.json({ error: 'Internal server error' }, { status: 500 })
   }
 }
 
@@ -39,6 +42,9 @@ export async function POST(req: NextRequest) {
 export async function GET(req: NextRequest) {
   const session = await auth()
   if (!session) return Response.json({ error: 'Unauthorized' }, { status: 401 })
+  if (session.user.role !== 'SUPER_ADMIN' && session.user.role !== 'ADMIN') {
+    return Response.json({ error: 'Forbidden' }, { status: 403 })
+  }
 
   const { searchParams } = new URL(req.url)
   const channel = searchParams.get('channel')

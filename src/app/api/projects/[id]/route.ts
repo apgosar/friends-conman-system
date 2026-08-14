@@ -4,6 +4,9 @@ import { auth } from '@/lib/auth'
 import { createAuditLog } from '@/lib/audit'
 
 export async function GET(req: NextRequest, props: { params: Promise<{ id: string }> }) {
+  const session = await auth()
+  if (!session) return Response.json({ error: 'Unauthorized' }, { status: 401 })
+
   const { id } = await props.params
   const project = await prisma.project.findUnique({
     where: { id },
@@ -21,6 +24,9 @@ export async function GET(req: NextRequest, props: { params: Promise<{ id: strin
 export async function PATCH(req: NextRequest, props: { params: Promise<{ id: string }> }) {
   const session = await auth()
   if (!session) return Response.json({ error: 'Unauthorized' }, { status: 401 })
+  if (session.user.role !== 'SUPER_ADMIN' && session.user.role !== 'ADMIN') {
+    return Response.json({ error: 'Forbidden' }, { status: 403 })
+  }
 
   const { id } = await props.params
   const body = await req.json()
@@ -65,6 +71,6 @@ export async function PATCH(req: NextRequest, props: { params: Promise<{ id: str
 
     return Response.json({ success: true, data: updated })
   } catch (err: any) {
-    return Response.json({ error: err.message }, { status: 500 })
+    return Response.json({ error: 'Internal server error' }, { status: 500 })
   }
 }

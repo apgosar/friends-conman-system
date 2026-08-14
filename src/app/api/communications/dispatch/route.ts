@@ -7,6 +7,9 @@ import { dispatchAllPending } from '@/lib/comms-dispatcher'
 export async function POST(req: NextRequest) {
   const session = await auth()
   if (!session) return Response.json({ error: 'Unauthorized' }, { status: 401 })
+  if (session.user.role !== 'SUPER_ADMIN' && session.user.role !== 'ADMIN') {
+    return Response.json({ error: 'Forbidden' }, { status: 403 })
+  }
 
   try {
     const results = await dispatchAllPending()
@@ -21,6 +24,6 @@ export async function POST(req: NextRequest) {
       results,
     })
   } catch (err: any) {
-    return Response.json({ error: err.message }, { status: 500 })
+    return Response.json({ error: 'Internal server error' }, { status: 500 })
   }
 }

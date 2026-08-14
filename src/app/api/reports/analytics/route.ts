@@ -5,6 +5,9 @@ import { prisma } from '@/lib/db'
 export async function GET(req: NextRequest) {
   const session = await auth()
   if (!session) return Response.json({ error: 'Unauthorized' }, { status: 401 })
+  if (session.user.role !== 'SUPER_ADMIN' && session.user.role !== 'ADMIN') {
+    return Response.json({ error: 'Forbidden' }, { status: 403 })
+  }
 
   try {
     const now = new Date()
@@ -153,6 +156,6 @@ export async function GET(req: NextRequest) {
       })),
     })
   } catch (err: any) {
-    return Response.json({ error: err.message }, { status: 500 })
+    return Response.json({ error: 'Internal server error' }, { status: 500 })
   }
 }

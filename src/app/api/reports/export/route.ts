@@ -19,6 +19,9 @@ function toCsv(headers: string[], rows: string[][]): string {
 export async function GET(req: NextRequest) {
   const session = await auth()
   if (!session) return new Response('Unauthorized', { status: 401 })
+  if (session.user.role !== 'SUPER_ADMIN' && session.user.role !== 'ADMIN') {
+    return new Response('Forbidden', { status: 403 })
+  }
 
   const type = new URL(req.url).searchParams.get('type') ?? 'sales'
 
@@ -137,6 +140,6 @@ export async function GET(req: NextRequest) {
       },
     })
   } catch (err: any) {
-    return Response.json({ error: err.message }, { status: 500 })
+    return Response.json({ error: 'Internal server error' }, { status: 500 })
   }
 }

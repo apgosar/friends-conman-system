@@ -7,6 +7,9 @@ import { prisma } from '@/lib/db'
 export async function POST(req: NextRequest, props: { params: Promise<{ id: string }> }) {
   const session = await auth()
   if (!session) return Response.json({ error: 'Unauthorized' }, { status: 401 })
+  if (session.user.role !== 'SUPER_ADMIN' && session.user.role !== 'ADMIN') {
+    return Response.json({ error: 'Forbidden' }, { status: 403 })
+  }
 
   const { id } = await props.params
 
@@ -20,6 +23,6 @@ export async function POST(req: NextRequest, props: { params: Promise<{ id: stri
     const result = await dispatchCommunicationLog(id)
     return Response.json({ success: true, result })
   } catch (err: any) {
-    return Response.json({ error: err.message }, { status: 500 })
+    return Response.json({ error: 'Internal server error' }, { status: 500 })
   }
 }
