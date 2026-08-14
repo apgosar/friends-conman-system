@@ -857,9 +857,13 @@ export default function BuildingViewer({ projectId }: { projectId: string }) {
                   <label style={{ display: 'block', fontSize: '0.8125rem', fontWeight: 500, color: 'var(--text-secondary)', marginBottom: 6 }}>Mobile Number</label>
                   <input required type="tel" pattern="[0-9]{10}" title="Please enter a valid 10-digit mobile number" maxLength={10} minLength={10} 
                     value={quoteData.mobileNumber} onChange={e => setQuoteData({...quoteData, mobileNumber: e.target.value.replace(/\D/g, '')})} 
-                    style={{ width: '100%', padding: '10px 14px', borderRadius: 8, border: '1px solid var(--border-color)', background: 'var(--bg-surface)', outline: 'none', fontSize: '0.9rem', color: 'var(--text-primary)', transition: 'border 0.2s', boxSizing: 'border-box' }}
-                    onFocus={e => e.target.style.borderColor = 'var(--color-primary)'} onBlur={e => e.target.style.borderColor = 'var(--border-color)'}
+                    style={{ width: '100%', padding: '10px 14px', borderRadius: 8, border: `1px solid ${quoteData.mobileNumber && quoteData.mobileNumber.length !== 10 ? 'var(--color-danger, #ef4444)' : 'var(--border-color)'}`, background: 'var(--bg-surface)', outline: 'none', fontSize: '0.9rem', color: 'var(--text-primary)', transition: 'border 0.2s', boxSizing: 'border-box' }}
+                    onFocus={e => { if (quoteData.mobileNumber.length === 10 || !quoteData.mobileNumber) e.target.style.borderColor = 'var(--color-primary)' }} 
+                    onBlur={e => { if (quoteData.mobileNumber.length === 10 || !quoteData.mobileNumber) e.target.style.borderColor = 'var(--border-color)' }}
                   />
+                  {quoteData.mobileNumber && quoteData.mobileNumber.length !== 10 && (
+                    <div style={{ color: 'var(--color-danger, #ef4444)', fontSize: '0.75rem', marginTop: 4 }}>⚠ Must be exactly 10 digits</div>
+                  )}
                 </div>
               </div>
 
