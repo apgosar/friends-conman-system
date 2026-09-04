@@ -28,6 +28,7 @@ RUN npm ci
 # Builder layer
 FROM base AS builder
 WORKDIR /app
+ENV BUILDING=true
 COPY --from=deps /app/node_modules ./node_modules
 COPY . .
 # Generate Prisma Client
@@ -38,7 +39,8 @@ RUN npm run build
 FROM base AS runner
 WORKDIR /app
 ENV NODE_ENV=production
-ENV PORT=3000
+ENV PORT=8080
+ENV HOSTNAME="0.0.0.0"
 
 # Create non-root user for security (CIS Docker Benchmark)
 RUN groupadd --system --gid 1001 nodejs && \
@@ -55,12 +57,12 @@ COPY --from=builder --chown=nextjs:nodejs /app/node_modules ./node_modules
 # Switch to non-root user
 USER nextjs
 
-# Expose the port
-EXPOSE 3000
+# Expose the port (Cloud Run standard)
+EXPOSE 8080
 
 # Health check — hits the /api/health endpoint
 HEALTHCHECK --interval=30s --timeout=10s --start-period=30s --retries=3 \
-  CMD wget -qO- http://localhost:3000/api/health || exit 1
+  CMD wget -qO- http://localhost:8080/api/health || exit 1
 
 # Start Next.js standalone server
 CMD ["node", "server.js"]

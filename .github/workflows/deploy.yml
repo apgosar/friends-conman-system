@@ -1,0 +1,68 @@
+name: Deploy to Cloud Run
+
+on:
+  push:
+    branches:
+      - main
+
+env:
+  PROJECT_ID: neev-cms # Update if your GCP Project ID differs
+  REGION: asia-south1
+  GAR_LOCATION: asia-south1
+  SERVICE_NAME: neev-cms
+  # The Workload Identity Provider created in GCP
+  # e.g., projects/123456789/locations/global/workloadIdentityPools/github-pool/providers/github-provider
+  WORKLOAD_IDENTITY_PROVIDER: ${{ secrets.WIF_PROVIDER }}
+  # The Service Account created in GCP that has permissions to deploy
+  SERVICE_ACCOUNT: ${{ secrets.SA_EMAIL }}
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    
+    # Required for Workload Identity Federation
+    permissions:
+      contents: 'read'
+      id-token: 'write'
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Google Auth
+        id: auth
+        uses: google-github-actions/auth@v2
+        with:
+          workload_identity_provider: '${{ env.WORKLOAD_IDENTITY_PROVIDER }}'
+          service_account: '${{ env.SERVICE_ACCOUNT }}'
+
+      - name: Set up Cloud SDK
+        uses: google-github-actions/setup-gcloud@v2
+
+      - name: Configure Docker to use Google Artifact Registry
+        run: |
+          gcloud auth configure-docker ${{ env.GAR_LOCATION }}-docker.pkg.dev
+
+      - name: Build and Push Docker Image
+        run: |
+          IMAGE="${{ env.GAR_LOCATION }}-docker.pkg.dev/${{ env.PROJECT_ID }}/cloud-run-source-deploy/${{ env.SERVICE_NAME }}:${{ github.sha }}"
+          
+          # We pass standard build args here if needed.
+          docker build -t "$IMAGE" .
+          docker push "$IMAGE"
+          
+          # Output the image digest to pass to the deploy step
+          echo "IMAGE=$IMAGE" >> $GITHUB_ENV
+
+      - name: Deploy to Cloud Run
+        id: deploy
+        uses: google-github-actions/deploy-cloudrun@v2
+        with:
+          service: ${{ env.SERVICE_NAME }}
+          region: ${{ env.REGION }}
+          image: ${{ env.IMAGE }}
+          # Use --allow-unauthenticated if this is a public dashboard
+          # Ensure env vars (like DATABASE_URL from Supabase) are set in Cloud Run directly.
+
+      - name: Show Output
+        run: echo "Service deployed at ${{ steps.deploy.outputs.url }}"

@@ -4,6 +4,45 @@ import { auth } from '@/lib/auth'
 import { dispatchAllPending } from '@/lib/comms-dispatcher'
 import { generateSaleNumber } from '@/lib/receipt-number'
 import { createAuditLog } from '@/lib/audit'
+import { parseBody, z } from '@/lib/validate'
+
+const SaleBuyerSchema = z.object({
+  fullName: z.string().min(1, 'Buyer full name is required'),
+  email: z.string().email('Invalid email').optional().nullable(),
+  whatsappNumber: z.string().optional().nullable(),
+  panNumber: z.string().optional().nullable(),
+  aadhaarNumber: z.string().optional().nullable(),
+  address: z.string().optional().nullable(),
+  receiveComms: z.boolean().optional(),
+})
+
+const PaymentScheduleSchema = z.object({
+  milestoneId: z.string().optional().nullable(),
+  description: z.string().min(1, 'Milestone description is required'),
+  principalAmount: z.number().or(z.string().transform(v => parseFloat(v))),
+  gstAmount: z.number().or(z.string().transform(v => parseFloat(v))).optional().nullable(),
+  dueDate: z.string().optional().nullable(),
+})
+
+const SaleCreateSchema = z.object({
+  projectId: z.string().min(1, 'projectId is required'),
+  unitId: z.string().min(1, 'unitId is required'),
+  tenantId: z.string().optional().nullable(),
+  saleType: z.enum(['FRESH', 'RESALE']).optional().default('FRESH'),
+  agreementValue: z.number().or(z.string().transform(v => parseFloat(v))),
+  gstAmount: z.number().or(z.string().transform(v => parseFloat(v))).optional().nullable(),
+  stampDuty: z.number().or(z.string().transform(v => parseFloat(v))).optional().nullable(),
+  registrationCharges: z.number().or(z.string().transform(v => parseFloat(v))).optional().nullable(),
+  carParking: z.boolean().or(z.string().transform(v => v === 'true')).optional(),
+  carParkingCharges: z.number().or(z.string().transform(v => parseFloat(v))).optional().nullable(),
+  parkingPodiumLevel: z.string().optional().nullable(),
+  parkingFloor: z.string().optional().nullable(),
+  parkingNumber: z.string().optional().nullable(),
+  bookingAmount: z.number().or(z.string().transform(v => parseFloat(v))).optional().nullable(),
+  bookingDate: z.string().refine(v => !isNaN(Date.parse(v)), 'Invalid bookingDate'),
+  buyers: z.array(SaleBuyerSchema).min(1, 'At least one buyer is required'),
+  paymentSchedules: z.array(PaymentScheduleSchema).optional(),
+})
 
 export async function GET(req: NextRequest) {
   const session = await auth()
@@ -28,27 +67,27 @@ export async function POST(req: NextRequest) {
   const session = await auth()
   if (!session?.user) return Response.json({ error: 'Unauthorized' }, { status: 401 })
   if (!['SUPER_ADMIN', 'ADMIN'].includes(session.user.role)) { return Response.json({ error: 'Forbidden' }, { status: 403 }) }
-  const body = await req.json()
-  const { projectId, unitId, tenantId, saleType, agreementValue, gstAmount, stampDuty, registrationCharges, carParking, carParkingCharges, parkingPodiumLevel, parkingFloor, parkingNumber, bookingAmount, bookingDate, buyers, paymentSchedules } = body
-  if (!projectId || !unitId || !agreementValue || !bookingDate || !buyers?.length) {
-    return Response.json({ error: 'Missing required fields' }, { status: 400 })
-  }
-  const computedGst = gstAmount !== undefined ? parseFloat(gstAmount) : parseFloat(agreementValue) * 0.05
+  
+  const { data, error } = await parseBody(req, SaleCreateSchema)
+  if (error) return error
+
+  const { projectId, unitId, tenantId, saleType, agreementValue, gstAmount, stampDuty, registrationCharges, carParking, carParkingCharges, parkingPodiumLevel, parkingFloor, parkingNumber, bookingAmount, bookingDate, buyers, paymentSchedules } = data
+  const computedGst = gstAmount !== undefined && gstAmount !== null ? gstAmount : agreementValue * 0.05
   const saleNumber = await generateSaleNumber(projectId)
   const sale = await prisma.$transaction(async (tx) => {
     const newSale = await tx.sale.create({
       data: {
         saleNumber, projectId, unitId, tenantId: tenantId || null,
         saleType: saleType || 'FRESH',
-        agreementValue: parseFloat(agreementValue), gstAmount: computedGst,
-        stampDuty: stampDuty ? parseFloat(stampDuty) : null,
-        registrationCharges: registrationCharges ? parseFloat(registrationCharges) : null,
-        carParking: carParking === true || carParking === 'true',
-        carParkingCharges: carParkingCharges ? parseFloat(carParkingCharges) : null,
+        agreementValue: agreementValue, gstAmount: computedGst,
+        stampDuty: stampDuty ? stampDuty : null,
+        registrationCharges: registrationCharges ? registrationCharges : null,
+        carParking: carParking === true,
+        carParkingCharges: carParkingCharges ? carParkingCharges : null,
         parkingPodiumLevel: parkingPodiumLevel || null,
         parkingFloor: parkingFloor || null,
         parkingNumber: parkingNumber || null,
-        bookingAmount: bookingAmount ? parseFloat(bookingAmount) : null,
+        bookingAmount: bookingAmount ? bookingAmount : null,
         bookingDate: new Date(bookingDate), status: 'BOOKED',
       },
     })

@@ -1,9 +1,14 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { auth } from '@/lib/auth'
+import { kycRateLimit, rateLimitExceeded } from '@/lib/rate-limit'
 
 export async function POST(req: NextRequest) {
   const session = await auth()
   if (!session) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+
+  // Rate limit: 20 OCR calls per hour per IP (protects paid AZAPI token)
+  const rl = await kycRateLimit(req)
+  if (!rl.ok) return rateLimitExceeded(rl.reset) as unknown as NextResponse
 
   const token = process.env.AZAPI_TOKEN
   if (!token) {
@@ -84,7 +89,7 @@ export async function POST(req: NextRequest) {
       data: extractedData,
     })
   } catch (error: any) {
-    console.error('Extract KYC Error:', error)
-    return NextResponse.json({ error: error.message || 'Failed to extract data' }, { status: 500 })
+    console.error('[KYC Extract] Error:', error)
+    return NextResponse.json({ error: 'KYC extraction failed. Please try again.' }, { status: 500 })
   }
 }

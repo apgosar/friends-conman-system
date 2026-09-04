@@ -191,6 +191,7 @@ model Sale {
   possessionDate        DateTime?
   status                String      @default("BOOKED")
   nameChangeHistory     Json?       // array of {oldName, newName, date, userId}
+  deletedAt             DateTime?   // Soft delete — null means active
   createdAt             DateTime    @default(now())
   updatedAt             DateTime    @updatedAt
 
@@ -207,6 +208,7 @@ model Sale {
   @@index([projectId])
   @@index([unitId])
   @@index([status])
+  @@index([deletedAt])
   @@map("sales")
 }
 
@@ -336,6 +338,7 @@ model Payment {
   receiptNumber   String        @unique // RCP-PRJ-0001
   receiptPdfUrl   String?
   receiptSent     Boolean       @default(false)
+  deletedAt       DateTime?     // Soft delete — null means active
   createdAt       DateTime      @default(now())
   updatedAt       DateTime      @updatedAt
 
@@ -345,6 +348,7 @@ model Payment {
 
   @@index([saleId])
   @@index([scheduleId])
+  @@index([deletedAt])
   @@map("payments")
 }
 
@@ -441,6 +445,7 @@ model Document {
   status String @default("DRAFT")
   generatedAt     DateTime?
   sentAt          DateTime?
+  deletedAt       DateTime?     // Soft delete — null means active
   createdAt       DateTime      @default(now())
   updatedAt       DateTime      @updatedAt
 
@@ -450,6 +455,7 @@ model Document {
 
   @@index([saleId])
   @@index([status])
+  @@index([deletedAt])
   @@map("documents")
 }
 

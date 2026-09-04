@@ -5,16 +5,17 @@ export default auth((req) => {
   const { pathname } = req.nextUrl
   const isLoggedIn = !!req.auth
 
-  // Public routes
-  const publicRoutes = ['/login']
-  if (publicRoutes.includes(pathname)) {
-    if (isLoggedIn) {
-      return NextResponse.redirect(new URL('/dashboard', req.url))
-    }
+  // Always allow: static assets, Next.js internals, public uploads, auth API, cron
+  const alwaysPublic = /^\/(api\/auth|api\/cron|_next\/static|_next\/image|favicon\.ico|uploads)/.test(pathname)
+  if (alwaysPublic) return NextResponse.next()
+
+  // Login page: redirect logged-in users to dashboard
+  if (pathname === '/login') {
+    if (isLoggedIn) return NextResponse.redirect(new URL('/dashboard', req.url))
     return NextResponse.next()
   }
 
-  // Protected routes
+  // Everything else requires authentication
   if (!isLoggedIn) {
     return NextResponse.redirect(new URL('/login', req.url))
   }
@@ -23,5 +24,5 @@ export default auth((req) => {
 })
 
 export const config = {
-  matcher: ['/((?!api|_next/static|_next/image|favicon.ico|uploads).*)'],
+  matcher: ['/((?!_next/static|_next/image|favicon.ico).*)'],
 }

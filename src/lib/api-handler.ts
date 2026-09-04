@@ -2,6 +2,7 @@ import { auth } from '@/lib/auth'
 import { NextRequest, NextResponse } from 'next/server'
 import { UserRole } from '@/types'
 import { ZodSchema } from 'zod'
+import { sessionContext } from '@/lib/async-context'
 
 type HandlerContext = {
   session: { user: { id: string; name: string; email: string; role: UserRole } }
@@ -31,7 +32,10 @@ export function withAuth(
       if (options.roles && !options.roles.includes(session.user.role)) {
         return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
       }
-      return handler(req, { session }, routeContext)
+      return sessionContext.run(
+        { userId: session.user.id, email: session.user.email, role: session.user.role },
+        () => handler(req, { session }, routeContext)
+      )
     } catch (err) {
       console.error('[API] Unhandled error:', err)
       return NextResponse.json({ error: 'Internal server error' }, { status: 500 })
