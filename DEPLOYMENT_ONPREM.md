@@ -1,6 +1,6 @@
 # On-Premise Deployment Plan — Neev CMS
 
-**Scenario**: Deployed on hardware owned and administered by the customer (construction company). The customer's IT staff will have root/SSH access to the box. Internet access via Cloudflare Tunnel (no inbound ports opened).
+**Scenario**: Deployed on hardware owned and administered by the customer (construction company). The customer's IT staff will have root/SSH access to the box. Internet access via Cloudflare Tunnel (no inbound ports opened). Host OS-agnostic below (the stack is Linux containers throughout) — on a Windows target server, see [deploy/onprem/WINDOWS-INSTALL.md](deploy/onprem/WINDOWS-INSTALL.md) for getting Docker running headlessly (WSL2 + Docker Engine, persistent across reboots without a logged-in user) before following the rest of this doc.
 
 **Read this first**: When the party running the server has root, no technical control makes the code unreadable — a determined admin can eventually inspect anything the machine executes. Nothing below is a silver bullet. The realistic goal is:
 1. Never hand over anything more than a compiled, running application (no source tree, no build tooling, no `.git` history).

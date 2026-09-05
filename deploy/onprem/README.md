@@ -2,6 +2,8 @@
 
 Companion files for [DEPLOYMENT_ONPREM.md](../../DEPLOYMENT_ONPREM.md). Run these on the customer's server, not on your own machine (except the one-time `cloudflared tunnel create` step, which needs your Cloudflare login).
 
+**Target server is Windows?** Start with [WINDOWS-INSTALL.md](WINDOWS-INSTALL.md) first — it gets Docker running headlessly inside WSL2, persistent across reboots with nobody logged in. Everything below then runs inside that Linux shell, unchanged.
+
 ## Files
 
 - `docker-compose.yml` — app + local Postgres + MinIO + Cloudflare Tunnel. No host ports are published; `cloudflared` is the only path in.
