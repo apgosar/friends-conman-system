@@ -1,0 +1,20 @@
+# Cloudflare Tunnel config — generated interactively, this file is a template.
+#
+# One-time setup (run on your machine, not the customer's server):
+#   cloudflared tunnel login
+#   cloudflared tunnel create neev-cms-<customer-slug>
+#   cloudflared tunnel route dns neev-cms-<customer-slug> app.<customerdomain>.com
+#
+# The `create` step writes a credentials JSON file (e.g. <TUNNEL_ID>.json) —
+# copy it into this same deploy/onprem/cloudflared/ directory and reference
+# it below. Never commit that credentials file to git.
+
+tunnel: <TUNNEL_ID>
+credentials-file: /etc/cloudflared/<TUNNEL_ID>.json
+
+ingress:
+  # Routes straight to the app container over the internal Docker network —
+  # the web service publishes no host port, so this tunnel is the only path in.
+  - hostname: app.<customerdomain>.com
+    service: http://web:8080
+  - service: http_status:404

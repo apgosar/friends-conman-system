@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { auth } from '@/lib/auth'
-import { downloadFromGCS } from '@/lib/storage'
+import { downloadFile } from '@/lib/storage'
 import path from 'path'
 
 export async function GET(req: NextRequest, props: { params: Promise<{ path: string[] }> }) {
@@ -19,7 +19,7 @@ export async function GET(req: NextRequest, props: { params: Promise<{ path: str
   const key = decodeURIComponent(pathArray.join('/'))
 
   try {
-    const fileBuffer = await downloadFromGCS(key)
+    const fileBuffer = await downloadFile(key)
     
     // Determine content type based on extension
     const ext = path.extname(key).toLowerCase()
@@ -38,10 +38,12 @@ export async function GET(req: NextRequest, props: { params: Promise<{ path: str
       },
     })
   } catch (err: any) {
-    if (err.code === 404) {
+    // GCS errors carry a numeric `code`; AWS SDK v3 errors carry `name`/`$metadata.httpStatusCode`.
+    const isNotFound = err.code === 404 || err.name === 'NoSuchKey' || err.$metadata?.httpStatusCode === 404
+    if (isNotFound) {
       return NextResponse.json({ error: 'File not found' }, { status: 404 })
     }
-    console.error('[File Serve] Error fetching from GCS:', err)
+    console.error('[File Serve] Error fetching from storage:', err)
     return NextResponse.json({ error: 'Internal Server Error' }, { status: 500 })
   }
 }

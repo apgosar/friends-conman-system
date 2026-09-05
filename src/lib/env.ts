@@ -6,6 +6,8 @@
  * instead of failing mysteriously at runtime.
  */
 
+import { deploymentConfig } from './deployment-config'
+
 interface EnvVar {
   key: string
   required: boolean
@@ -95,6 +97,28 @@ export function validateEnv(): void {
   const hasSmtp = process.env.SMTP_HOST && process.env.SMTP_USER
   if (!hasGmail && !hasSmtp && process.env.NODE_ENV === 'production') {
     warnings.push('  ⚠ No email provider configured. Set GMAIL_USER + GMAIL_APP_PASSWORD or SMTP_HOST + SMTP_USER.')
+  }
+
+  // Storage: required vars depend on which adapter deployment-config.ts selected
+  if (deploymentConfig.storageProvider === 's3') {
+    if (!process.env.AWS_S3_BUCKET) {
+      warnings.push('  ⚠ AWS_S3_BUCKET not set — falling back to default bucket name "friends-conman-docs".')
+    }
+    if (deploymentConfig.target === 'onprem' && !process.env.S3_ENDPOINT) {
+      warnings.push('  ⚠ S3_ENDPOINT not set for an on-prem deployment — the S3 adapter will talk to real AWS S3, not a local MinIO instance.')
+    }
+  } else if (!process.env.GCS_BUCKET_NAME) {
+    warnings.push('  ⚠ GCS_BUCKET_NAME not set — falling back to default bucket name "friends-conman-docs".')
+  }
+
+  // License gate: only relevant when LICENSE_MODE=onprem (deploymentConfig.licenseEnforced)
+  if (deploymentConfig.licenseEnforced) {
+    const licenseToken = process.env.LICENSE_TOKEN
+    if (!licenseToken) {
+      errors.push('  ✗ LICENSE_TOKEN — required when LICENSE_MODE=onprem (issue one with scripts/license/issue-license.ts)')
+    } else if (PLACEHOLDER_PATTERNS.some((p) => licenseToken.toLowerCase().includes(p))) {
+      warnings.push('  ⚠ LICENSE_TOKEN looks like a placeholder value — the app will refuse to serve until a real signed token is set.')
+    }
   }
 
   if (errors.length > 0) {
