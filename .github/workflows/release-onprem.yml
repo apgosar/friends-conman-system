@@ -1,0 +1,63 @@
+name: Release on-prem image
+
+# Deliberately separate from deploy.yml (which auto-deploys every push to
+# main to Cloud Run). On-prem customers should never auto-follow main —
+# this only runs when you push a semver git tag, i.e. when you've decided
+# a specific commit is ready to hand to a customer's server. See
+# DEPLOYMENT_ONPREM.md and the "managing cloud + on-prem from one
+# codebase" discussion for why: cloud tracks latest, on-prem is pinned
+# per-customer to a tag you promote deliberately.
+#
+# Usage: git tag v1.2.0 && git push origin v1.2.0
+
+on:
+  push:
+    tags:
+      - 'v*.*.*'
+
+env:
+  REGISTRY: ghcr.io
+  IMAGE_NAME: ${{ github.repository }}
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+
+    permissions:
+      contents: read
+      packages: write # push to GHCR
+      id-token: write # keyless cosign signing
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Log in to GitHub Container Registry
+        run: echo "${{ secrets.GITHUB_TOKEN }}" | docker login ${{ env.REGISTRY }} -u ${{ github.actor }} --password-stdin
+
+      - name: Build and Push Docker Image
+        run: |
+          IMAGE="${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ github.ref_name }}"
+
+          docker build -t "$IMAGE" .
+          docker push "$IMAGE"
+
+          # Sign the immutable digest, not the mutable tag — see deploy.yml for why.
+          DIGEST="$(docker inspect --format='{{index .RepoDigests 0}}' "$IMAGE")"
+
+          echo "IMAGE=$IMAGE" >> $GITHUB_ENV
+          echo "IMAGE_DIGEST=$DIGEST" >> $GITHUB_ENV
+
+      - name: Install Cosign
+        uses: sigstore/cosign-installer@v3
+
+      - name: Sign the image (keyless)
+        run: cosign sign --yes "${{ env.IMAGE_DIGEST }}"
+        # Verify with (note: tag-triggered, so the ref in the identity varies
+        # per release — use a regexp, not an exact --certificate-identity):
+        #   cosign verify "<image>@sha256:<digest>" \
+        #     --certificate-identity-regexp "^https://github.com/apgosar/friends-conman-system/\.github/workflows/release-onprem\.yml@refs/tags/.*$" \
+        #     --certificate-oidc-issuer "https://token.actions.githubusercontent.com"
+
+      - name: Show output
+        run: echo "Released ${{ env.IMAGE }}"

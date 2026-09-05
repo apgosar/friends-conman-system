@@ -4,23 +4,31 @@ name: neev-cms
 # Cloudflare Tunnel. No ports are published to the host — cloudflared is the
 # only path in, so there is nothing to port-forward or scan from outside.
 #
-# For an actual customer install, replace `build:` on the `web` service with
-# `image: <your-registry>/neev-cms:<tag>` so the box only ever pulls a
-# pre-built image and never sees this repo's source. `build:` is left in
-# for local testing of this stack.
+# `web` carries both `build:` and `image:`. Real customer deployments should
+# only ever run `docker compose pull` (uses `image:`, requires `docker login
+# ghcr.io` first — see README.md) and never `docker compose build`, so the
+# server only ever sees a pre-built image and never this repo's source.
+# `build:` exists purely for local testing of this stack.
 #
-# Usage:
+# Usage (real deployment — pull, never build):
 #   cd deploy/onprem
 #   cp .env.onprem.example .env
-#   # fill in secrets, then:
+#   # fill in secrets, including IMAGE_TAG
+#   docker login ghcr.io -u <github-username>   # once, or when rotating the token
+#   docker compose pull
 #   docker compose up -d
 #   docker compose exec web npx prisma migrate deploy
+#
+# Usage (local testing — build from source instead):
+#   docker compose build
+#   docker compose up -d
 
 services:
   web:
     build:
       context: ../..
       dockerfile: Dockerfile
+    image: ghcr.io/apgosar/friends-conman-system:${IMAGE_TAG:-latest}
     restart: always
     read_only: true
     tmpfs:

@@ -17,8 +17,11 @@
 | `.ts`/`.tsx` source, Prisma schema comments, internal docs (`quotation_paradigm.md`, `proforma_invoice_paradigm.md`, etc.) | Compiled `.next/standalone` output only (already the case via the multi-stage [Dockerfile](Dockerfile)) |
 | Signing keys, license private key, Sentry auth tokens | A signed per-deployment license file (see §4) |
 
+**Registry — implemented.** [.github/workflows/release-onprem.yml](.github/workflows/release-onprem.yml) builds, pushes, and cosign-signs the image to GitHub Container Registry (`ghcr.io/apgosar/friends-conman-system`) whenever a `v*.*.*` git tag is pushed — deliberately separate from `deploy.yml`'s auto-deploy-on-every-main-push, so on-prem customers are always pinned to a version you chose, not whatever landed on `main` most recently. `deploy/onprem/docker-compose.yml`'s `web` service pulls that image via `image: ghcr.io/apgosar/friends-conman-system:${IMAGE_TAG}`; the customer's server only ever runs `docker login` + `docker compose pull` — it never clones this repo or sees `build:` context. Full sequence in [deploy/onprem/README.md](deploy/onprem/README.md).
+
+**Do this before shipping to any real customer**: the first GHCR package a workflow run creates can default to public visibility regardless of the repo's own visibility — GHCR's package visibility is a separate setting. Set the package to Private in its GitHub settings after the first tag push (README has the exact steps). This can't be automated in advance since the package doesn't exist until the first push creates it, and it isn't something I can verify or set from here — confirm it yourself.
+
 **Action items:**
-- Push images to a **private** registry (GitHub Container Registry `ghcr.io` with a private repo, or Docker Hub private repo). Customer's server only ever runs `docker login` + `docker pull` — it never clones this repo.
 - Confirm `.dockerignore` (already excludes `.git`, `.env*`, `*.pdf`, `README.md` — good) also excludes the paradigm/spec markdown files and any `docs/` folder if added later.
 - Set `productionBrowserSourceMaps: false` explicitly in [next.config.ts](next.config.ts) (currently relies on Next's default). Sentry already uploads source maps to Sentry's servers only via `withSentryConfig` — verify no `.map` files land in `.next/standalone` or `public/` in the shipped image (`docker run --rm <image> find / -name '*.map'` as a build-time check).
 - Audit client components for business logic that shouldn't be visible in the browser bundle — [BuildingViewer.tsx](src/components/projects/BuildingViewer.tsx), [NewSaleForm.tsx](src/components/sales/NewSaleForm.tsx), [QuoteModal.tsx](src/components/projects/QuoteModal.tsx) are the likely spots. Pricing/interest/TDS/GST calculations should be computed server-side (API route or Server Action) and only the *result* sent to the client — not the formula.
@@ -140,17 +143,18 @@ The license-gating mechanism in §4 is what makes that agreement enforceable in 
 ## 11. Rollout checklist
 
 1. [ ] Legal agreement signed.
-2. [ ] Private registry set up; image built and pushed (never the source repo).
+2. [ ] Version tagged and released (`git tag vX.Y.Z && git push origin vX.Y.Z` triggers `release-onprem.yml`) — never ship the source repo itself.
 3. [ ] Customer server provisioned: Docker + Compose installed, disk encryption (LUKS) enabled.
 4. [ ] License issued for this customer (`scripts/license/issue-license.ts`, from your machine) — get `LICENSE_TOKEN`'s value before touching the server.
-5. [ ] `deploy/onprem/.env` (from `.env.onprem.example`, including `LICENSE_TOKEN`) placed on server by you; `docker compose up -d`.
+5. [ ] `deploy/onprem/.env` (from `.env.onprem.example`, including `LICENSE_TOKEN` and `IMAGE_TAG`) placed on server by you; `docker login ghcr.io` once, then `docker compose pull && docker compose up -d`.
 6. [ ] `cloudflared` tunnel created, DNS routed, WAF/rate-limit rules configured on Cloudflare — see [deploy/onprem/README.md](deploy/onprem/README.md).
 7. [ ] `docker compose exec web npx prisma migrate deploy` run against the fresh Postgres container.
 8. [ ] `minio-init` ran successfully (bucket created) — check `docker compose logs minio-init`.
-9. [ ] Backups scheduled and one restore tested.
-10. [ ] Sentry + uptime monitoring receiving data.
-11. [ ] License logged as `valid` in `docker compose logs web` at boot; confirm the app actually blocks with a deliberately wrong `LICENSE_TOKEN` before shipping the real one.
-12. [ ] `/api/health` returns healthy through the public Cloudflare hostname.
+9. [ ] GHCR package visibility confirmed **Private** (one-time, after the first tag push — §1).
+10. [ ] Backups scheduled and one restore tested.
+11. [ ] Sentry + uptime monitoring receiving data.
+12. [ ] License logged as `valid` in `docker compose logs web` at boot; confirm the app actually blocks with a deliberately wrong `LICENSE_TOKEN` before shipping the real one.
+13. [ ] `/api/health` returns healthy through the public Cloudflare hostname.
 
 ---
 
@@ -158,8 +162,7 @@ The license-gating mechanism in §4 is what makes that agreement enforceable in 
 
 - Phone-home / revocation server for the license gate — current verification is fully offline against the baked-in public key (§4).
 - Build-time watermarking (hidden per-customer build IDs) to trace leaked source/images (§2, §4).
-- Swapping `build:` for a pulled `image: <registry>/neev-cms:<tag>` in `deploy/onprem/docker-compose.yml` once the private registry exists (§1).
 
-Done: storage adapter (`src/lib/storage/`, §3), deployment-config module (`src/lib/deployment-config.ts`), on-prem `docker-compose.yml` + `cloudflared` config + env template (§6, in `deploy/onprem/`), license-verification module + issuing CLI + enforcement in `proxy.ts` (§4), keyless cosign image signing in CI (§2).
+Done: storage adapter (`src/lib/storage/`, §3), deployment-config module (`src/lib/deployment-config.ts`), on-prem `docker-compose.yml` + `cloudflared` config + env template (§6, in `deploy/onprem/`), license-verification module + issuing CLI + enforcement in `proxy.ts` (§4), keyless cosign image signing in CI (§2), private GHCR registry + `release-onprem.yml` release pipeline (§1).
 
 Say the word on any of the remaining items and I'll implement it.
