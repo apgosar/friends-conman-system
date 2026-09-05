@@ -29,11 +29,16 @@
 
 The [Dockerfile](Dockerfile) already runs as a non-root `nextjs` user — good. Add:
 
-- **Distroless/minimal runtime**: drop to a distroless Node base for the `runner` stage so there's no shell, package manager, or `apt` in the running container — raises the bar above "just `docker exec` in and look around."
 - **Read-only root filesystem + dropped capabilities**: done — `read_only: true`, `tmpfs: [/tmp]`, `cap_drop: [ALL]` are set on the `web` service in [deploy/onprem/docker-compose.yml](deploy/onprem/docker-compose.yml).
 - **Distroless runtime**: considered, skipped for now. Puppeteer/Chromium's shared-library footprint makes a shell-less base image a nontrivial migration on its own, and it wouldn't meaningfully raise the bar against an operator who already has `docker exec` on the host — see the note in [deploy/onprem/README.md](deploy/onprem/README.md).
 - **No debug/admin surfaces in prod**: confirm `prisma studio` is never started in the compose file, and there's no debug/test API route reachable in production (grep `src/app/api` for anything gated only by `NODE_ENV !== 'production'` checks vs. actually removed).
-- **Signed images**: sign pushed images with `cosign` so a tampered/rebuilt image is detectable if you ever need to verify what's actually running. Not yet done.
+- **Signed images — implemented**: [.github/workflows/deploy.yml](.github/workflows/deploy.yml) signs every image it pushes with `cosign`, keyless (Sigstore Fulcio/Rekor via the workflow's own GitHub OIDC token — no signing key to generate or store). Verify what's actually running with:
+  ```
+  cosign verify "<image>@sha256:<digest>" \
+    --certificate-identity "https://github.com/apgosar/friends-conman-system/.github/workflows/deploy.yml@refs/heads/main" \
+    --certificate-oidc-issuer "https://token.actions.githubusercontent.com"
+  ```
+  This only covers images built by that workflow (the Cloud Run path today). Once on-prem switches from `build:` to a pulled `image:` tag (§1, still open), the same image — and the same verify command — applies there too; there's no separate signing step to add for on-prem.
 
 None of this stops a root user from reading container memory or `docker export`-ing the filesystem — it stops casual poking and makes tampering detectable, which matters for support/audit purposes as much as for anti-RE.
 
@@ -154,8 +159,7 @@ The license-gating mechanism in §4 is what makes that agreement enforceable in 
 - Phone-home / revocation server for the license gate — current verification is fully offline against the baked-in public key (§4).
 - Build-time watermarking (hidden per-customer build IDs) to trace leaked source/images (§2, §4).
 - Swapping `build:` for a pulled `image: <registry>/neev-cms:<tag>` in `deploy/onprem/docker-compose.yml` once the private registry exists (§1).
-- Signed images via `cosign` (§2).
 
-Done: storage adapter (`src/lib/storage/`, §3), deployment-config module (`src/lib/deployment-config.ts`), on-prem `docker-compose.yml` + `cloudflared` config + env template (§6, in `deploy/onprem/`), license-verification module + issuing CLI + enforcement in `proxy.ts` (§4).
+Done: storage adapter (`src/lib/storage/`, §3), deployment-config module (`src/lib/deployment-config.ts`), on-prem `docker-compose.yml` + `cloudflared` config + env template (§6, in `deploy/onprem/`), license-verification module + issuing CLI + enforcement in `proxy.ts` (§4), keyless cosign image signing in CI (§2).
 
 Say the word on any of the remaining items and I'll implement it.
