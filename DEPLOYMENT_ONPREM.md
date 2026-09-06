@@ -79,9 +79,11 @@ There's also no build-time watermarking (hidden per-customer build IDs to trace 
 
 No inbound ports opened on the customer's router/firewall — `cloudflared` makes an outbound-only connection to Cloudflare's edge.
 
+**The customer does not need to own a domain.** `cloudflared tunnel route dns` needs a DNS zone in *your* Cloudflare account, not theirs — every customer just gets a subdomain under a domain you already control (`<customer-slug>.<your-domain>`). See [deploy/onprem/README.md](deploy/onprem/README.md) for what those two placeholders mean.
+
 **Steps** (implemented in [deploy/onprem/](deploy/onprem/)):
 1. `cloudflared` service is in `docker-compose.yml`, on the same Docker network as `web`, with no published ports.
-2. On your Cloudflare account: `cloudflared tunnel login`, `cloudflared tunnel create neev-cms-<customer-slug>`, then `cloudflared tunnel route dns neev-cms-<customer-slug> app.<customerdomain>.com` (creates the proxied CNAME automatically). Full sequence in [deploy/onprem/README.md](deploy/onprem/README.md).
+2. On your Cloudflare account: `cloudflared tunnel login`, `cloudflared tunnel create neev-cms-<customer-slug>`, then `cloudflared tunnel route dns neev-cms-<customer-slug> <customer-slug>.<your-domain>` (creates the proxied CNAME automatically, under your domain). Full sequence in [deploy/onprem/README.md](deploy/onprem/README.md).
 3. `cloudflared/config.yml` maps the public hostname straight to `http://web:8080` (the app's actual listen port per the `Dockerfile`) over the internal Docker network — the app container itself binds only to the Docker bridge, not the host's public interface.
 4. Cloudflare-side hardening (all free/Pro tier) — still manual, do this in the dashboard per deployment:
    - Force HTTPS, minimum TLS 1.2.

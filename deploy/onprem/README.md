@@ -11,13 +11,18 @@ Companion files for [DEPLOYMENT_ONPREM.md](../../DEPLOYMENT_ONPREM.md). Run thes
 - `cloudflared/config.yml` — tunnel routing config template; needs a real tunnel ID and credentials file (see below).
 - [../../.github/workflows/release-onprem.yml](../../.github/workflows/release-onprem.yml) — builds, pushes, and signs the image customers pull, triggered by pushing a `v*.*.*` git tag.
 
+## Two placeholders used throughout this doc
+
+- **`<customer-slug>`** — a short identifier for this customer (e.g. `acme`), used only so multiple customers' Cloudflare Tunnels are distinguishable in your dashboard (`neev-cms-acme`, `neev-cms-shreeconstructions`, ...). No other meaning — pick anything short and unique.
+- **`<your-domain>`** — **your** domain (whatever you already use for your business/product), not the customer's. `cloudflared tunnel route dns` needs a DNS zone added to your own Cloudflare account, and every customer just gets a free subdomain under it: `<customer-slug>.<your-domain>`. **The customer does not need to own a domain at all** — if they don't have one (common), this is simply the answer: they never need one, everything hangs off a domain you already control.
+
 ## First-time setup on a new customer's server
 
 ```powershell
 # 1) One-time, from your own machine — creates the tunnel and DNS record
 cloudflared tunnel login
 cloudflared tunnel create neev-cms-<customer-slug>
-cloudflared tunnel route dns neev-cms-<customer-slug> app.<customerdomain>.com
+cloudflared tunnel route dns neev-cms-<customer-slug> <customer-slug>.<your-domain>
 
 # 2) Copy the generated <TUNNEL_ID>.json credentials file into
 #    deploy/onprem/cloudflared/ on the customer's server, then edit
@@ -30,7 +35,7 @@ npx tsx scripts/license/generate-keypair.ts
 
 # 4) Per customer, from your own machine — issue this deployment's license.
 #    Never run this on the customer's server; the private key never leaves you.
-npx tsx scripts/license/issue-license.ts --customer "<Customer Name>" --host app.<customerdomain>.com --days 365
+npx tsx scripts/license/issue-license.ts --customer "<Customer Name>" --host <customer-slug>.<your-domain> --days 365
 
 # 5) Cut the release this customer gets, from your own machine — only if the
 #    version you want isn't already released. Triggers .github/workflows/release-onprem.yml.
@@ -60,7 +65,7 @@ docker compose up -d
 docker compose exec web npx prisma migrate deploy
 ```
 
-Verify `https://app.<customerdomain>.com/api/health` responds before considering the deployment live.
+Verify `https://<customer-slug>.<your-domain>/api/health` responds before considering the deployment live.
 
 ## ⚠ One-time: lock down the package's visibility
 

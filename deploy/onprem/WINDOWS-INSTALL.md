@@ -164,7 +164,7 @@ Restart-Computer
 
 After it comes back, **without logging in**, check from another machine:
 
-- `https://app.<customerdomain>.com/api/health` responds.
+- `https://<customer-slug>.<your-domain>/api/health` responds (see README.md for what these placeholders mean — `<your-domain>` is yours, not the customer's).
 - If you can reach the server another way (RDP, a colleague's session): `wsl -d Ubuntu-22.04 -u root docker compose -f /home/<user>/neev-cms/docker-compose.yml ps` shows every service `Up`.
 
 ---
