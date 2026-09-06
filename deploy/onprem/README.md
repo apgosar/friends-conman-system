@@ -10,6 +10,19 @@ Companion files for [DEPLOYMENT_ONPREM.md](../../DEPLOYMENT_ONPREM.md). Run thes
 - `.env.onprem.example` — template for the real `.env` you create on the server. Copy it, fill in generated secrets, never commit the filled-in version.
 - `cloudflared/config.yml` — tunnel routing config template; needs a real tunnel ID and credentials file (see below).
 - [../../.github/workflows/release-onprem.yml](../../.github/workflows/release-onprem.yml) — builds, pushes, and signs the image customers pull, triggered by pushing a `v*.*.*` git tag.
+- `docker-compose.override.yml.example` — for testing on the host machine only, before touching Cloudflare Tunnel/DNS at all. Copy to `docker-compose.override.yml` (Compose merges it automatically) to expose the app at `http://localhost:8080` on the host only, then delete it again before going live.
+
+## Test locally before wiring up internet access
+
+Confirm the stack actually works before spending any time on Cloudflare/DNS:
+
+```bash
+cp docker-compose.override.yml.example docker-compose.override.yml
+docker compose up -d
+docker compose exec web npx prisma migrate deploy
+# open http://localhost:8080 in a browser on the host machine
+rm docker-compose.override.yml   # remove before going live — no ports should be published in production
+```
 
 ## Two placeholders used throughout this doc
 

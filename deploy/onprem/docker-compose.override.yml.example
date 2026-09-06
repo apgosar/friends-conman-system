@@ -1,0 +1,19 @@
+# For local testing on the host machine ONLY — verifies the stack actually
+# works before you touch Cloudflare Tunnel / DNS / internet accessibility at
+# all. Copy to docker-compose.override.yml (Compose merges it in
+# automatically, no flag needed) and delete it again before going live —
+# production should have no published ports, cloudflared is the only path in.
+#
+# Usage:
+#   cp docker-compose.override.yml.example docker-compose.override.yml
+#   docker compose up -d
+#   docker compose exec web npx prisma migrate deploy
+#   # then open http://localhost:8080 in a browser on the host machine
+#
+# 127.0.0.1 binding means this is reachable only from the host itself, never
+# from other devices on the network — deliberately not 0.0.0.0.
+
+services:
+  web:
+    ports:
+      - "127.0.0.1:8080:8080"
