@@ -92,6 +92,21 @@ export function validateEnv(): void {
     warnings.push('  ⚠ NEXTAUTH_SECRET is less than 32 characters. Use `openssl rand -base64 32` to generate a strong secret.')
   }
 
+  // NEXTAUTH_URL / APP_URL must be real, parseable URLs — NextAuth calls
+  // `new URL(NEXTAUTH_URL)` internally, so a leftover "<...>" template
+  // placeholder crashes with a bare "Invalid URL" deep in a library, not a
+  // message pointing at the actual misconfigured env var. Catch it here instead.
+  for (const key of ['NEXTAUTH_URL', 'APP_URL']) {
+    const value = process.env[key]
+    if (value) {
+      try {
+        new URL(value)
+      } catch {
+        errors.push(`  ✗ ${key} — "${value}" is not a valid URL (still a template placeholder like "<customer-slug>.<your-domain>"? it needs a real value, e.g. "http://localhost:8080" for local testing)`)
+      }
+    }
+  }
+
   // Email: at least one provider must be configured
   const hasGmail = process.env.GMAIL_USER && process.env.GMAIL_APP_PASSWORD
   const hasSmtp = process.env.SMTP_HOST && process.env.SMTP_USER
