@@ -10,7 +10,7 @@ For a blank Windows machine, going from nothing to a running, internet-reachable
 
 ## Step 0 — Confirm this machine can run WSL2
 
-Run as Administrator in PowerShell:
+**Shell: Windows PowerShell, as Administrator.** (Right-click Start → "Terminal (Admin)" or "Windows PowerShell (Admin)".)
 
 ```powershell
 [System.Environment]::OSVersion.Version
@@ -24,6 +24,8 @@ If this is **Windows Server 2019** (build 17763) or virtualization can't be enab
 ---
 
 ## Step 1 — Install WSL2 + Ubuntu
+
+**Shell: PowerShell (Admin)**, same window as Step 0.
 
 ```powershell
 wsl --install -d Ubuntu-22.04
@@ -41,11 +43,21 @@ wsl --install -d Ubuntu-22.04
 
 Launch **Ubuntu 22.04** once from the Start Menu — first launch asks you to set a UNIX username/password. This is the one and only interactive setup step; do it now.
 
+**Check what WSL actually registered the distro as before going further** — it doesn't always match the name you asked for:
+
+```powershell
+wsl -l -v
+```
+
+Use whatever name shows up there (not blindly `Ubuntu-22.04`) in every `wsl -d <name> ...` command for the rest of this doc, including Step 4's scheduled task. This single mismatch is the most common reason the "survives reboot" setup silently doesn't work.
+
 ---
 
 ## Step 2 — Enable systemd inside the distro
 
-Without this, WSL2 has no real init system, `dockerd` has nothing to keep it running as a service, and the whole Linux environment shuts itself down after a period of idleness. Inside the Ubuntu shell:
+Without this, WSL2 has no real init system, `dockerd` has nothing to keep it running as a service, and the whole Linux environment shuts itself down after a period of idleness.
+
+**Shell: inside the Ubuntu window** (the one you launched from the Start Menu at the end of Step 1):
 
 ```bash
 sudo tee /etc/wsl.conf > /dev/null <<'EOF'
@@ -55,18 +67,20 @@ EOF
 exit
 ```
 
-Back in PowerShell, restart the distro to pick it up:
+**Shell: back to PowerShell (Admin)** — restart the distro to pick it up (`<distro-name>` = whatever `wsl -l -v` showed in Step 1):
 
 ```powershell
 wsl --shutdown
-wsl -d Ubuntu-22.04
+wsl -d <distro-name>
 ```
+
+That last command also opens the shell for Step 3 — stay in it.
 
 ---
 
 ## Step 3 — Install Docker Engine inside WSL2
 
-Inside the Ubuntu shell (standard Docker-on-Ubuntu install — nothing WSL-specific here):
+**Shell: inside the Ubuntu window**, continuing from Step 2 (standard Docker-on-Ubuntu install — nothing WSL-specific here):
 
 ```bash
 sudo apt-get update
@@ -88,7 +102,7 @@ sudo systemctl start docker
 sudo usermod -aG docker $USER
 ```
 
-Log out of the Ubuntu shell and back in (`exit`, then `wsl -d Ubuntu-22.04`) so the group membership applies, then confirm:
+**Shell: inside the Ubuntu window.** Log out and back in (`exit`, then back in PowerShell: `wsl -d <distro-name>`) so the group membership applies, then confirm from inside Ubuntu again:
 
 ```bash
 docker run hello-world
@@ -100,19 +114,21 @@ docker run hello-world
 
 This is the actual "persistent across restarts" requirement. WSL2's own service starts with Windows, but a specific *distro* only boots when something invokes it — that's the gap this closes. A Scheduled Task set to run **at startup**, **whether a user is logged on or not**, fills that gap by just touching the distro once, which brings systemd (and via `systemctl enable docker` above, `dockerd`) up.
 
+**Shell: PowerShell (Admin).** Use the exact distro name from `wsl -l -v` (Step 1) as `<distro-name>` below — a mismatch here is the single most common reason this doesn't actually work:
+
 ```powershell
-schtasks /create /tn "Start-WSL-Docker" /tr "wsl.exe -d Ubuntu-22.04 -u root -e /bin/true" /sc onstart /ru "<local-admin-username>" /rp "<that-account's-password>" /rl highest /f
+schtasks /create /tn "Start-WSL-Docker" /tr "wsl.exe -d <distro-name> -u root -e /bin/true" /sc onstart /ru "<local-admin-username>" /rp "<that-account's-password>" /rl highest /f
 ```
 
 Use a real local admin account here, not `SYSTEM` — WSL commands invoked from a `SYSTEM`-context task are known to behave unreliably since WSL expects a normal user profile/token. Once `dockerd` is running, any container with `restart: always` in `docker-compose.yml` (that's every service in ours) gets restarted by Docker itself — you don't need the scheduled task to re-run `docker compose up`, only to get `dockerd` alive again.
 
-**Test it for real** before trusting it: `Restart-Computer`, let it fully boot with nobody logging in (or log in as a *different* account than the task's), then from any admin PowerShell session:
+**Test it for real** before trusting it: `Restart-Computer`, let it fully boot with nobody logging in (or log in as a *different* account than the task's), then from any admin **PowerShell** session:
 
 ```powershell
-wsl -d Ubuntu-22.04 -u root docker ps
+wsl -d <distro-name> -u root docker ps
 ```
 
-All containers should show `Up`. If they don't, check `schtasks /query /tn "Start-WSL-Docker" /v` for the task's last run result before troubleshooting further.
+All containers should show `Up`. If they don't, see **Troubleshooting** at the end of this doc before assuming something deeper is wrong.
 
 ---
 
@@ -124,7 +140,9 @@ Only these files go on the customer's box — never this git repo, never source 
 - [.env.onprem.example](.env.onprem.example) (copied to `.env` and filled in)
 - [cloudflared/config.yml](cloudflared/config.yml) (filled in) and the `<TUNNEL_ID>.json` credentials file from your Cloudflare tunnel setup
 
-Put them inside the **Linux filesystem**, not under `/mnt/c/...` — cross-filesystem access from WSL2 to Windows drives is noticeably slower and has occasional file-permission/inotify quirks; keep it native:
+Put them inside the **Linux filesystem**, not under `/mnt/c/...` — cross-filesystem access from WSL2 to Windows drives is noticeably slower and has occasional file-permission/inotify quirks; keep it native.
+
+**Shell: inside the Ubuntu window:**
 
 ```bash
 mkdir -p ~/neev-cms/cloudflared
@@ -137,7 +155,9 @@ Copy the files in however's convenient (`scp` from your machine, a USB drive sta
 
 ## Step 6 — Fill in `.env`, log in to the registry, bring it up
 
-From here it's identical to the Linux instructions in [README.md](README.md) steps 6–9 — run them inside this same WSL2 shell:
+From here it's identical to the Linux instructions in [README.md](README.md) steps 6–9.
+
+**Shell: inside the Ubuntu window**, continuing from Step 5:
 
 ```bash
 cd ~/neev-cms
@@ -158,6 +178,8 @@ docker compose exec web npx prisma migrate deploy
 
 Don't skip this — it's the specific requirement that started this whole runbook.
 
+**Shell: PowerShell (Admin):**
+
 ```powershell
 Restart-Computer
 ```
@@ -165,13 +187,17 @@ Restart-Computer
 After it comes back, **without logging in**, check from another machine:
 
 - `https://<customer-slug>.<your-domain>/api/health` responds (see README.md for what these placeholders mean — `<your-domain>` is yours, not the customer's).
-- If you can reach the server another way (RDP, a colleague's session): `wsl -d Ubuntu-22.04 -u root docker compose -f /home/<user>/neev-cms/docker-compose.yml ps` shows every service `Up`.
+- If you can reach the server another way (RDP, a colleague's session), from **PowerShell**: `wsl -d <distro-name> -u root docker compose -f /home/<user>/neev-cms/docker-compose.yml ps` shows every service `Up`.
+
+If it isn't, see **Troubleshooting** below.
 
 ---
 
 ## Step 8 — Disk encryption
 
-Windows' equivalent of the LUKS recommendation in [DEPLOYMENT_ONPREM.md](../../DEPLOYMENT_ONPREM.md) §3 — WSL2's virtual disk lives on the Windows drive, so encrypting that drive covers it:
+Windows' equivalent of the LUKS recommendation in [DEPLOYMENT_ONPREM.md](../../DEPLOYMENT_ONPREM.md) §3 — WSL2's virtual disk lives on the Windows drive, so encrypting that drive covers it.
+
+**Shell: PowerShell (Admin):**
 
 ```powershell
 Enable-BitLocker -MountPoint "C:" -EncryptionMethod XtsAes256 -UsedSpaceOnly -RecoveryPasswordProtector
@@ -183,13 +209,56 @@ Store the recovery key somewhere you control, not on the server itself.
 
 ## Step 9 — Firewall
 
-Cloudflare Tunnel is outbound-only, so **no inbound firewall rule is needed for the app** — don't open one. Review existing inbound allow rules (`Get-NetFirewallRule -Direction Inbound -Enabled True -Action Allow`) and remove anything not deliberately needed; if RDP is enabled for your own remote admin access, scope it to your own IP/VPN, not left open.
+**Shell: PowerShell (Admin).** Cloudflare Tunnel is outbound-only, so **no inbound firewall rule is needed for the app** — don't open one. Review existing inbound allow rules (`Get-NetFirewallRule -Direction Inbound -Enabled True -Action Allow`) and remove anything not deliberately needed; if RDP is enabled for your own remote admin access, scope it to your own IP/VPN, not left open.
+
+---
+
+## Troubleshooting: app doesn't survive a reboot
+
+Work through these in order — each one rules out a specific link in the chain (Windows boot → scheduled task → WSL2 → systemd → dockerd → your containers). All commands below are **PowerShell (Admin)** unless marked otherwise.
+
+**1. Does the distro name the task uses actually exist?** This is the single most common cause — `wsl --install -d Ubuntu-22.04` doesn't always register the distro under that exact name.
+```powershell
+wsl -l -v
+```
+If the name differs from what's in your scheduled task's `/tr` argument, that's the bug — delete and recreate the task (Step 4) with the correct name.
+
+**2. Did the scheduled task's last run actually succeed?**
+```powershell
+schtasks /query /tn "Start-WSL-Docker" /v /fo LIST
+```
+Check `Last Result`: `0` means success. Anything else is a real failure — Task Scheduler's own GUI (`taskschd.msc` → Task Scheduler Library → your task → History tab; enable "Enable All Tasks History" from the Actions pane if that tab is empty) often has a more specific error than the exit code alone.
+
+**3. Run the exact task action manually and see the raw error directly:**
+```powershell
+wsl.exe -d <distro-name> -u root -e /bin/true
+echo $LASTEXITCODE
+```
+
+**4. Is systemd actually active inside the distro, and is Docker enabled to start with it?**
+```powershell
+wsl -d <distro-name> -u root -- systemctl is-system-running
+wsl -d <distro-name> -u root -- systemctl is-enabled docker
+```
+First should say `running` (or `degraded`, which is usually fine — `offline` or an error means `/etc/wsl.conf`'s `systemd=true` from Step 2 didn't take). Second should say `enabled` — if it says `disabled`, re-run `sudo systemctl enable docker` from inside Ubuntu.
+
+**5. Do your containers actually have the restart policy that's supposed to bring them back?**
+```powershell
+wsl -d <distro-name> docker inspect neev-cms-web-1 --format "{{.HostConfig.RestartPolicy.Name}}"
+```
+Should say `always`. If it says `no`, the container was started some other way than `docker compose up -d` against the checked-in `docker-compose.yml` — bring it up again the normal way (Step 6) rather than however it was started before.
+
+**6. The account whose password is in the task — did it change?** A rotated password silently breaks the task with no obvious symptom until the next reboot. Update it and re-test:
+```powershell
+schtasks /change /tn "Start-WSL-Docker" /rp "<new-password>"
+Restart-Computer
+```
 
 ---
 
 ## Day-2 operations
 
-- **Logs**: `docker compose logs -f web` (from `~/neev-cms` inside the WSL2 shell).
-- **Updating**: tag and push a new release from your machine (`git tag vX.Y.Z && git push origin vX.Y.Z`), then on the server: edit `IMAGE_TAG` in `.env`, `docker compose pull && docker compose up -d`.
-- **Remote access without physically touching the Windows box**: RDP, or enable the OpenSSH Server Windows feature and SSH in, then `wsl -d Ubuntu-22.04` from there.
-- **If the scheduled task's account password changes** (password rotation policy, etc.), the task silently stops working — `schtasks /change /tn "Start-WSL-Docker" /rp "<new-password>"` to update it, and re-test with a reboot.
+- **Logs**: `docker compose logs -f web`, run from `~/neev-cms` inside the Ubuntu shell.
+- **Updating**: tag and push a new release from your machine (`git tag vX.Y.Z && git push origin vX.Y.Z`), then on the server (inside the Ubuntu shell, from `~/neev-cms`): edit `IMAGE_TAG` in `.env`, `docker compose pull && docker compose up -d`.
+- **Remote access without physically touching the Windows box**: RDP, or enable the OpenSSH Server Windows feature and SSH in, then `wsl -d <distro-name>` from there.
+- **Scheduled task account password rotated?** See Troubleshooting item 6 above — it breaks silently until the next reboot.
