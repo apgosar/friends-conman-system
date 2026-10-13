@@ -1,11 +1,15 @@
 import { prisma } from '@/lib/db'
 import TopNav from '@/components/layout/TopNav'
+import BackToProject from '@/components/projects/BackToProject'
 import Link from 'next/link'
 import { notFound } from 'next/navigation'
 import { formatDate } from '@/lib/template-engine'
 import ActivateButton from './ActivateButton'
 import DeleteTemplateButton from './DeleteTemplateButton'
 import TemplateHtmlPreview from '@/components/projects/TemplateHtmlPreview'
+import CopyTemplateButton from '@/components/projects/CopyTemplateButton'
+import TemplateCoverage from '@/components/projects/TemplateCoverage'
+import { TEMPLATE_TYPES } from '@/lib/template-constants'
 
 export default async function TemplatesPage(props: PageProps<'/projects/[id]/templates'>) {
   const { id } = await props.params
@@ -13,10 +17,22 @@ export default async function TemplatesPage(props: PageProps<'/projects/[id]/tem
   const project = await prisma.project.findUnique({ where: { id } })
   if (!project) notFound()
 
-  const templates = await prisma.template.findMany({
-    where: { projectId: id },
-    orderBy: { createdAt: 'desc' }
-  })
+  const [rawTemplates, otherProjects, activity] = await Promise.all([
+    prisma.template.findMany({ where: { projectId: id } }),
+    prisma.project.findMany({ where: { id: { not: id } }, select: { id: true, name: true }, orderBy: { name: 'asc' } }),
+    prisma.auditLog.findMany({
+      where: { projectId: id, entityType: 'template' },
+      orderBy: { createdAt: 'desc' },
+      take: 15,
+      include: { user: { select: { name: true } } },
+    }),
+  ])
+  // Group by document type, newest version first, so a type's history reads top to bottom
+  const typeOrder = TEMPLATE_TYPES.map((t) => t.value as string)
+  const templates = [...rawTemplates].sort(
+    (a, b) => typeOrder.indexOf(a.type) - typeOrder.indexOf(b.type) || b.version - a.version,
+  )
+  const ACTION_LABEL: Record<string, string> = { created: 'uploaded', activated: 'activated', deleted: 'deleted', copied: 'copied in' }
 
   return (
     <>
@@ -27,10 +43,15 @@ export default async function TemplatesPage(props: PageProps<'/projects/[id]/tem
             <h1 className="page-title">Document Templates</h1>
             <p className="page-subtitle">Upload .docx for agreements, HTML for others</p>
           </div>
-          <Link href={`/projects/${id}/templates/new`} className="btn btn-primary">
-            + New Template
-          </Link>
+          <div className="flex gap-2">
+            <BackToProject projectId={id} />
+            <Link href={`/projects/${id}/templates/new`} className="btn btn-primary">
+              + New Template
+            </Link>
+          </div>
         </div>
+
+        <TemplateCoverage projectId={id} projectType={project.type} templates={templates} variant="full" />
 
         <div className="table-wrapper">
           <table>
@@ -40,7 +61,6 @@ export default async function TemplatesPage(props: PageProps<'/projects/[id]/tem
                 <th>Type</th>
                 <th>Version</th>
                 <th>Status</th>
-                <th>Format</th>
                 <th>Updated</th>
                 <th></th>
               </tr>
@@ -48,7 +68,7 @@ export default async function TemplatesPage(props: PageProps<'/projects/[id]/tem
             <tbody>
               {templates.length === 0 ? (
                 <tr>
-                  <td colSpan={7} style={{ textAlign: 'center', padding: '40px', color: 'var(--text-muted)' }}>
+                  <td colSpan={6} style={{ textAlign: 'center', padding: '40px', color: 'var(--text-muted)' }}>
                     No templates uploaded yet
                   </td>
                 </tr>
@@ -66,22 +86,22 @@ export default async function TemplatesPage(props: PageProps<'/projects/[id]/tem
                         isActive={t.isActive} 
                       />
                     </td>
-                    <td>
-                      {t.fileUrl ? (
-                        <span className="badge badge-info">DOCX</span>
-                      ) : (
-                        <span className="badge badge-warning">HTML</span>
-                      )}
-                    </td>
                     <td style={{ color: 'var(--text-muted)' }}>{formatDate(t.updatedAt)}</td>
                     <td>
-                      <div className="flex gap-2">
-                        {t.fileUrl ? (
-                          <a href={t.fileUrl} download className="btn btn-ghost btn-sm">Download</a>
-                        ) : (
-                          t.templateHtml && <TemplateHtmlPreview html={t.templateHtml} />
-                        )}
-                        <DeleteTemplateButton projectId={id} templateId={t.id} />
+                      <div className="tpl-actions">
+                        <div className="tpl-slot">
+                          {t.fileUrl ? (
+                            <a href={t.fileUrl} download className="btn btn-ghost btn-sm">Download</a>
+                          ) : (
+                            t.templateHtml && <TemplateHtmlPreview html={t.templateHtml} />
+                          )}
+                        </div>
+                        <div className="tpl-slot">
+                          <CopyTemplateButton projectId={id} templateId={t.id} projects={otherProjects} />
+                        </div>
+                        <div className="tpl-slot">
+                          <DeleteTemplateButton projectId={id} templateId={t.id} isActive={t.isActive} />
+                        </div>
                       </div>
                     </td>
                   </tr>
@@ -90,7 +110,36 @@ export default async function TemplatesPage(props: PageProps<'/projects/[id]/tem
             </tbody>
           </table>
         </div>
+
+        {activity.length > 0 && (
+          <div className="card" style={{ marginTop: 24 }}>
+            <div className="card-header"><span className="card-title">Recent template activity</span></div>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 8, fontSize: '0.8125rem' }}>
+              {activity.map((a) => {
+                const v = (a.newValues ?? a.oldValues) as { name?: string; type?: string; version?: number } | null
+                const typeLabel = TEMPLATE_TYPES.find((t) => t.value === v?.type)?.label ?? v?.type
+                return (
+                  <div key={a.id} style={{ display: 'flex', justifyContent: 'space-between', gap: 12 }}>
+                    <span>
+                      <b>{a.user?.name ?? 'Someone'}</b> {ACTION_LABEL[a.action] ?? a.action} {typeLabel ? <>{typeLabel} </> : null}
+                      {v?.name ? <>“{v.name}” </> : null}{v?.version ? <>(v{v.version})</> : null}
+                    </span>
+                    <span style={{ color: 'var(--text-muted)', whiteSpace: 'nowrap' }}>{a.createdAt.toLocaleString('en-IN')}</span>
+                  </div>
+                )
+              })}
+            </div>
+          </div>
+        )}
       </div>
+      <style>{`
+        .tpl-actions { display: grid; grid-template-columns: 104px 64px 80px; gap: 8px; align-items: center; }
+        .tpl-slot { display: flex; }
+        .tpl-slot > .btn {
+          flex: 1; display: inline-flex; align-items: center; justify-content: center;
+          box-sizing: border-box; min-height: 32px; line-height: 1; white-space: nowrap; text-decoration: none;
+        }
+      `}</style>
     </>
   )
 }

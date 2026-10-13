@@ -2,6 +2,7 @@ import { auth } from '@/lib/auth'
 import { NextResponse } from 'next/server'
 import { deploymentConfig } from '@/lib/deployment-config'
 import { getLicenseStatus, isBlocked } from '@/lib/license/verify'
+import { isInternalRequest } from '@/lib/internal-auth'
 
 export default auth(async (req) => {
   const { pathname } = req.nextUrl
@@ -12,6 +13,9 @@ export default auth(async (req) => {
   // could never show the reason it's blocked).
   const alwaysPublic = /^\/(api\/auth|api\/cron|api\/health|_next\/static|_next\/image|favicon\.ico|uploads|license-expired)/.test(pathname)
   if (alwaysPublic) return NextResponse.next()
+
+  // Server-to-server fetches of generated documents (comms dispatcher). The route re-checks the token.
+  if (pathname.startsWith('/api/documents/preview/') && isInternalRequest(req)) return NextResponse.next()
 
   // On-prem license gate — no-op on cloud (deploymentConfig.licenseEnforced is false there).
   // Fails closed: a missing/invalid/expired-past-grace license blocks everything below.

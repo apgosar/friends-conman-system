@@ -13,10 +13,9 @@
 import { prisma } from '@/lib/db'
 import { sendEmail } from '@/lib/email'
 import { sendWhatsApp } from '@/lib/whatsapp'
+import { internalAuthHeaders } from '@/lib/internal-auth'
+import { publishPublicCopy } from '@/lib/storage/files'
 import { PDFDocument } from 'pdf-lib'
-import { writeFileSync, mkdirSync, existsSync } from 'fs'
-import { join } from 'path'
-import { v4 as uuidv4 } from 'uuid'
 
 // ── Helpers ─────────────────────────────────────────────────────────────────
 
@@ -41,8 +40,16 @@ async function fetchAllAttachments(content: string) {
       }
 
       try {
-        const docRes = await fetch(docFullUrl)
-        if (docRes.ok) {
+        const isOwnEndpoint = docFullUrl.startsWith(process.env.APP_URL ?? '\u0000')
+        const docRes = await fetch(docFullUrl, { headers: isOwnEndpoint ? internalAuthHeaders() : {}, redirect: 'manual' })
+        if (!docRes.ok) {
+          // Better to fail (and be retried / visible in the log) than to send a message missing its document
+          throw new Error(`Could not prepare attachment "${docLabel}" (HTTP ${docRes.status}). If this is a DOCX template, check LibreOffice is installed for PDF conversion.`)
+        }
+        if ((docRes.headers.get('content-type') ?? '').includes('text/html')) {
+          throw new Error(`Attachment "${docLabel}" came back as a web page instead of a document`)
+        }
+        {
           const contentType = docRes.headers.get('content-type') ?? 'application/pdf'
           const isDocx = contentType.includes('wordprocessingml') || docFullUrl.includes('.docx')
           const ext = isDocx ? 'docx' : 'pdf'
@@ -56,6 +63,7 @@ async function fetchAllAttachments(content: string) {
         }
       } catch (fetchErr) {
         console.warn(`[Dispatcher] Could not fetch attachment ${docLabel}:`, fetchErr)
+        throw fetchErr
       }
     }
   }
@@ -184,7 +192,7 @@ export async function dispatchCommunicationLog(logId: string): Promise<DispatchR
       
       const fetchedAttachments = await fetchAllAttachments(content)
 
-      if (fetchedAttachments.length > 1 && fetchedAttachments.every(a => a.contentType === 'application/pdf')) {
+      if (fetchedAttachments.length >= 1 && fetchedAttachments.every(a => a.contentType.includes('application/pdf'))) {
         try {
           const mergedPdf = await PDFDocument.create()
           for (const attachment of fetchedAttachments) {
@@ -194,14 +202,8 @@ export async function dispatchCommunicationLog(logId: string): Promise<DispatchR
           }
           const mergedPdfBytes = await mergedPdf.save()
           
-          const uploadsDir = join(process.cwd(), 'public', 'uploads')
-          if (!existsSync(uploadsDir)) mkdirSync(uploadsDir, { recursive: true })
-          
-          const mergedFilename = `Merged_Document_${uuidv4()}.pdf`
-          writeFileSync(join(uploadsDir, mergedFilename), mergedPdfBytes)
-          
-          finalDocUrl = `${process.env.APP_URL}/uploads/${mergedFilename}`
-          finalDocFilename = 'Demand_and_Certificates.pdf'
+          finalDocUrl = await publishPublicCopy(Buffer.from(mergedPdfBytes), 'pdf', 'application/pdf')
+          finalDocFilename = fetchedAttachments.length === 1 ? fetchedAttachments[0].filename : 'Demand_and_Certificates.pdf'
         } catch (mergeErr) {
           console.error('[Dispatcher] Error merging PDFs for WhatsApp:', mergeErr)
         }

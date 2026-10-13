@@ -2,9 +2,9 @@ import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/db'
 import { generateDocx } from '@/lib/docx'
 import { numberToWords, formatDate, renderTemplate } from '@/lib/template-engine'
-import fs from 'fs'
-import path from 'path'
+import { readStoredFile } from '@/lib/storage/files'
 import { auth } from '@/lib/auth'
+import { isInternalRequest } from '@/lib/internal-auth'
 
 const fmtCur = (amount: number | string | null | undefined) => {
   if (!amount) return '0.00'
@@ -13,7 +13,7 @@ const fmtCur = (amount: number | string | null | undefined) => {
 
 export async function GET(req: NextRequest) {
   const session = await auth()
-  if (!session?.user) return new Response('Unauthorized', { status: 401 })
+  if (!session?.user && !isInternalRequest(req)) return new Response('Unauthorized', { status: 401 })
 
   try {
     const { searchParams } = new URL(req.url)
@@ -171,11 +171,20 @@ export async function GET(req: NextRequest) {
 
     if (template.fileUrl) {
       // It's a DOCX template
-      const templatePath = path.join(process.cwd(), 'public', template.fileUrl.replace('/uploads/', 'uploads/'))
-      if (!fs.existsSync(templatePath)) throw new Error(`Template file not found at ${templatePath}`)
-      
-      const templateBuffer = fs.readFileSync(templatePath)
+      const templateBuffer = await readStoredFile(template.fileUrl)
       outBuffer = generateDocx(templateBuffer, docxData)
+
+      // Customers get PDFs: convert the filled DOCX (keeps the letterhead) when ?format=pdf is requested
+      if (searchParams.get('format') === 'pdf') {
+        const { docxToPdf } = await import('@/lib/docx-to-pdf')
+        const pdf = await docxToPdf(outBuffer)
+        return new Response(new Uint8Array(pdf), {
+          headers: {
+            'Content-Type': 'application/pdf',
+            'Content-Disposition': `inline; filename="Receipt_${payment.receiptNumber || payment.id}.pdf"`
+          }
+        })
+      }
       return new Response(new Uint8Array(outBuffer), {
         headers: {
           'Content-Type': 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
