@@ -6,7 +6,10 @@ import { formatDate, formatCurrency } from '@/lib/template-engine'
 import { auth } from '@/lib/auth'
 import DeleteSaleButton from '@/components/sales/DeleteSaleButton'
 import PaymentScheduleTable from '@/components/sales/PaymentScheduleTable'
+import RecordPaymentModal from '@/components/sales/RecordPaymentModal'
 import CommunicationLogTable from '@/components/sales/CommunicationLogTable'
+import SaleLifecycleCard from '@/components/sales/SaleLifecycleCard'
+import { saleStatusBadge, saleStatusLabel, DOCUMENT_STATUS } from '@/lib/status'
 
 async function getSale(id: string) {
   return prisma.sale.findUnique({
@@ -22,24 +25,13 @@ async function getSale(id: string) {
       documents: { orderBy: { createdAt: 'desc' } },
       communicationLogs: {
         orderBy: { createdAt: 'desc' },
-        take: 20,
+        take: 40,
         include: { buyer: { select: { fullName: true } } },
       },
       loans: { include: { disbursements: true } },
       tenant: true,
     },
   })
-}
-
-const SCHEDULE_STATUS_COLOR: Record<string, string> = {
-  UPCOMING: 'badge-muted',
-  DUE: 'badge-warning',
-  OVERDUE_7: 'badge-warning',
-  OVERDUE_15: 'badge-orange',
-  OVERDUE_30: 'badge-danger',
-  OVERDUE_30PLUS: 'badge-danger',
-  PAID: 'badge-success',
-  PARTIALLY_PAID: 'badge-info',
 }
 
 export default async function SaleDetailPage(props: PageProps<'/sales/[id]'>) {
@@ -50,8 +42,13 @@ export default async function SaleDetailPage(props: PageProps<'/sales/[id]'>) {
   const session = await auth()
   const isSuperAdmin = session?.user?.role === 'SUPER_ADMIN'
 
-  const totalPaid = sale.paymentSchedules.reduce((sum, s) => sum + s.payments.reduce((a, p) => a + Number(p.amount), 0), 0)
-  const totalDue = sale.paymentSchedules.reduce((sum, s) => sum + Number(s.principalAmount) + Number(s.gstAmount), 0)
+  const livePayments = sale.paymentSchedules.flatMap((s) => s.payments.filter((p) => !p.deletedAt))
+  const principalPaid = livePayments.reduce((a, p) => a + Number(p.amount), 0)
+  const gstReceived = livePayments.reduce((a, p) => a + Number(p.gstPaid ?? 0), 0)
+  const principalDue = sale.paymentSchedules.reduce((sum, s) => sum + Number(s.principalAmount), 0)
+  const gstDue = sale.paymentSchedules.reduce((sum, s) => sum + Number(s.gstAmount ?? 0), 0)
+  const totalPaid = principalPaid + gstReceived
+  const totalDue = principalDue + gstDue
   const paidPct = totalDue > 0 ? Math.round((totalPaid / totalDue) * 100) : 0
 
   return (
@@ -66,7 +63,7 @@ export default async function SaleDetailPage(props: PageProps<'/sales/[id]'>) {
           <div>
             <div className="flex items-center gap-2 mb-1">
               <span className={`badge ${sale.saleType === 'FRESH' ? 'badge-primary' : 'badge-orange'}`}>{sale.saleType}</span>
-              <span className="badge badge-info">{sale.status.replace(/_/g, ' ')}</span>
+              <span className={`badge ${saleStatusBadge(sale.status)}`}>{saleStatusLabel(sale.status)}</span>
             </div>
             <h1 className="page-title">{sale.saleNumber} — {sale.unit.unitNumber}</h1>
             <p className="page-subtitle">
@@ -119,6 +116,7 @@ export default async function SaleDetailPage(props: PageProps<'/sales/[id]'>) {
                 ['Reg. Charges', sale.registrationCharges ? formatCurrency(Number(sale.registrationCharges)) : '—'],
                 ['Booking Date', formatDate(sale.bookingDate)],
                 ['Agreement Date', sale.agreementDate ? formatDate(sale.agreementDate) : 'Pending'],
+                ['Handover Date', sale.possessionDate ? formatDate(sale.possessionDate) : 'Pending'],
               ].map(([label, value]) => (
                 <div key={label} className="flex justify-between">
                   <span style={{ color: 'var(--text-muted)', fontSize: '0.875rem' }}>{label}</span>
@@ -139,6 +137,10 @@ export default async function SaleDetailPage(props: PageProps<'/sales/[id]'>) {
                 <span className="text-sm">Total Due</span>
                 <span style={{ fontWeight: 500 }}>{formatCurrency(totalDue)}</span>
               </div>
+              <div className="flex justify-between mb-2" style={{ fontSize: '0.8125rem', color: 'var(--text-muted)' }}>
+                <span>Principal: {formatCurrency(principalPaid)} / {formatCurrency(principalDue)}</span>
+                <span>GST: {formatCurrency(gstReceived)} / {formatCurrency(gstDue)}</span>
+              </div>
               <div className="flex justify-between mb-3">
                 <span className="text-sm">Outstanding</span>
                 <span style={{ fontWeight: 700, color: totalDue - totalPaid > 0 ? 'var(--color-danger)' : 'var(--color-success)' }}>
@@ -152,6 +154,15 @@ export default async function SaleDetailPage(props: PageProps<'/sales/[id]'>) {
             </div>
           </div>
         </div>
+
+        {/* Lifecycle */}
+        <SaleLifecycleCard
+          saleId={id}
+          status={sale.status}
+          agreementDate={sale.agreementDate ? sale.agreementDate.toISOString() : null}
+          possessionDate={sale.possessionDate ? sale.possessionDate.toISOString() : null}
+          canEdit={['SUPER_ADMIN', 'ADMIN'].includes(session?.user?.role as string)}
+        />
 
         {/* Redevelopment Tenant Info */}
         {sale.tenant && (
@@ -177,7 +188,7 @@ export default async function SaleDetailPage(props: PageProps<'/sales/[id]'>) {
         <div className="card mb-6">
           <div className="card-header">
             <span className="card-title">Payment Schedule</span>
-            <Link href={`/sales/${id}/payments`} className="btn btn-primary btn-sm">Record Payment</Link>
+            <RecordPaymentModal schedules={sale.paymentSchedules} saleId={id} />
           </div>
           <PaymentScheduleTable schedules={sale.paymentSchedules} />
         </div>
@@ -194,7 +205,7 @@ export default async function SaleDetailPage(props: PageProps<'/sales/[id]'>) {
                 <div key={doc.id} className="flex items-center justify-between" style={{ padding: '10px 12px', background: 'var(--bg-input)', borderRadius: 'var(--radius-md)' }}>
                   <div>
                     <span style={{ fontWeight: 500, fontSize: '0.875rem' }}>{doc.type.replace(/_/g, ' ')}</span>
-                    <span className={`badge ${doc.status === 'SENT' ? 'badge-success' : doc.status === 'GENERATED' ? 'badge-info' : 'badge-muted'} ml-auto`} style={{ marginLeft: 8 }}>{doc.status}</span>
+                    <span className={`badge ${DOCUMENT_STATUS[doc.status]?.badge ?? 'badge-muted'} ml-auto`} style={{ marginLeft: 8 }}>{DOCUMENT_STATUS[doc.status]?.label ?? doc.status}</span>
                   </div>
                   {doc.pdfUrl && (
                     <a

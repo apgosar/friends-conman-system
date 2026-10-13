@@ -2,9 +2,39 @@
 
 import { useState } from 'react'
 import { formatDate } from '@/lib/template-engine'
+import { COMM_STATUS } from '@/lib/status'
+
+const statusBadge = (s: string) => COMM_STATUS[s]?.badge ?? 'badge-muted'
+const statusLabel = (s: string) => COMM_STATUS[s]?.label ?? s
+const GROUP_WINDOW_MS = 60_000
+const CHANNEL_ORDER = ['EMAIL', 'WHATSAPP']
+const fmt = (d: any) => (d ? new Date(d).toLocaleString('en-IN') : '—')
+
+type LogGroup = { key: string; createdAt: any; type: string; saleId: string; messageContent: string | null; logs: any[] }
+
+// The same message goes out as one log row per channel. Merge those rows into one entry.
+function groupLogs(logs: any[]): LogGroup[] {
+  const groups: LogGroup[] = []
+  for (const log of logs) {
+    const t = new Date(log.createdAt).getTime()
+    const g = groups.find(
+      (x) =>
+        x.type === log.type &&
+        x.messageContent === log.messageContent &&
+        x.logs[0].buyerId === log.buyerId &&
+        !x.logs.some((l) => l.channel === log.channel) &&
+        Math.abs(new Date(x.createdAt).getTime() - t) <= GROUP_WINDOW_MS,
+    )
+    if (g) g.logs.push(log)
+    else groups.push({ key: log.id, createdAt: log.createdAt, type: log.type, saleId: log.saleId, messageContent: log.messageContent, logs: [log] })
+  }
+  groups.forEach((g) => g.logs.sort((a, b) => CHANNEL_ORDER.indexOf(a.channel) - CHANNEL_ORDER.indexOf(b.channel)))
+  return groups
+}
 
 export default function CommunicationLogTable({ logs }: { logs: any[] }) {
-  const [selectedLog, setSelectedLog] = useState<any | null>(null)
+  const [selectedLog, setSelectedLog] = useState<LogGroup | null>(null)
+  const groups = groupLogs(logs ?? [])
 
   if (!logs || logs.length === 0) {
     return (
@@ -24,32 +54,32 @@ export default function CommunicationLogTable({ logs }: { logs: any[] }) {
               <th>Channel</th>
               <th>Type</th>
               <th>Milestone</th>
-              <th>Status</th>
               <th>Content Snippet</th>
             </tr>
           </thead>
           <tbody>
-            {logs.map(log => {
+            {groups.map(log => {
               const demandMatch = log.messageContent?.match(/The milestone '(.*?)' is now complete/)
               const paymentMatch = log.messageContent?.match(/Payment for '(.*?)' is now due/)
               const receiptMatch = log.messageContent?.match(/MILESTONE:\s*(.*?)(?:\n|$)/)
               const milestoneName = demandMatch ? demandMatch[1] : (paymentMatch ? paymentMatch[1] : (receiptMatch ? receiptMatch[1] : '—'))
               return (
                 <tr 
-                  key={log.id} 
+                  key={log.key}
                   onClick={() => setSelectedLog(log)}
                   style={{ cursor: 'pointer' }}
                   className="hover-row"
                 >
                   <td>{log.createdAt ? new Date(log.createdAt).toLocaleString('en-IN') : '—'}</td>
-                  <td><span className="badge badge-info">{log.channel}</span></td>
+                  <td>
+                    <div style={{ display: 'flex', gap: 6 }}>
+                      {log.logs.map((l: any) => (
+                        <span key={l.id} className={`badge ${statusBadge(l.status)}`} title={statusLabel(l.status)}>{l.channel}</span>
+                      ))}
+                    </div>
+                  </td>
                   <td>{log.type.replace(/_/g, ' ')}</td>
                   <td>{milestoneName}</td>
-                  <td>
-                    <span className={`badge ${log.status === 'DELIVERED' ? 'badge-success' : 'badge-muted'}`}>
-                      {log.status}
-                    </span>
-                  </td>
                   <td style={{ color: 'var(--text-muted)', maxWidth: '300px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                     {log.messageContent ? log.messageContent.split('MILESTONE:')[0].split('ATTACHMENTS:')[0].substring(0, 50) + '...' : '—'}
                   </td>
@@ -69,7 +99,7 @@ export default function CommunicationLogTable({ logs }: { logs: any[] }) {
               <div>
                 <h3 style={{ fontSize: '1.25rem', fontWeight: 600, margin: 0, color: 'var(--text-primary)' }}>Communication Details</h3>
                 <p style={{ margin: '4px 0 0', fontSize: '0.8125rem', color: 'var(--text-muted)' }}>
-                  {selectedLog.channel} • {selectedLog.createdAt ? new Date(selectedLog.createdAt).toLocaleString('en-IN') : '—'}
+                  {selectedLog.logs.map((l: any) => l.channel).join(' + ')} • {fmt(selectedLog.createdAt)}
                 </p>
               </div>
               <button onClick={() => setSelectedLog(null)} style={{ background: 'var(--bg-card)', border: '1px solid var(--border-color)', borderRadius: '50%', width: 32, height: 32, display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--text-muted)', fontSize: '1.2rem', cursor: 'pointer', transition: 'background 0.2s' }}>×</button>
@@ -78,12 +108,24 @@ export default function CommunicationLogTable({ logs }: { logs: any[] }) {
             <div style={{ padding: 24 }}>
               <div style={{ display: 'flex', gap: 12, marginBottom: 20 }}>
                 <span className="badge badge-info">{selectedLog.type.replace(/_/g, ' ')}</span>
-                <span className={`badge ${selectedLog.status === 'DELIVERED' ? 'badge-success' : 'badge-muted'}`}>
-                  {selectedLog.status}
-                </span>
-                <span className="badge" style={{ background: 'var(--bg-card)', border: '1px solid var(--border-color)', color: 'var(--text-secondary)' }}>
-                  Channel: {selectedLog.channel}
-                </span>
+              </div>
+
+              <div style={{ display: 'grid', gridTemplateColumns: `repeat(${selectedLog.logs.length}, 1fr)`, gap: 12, marginBottom: 20 }}>
+                {selectedLog.logs.map((l: any) => (
+                  <div key={l.id} style={{ border: '1px solid var(--border-color)', borderRadius: 8, padding: 14, background: 'var(--bg-surface)', fontSize: '0.8125rem' }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 10 }}>
+                      <span style={{ fontWeight: 600, color: 'var(--text-primary)' }}>{l.channel}</span>
+                      <span className={`badge ${statusBadge(l.status)}`}>{statusLabel(l.status)}</span>
+                    </div>
+                    <div style={{ display: 'grid', gap: 4, color: 'var(--text-secondary)' }}>
+                      <div>Sent: {fmt(l.sentAt)}</div>
+                      <div>Delivered: {fmt(l.deliveredAt)}</div>
+                      {l.readAt && <div>Read: {fmt(l.readAt)}</div>}
+                      {l.retryCount > 0 && <div>Retries: {l.retryCount}</div>}
+                      {l.failureReason && <div style={{ color: 'var(--color-danger)' }}>Failure: {l.failureReason}</div>}
+                    </div>
+                  </div>
+                ))}
               </div>
 
               <div style={{ 

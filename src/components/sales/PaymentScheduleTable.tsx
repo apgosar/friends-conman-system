@@ -2,14 +2,7 @@
 
 import { useState } from 'react'
 import { formatCurrency, formatDate } from '@/lib/template-engine'
-
-const SCHEDULE_STATUS_COLOR: Record<string, string> = {
-  UPCOMING: 'badge-muted',
-  DUE: 'badge-warning',
-  OVERDUE: 'badge-danger',
-  PARTIAL: 'badge-info',
-  PAID: 'badge-success',
-}
+import { scheduleStatusBadge, scheduleStatusLabel } from '@/lib/status'
 
 export default function PaymentScheduleTable({ schedules }: { schedules: any[] }) {
   const [selectedSchedule, setSelectedSchedule] = useState<any | null>(null)
@@ -21,13 +14,14 @@ export default function PaymentScheduleTable({ schedules }: { schedules: any[] }
           <thead>
             <tr>
               <th>Description</th><th>Principal</th><th>GST</th>
-              <th>Interest</th><th>Due Date</th><th>Status</th><th>Paid</th>
+              <th>Interest</th><th>Due Date</th><th>Status</th><th>Principal Paid</th><th>GST Paid</th>
             </tr>
           </thead>
           <tbody>
             {schedules.map((s) => {
-              const paid = s.payments.reduce((a: number, p: any) => a + Number(p.amount), 0)
-              const gstPaid = s.payments.reduce((a: number, p: any) => a + Number(p.gstPaid ?? 0), 0)
+              const live = s.payments.filter((p: any) => !p.deletedAt)
+              const paid = live.reduce((a: number, p: any) => a + Number(p.amount), 0)
+              const gstPaid = live.reduce((a: number, p: any) => a + Number(p.gstPaid ?? 0), 0)
               const totalReceived = paid + gstPaid
               const totalDue = Number(s.principalAmount) + Number(s.gstAmount ?? 0)
               const isOverdue = s.dueDate && new Date(s.dueDate) < new Date() && s.status !== 'PAID'
@@ -54,8 +48,9 @@ export default function PaymentScheduleTable({ schedules }: { schedules: any[] }
                   }}>
                     {s.dueDate ? formatDate(s.dueDate) : 'On milestone'} {isOverdue && '⚠️'}
                   </td>
-                  <td><span className={`badge ${SCHEDULE_STATUS_COLOR[s.status] ?? 'badge-muted'}`}>{s.status.replace(/_/g, ' ')}</span></td>
+                  <td><span className={`badge ${scheduleStatusBadge(s.status)}`}>{scheduleStatusLabel(s.status)}</span></td>
                   <td style={{ color: 'var(--color-success)', fontWeight: 600 }}>{paid > 0 ? formatCurrency(paid) : '—'}</td>
+                  <td style={{ color: 'var(--color-success)', fontWeight: 600 }}>{gstPaid > 0 ? formatCurrency(gstPaid) : '—'}</td>
                 </tr>
               )
             })}
@@ -82,7 +77,7 @@ export default function PaymentScheduleTable({ schedules }: { schedules: any[] }
                 </div>
                 <div style={{ display: 'flex', justifyContent: 'space-between' }}>
                   <span style={{ color: 'var(--text-secondary)' }}>Status</span>
-                  <span className={`badge ${SCHEDULE_STATUS_COLOR[selectedSchedule.status] ?? 'badge-muted'}`}>{selectedSchedule.status.replace(/_/g, ' ')}</span>
+                  <span className={`badge ${scheduleStatusBadge(selectedSchedule.status)}`}>{scheduleStatusLabel(selectedSchedule.status)}</span>
                 </div>
                 <div style={{ display: 'flex', justifyContent: 'space-between' }}>
                   <span style={{ color: 'var(--text-secondary)' }}>Due Date</span>

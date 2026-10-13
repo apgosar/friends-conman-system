@@ -4,6 +4,8 @@ import { auth } from '@/lib/auth'
 import { generateReceiptNumber } from '@/lib/receipt-number'
 import { parseBody, z } from '@/lib/validate'
 import { commsRateLimit, rateLimitExceeded } from '@/lib/rate-limit'
+import { syncSaleLifecycle } from '@/lib/sale-lifecycle'
+import { OVERDUE_SCHEDULE_STATUSES } from '@/lib/status'
 
 // ---------------------------------------------------------------------------
 // Zod schema — validates exactly what fields are expected for a payment
@@ -11,14 +13,22 @@ import { commsRateLimit, rateLimitExceeded } from '@/lib/rate-limit'
 const PaymentSchema = z.object({
   scheduleId: z.string().min(1, 'scheduleId is required'),
   saleId: z.string().min(1, 'saleId is required'),
-  amount: z.number().positive('amount must be positive'),
+  amount: z.number().min(0, 'amount cannot be negative'),
   gstPaid: z.number().min(0).optional().default(0),
   mode: z.enum(['CHEQUE', 'NEFT', 'RTGS', 'IMPS', 'UPI', 'CASH', 'DD', 'OTHER']),
   referenceNumber: z.string().max(100).optional(),
   bankName: z.string().max(100).optional(),
   remark: z.string().max(500).optional(),
   paymentDate: z.string().refine((v) => !isNaN(Date.parse(v)), { message: 'Invalid paymentDate' }),
-})
+}).refine((v) => v.amount + v.gstPaid > 0, { message: 'Enter a principal and/or GST amount greater than zero' })
+
+const round2 = (n: number) => Math.round(n * 100) / 100
+
+class PaymentInputError extends Error {
+  constructor(message: string, public status: number) {
+    super(message)
+  }
+}
 
 export async function POST(req: NextRequest) {
   const session = await auth()
@@ -44,6 +54,21 @@ export async function POST(req: NextRequest) {
     const receiptNumber = await generateReceiptNumber(sale.projectId)
 
     const payment = await prisma.$transaction(async (tx) => {
+      // 0. Validate against what is still outstanding on this demand
+      const existing = await tx.paymentSchedule.findFirst({
+        where: { id: scheduleId, saleId },
+        include: { payments: { where: { deletedAt: null } } },
+      })
+      if (!existing) throw new PaymentInputError('Payment schedule not found for this sale', 404)
+      const principalOutstanding = round2(existing.principalAmount - existing.payments.reduce((a, p) => a + p.amount, 0))
+      const gstOutstanding = round2(existing.gstAmount - existing.payments.reduce((a, p) => a + p.gstPaid, 0))
+      if (amount > principalOutstanding + 0.005) {
+        throw new PaymentInputError(`Principal exceeds outstanding amount (${principalOutstanding})`, 400)
+      }
+      if ((gstPaid ?? 0) > gstOutstanding + 0.005) {
+        throw new PaymentInputError(`GST exceeds outstanding amount (${gstOutstanding})`, 400)
+      }
+
       // 1. Create the Payment
       const newPayment = await tx.payment.create({
         data: {
@@ -61,10 +86,13 @@ export async function POST(req: NextRequest) {
         }
       })
       
-      // 2. Mark the Schedule as PAID
+      // 2. Mark the Schedule PAID only once both principal and GST are fully received
+      const fullyPaid =
+        round2(principalOutstanding - amount) <= 0.005 && round2(gstOutstanding - (gstPaid ?? 0)) <= 0.005
       await tx.paymentSchedule.update({
         where: { id: scheduleId },
-        data: { status: 'PAID' }
+        // A part-payment must not hide that the demand is overdue, so keep the overdue bucket
+        data: { status: fullyPaid ? 'PAID' : OVERDUE_SCHEDULE_STATUSES.includes(existing.status) ? existing.status : 'PARTIALLY_PAID' }
       })
       
       // 3. Generate Communication Logs for receipt
@@ -87,8 +115,10 @@ export async function POST(req: NextRequest) {
       return newPayment
     })
     
+    await syncSaleLifecycle(saleId)
     return Response.json({ success: true, data: payment }, { status: 201 })
   } catch (err) {
+    if (err instanceof PaymentInputError) return Response.json({ error: err.message }, { status: err.status })
     console.error('[payments POST]', err)
     return Response.json({ error: 'Payment creation failed' }, { status: 500 })
   }
