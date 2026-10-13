@@ -4,9 +4,8 @@ import { auth } from '@/lib/auth'
 import { generateDocx } from '@/lib/docx'
 import { generatePdf } from '@/lib/pdf'
 import { uploadFile } from '@/lib/storage'
+import { readStoredFile, DOCUMENT_FOLDER } from '@/lib/storage/files'
 import { numberToWords, formatDate } from '@/lib/template-engine'
-import fs from 'fs'
-import path from 'path'
 import crypto from 'crypto'
 
 // Helper to format currency
@@ -157,10 +156,7 @@ export async function POST(req: NextRequest) {
 
     if (template.fileUrl) {
       // It's a DOCX template
-      const templatePath = path.join(process.cwd(), 'public', template.fileUrl.replace('/uploads/', 'uploads/'))
-      if (!fs.existsSync(templatePath)) throw new Error(`Template file not found at ${templatePath}`)
-      
-      const templateBuffer = fs.readFileSync(templatePath)
+      const templateBuffer = await readStoredFile(template.fileUrl)
       outBuffer = generateDocx(templateBuffer, docxData)
       finalFileName = `${type}_${sale.saleNumber}.docx`
       mimeType = 'application/vnd.openxmlformats-officedocument.wordprocessingml.document'
@@ -173,13 +169,13 @@ export async function POST(req: NextRequest) {
       throw new Error('Template is missing both HTML and File URL')
     }
 
-    // Save to local public/uploads for Mock POC
-    const uploadsDir = path.join(process.cwd(), 'public', 'uploads')
-    const savedFileName = `${crypto.randomUUID()}_${finalFileName}`
-    const savedPath = path.join(uploadsDir, savedFileName)
-    fs.writeFileSync(savedPath, outBuffer)
-
-    const fileUrl = `/uploads/${savedFileName}`
+    // Store through the storage layer (GCS / MinIO / local dev). The returned URL is login-protected.
+    const fileUrl = await uploadFile({
+      buffer: outBuffer,
+      mimeType,
+      folder: DOCUMENT_FOLDER,
+      fileName: `${crypto.randomUUID()}_${finalFileName}`,
+    })
 
     // Record the document in the database
     const document = await prisma.document.create({

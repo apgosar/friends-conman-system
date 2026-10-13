@@ -1,11 +1,13 @@
 import { deploymentConfig } from '@/lib/deployment-config'
 import { gcsAdapter } from './gcs-adapter'
 import { s3Adapter } from './s3-adapter'
+import { localAdapter } from './local-adapter'
 import type { StorageAdapter } from './types'
 
-const adapters: Record<'gcs' | 's3', StorageAdapter> = {
+const adapters: Record<'gcs' | 's3' | 'local', StorageAdapter> = {
   gcs: gcsAdapter,
   s3: s3Adapter,
+  local: localAdapter,
 }
 
 const activeAdapter = adapters[deploymentConfig.storageProvider]

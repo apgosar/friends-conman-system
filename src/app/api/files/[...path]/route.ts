@@ -39,7 +39,7 @@ export async function GET(req: NextRequest, props: { params: Promise<{ path: str
     })
   } catch (err: any) {
     // GCS errors carry a numeric `code`; AWS SDK v3 errors carry `name`/`$metadata.httpStatusCode`.
-    const isNotFound = err.code === 404 || err.name === 'NoSuchKey' || err.$metadata?.httpStatusCode === 404
+    const isNotFound = err.code === 404 || err.code === 'ENOENT' || err.name === 'NoSuchKey' || err.$metadata?.httpStatusCode === 404
     if (isNotFound) {
       return NextResponse.json({ error: 'File not found' }, { status: 404 })
     }

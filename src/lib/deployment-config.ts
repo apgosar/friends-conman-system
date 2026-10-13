@@ -11,7 +11,7 @@
  */
 
 export type DeploymentTarget = 'cloud' | 'onprem'
-export type StorageProvider = 'gcs' | 's3'
+export type StorageProvider = 'gcs' | 's3' | 'local'
 
 interface DeploymentConfig {
   target: DeploymentTarget
@@ -26,7 +26,9 @@ function resolveTarget(): DeploymentTarget {
 
 function resolveStorageProvider(target: DeploymentTarget): StorageProvider {
   const explicit = process.env.STORAGE_PROVIDER
-  if (explicit === 'gcs' || explicit === 's3') return explicit
+  if (explicit === 'gcs' || explicit === 's3' || explicit === 'local') return explicit
+  // Local development needs no cloud credentials: keep files on disk (.storage/)
+  if (process.env.NODE_ENV === 'development') return 'local'
   // Sensible default per target: cloud runs on GCS today, on-prem has no
   // GCS credentials available so it defaults to the S3/MinIO adapter.
   return target === 'onprem' ? 's3' : 'gcs'

@@ -66,3 +66,6 @@ deploy/onprem/cloudflared/*.json
 # never committed. The public half lives in src/lib/license/public-key.ts instead.
 license-private-key*.json
 license*.jwt
+
+# local dev file storage (STORAGE_PROVIDER=local)
+.storage/
