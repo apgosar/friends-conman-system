@@ -112,23 +112,62 @@ docker run hello-world
 
 ## Step 4 — Make WSL2 (and Docker) start automatically at Windows boot, with nobody logged in
 
-This is the actual "persistent across restarts" requirement. WSL2's own service starts with Windows, but a specific *distro* only boots when something invokes it — that's the gap this closes. A Scheduled Task set to run **at startup**, **whether a user is logged on or not**, fills that gap by just touching the distro once, which brings systemd (and via `systemctl enable docker` above, `dockerd`) up.
+This is the actual "persistent across restarts" requirement. WSL2's own service starts with Windows, but a specific *distro* only runs while something keeps a `wsl.exe` process **that never exits** attached to it. A Scheduled Task running `sleep infinity` inside the distro does both jobs — it boots the distro (bringing up systemd and, via `systemctl enable docker` above, `dockerd` and every `restart: always` container), and it leaves a long-lived client attached for as long as it keeps running. The task has to run **whether a user is logged on or not**, and it has to be **supervised** — see the two lessons below.
 
-**Shell: PowerShell (Admin).** Use the exact distro name from `wsl -l -v` (Step 1) as `<distro-name>` below — a mismatch here is the single most common reason this doesn't actually work:
+> **Two lessons from real-hardware use — each one cost an outage:**
+>
+> 1. **Don't use a one-shot command like `-e /bin/true`**, even though it looks like the obvious "just boot the distro" command. It boots the distro, then exits immediately — the stack came up briefly after boot and then fell over (containers cycling, Cloudflare error 1033 as the tunnel dropped) until the task was changed to a command that never exits. The exact WSL2 internals responsible weren't pinned down, so treat "something must keep a long-running `wsl.exe` process alive" as an empirically established requirement, not something derived from documentation.
+> 2. **Don't trigger it only "At startup".** The keep-alive can end for reasons that aren't a boot. In testing it was first killed by Task Scheduler's default 72-hour limit (event 329), and later it exited by itself (return code `0x80070001`) on a Monday morning, after the PC had slept since Saturday evening — cause not proven, but a long sleep/resume is the likely suspect. An at-startup trigger fires only on a *cold boot* (not on waking from sleep), so nothing restarted it and the app stayed down for 8 days. The task below instead **re-fires every 5 minutes**: if the keep-alive is already running the new launch is ignored, and if it has died it's back within 5 minutes.
 
-```powershell
-schtasks /create /tn "Start-WSL-Docker" /tr "wsl.exe -d <distro-name> -u root -e /bin/true" /sc onstart /ru "<local-admin-username>" /rp "<that-account's-password>" /rl highest /f
-```
-
-Use a real local admin account here, not `SYSTEM` — WSL commands invoked from a `SYSTEM`-context task are known to behave unreliably since WSL expects a normal user profile/token. Once `dockerd` is running, any container with `restart: always` in `docker-compose.yml` (that's every service in ours) gets restarted by Docker itself — you don't need the scheduled task to re-run `docker compose up`, only to get `dockerd` alive again.
-
-**Test it for real** before trusting it: `Restart-Computer`, let it fully boot with nobody logging in (or log in as a *different* account than the task's), then from any admin **PowerShell** session:
+**Shell: PowerShell (Admin).** Use the exact distro name from `wsl -l -v` (Step 1) as `<distro-name>` below — a mismatch here is the single most common reason this silently doesn't work:
 
 ```powershell
-wsl -d <distro-name> -u root docker ps
+schtasks /create /tn "Start-WSL-Docker" /tr "wsl.exe -d <distro-name> -u root -e sleep infinity" /sc minute /mo 5 /ru "<local-admin-username>" /rp "<that-account's-password>" /rl highest /f
 ```
 
-All containers should show `Up`. If they don't, see **Troubleshooting** at the end of this doc before assuming something deeper is wrong.
+Use a real local admin account here, not `SYSTEM` — WSL commands invoked from a `SYSTEM`-context task are known to behave unreliably since WSL expects a normal user profile/token. Once `dockerd` is running, any container with `restart: always` in `docker-compose.yml` (that's every service in ours) gets restarted by Docker itself — the scheduled task never needs to re-run `docker compose up`, only to get the distro up and keep it up.
+
+**Then fix the task's settings — do not skip this.** `schtasks /create` can't set these, and the defaults it applies break this task, so use the GUI: `taskschd.msc` → Task Scheduler Library → `Start-WSL-Docker` → right-click → **Properties**. Recreating the task resets all of these, so redo them whenever you recreate it.
+
+- **Settings** tab → **uncheck "Stop the task if it runs longer than"**. The default is 72 hours; at the limit Task Scheduler kills the process — and with it the attached `wsl.exe` — and the stack falls over. Also confirm "If the task is already running, then the following rule applies" says **"Do not start a new instance"**, which is what makes the 5-minute re-fire harmless while the keep-alive is up.
+- **Conditions** tab → **uncheck "Stop if the computer switches to battery power" first, then "Start the task only if the computer is on AC power"**. The defaults refuse to start, or stop, the keep-alive on a UPS or battery blip.
+- **Triggers** tab (optional) → **New → "At startup"**, so it also starts at boot instead of waiting for the next 5-minute tick.
+
+**Stop the machine sleeping — a sleeping server is an offline server.** While it sleeps the tunnel is down (Cloudflare error 1033) and scheduled jobs are missed, and waking up isn't a boot, so only the 5-minute re-fire brings the stack back. In testing, the PC went to sleep almost every evening. Turn sleep and hibernation off (turning hibernation off also disables Fast Startup, so "Shut down" becomes a real shutdown and boot-time triggers fire reliably):
+
+```powershell
+powercfg /change standby-timeout-ac 0
+powercfg /change hibernate-timeout-ac 0
+powercfg /hibernate off
+```
+
+If this is a laptop, also set "closing the lid" to "Do nothing" (Control Panel → Power Options → Choose what closing the lid does). If you deliberately want the machine to sleep, expect an outage for the whole sleep plus up to 5 minutes after each wake, and test that path too (Step 7).
+
+**Also recommended: turn off WSL2's VM idle shutdown** for the account the task runs as (`<task-account>` = the same account as `/ru` above). This was in place alongside the `sleep infinity` task when the setup was verified working. On its own, with the one-shot task, it did *not* keep the stack up, and whether it's still required alongside `sleep infinity` wasn't isolated — so it's kept as low-cost insurance:
+
+```powershell
+@"
+[wsl2]
+vmIdleTimeout=-1
+"@ | Set-Content -Path "C:\Users\<task-account>\.wslconfig" -Encoding ascii
+```
+
+Then start the task now instead of waiting for the next tick (`wsl --shutdown` first so the `.wslconfig` is picked up — on a fresh install nothing is running yet, so it's harmless):
+
+```powershell
+wsl --shutdown
+schtasks /run /tn "Start-WSL-Docker"
+```
+
+**Verify with passive checks only.** Any `wsl -d <name> <command>` (including `docker ps` or `systemctl status`) starts the distro itself if it's stopped, so it can make a broken setup look fine — that exact mistake cost hours of misdirected debugging. These only observe:
+
+```powershell
+schtasks /query /tn "Start-WSL-Docker" /v /fo LIST
+schtasks /query /tn "Start-WSL-Docker" /xml | Select-String ExecutionTimeLimit
+wsl -l -v
+```
+
+The task's `Status` should be `Running` (it's meant to never exit), the XML should show `<ExecutionTimeLimit>PT0S</ExecutionTimeLimit>` (`PT0S` = no limit; `PT72H` means the Settings-tab step above didn't take), and the distro should be `Running`. From another machine, `https://<customer-slug>.<your-domain>/api/health` should respond. Then do the real reboot test in Step 7 — if anything's off, see **Troubleshooting** at the end of this doc before assuming something deeper is wrong.
 
 ---
 
@@ -186,8 +225,10 @@ Restart-Computer
 
 After it comes back, **without logging in**, check from another machine:
 
-- `https://<customer-slug>.<your-domain>/api/health` responds (see README.md for what these placeholders mean — `<your-domain>` is yours, not the customer's).
-- If you can reach the server another way (RDP, a colleague's session), from **PowerShell**: `wsl -d <distro-name> -u root docker compose -f /home/<user>/neev-cms/docker-compose.yml ps` shows every service `Up`.
+- `https://<customer-slug>.<your-domain>/api/health` responds within about 7 minutes of the machine coming up — up to 5 for the next task re-fire (less if you added the optional "At startup" trigger), plus about a minute for Docker and the tunnel. See README.md for what these placeholders mean — `<your-domain>` is yours, not the customer's.
+- If you can reach the server another way (RDP, a colleague's session), check `wsl -l -v` (distro `Running`) and `schtasks /query /tn "Start-WSL-Docker" /v /fo LIST` (`Status: Running`) first. Only then, from **PowerShell**, `wsl -d <distro-name> -u root docker compose -f /home/<user>/neev-cms/docker-compose.yml ps` should show every service `Up` — run it last, because if the distro was actually stopped, that command starts it itself and can't tell you whether it would have come up on its own.
+
+If you let the machine sleep, test that too: put it to sleep, wake it, and confirm the health URL recovers the same way. Waking isn't a boot, so this exercises a different path than the reboot does.
 
 If it isn't, see **Troubleshooting** below.
 
@@ -213,9 +254,11 @@ Store the recovery key somewhere you control, not on the server itself.
 
 ---
 
-## Troubleshooting: app doesn't survive a reboot
+## Troubleshooting: app doesn't come back after a reboot, or stops later
 
 Work through these in order — each one rules out a specific link in the chain (Windows boot → scheduled task → WSL2 → systemd → dockerd → your containers). All commands below are **PowerShell (Admin)** unless marked otherwise.
+
+**Prefer passive checks (`wsl -l -v`, `schtasks /query`) first.** Any `wsl -d <name> <command>` starts the distro itself if it's stopped, so it can hide the very failure you're trying to observe — a stack that "started working after I ran `docker ps`" was just started by `docker ps`.
 
 **1. Does the distro name the task uses actually exist?** This is the single most common cause — `wsl --install -d Ubuntu-22.04` doesn't always register the distro under that exact name.
 ```powershell
@@ -227,15 +270,15 @@ If the name differs from what's in your scheduled task's `/tr` argument, that's 
 ```powershell
 schtasks /query /tn "Start-WSL-Docker" /v /fo LIST
 ```
-Check `Last Result`: `0` means success. Anything else is a real failure — Task Scheduler's own GUI (`taskschd.msc` → Task Scheduler Library → your task → History tab; enable "Enable All Tasks History" from the Actions pane if that tab is empty) often has a more specific error than the exit code alone.
+`Status` should be `Running` — this task is meant to never exit. If it says `Ready`, the keep-alive isn't running, and with the 5-minute re-fire it should have been restarted by now: the task isn't launching at all (check item 6, the account password) or something keeps ending it (item 7). `Last Result` of `0` is not proof of health for a task that's supposed to run forever — a one-shot task also reports `0` right before the stack falls over. A non-zero `Last Result` means the last run ended by itself, which is what item 7's event-log commands explain. Any other failure — Task Scheduler's own GUI (`taskschd.msc` → Task Scheduler Library → your task → History tab; enable "Enable All Tasks History" from the Actions pane if that tab is empty) often has a more specific error than the exit code alone, and its History also shows whether a run was boot-triggered or manual.
 
-**3. Run the exact task action manually and see the raw error directly:**
+**3. Can WSL start the distro at all?** A quick diagnostic — *not* the task's real action (that's `sleep infinity`, which would just sit there):
 ```powershell
 wsl.exe -d <distro-name> -u root -e /bin/true
 echo $LASTEXITCODE
 ```
 
-**4. Is systemd actually active inside the distro, and is Docker enabled to start with it?**
+**4. Is systemd actually active inside the distro, and is Docker enabled to start with it?** (These start the distro if it isn't running — check `wsl -l -v` first.)
 ```powershell
 wsl -d <distro-name> -u root -- systemctl is-system-running
 wsl -d <distro-name> -u root -- systemctl is-enabled docker
@@ -253,6 +296,30 @@ Should say `always`. If it says `no`, the container was started some other way t
 schtasks /change /tn "Start-WSL-Docker" /rp "<new-password>"
 Restart-Computer
 ```
+
+**7. Stack comes up, then falls over later — minutes, days, or after a sleep/wake — or the site shows Cloudflare error 1033 and stays that way?** Something ended the keep-alive, and the event logs say what and when. Put the app back first (`schtasks /run /tn "Start-WSL-Docker"`), then read these before changing anything:
+
+```powershell
+Get-WinEvent -FilterHashtable @{LogName='Microsoft-Windows-TaskScheduler/Operational'; StartTime=(Get-Date).AddDays(-16)} | Where-Object { $_.Message -like '*Start-WSL-Docker*' } | Select-Object TimeCreated,Id,Message | Format-List
+```
+
+```powershell
+Get-WinEvent -FilterHashtable @{LogName='System'; Id=12,13,41,42,1074,6008; StartTime=(Get-Date).AddDays(-16)} | Sort-Object TimeCreated | Select-Object TimeCreated,Id,ProviderName
+```
+
+How to read them:
+- **Event 329** ("terminated … due to exceeding the time allocated for execution") — Task Scheduler killed it, so the 72-hour limit is still on. Redo the Settings-tab step in Step 4 and confirm with the XML check.
+- **Event 201 with a return code, and no 329** — the `wsl.exe` process ended by itself, i.e. WSL went down underneath it. This was seen after a long sleep/resume. Turn sleep and hibernation off (Step 4) and let the 5-minute re-fire bring it back.
+- **Event 118 ("launched … due to system startup") only after cold boots, and nothing since** — an at-startup-only trigger never fires on waking from sleep. Recreate the task with `/sc minute /mo 5` (Step 4).
+- **System log: 12 = a cold boot, 42 = the machine went to sleep, 41/6008 = unexpected shutdown or power loss, 1074 = a restart or shutdown was requested.** If you "restarted it several times" but 12 and 1074 never appear, the machine was only woken from sleep or the power button was pressed — neither is a restart, and neither runs an at-startup task.
+
+The Task Scheduler log is small by default and rolls over in days (the 5-minute re-fires add to that). Enlarge it now so the history is there when you need it:
+
+```powershell
+wevtutil sl Microsoft-Windows-TaskScheduler/Operational /ms:67108864
+```
+
+(If `Get-CimInstance Win32_OperatingSystem` fails with `Invalid class`, the WMI repository is damaged — a separate Windows problem, check it with `winmgmt /verifyrepository`. The commands above don't depend on WMI.)
 
 ---
 
