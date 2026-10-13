@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { auth } from '@/lib/auth'
 import { prisma } from '@/lib/db'
 import { generateAndSaveQuotePdf } from '@/lib/pdf-generator'
+import { INQUIRY_SOURCES, DEFAULT_QUOTE_VALIDITY_DAYS, addDays, computeQuoteCosts } from '@/lib/inquiry'
 
 export async function POST(
   req: NextRequest,
@@ -14,7 +15,14 @@ export async function POST(
   
   try {
     const body = await req.json()
-    const { customerName, mobileNumber, agreementValue, parkingIncluded } = body
+    const { customerName, mobileNumber, agreementValue, parkingIncluded, email, source, sourceDetail, validityDays } = body
+    if (source && !(INQUIRY_SOURCES as readonly string[]).includes(source)) {
+      return NextResponse.json({ error: 'Invalid lead source' }, { status: 400 })
+    }
+    if (email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+      return NextResponse.json({ error: 'Invalid email address' }, { status: 400 })
+    }
+    const days = Number.isFinite(Number(validityDays)) && Number(validityDays) > 0 ? Number(validityDays) : DEFAULT_QUOTE_VALIDITY_DAYS
 
     if (!customerName || !mobileNumber || !agreementValue) {
       return NextResponse.json({ error: 'Missing required fields' }, { status: 400 })
@@ -30,13 +38,7 @@ export async function POST(
     }
 
     const project = unit.floor.wing.project
-    const parkingCharge = parkingIncluded ? (project.carParkingCharges || 0) : 0
-
-    // Calculations based on rules
-    const stampDuty = agreementValue * 0.06
-    const gst = agreementValue * 0.05
-    const registration = parkingIncluded ? 50000 : 30000
-    const totalCost = agreementValue + stampDuty + gst + registration + parkingCharge
+    const { stampDuty, gst, registration, totalCost } = computeQuoteCosts(agreementValue, !!parkingIncluded, project.carParkingCharges || 0)
 
     // Update status to INQUIRY_RECEIVED if it's currently AVAILABLE
     if (unit.status === 'AVAILABLE') {
@@ -57,6 +59,10 @@ export async function POST(
         gst,
         registration,
         totalCost,
+        email: email || null,
+        source: source || null,
+        sourceDetail: sourceDetail || null,
+        validUntil: addDays(new Date(), days),
       },
     })
 

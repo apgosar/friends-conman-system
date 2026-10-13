@@ -45,25 +45,28 @@ const emptyBuyer = (): Buyer => ({ fullName: '', panNumber: '', aadhaarNumber: '
 import { StepBar } from '@/components/ui/StepBar'
 
 // ─── Main Wizard ─────────────────────────────────────────────
-export default function NewSaleWizard({ projects }: { projects: any[] }) {
+type Prefill = { inquiryId: string; projectId: string; unitId: string; agreementValue: number; carParking: boolean; buyerName: string; mobileNumber: string } | null
+
+export default function NewSaleWizard({ projects, prefill = null }: { projects: any[]; prefill?: Prefill }) {
   const router = useRouter()
   const [step, setStep] = useState(1)
   const [error, setError] = useState('')
 
   // Step 1 state
-  const [projectId, setProjectId] = useState('')
+  const [projectId, setProjectId] = useState(prefill?.projectId ?? '')
   const selectedProject = projects.find(p => p.id === projectId)
-  const [saleType, setSaleType] = useState('FRESH')
-  const [unitId, setUnitId] = useState('')
+  const prefillProjectType = projects.find(p => p.id === prefill?.projectId)?.type
+  const [saleType, setSaleType] = useState(prefillProjectType && prefillProjectType !== 'MIXED' ? prefillProjectType : 'FRESH')
+  const [unitId, setUnitId] = useState(prefill?.unitId ?? '')
   const [tenantId, setTenantId] = useState('')
-  const [agreementValue, setAgreementValue] = useState(10000000)
+  const [agreementValue, setAgreementValue] = useState(prefill?.agreementValue ?? 10000000)
   const [bookingAmount, setBookingAmount] = useState<number | ''>('')
-  const [carParking, setCarParking] = useState(false)
+  const [carParking, setCarParking] = useState(prefill?.carParking ?? false)
   const [parkingPodiumLevel, setParkingPodiumLevel] = useState('')
   const [parkingFloor, setParkingFloor] = useState('')
   const [parkingNumber, setParkingNumber] = useState('')
   const [bookingDate, setBookingDate] = useState(new Date().toISOString().split('T')[0])
-  const [buyers, setBuyers] = useState<Buyer[]>([emptyBuyer()])
+  const [buyers, setBuyers] = useState<Buyer[]>([prefill ? { ...emptyBuyer(), fullName: prefill.buyerName, whatsappNumber: prefill.mobileNumber } : emptyBuyer()])
 
   // Derived financials
   const stampDuty = Math.round(agreementValue * STAMP_DUTY_RATE)
@@ -269,6 +272,7 @@ export default function NewSaleWizard({ projects }: { projects: any[] }) {
         parkingNumber: carParking ? parkingNumber : undefined,
         bookingAmount: bookingAmount !== '' ? Number(bookingAmount) : undefined,
         bookingDate,
+        inquiryId: prefill?.inquiryId,
         buyers: buyers.map((b, i) => ({ ...b, isPrimary: i === 0, sequence: i + 1 })),
         paymentSchedules: schedules.filter(s => s.principalAmount > 0).map(s => ({
           milestoneId: s.milestoneId || undefined,

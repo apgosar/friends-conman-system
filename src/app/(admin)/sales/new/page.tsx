@@ -2,7 +2,17 @@ import { prisma } from '@/lib/db'
 import TopNav from '@/components/layout/TopNav'
 import NewSaleForm from '@/components/sales/NewSaleForm'
 
-export default async function NewSalePage() {
+export default async function NewSalePage(props: PageProps<'/sales/new'>) {
+  const { inquiryId } = await props.searchParams
+  const inquiry = typeof inquiryId === 'string'
+    ? await prisma.inquiry.findUnique({
+        where: { id: inquiryId },
+        include: { unit: { include: { floor: { include: { wing: true } } } } },
+      })
+    : null
+  // Only an open inquiry on a unit that has no sale yet can be converted
+  const convertible = inquiry && inquiry.status === 'OPEN' ? inquiry : null
+
   const projects = await prisma.project.findMany({
     include: {
       wings: {
@@ -10,7 +20,8 @@ export default async function NewSalePage() {
           floors: {
             include: {
               units: {
-                where: { status: 'AVAILABLE' }
+                // INQUIRY_RECEIVED units are still unsold, so they must stay selectable
+                where: { status: { in: ['AVAILABLE', 'INQUIRY_RECEIVED'] } }
               }
             }
           }
@@ -50,11 +61,23 @@ export default async function NewSalePage() {
     }
   })
 
+  const prefill = convertible
+    ? {
+        inquiryId: convertible.id,
+        projectId: convertible.unit.floor.wing.projectId,
+        unitId: convertible.unitId,
+        agreementValue: convertible.agreementValue,
+        carParking: convertible.parkingIncluded,
+        buyerName: convertible.customerName,
+        mobileNumber: convertible.mobileNumber,
+      }
+    : null
+
   return (
     <>
-      <TopNav title="New Sale" subtitle="Create a fresh or redevelopment sale" />
+      <TopNav title="New Sale" subtitle={prefill ? `Converting inquiry from ${convertible!.customerName}` : 'Create a fresh or redevelopment sale'} />
       <div className="admin-content">
-        <NewSaleForm projects={projectData} />
+        <NewSaleForm projects={projectData} prefill={prefill} />
       </div>
     </>
   )

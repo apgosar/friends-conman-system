@@ -1,4 +1,5 @@
 import React from 'react'
+import { INQUIRY_SOURCES, SOURCE_LABEL } from '@/lib/inquiry-constants'
 
 export function QuoteModal({
   showQuoteForm,
@@ -9,8 +10,14 @@ export function QuoteModal({
   handleGenerateQuote,
   isSubmittingQuote,
   projectParkingCharge,
+  existingInquiries = [],
 }: any) {
   if (!showQuoteForm || !selectedUnit) return null
+
+  // Repeat-customer check: same mobile number already has an inquiry in this project
+  const repeats = quoteData.mobileNumber?.length === 10
+    ? existingInquiries.filter((q: any) => q.mobileNumber === quoteData.mobileNumber)
+    : []
 
   return (
     <div style={{ position: 'fixed', inset: 0, zIndex: 1000, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
@@ -45,6 +52,43 @@ export function QuoteModal({
               {quoteData.mobileNumber && quoteData.mobileNumber.length !== 10 && (
                 <div style={{ color: 'var(--color-danger, #ef4444)', fontSize: '0.75rem', marginTop: 4 }}>⚠ Must be exactly 10 digits</div>
               )}
+            </div>
+          </div>
+
+          {repeats.length > 0 && (
+            <div style={{ marginBottom: 16, padding: '10px 14px', borderRadius: 8, background: 'var(--color-warning-light, #fef3c7)', border: '1px solid var(--color-warning, #f59e0b)', fontSize: '0.8125rem', color: 'var(--text-primary)' }}>
+              <div style={{ fontWeight: 600, marginBottom: 4 }}>⚠ Repeat customer — {repeats.length} earlier inquir{repeats.length === 1 ? 'y' : 'ies'} on this number</div>
+              {repeats.slice(0, 4).map((q: any) => (
+                <div key={q.id} style={{ color: 'var(--text-secondary)' }}>
+                  {q.customerName} · Unit {q.unitNumber} · ₹{Number(q.totalCost).toLocaleString('en-IN')} · {new Date(q.createdAt).toLocaleDateString('en-IN')}{q.status !== 'OPEN' ? ` (${q.status.toLowerCase()})` : ''}
+                </div>
+              ))}
+              {repeats.length > 4 && <div style={{ color: 'var(--text-muted)' }}>…and {repeats.length - 4} more</div>}
+            </div>
+          )}
+
+          <div style={{ display: 'flex', gap: 16, marginBottom: 16 }}>
+            <div style={{ flex: 1 }}>
+              <label style={{ display: 'block', fontSize: '0.8125rem', fontWeight: 500, color: 'var(--text-secondary)', marginBottom: 6 }}>Email (optional)</label>
+              <input type='email' value={quoteData.email ?? ''} onChange={e => setQuoteData({...quoteData, email: e.target.value})} style={{ width: '100%', padding: '10px 14px', borderRadius: 8, border: '1px solid var(--border-color)', background: 'var(--bg-surface)', outline: 'none', fontSize: '0.9rem', color: 'var(--text-primary)', boxSizing: 'border-box' }} />
+            </div>
+            <div style={{ flex: 1 }}>
+              <label style={{ display: 'block', fontSize: '0.8125rem', fontWeight: 500, color: 'var(--text-secondary)', marginBottom: 6 }}>Quote Valid For (days)</label>
+              <input type='number' min={1} max={365} value={quoteData.validityDays ?? 7} onChange={e => setQuoteData({...quoteData, validityDays: e.target.value})} style={{ width: '100%', padding: '10px 14px', borderRadius: 8, border: '1px solid var(--border-color)', background: 'var(--bg-surface)', outline: 'none', fontSize: '0.9rem', color: 'var(--text-primary)', boxSizing: 'border-box' }} />
+            </div>
+          </div>
+
+          <div style={{ display: 'flex', gap: 16, marginBottom: 16 }}>
+            <div style={{ flex: 1 }}>
+              <label style={{ display: 'block', fontSize: '0.8125rem', fontWeight: 500, color: 'var(--text-secondary)', marginBottom: 6 }}>Lead Source</label>
+              <select value={quoteData.source ?? ''} onChange={e => setQuoteData({...quoteData, source: e.target.value})} style={{ width: '100%', padding: '10px 14px', borderRadius: 8, border: '1px solid var(--border-color)', background: 'var(--bg-surface)', outline: 'none', fontSize: '0.9rem', color: 'var(--text-primary)', boxSizing: 'border-box' }}>
+                <option value=''>— Select —</option>
+                {INQUIRY_SOURCES.map(s => <option key={s} value={s}>{SOURCE_LABEL[s]}</option>)}
+              </select>
+            </div>
+            <div style={{ flex: 1 }}>
+              <label style={{ display: 'block', fontSize: '0.8125rem', fontWeight: 500, color: 'var(--text-secondary)', marginBottom: 6 }}>Referrer / Broker name</label>
+              <input type='text' disabled={!(['REFERRAL', 'BROKER'].includes(quoteData.source))} value={quoteData.sourceDetail ?? ''} onChange={e => setQuoteData({...quoteData, sourceDetail: e.target.value})} style={{ width: '100%', padding: '10px 14px', borderRadius: 8, border: '1px solid var(--border-color)', background: 'var(--bg-surface)', outline: 'none', fontSize: '0.9rem', color: 'var(--text-primary)', boxSizing: 'border-box' }} />
             </div>
           </div>
 

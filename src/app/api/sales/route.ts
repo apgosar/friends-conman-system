@@ -42,6 +42,7 @@ const SaleCreateSchema = z.object({
   bookingDate: z.string().refine(v => !isNaN(Date.parse(v)), 'Invalid bookingDate'),
   buyers: z.array(SaleBuyerSchema).min(1, 'At least one buyer is required'),
   paymentSchedules: z.array(PaymentScheduleSchema).optional(),
+  inquiryId: z.string().optional().nullable(), // set when the sale is converted from an inquiry
 })
 
 export async function GET(req: NextRequest) {
@@ -71,7 +72,7 @@ export async function POST(req: NextRequest) {
   const { data, error } = await parseBody(req, SaleCreateSchema)
   if (error) return error
 
-  const { projectId, unitId, tenantId, saleType, agreementValue, gstAmount, stampDuty, registrationCharges, carParking, carParkingCharges, parkingPodiumLevel, parkingFloor, parkingNumber, bookingAmount, bookingDate, buyers, paymentSchedules } = data
+  const { projectId, unitId, tenantId, saleType, agreementValue, gstAmount, stampDuty, registrationCharges, carParking, carParkingCharges, parkingPodiumLevel, parkingFloor, parkingNumber, bookingAmount, bookingDate, buyers, paymentSchedules, inquiryId } = data
   const computedGst = gstAmount !== undefined && gstAmount !== null ? gstAmount : agreementValue * 0.05
   const saleNumber = await generateSaleNumber(projectId)
   const sale = await prisma.$transaction(async (tx) => {
@@ -199,6 +200,12 @@ export async function POST(req: NextRequest) {
       }
     }
     await tx.unit.update({ where: { id: unitId }, data: { status: 'BOOKED' } })
+    if (inquiryId) {
+      await tx.inquiry.updateMany({
+        where: { id: inquiryId, unitId, status: 'OPEN' },
+        data: { status: 'CONVERTED', convertedSaleId: newSale.id },
+      })
+    }
     return newSale
   })
   await createAuditLog({ userId: session.user.id, projectId, entityType: 'sale', entityId: sale.id, action: 'created', newValues: { saleNumber, saleType, agreementValue } })
