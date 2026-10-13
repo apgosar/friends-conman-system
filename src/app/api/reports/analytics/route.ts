@@ -1,6 +1,7 @@
 import { NextRequest } from 'next/server'
 import { auth } from '@/lib/auth'
 import { prisma } from '@/lib/db'
+import { OUTSTANDING_SCHEDULE_STATUSES, UNIT_STATUS_ORDER, isUnsold } from '@/lib/status'
 
 export async function GET(req: NextRequest) {
   const session = await auth()
@@ -71,11 +72,11 @@ export async function GET(req: NextRequest) {
       },
     })
 
-    const inventoryStatus: Record<string, number> = { AVAILABLE: 0, BOOKED: 0, SOLD: 0, BLOCKED: 0 }
+    const inventoryStatus: Record<string, number> = Object.fromEntries(UNIT_STATUS_ORDER.map((s) => [s, 0]))
     let unsoldInventoryValue = 0
     for (const unit of units) {
       inventoryStatus[unit.status] = (inventoryStatus[unit.status] ?? 0) + 1
-      if (unit.status === 'AVAILABLE') {
+      if (isUnsold(unit.status)) {
         unsoldInventoryValue += (unit.carpetAreaSqft ?? 0) * (unit.basePricePerSqft ?? 0)
       }
     }
@@ -97,7 +98,7 @@ export async function GET(req: NextRequest) {
 
     // Overdue schedules — use principalAmount + gstAmount as the "amount" field
     const overdueSchedules = await prisma.paymentSchedule.findMany({
-      where: { status: { in: ['DUE', 'OVERDUE'] }, dueDate: { lt: today } },
+      where: { status: { in: OUTSTANDING_SCHEDULE_STATUSES }, dueDate: { lt: today } },
       select: { principalAmount: true, gstAmount: true, dueDate: true },
     })
 
@@ -124,7 +125,7 @@ export async function GET(req: NextRequest) {
     const totalSalesCount = allSales.length
     const totalSalesValue = allSales.reduce((s, sale) => s + (sale.agreementValue ?? 0) + (sale.gstAmount ?? 0), 0)
     const totalUnits = units.length
-    const soldUnits = (inventoryStatus.SOLD ?? 0) + (inventoryStatus.BOOKED ?? 0)
+    const soldUnits = Object.entries(inventoryStatus).filter(([s]) => !isUnsold(s)).reduce((sum, [, n]) => sum + n, 0)
     const overdueAmount = Object.values(aging).reduce((s, v) => s + v, 0)
 
     return Response.json({
@@ -141,7 +142,7 @@ export async function GET(req: NextRequest) {
       monthlySales: Object.values(monthlySales),
       salesByProject: Object.values(salesByProject),
       salesByConfig: Object.values(salesByConfig),
-      inventoryStatus: Object.entries(inventoryStatus).map(([name, value]) => ({ name, value })),
+      inventoryStatus: Object.entries(inventoryStatus).filter(([, value]) => value > 0).map(([name, value]) => ({ name, value })),
       paymentByMode: Object.entries(paymentByMode).map(([name, value]) => ({ name, value })),
       aging: [
         { label: '0–30 days', amount: aging['0-30'], color: '#f59e0b' },

@@ -40,6 +40,16 @@ model Inquiry {
   gst             Float
   registration    Float
   totalCost       Float
+  email           String?
+  source          String?  // WALK_IN | REFERRAL | WEBSITE | BROKER | OTHER
+  sourceDetail    String?  // referrer / broker name
+  validUntil      DateTime? // quote expiry
+  status          String   @default("OPEN") // OPEN | CONVERTED | LOST
+  convertedSaleId String?  // set when the inquiry is converted into a sale
+  lostReason      String?
+  lostNote        String?
+  lastSharedAt    DateTime?
+  lastSharedVia   String?  // EMAIL | WHATSAPP | EMAIL+WHATSAPP
   createdAt       DateTime @default(now())
   updatedAt       DateTime @updatedAt
 

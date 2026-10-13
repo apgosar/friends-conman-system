@@ -37,7 +37,7 @@ export function getOverdueBucket(demandGeneratedDate: Date | null, status: strin
   const days = Math.floor(
     (Date.now() - new Date(demandGeneratedDate).getTime()) / (1000 * 60 * 60 * 24)
   )
-  if (days <= 0) return 'DUE'
+  if (days <= 0) return status === 'PARTIALLY_PAID' ? status : 'DUE'
   if (days <= 7) return 'OVERDUE_7'
   if (days <= 15) return 'OVERDUE_15'
   if (days <= 30) return 'OVERDUE_30'

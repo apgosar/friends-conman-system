@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from 'react'
 import TopNav from '@/components/layout/TopNav'
+import { UNIT_COLORS, unitStatusLabel } from '@/lib/status'
 import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
   PieChart, Pie, Cell, LineChart, Line, Legend, AreaChart, Area,
@@ -9,13 +10,6 @@ import {
 
 // ─── Colour palette ────────────────────────────────────────────────────────────
 const COLORS = ['#6366f1', '#10b981', '#f59e0b', '#ef4444', '#3b82f6', '#ec4899', '#8b5cf6']
-const STATUS_COLORS: Record<string, string> = {
-  AVAILABLE: '#10b981',
-  BOOKED:    '#6366f1',
-  SOLD:      '#3b82f6',
-  BLOCKED:   '#71717a',
-}
-
 // ─── Helpers ───────────────────────────────────────────────────────────────────
 function fmt(val: number): string {
   if (val >= 10000000) return `₹${(val / 10000000).toFixed(2)}Cr`
@@ -249,7 +243,7 @@ export default function ReportsPage() {
                   <ResponsiveContainer width="100%" height={280}>
                     <PieChart>
                       <Pie data={inventoryStatus} dataKey="value" nameKey="name" cx="50%" cy="50%" innerRadius={60} outerRadius={100} paddingAngle={3} labelLine={false} label={<CustomPieLabel />}>
-                        {inventoryStatus.map((d: any, i: number) => <Cell key={i} fill={STATUS_COLORS[d.name] ?? COLORS[i]} />)}
+                        {inventoryStatus.map((d: any, i: number) => <Cell key={i} fill={UNIT_COLORS[d.name]?.hex ?? COLORS[i]} />)}
                       </Pie>
                       <Tooltip contentStyle={TOOLTIP_STYLE} formatter={(val: any) => [val, 'Units']} />
                     </PieChart>
@@ -261,11 +255,11 @@ export default function ReportsPage() {
                 {inventoryStatus?.map((d: any) => {
                   const total = inventoryStatus.reduce((s: number, x: any) => s + x.value, 0)
                   const pct = total ? Math.round((d.value / total) * 100) : 0
-                  const color = STATUS_COLORS[d.name] ?? COLORS[0]
+                  const color = UNIT_COLORS[d.name]?.hex ?? COLORS[0]
                   return (
                     <div key={d.name} className="card" style={{ padding: '16px 20px' }}>
                       <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 8 }}>
-                        <span style={{ fontWeight: 600, fontSize: '0.875rem' }}>{d.name}</span>
+                        <span style={{ fontWeight: 600, fontSize: '0.875rem' }}>{unitStatusLabel(d.name)}</span>
                         <span style={{ fontWeight: 700, color }}>{d.value} units</span>
                       </div>
                       <div style={{ height: 6, background: 'var(--bg-surface)', borderRadius: 3, overflow: 'hidden' }}>

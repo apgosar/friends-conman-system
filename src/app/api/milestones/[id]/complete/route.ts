@@ -1,6 +1,7 @@
 import { NextRequest } from 'next/server'
 import { prisma } from '@/lib/db'
 import { auth } from '@/lib/auth'
+import { syncSaleLifecycle } from '@/lib/sale-lifecycle'
 import { dispatchAllPending } from '@/lib/comms-dispatcher'
 
 export async function POST(req: NextRequest, props: { params: Promise<{ id: string }> }) {
@@ -56,6 +57,9 @@ export async function POST(req: NextRequest, props: { params: Promise<{ id: stri
         }
       }
     })
+
+    // Demands were just raised, so refresh the lifecycle of every affected sale
+    for (const saleId of new Set(affectedSchedules.map((s) => s.saleId))) await syncSaleLifecycle(saleId)
 
     // Generate Communication Logs
     if (affectedSchedules.length > 0) {

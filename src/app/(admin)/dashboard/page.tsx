@@ -1,6 +1,7 @@
 import { auth } from '@/lib/auth'
 import Link from 'next/link'
 import { prisma } from '@/lib/db'
+import { OUTSTANDING_SCHEDULE_STATUSES } from '@/lib/status'
 import { formatCurrency } from '@/lib/template-engine'
 import TopNav from '@/components/layout/TopNav'
 import AgingChart from '@/components/dashboard/AgingChart'
@@ -15,7 +16,7 @@ async function getDashboardData() {
   const [schedules, recentPayments, escalations] = await Promise.all([
     // All unpaid, non-upcoming schedules (DUE + OVERDUE)
     prisma.paymentSchedule.findMany({
-      where: { status: { in: ['DUE', 'OVERDUE'] } },
+      where: { status: { in: OUTSTANDING_SCHEDULE_STATUSES } },
       select: {
         principalAmount: true,
         gstAmount: true,
@@ -92,7 +93,7 @@ async function getDashboardData() {
   // Upcoming dues: next 30 days PLUS anything already overdue (so dashboard shows both)
   const upcomingDues = await prisma.paymentSchedule.findMany({
     where: {
-      status: { in: ['UPCOMING', 'DUE', 'OVERDUE'] },
+      status: { in: ['UPCOMING', ...OUTSTANDING_SCHEDULE_STATUSES] },
       dueDate: { lte: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000) },
     },
     include: {

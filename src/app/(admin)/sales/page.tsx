@@ -3,18 +3,7 @@ import Link from 'next/link'
 import TopNav from '@/components/layout/TopNav'
 import { formatCurrency, formatDate } from '@/lib/template-engine'
 import ClickableRow from '@/components/sales/ClickableRow'
-
-const STATUS_BADGE: Record<string, string> = {
-  BOOKED: 'badge-muted',
-  KYC_PENDING: 'badge-warning',
-  KYC_DONE: 'badge-info',
-  DOCUMENT_GENERATED: 'badge-info',
-  DOCUMENT_SIGNED: 'badge-primary',
-  IN_PROGRESS: 'badge-primary',
-  ALL_PAID: 'badge-success',
-  POSSESSION_GIVEN: 'badge-success',
-  CANCELLED: 'badge-danger',
-}
+import { saleStatusBadge, saleStatusLabel } from '@/lib/status'
 
 async function getSales() {
   return prisma.sale.findMany({
@@ -67,8 +56,8 @@ export default async function SalesPage() {
                   </td>
                   <td style={{ fontWeight: 600 }}>{formatCurrency(Number(sale.agreementValue))}</td>
                   <td>
-                    <span className={`badge ${STATUS_BADGE[sale.status] ?? 'badge-muted'}`}>
-                      {sale.status.replace(/_/g, ' ')}
+                    <span className={`badge ${saleStatusBadge(sale.status)}`}>
+                      {saleStatusLabel(sale.status)}
                     </span>
                   </td>
                   <td style={{ color: 'var(--text-muted)' }}>{formatDate(sale.bookingDate)}</td>

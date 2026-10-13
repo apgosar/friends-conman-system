@@ -41,11 +41,18 @@ export const softDelete = {
         data: { deletedAt: new Date(), status: 'CANCELLED' },
       })
 
-      // Release the unit back to available
+      // The inquiry this sale was converted from is open again, so it can be re-converted
+      await tx.inquiry.updateMany({
+        where: { convertedSaleId: id, status: 'CONVERTED' },
+        data: { status: 'OPEN', convertedSaleId: null },
+      })
+
+      // Release the unit: back to Inquiry Received if it still has open inquiries, otherwise Available
       if (sale.unitId) {
+        const openInquiries = await tx.inquiry.count({ where: { unitId: sale.unitId, status: 'OPEN' } })
         await tx.unit.update({
           where: { id: sale.unitId },
-          data: { status: 'AVAILABLE' },
+          data: { status: openInquiries > 0 ? 'INQUIRY_RECEIVED' : 'AVAILABLE' },
         })
       }
 

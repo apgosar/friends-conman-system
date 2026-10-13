@@ -177,7 +177,7 @@ async function main() {
         gstAmount: 750000,
         stampDuty: 750000,
         registrationCharges: 30000,
-        status: 'ACTIVE',
+        status: 'BOOKED',
         bookingDate: new Date(),
         buyers: {
           create: [
@@ -220,7 +220,7 @@ async function main() {
     where: { floor: { wing: { projectId: project2.id } }, status: 'AVAILABLE' }
   })
   if (redevUnit) {
-    await prisma.unit.update({ where: { id: redevUnit.id }, data: { status: 'PAAA_DONE' } })
+    await prisma.unit.update({ where: { id: redevUnit.id }, data: { status: 'AGREEMENT_DONE' } })
     await prisma.tenant.create({
       data: {
         projectId: project2.id,
@@ -243,7 +243,8 @@ async function main() {
         saleType: 'REDEVELOPMENT',
         agreementValue: 2000000, // Cost for 100 sqft extra area
         gstAmount: 100000,
-        status: 'ACTIVE',
+        status: 'AGREEMENT_DONE', // PAAA signed, matches the unit status below
+        agreementDate: new Date(),
         bookingDate: new Date(),
         buyers: {
           create: [{ fullName: 'Sunita Desai', isPrimary: true, receiveComms: true }]

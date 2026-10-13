@@ -1,5 +1,6 @@
 import { auth } from '@/lib/auth'
 import { prisma } from '@/lib/db'
+import { OUTSTANDING_SCHEDULE_STATUSES } from '@/lib/status'
 import { formatCurrency, formatDate } from '@/lib/template-engine'
 import TopNav from '@/components/layout/TopNav'
 import Link from 'next/link'
@@ -13,7 +14,7 @@ export default async function ReceivablesPage({ searchParams }: { searchParams: 
 
   // 1. Fetch all unpaid schedules
   const allSchedules = await prisma.paymentSchedule.findMany({
-    where: { status: { in: ['DUE', 'OVERDUE'] } },
+    where: { status: { in: OUTSTANDING_SCHEDULE_STATUSES } },
     include: {
       sale: {
         include: {
