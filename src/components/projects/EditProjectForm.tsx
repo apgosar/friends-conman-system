@@ -3,6 +3,7 @@
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
+import BackToProject from '@/components/projects/BackToProject'
 
 export default function EditProjectForm({ project }: { project: any }) {
   const router = useRouter()
@@ -59,7 +60,7 @@ export default function EditProjectForm({ project }: { project: any }) {
       <div className="card">
         <div className="card-header">
           <span className="card-title">Edit Project</span>
-          <Link href={`/projects/${project.id}`} className="btn btn-ghost btn-sm">← Back</Link>
+          <BackToProject projectId={project.id} />
         </div>
 
         {error && <div className="alert alert-danger mb-4">{error}</div>}

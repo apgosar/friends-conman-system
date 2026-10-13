@@ -1,7 +1,7 @@
 import { prisma } from '@/lib/db'
 import { notFound } from 'next/navigation'
-import Link from 'next/link'
 import TopNav from '@/components/layout/TopNav'
+import BackToProject from '@/components/projects/BackToProject'
 import { formatDate } from '@/lib/template-engine'
 import MilestoneRow from '@/components/projects/MilestoneRow'
 
@@ -25,9 +25,7 @@ export default async function ProjectMilestonesPage(props: PageProps<'/projects/
             <h1 className="page-title">Construction Milestones</h1>
             <p className="page-subtitle">{project.milestones.length} milestones defined</p>
           </div>
-          <Link href={`/projects/${id}`} className="btn btn-secondary">
-            Back to Project
-          </Link>
+          <BackToProject projectId={id} />
         </div>
 
         <div className="card">

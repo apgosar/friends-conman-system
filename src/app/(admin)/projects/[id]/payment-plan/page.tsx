@@ -1,7 +1,7 @@
 import { prisma } from '@/lib/db'
 import { notFound } from 'next/navigation'
-import Link from 'next/link'
 import TopNav from '@/components/layout/TopNav'
+import BackToProject from '@/components/projects/BackToProject'
 import PaymentPlanEditor from '@/components/projects/PaymentPlanEditor'
 
 export default async function ProjectPaymentPlanPage(props: PageProps<'/projects/[id]/payment-plan'>) {
@@ -26,7 +26,7 @@ export default async function ProjectPaymentPlanPage(props: PageProps<'/projects
               Define the percentage of Agreement Value due at each construction milestone
             </p>
           </div>
-          <Link href={`/projects/${id}`} className="btn btn-secondary">← Back to Project</Link>
+          <BackToProject projectId={id} />
         </div>
         <PaymentPlanEditor projectId={id} milestones={project.milestones} />
       </div>

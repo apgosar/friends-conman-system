@@ -3,7 +3,10 @@ import { notFound } from 'next/navigation'
 import Link from 'next/link'
 import TopNav from '@/components/layout/TopNav'
 import { formatDate, formatCurrency } from '@/lib/template-engine'
-import BuildingViewer from '@/components/projects/BuildingViewer'
+import UnitsView from '@/components/projects/UnitsView'
+import ProjectSalesTable from '@/components/projects/ProjectSalesTable'
+import TemplateCoverage from '@/components/projects/TemplateCoverage'
+import { isUnsold, saleStatusBadge, saleStatusLabel } from '@/lib/status'
 
 async function getProject(id: string) {
   return prisma.project.findUnique({
@@ -17,7 +20,7 @@ async function getProject(id: string) {
       templates: { where: { isActive: true } },
       tenants: { include: { newUnit: true }, orderBy: { name: 'asc' } },
       sales: {
-        include: { buyers: { where: { isPrimary: true }, take: 1 }, unit: true },
+        include: { buyers: { orderBy: { sequence: 'asc' } }, unit: true },
         orderBy: { createdAt: 'desc' },
       },
       _count: { select: { sales: true } },
@@ -31,8 +34,8 @@ export default async function ProjectDetailPage(props: PageProps<'/projects/[id]
   if (!project) notFound()
 
   const allUnits = project.wings.flatMap((w) => w.floors.flatMap((f) => f.units))
-  const available = allUnits.filter((u) => u.status === 'AVAILABLE').length
-  const sold = allUnits.filter((u) => u.status !== 'AVAILABLE').length
+  const available = allUnits.filter((u) => isUnsold(u.status)).length
+  const sold = allUnits.length - available
   const soldPct = allUnits.length > 0 ? Math.round((sold / allUnits.length) * 100) : 0
 
   return (
@@ -60,9 +63,10 @@ export default async function ProjectDetailPage(props: PageProps<'/projects/[id]
             {(project.type === 'REDEVELOPMENT' || project.type === 'MIXED') && (
               <Link href={`/projects/${id}/tenants`} className="btn btn-secondary">Tenants</Link>
             )}
-            <Link href={`/projects/${id}/units`} className="btn btn-secondary">Units</Link>
           </div>
         </div>
+
+        <TemplateCoverage projectId={id} projectType={project.type} templates={project.templates} variant="banner" />
 
         {/* Stats */}
         <div className="grid grid-4 gap-4 mb-6">
@@ -90,16 +94,8 @@ export default async function ProjectDetailPage(props: PageProps<'/projects/[id]
           </div>
         </div>
 
-        {/* ── 2.5D Building Viewer (replaces flat grid) ── */}
-        {project.wings.length > 0 && (
-          <div className="card mb-6" style={{ padding: 20 }}>
-            <div className="card-header" style={{ marginBottom: 16 }}>
-              <span className="card-title">🏢 Building View</span>
-              <Link href={`/projects/${id}/units`} className="btn btn-ghost btn-sm">View All Units →</Link>
-            </div>
-            <BuildingViewer projectId={id} />
-          </div>
-        )}
+        {/* Units: 3D building view (default) or table, switched with the toggle */}
+        {project.wings.length > 0 && <UnitsView projectId={id} />}
 
         {/* Milestones */}
         {project.milestones.length > 0 && (
@@ -135,31 +131,19 @@ export default async function ProjectDetailPage(props: PageProps<'/projects/[id]
           </div>
         )}
 
-        {/* Recent Sales */}
+        {/* Sales in this project (searchable) */}
         {project.sales.length > 0 && (
-          <div className="card">
-            <div className="card-header">
-              <span className="card-title">Sales in this Project</span>
-              <Link href={`/sales?projectId=${id}`} className="btn btn-ghost btn-sm">View All</Link>
-            </div>
-            <div className="table-wrapper" style={{ border: 'none' }}>
-              <table>
-                <thead><tr><th>Sale #</th><th>Unit</th><th>Buyer</th><th>Agreement Value</th><th>Status</th><th></th></tr></thead>
-                <tbody>
-                  {project.sales.slice(0, 8).map((sale) => (
-                    <tr key={sale.id}>
-                      <td><span className="badge badge-muted">{sale.saleNumber}</span></td>
-                      <td>{sale.unit.unitNumber}</td>
-                      <td>{sale.buyers[0]?.fullName ?? '—'}</td>
-                      <td style={{ fontWeight: 600 }}>{formatCurrency(Number(sale.agreementValue))}</td>
-                      <td><span className="badge badge-primary">{sale.status.replace(/_/g, ' ')}</span></td>
-                      <td><Link href={`/sales/${sale.id}`} className="btn btn-ghost btn-sm">View →</Link></td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          </div>
+          <ProjectSalesTable
+            sales={project.sales.map((sale) => ({
+              id: sale.id,
+              saleNumber: sale.saleNumber,
+              unitNumber: sale.unit.unitNumber,
+              buyerName: (sale.buyers.find((b) => b.isPrimary) ?? sale.buyers[0])?.fullName ?? null,
+              allBuyerNames: sale.buyers.map((b) => b.fullName),
+              agreementValue: Number(sale.agreementValue),
+              status: sale.status,
+            }))}
+          />
         )}
       </div>
     </>

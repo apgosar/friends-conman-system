@@ -1,7 +1,7 @@
 import { prisma } from '@/lib/db'
 import { notFound } from 'next/navigation'
-import Link from 'next/link'
 import TopNav from '@/components/layout/TopNav'
+import BackToProject from '@/components/projects/BackToProject'
 import { formatCurrency } from '@/lib/template-engine'
 
 export default async function ProjectTenantsPage(props: PageProps<'/projects/[id]/tenants'>) {
@@ -27,9 +27,7 @@ export default async function ProjectTenantsPage(props: PageProps<'/projects/[id
             <h1 className="page-title">Project Tenants</h1>
             <p className="page-subtitle">{project.tenants.length} tenants registered</p>
           </div>
-          <Link href={`/projects/${id}`} className="btn btn-secondary">
-            Back to Project
-          </Link>
+          <BackToProject projectId={id} />
         </div>
 
         <div className="card">
