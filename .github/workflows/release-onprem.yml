@@ -39,7 +39,9 @@ jobs:
         run: |
           IMAGE="${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ github.ref_name }}"
 
-          docker build -t "$IMAGE" .
+          # The app shows the release tag and commit, and /api/health returns them (see next.config.ts).
+          # The image has no .git to read them from, so they are passed in.
+          docker build --build-arg BUILD_SHA="${{ github.sha }}" --build-arg APP_VERSION="${{ github.ref_name }}" -t "$IMAGE" .
           docker push "$IMAGE"
 
           # Sign the immutable digest, not the mutable tag — see deploy.yml for why.

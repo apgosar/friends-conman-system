@@ -36,9 +36,13 @@ RUN npm ci
 FROM base AS builder
 WORKDIR /app
 ENV BUILDING=true
-# Shown in the app and in /api/health. Pass it with: docker build --build-arg BUILD_SHA=$(git rev-parse --short HEAD) ...
+# Shown in the app and in /api/health. The release workflow passes both: BUILD_SHA is the commit, APP_VERSION the git tag.
+# By hand: docker build --build-arg BUILD_SHA=$(git rev-parse --short HEAD) --build-arg APP_VERSION=v0.0.5 ...
+# Without APP_VERSION the version comes from package.json.
 ARG BUILD_SHA=""
 ENV BUILD_SHA=$BUILD_SHA
+ARG APP_VERSION=""
+ENV APP_VERSION=$APP_VERSION
 COPY --from=deps /app/node_modules ./node_modules
 COPY . .
 # Generate Prisma Client

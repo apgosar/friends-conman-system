@@ -4,7 +4,10 @@ import { readFileSync } from 'node:fs'
 import { join } from 'node:path'
 
 // Which build is this? Shown in the app and returned by /api/health, so you can tell what is running.
-const appVersion: string = JSON.parse(readFileSync(join(process.cwd(), 'package.json'), 'utf8')).version
+const packageVersion: string = JSON.parse(readFileSync(join(process.cwd(), 'package.json'), 'utf8')).version
+// A release build is given its git tag (docker build --build-arg APP_VERSION=v0.0.5), so the app reports the release it came from.
+// The leading "v" is dropped because the label adds its own.
+const appVersion: string = (process.env.APP_VERSION?.trim() || packageVersion).replace(/^v/i, '')
 const buildSha = (): string => {
   // A Docker build has no .git, so the build can be given the commit: docker build --build-arg BUILD_SHA=<sha>
   if (process.env.BUILD_SHA) return process.env.BUILD_SHA.trim().slice(0, 7)
