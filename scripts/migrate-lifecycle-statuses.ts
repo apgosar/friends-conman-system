@@ -55,7 +55,7 @@ async function main() {
 
   // 3. Units with no active sale
   const free = await prisma.unit.findMany({
-    where: { sales: { none: { deletedAt: null, status: { not: 'CANCELLED' } } } },
+    where: { statusManual: false, sales: { none: { deletedAt: null, status: { not: 'CANCELLED' } } } },
     select: { id: true, status: true },
   })
   let released = 0

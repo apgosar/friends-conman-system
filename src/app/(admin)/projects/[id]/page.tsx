@@ -6,7 +6,7 @@ import { formatDate, formatCurrency } from '@/lib/template-engine'
 import UnitsView from '@/components/projects/UnitsView'
 import ProjectSalesTable from '@/components/projects/ProjectSalesTable'
 import TemplateCoverage from '@/components/projects/TemplateCoverage'
-import { isUnsold, saleStatusBadge, saleStatusLabel } from '@/lib/status'
+import { isSaleable, isUnsold, saleStatusBadge, saleStatusLabel } from '@/lib/status'
 
 async function getProject(id: string) {
   return prisma.project.findUnique({
@@ -34,9 +34,12 @@ export default async function ProjectDetailPage(props: PageProps<'/projects/[id]
   if (!project) notFound()
 
   const allUnits = project.wings.flatMap((w) => w.floors.flatMap((f) => f.units))
-  const available = allUnits.filter((u) => isUnsold(u.status)).length
-  const sold = allUnits.length - available
-  const soldPct = allUnits.length > 0 ? Math.round((sold / allUnits.length) * 100) : 0
+  // Common areas (refuge area, society office...) are not for sale, so they are not part of the inventory counts
+  const saleable = allUnits.filter((u) => isSaleable(u.status))
+  const commonAreas = allUnits.length - saleable.length
+  const available = saleable.filter((u) => isUnsold(u.status)).length
+  const sold = saleable.length - available
+  const soldPct = saleable.length > 0 ? Math.round((sold / saleable.length) * 100) : 0
 
   return (
     <>
@@ -57,6 +60,7 @@ export default async function ProjectDetailPage(props: PageProps<'/projects/[id]
           </div>
           <div className="flex gap-2">
             <Link href={`/projects/${id}/edit`} className="btn btn-primary">Edit Project</Link>
+            <Link href={`/projects/${id}/structure`} className="btn btn-secondary">Building Setup</Link>
             <Link href={`/projects/${id}/payment-plan`} className="btn btn-secondary">Payment Plan</Link>
             <Link href={`/projects/${id}/milestones`} className="btn btn-secondary">Milestones</Link>
             <Link href={`/projects/${id}/templates`} className="btn btn-secondary">Templates</Link>
@@ -71,14 +75,15 @@ export default async function ProjectDetailPage(props: PageProps<'/projects/[id]
         {/* Stats */}
         <div className="grid grid-4 gap-4 mb-6">
           {[
-            { label: 'Total Units', value: allUnits.length, color: undefined },
-            { label: 'Available', value: available, color: '#10b981' },
-            { label: 'Sold / Booked', value: sold, color: '#6366f1' },
-            { label: 'Total Sales', value: project._count.sales, color: undefined },
+            { label: 'Total Units', value: saleable.length, color: undefined, note: commonAreas > 0 ? `+ ${commonAreas} common area${commonAreas === 1 ? '' : 's'} (not for sale)` : undefined },
+            { label: 'Available', value: available, color: '#10b981', note: undefined },
+            { label: 'Sold / Booked', value: sold, color: '#6366f1', note: undefined },
+            { label: 'Total Sales', value: project._count.sales, color: undefined, note: undefined },
           ].map((s) => (
             <div key={s.label} className="card">
               <div className="stat-label">{s.label}</div>
               <div className="stat-value" style={s.color ? { color: s.color } : undefined}>{s.value}</div>
+              {s.note && <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', marginTop: 2 }}>{s.note}</div>}
             </div>
           ))}
         </div>
@@ -95,7 +100,17 @@ export default async function ProjectDetailPage(props: PageProps<'/projects/[id]
         </div>
 
         {/* Units: 3D building view (default) or table, switched with the toggle */}
-        {project.wings.length > 0 && <UnitsView projectId={id} />}
+        {project.wings.length > 0 ? (
+          <UnitsView projectId={id} />
+        ) : (
+          <div className="card mb-6" style={{ textAlign: 'center', padding: 32 }}>
+            <h3 style={{ margin: '0 0 6px' }}>This project has no building yet</h3>
+            <p style={{ margin: '0 0 16px', color: 'var(--text-muted)' }}>
+              Add the wings, floors and units to start quoting and selling. It takes a few minutes: define your unit types once, then describe each wing floor by floor.
+            </p>
+            <Link href={`/projects/${id}/structure`} className="btn btn-primary">Set up the building</Link>
+          </div>
+        )}
 
         {/* Milestones */}
         {project.milestones.length > 0 && (

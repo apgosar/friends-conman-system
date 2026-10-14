@@ -25,7 +25,7 @@ export default function NewProjectPage() {
     if (!res.ok) {
       setError(json.error ?? 'Failed to create project')
     } else {
-      router.push(`/projects/${json.data.id}`)
+      router.push(`/projects/${json.data.id}/structure?new=1`) // next step: describe the building
     }
   }
 

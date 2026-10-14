@@ -37,6 +37,10 @@ export async function POST(
       return NextResponse.json({ error: 'Unit not found' }, { status: 404 })
     }
 
+    if (!['AVAILABLE', 'INQUIRY_RECEIVED'].includes(unit.status)) {
+      return NextResponse.json({ error: unit.status === 'NOT_FOR_SALE' ? 'This is a common area and is not for sale, so a quote cannot be created for it.' : 'This unit is already sold, so a quote cannot be created for it.' }, { status: 409 })
+    }
+
     const project = unit.floor.wing.project
     const { stampDuty, gst, registration, totalCost } = computeQuoteCosts(agreementValue, !!parkingIncluded, project.carParkingCharges || 0)
 

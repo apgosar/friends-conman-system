@@ -1,7 +1,7 @@
 import { NextRequest } from 'next/server'
 import { auth } from '@/lib/auth'
 import { prisma } from '@/lib/db'
-import { OUTSTANDING_SCHEDULE_STATUSES, UNIT_STATUS_ORDER, isUnsold } from '@/lib/status'
+import { OUTSTANDING_SCHEDULE_STATUSES, UNIT_STATUS_ORDER, isSaleable, isUnsold } from '@/lib/status'
 
 export async function GET(req: NextRequest) {
   const session = await auth()
@@ -124,8 +124,8 @@ export async function GET(req: NextRequest) {
     // ─── KPI Cards ─────────────────────────────────────────────────────────────
     const totalSalesCount = allSales.length
     const totalSalesValue = allSales.reduce((s, sale) => s + (sale.agreementValue ?? 0) + (sale.gstAmount ?? 0), 0)
-    const totalUnits = units.length
-    const soldUnits = Object.entries(inventoryStatus).filter(([s]) => !isUnsold(s)).reduce((sum, [, n]) => sum + n, 0)
+    const totalUnits = units.filter((u) => isSaleable(u.status)).length // common areas are not inventory
+    const soldUnits = Object.entries(inventoryStatus).filter(([s]) => isSaleable(s) && !isUnsold(s)).reduce((sum, [, n]) => sum + n, 0)
     const overdueAmount = Object.values(aging).reduce((s, v) => s + v, 0)
 
     return Response.json({

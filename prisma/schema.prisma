@@ -84,6 +84,7 @@ model Project {
   updatedAt           DateTime        @updatedAt
 
   wings               Wing[]
+  unitTypes           UnitType[]
   milestones          ConstructionMilestone[]
   templates           Template[]
   tenants             Tenant[]
@@ -125,24 +126,51 @@ model Floor {
   @@map("floors")
 }
 
+/// A repeating layout in a project (e.g. "2BHK-A"): defined once, used by many units.
+model UnitType {
+  id               String   @id @default(cuid())
+  projectId        String
+  category         String   @default("FLAT") // FLAT | SHOP | OFFICE
+  name             String   // 2BHK-A, Shop, Penthouse
+  configuration    String   // 1BHK, 2BHK, 3BHK, Shop...
+  carpetAreaSqft   Float
+  builtupAreaSqft  Float?
+  basePricePerSqft Float?
+  floorPlanUrl     String?  // storage URL of the floor plan image
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+
+  project          Project  @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  units            Unit[]
+
+  @@unique([projectId, name])
+  @@index([projectId])
+  @@map("unit_types")
+}
+
 model Unit {
   id                  String      @id @default(cuid())
   floorId             String
+  unitTypeId          String?     // layout this unit follows (shared floor plan, area, price)
+  category            String      @default("FLAT") // FLAT | SHOP | OFFICE
   unitNumber          String      // A-301
   configuration       String      // 1BHK, 2BHK, 3BHK
   carpetAreaSqft      Float     
   builtupAreaSqft     Float?    
   basePricePerSqft    Float?    
   status String @default("AVAILABLE")
+  statusManual        Boolean     @default(false) // status set by hand (unit sold before the system was used), not derived from a sale
   createdAt           DateTime    @default(now())
   updatedAt           DateTime    @updatedAt
 
   floor               Floor       @relation(fields: [floorId], references: [id], onDelete: Cascade)
+  unitType            UnitType?   @relation(fields: [unitTypeId], references: [id], onDelete: SetNull)
   sales               Sale[]
   inquiries           Inquiry[]
   tenant              Tenant?
 
   @@index([floorId])
+  @@index([unitTypeId])
   @@index([status])
   @@map("units")
 }

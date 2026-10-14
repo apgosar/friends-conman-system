@@ -1,8 +1,7 @@
 import { prisma } from '@/lib/db'
+import { floorPlanDataUri } from '@/lib/floor-plan-image'
 import puppeteer from 'puppeteer'
 import { formatCurrency, formatDate } from '@/lib/template-engine'
-import fs from 'fs'
-import path from 'path'
 import { uploadFile } from '@/lib/storage'
 import { QUOTE_FOLDER } from '@/lib/storage/files'
 
@@ -13,6 +12,7 @@ export async function generateAndSaveQuotePdf(quoteId: string) {
       include: {
         unit: {
           include: {
+            unitType: true,
             floor: {
               include: {
                 wing: {
@@ -34,17 +34,7 @@ export async function generateAndSaveQuotePdf(quoteId: string) {
     const rate = Math.round(inquiry.agreementValue / unit.carpetAreaSqft)
 
     // Get floor plan image as base64
-    let base64FloorPlan = ''
-    try {
-      const fileName = unit.configuration.startsWith('3') ? 'floorplan-3bhk.png' :
-                       unit.configuration.startsWith('2') ? 'floorplan-2bhk.png' :
-                       'floorplan-1bhk.png'
-      const imagePath = path.join(process.cwd(), 'public', fileName)
-      const imageBuffer = fs.readFileSync(imagePath)
-      base64FloorPlan = `data:image/png;base64,${imageBuffer.toString('base64')}`
-    } catch (e) {
-      console.warn('Could not load floor plan for PDF:', e)
-    }
+    const base64FloorPlan = await floorPlanDataUri(unit)
 
     const html = `
     <!DOCTYPE html>

@@ -43,6 +43,6 @@ export async function syncSaleLifecycle(saleId: string): Promise<SaleLifecycleSt
 
   const next = deriveSaleStatus(sale)
   if (next !== sale.status) await prisma.sale.update({ where: { id: saleId }, data: { status: next } })
-  await prisma.unit.updateMany({ where: { id: sale.unitId, status: { not: next } }, data: { status: next } })
+  await prisma.unit.updateMany({ where: { id: sale.unitId, OR: [{ status: { not: next } }, { statusManual: true }] }, data: { status: next, statusManual: false } })
   return next
 }

@@ -28,7 +28,7 @@ export const SALE_STATUS: Record<string, StatusStyle & { description: string }> 
 
 // ── Unit status = Available / Inquiry Received, or the sale lifecycle ──────────
 
-export const UNIT_STATUS_ORDER = ['AVAILABLE', 'INQUIRY_RECEIVED', ...SALE_LIFECYCLE] as const
+export const UNIT_STATUS_ORDER = ['AVAILABLE', 'INQUIRY_RECEIVED', ...SALE_LIFECYCLE, 'NOT_FOR_SALE'] as const
 
 /**
  * Building-view colours (fill/stroke/top) + a distinct hex per status for charts.
@@ -47,6 +47,8 @@ export const UNIT_COLORS: Record<string, { fill: string; stroke: string; top: st
   IN_PROGRESS:        { ...SIGNED_TONE, hex: '#6366f1' },
   ALL_PAID:           { ...DONE_TONE, hex: '#06b6d4' },
   HANDOVER_COMPLETED: { ...DONE_TONE, hex: '#78716c' },
+  // Common areas (refuge area, society office...). Also drawn with a hatched, low shape so it never relies on colour alone.
+  NOT_FOR_SALE:       { fill: '#1e293b', stroke: '#64748b', top: '#94a3b8', hex: '#94a3b8' },
 }
 
 /** Legend for the building view: statuses that share a colour are listed together. */
@@ -66,11 +68,28 @@ export const UNIT_STATUS: Record<string, StatusStyle> = {
   IN_PROGRESS:        { label: SALE_STATUS.IN_PROGRESS.label,        badge: SALE_STATUS.IN_PROGRESS.badge },
   ALL_PAID:           { label: SALE_STATUS.ALL_PAID.label,           badge: SALE_STATUS.ALL_PAID.badge },
   HANDOVER_COMPLETED: { label: SALE_STATUS.HANDOVER_COMPLETED.label, badge: SALE_STATUS.HANDOVER_COMPLETED.badge },
+  NOT_FOR_SALE:       { label: 'Not for sale', badge: 'badge-muted' },
+}
+
+/**
+ * Statuses that can be set by hand in Building Setup, for units sold before the system was used. Inquiry Received is
+ * excluded because it is derived from open inquiries. A unit that has a sale always follows the sale instead.
+ */
+export const MANUAL_UNIT_STATUSES = ['AVAILABLE', ...SALE_LIFECYCLE] as const
+
+/** Accepts BOOKED, "Booked", "agreement done", "AGREEMENT_DONE"… and returns the status code, or null. */
+export function parseManualUnitStatus(text: string): (typeof MANUAL_UNIT_STATUSES)[number] | null {
+  const key = text.trim().toUpperCase().replace(/[\s-]+/g, '_')
+  return (MANUAL_UNIT_STATUSES as readonly string[]).includes(key) ? (key as (typeof MANUAL_UNIT_STATUSES)[number]) : null
 }
 
 /** Units still for sale (no sale record). */
 export const UNSOLD_UNIT_STATUSES = ['AVAILABLE', 'INQUIRY_RECEIVED']
 export const isUnsold = (status: string) => UNSOLD_UNIT_STATUSES.includes(status)
+
+/** Common areas (refuge area, society office...) are neither for sale nor sold, so they stay out of every inventory count. */
+export const NOT_FOR_SALE_STATUS = 'NOT_FOR_SALE'
+export const isSaleable = (status: string) => status !== NOT_FOR_SALE_STATUS
 
 // ── Payment schedule (demand) ──────────────────────────────────────────────────
 
