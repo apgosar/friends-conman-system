@@ -9,7 +9,8 @@
 # new image (the running app is untouched if this fails) -> back up the database ->
 # apply database structure changes using the NEW image (stops before the switch if
 # it fails) -> switch the app over -> wait for it to become healthy -> roll back to
-# the previous version if it does not.
+# the previous version if it does not -> run any one-time data conversion the release
+# ships with (once per server; see run_data_migrations below).
 
 # ---- Vendor settings ---------------------------------------------------------
 IMAGE_REPO="ghcr.io/apgosar/friends-conman-system"
@@ -42,11 +43,13 @@ mkdir -p update-logs backups || { echo "Cannot create folders in $APP_DIR"; exit
 chmod 700 backups 2>/dev/null
 LOG="update-logs/update-$STAMP.log"
 
-TOTAL=8
+TOTAL=9
 OLD_TAG=""
 TAG=""
 BACKUP=""
 ENV_COPY=""
+LEDGER="data-migrations.applied"   # one line per one-time data conversion already run on this server
+CONVERTED=()
 TMPFILES=()
 TAG_RE='^v[0-9]+\.[0-9]+\.[0-9]+(-[0-9A-Za-z][0-9A-Za-z.]*)?$'
 
@@ -137,6 +140,58 @@ rollback() {
   else
     warn "The previous version did not start either. Contact $SUPPORT right away and send the log file."
   fi
+}
+
+# One-time data conversions ship inside the image as /app/data-migrations/*.js (the
+# Dockerfile builds them from scripts/). Each runs once per server, in file-name order,
+# and is recorded in $LEDGER. They are written to be safe to repeat, so one that failed
+# or was interrupted is simply retried the next time this script runs. They run only
+# after the new version is healthy; if one fails the app is left on the new version
+# (switching back would not undo a half-finished conversion) and the backup from
+# step 4 is the way back.
+migration_applied() {
+  [ -f "$LEDGER" ] || return 1
+  awk -v n="$1" '{ sub(/\r$/, "") } $1 == n { found = 1 } END { exit !found }' "$LEDGER"
+}
+
+conversion_problem() {
+  warn "$1"
+  warn "$TAG is running, but existing records may not be converted yet."
+  warn "Run this updater again with $TAG to retry; it is safe to repeat."
+  warn "Your backup from before this update: $APP_DIR/$BACKUP"
+  fail "The data conversion did not complete."
+}
+
+run_data_migrations() {
+  local listing err name
+  local -a names=()
+  err="$(mktemp)"; TMPFILES+=("$err")
+  if ! listing="$(IMAGE_TAG="$TAG" docker compose run --rm --no-deps -T web \
+      sh -c 'if [ -d /app/data-migrations ]; then ls -1 /app/data-migrations | sort; fi' </dev/null 2>"$err")"; then
+    sed 's/^/      /' "$err"
+    conversion_problem "Could not check whether this version has data to convert."
+  fi
+  while IFS= read -r name; do
+    name="${name%$'\r'}"
+    [[ "$name" =~ ^[A-Za-z0-9._-]+\.js$ ]] || continue
+    migration_applied "$name" || names+=("$name")
+  done <<< "$listing"
+  if [ "${#names[@]}" -eq 0 ]; then
+    ok "No data conversion is needed"
+    return 0
+  fi
+  say "  This can take a few minutes on a large database. Please keep this window open."
+  for name in "${names[@]}"; do
+    say "  Converting existing data: $name"
+    IMAGE_TAG="$TAG" docker compose run --rm --no-deps -T web node "/app/data-migrations/$name" </dev/null 2>&1 | sed 's/^/      /'
+    if [ "${PIPESTATUS[0]}" -ne 0 ]; then
+      conversion_problem "The data conversion \"$name\" did not finish."
+    fi
+    printf '%s %s %s\n' "$name" "$(date '+%Y-%m-%dT%H:%M:%S')" "$TAG" >> "$LEDGER" \
+      || warn "Could not record $name in $LEDGER; it will simply run again next time."
+    CONVERTED+=("$name")
+    ok "Converted: $name"
+  done
 }
 
 main() {
@@ -249,7 +304,10 @@ main() {
     fail "The update to $TAG did not work. See above for what was restored."
   fi
 
-  step 7 "Final checks"
+  step 7 "Converting existing data (only if this version needs it)"
+  run_data_migrations
+
+  step 8 "Final checks"
   local lic app_url
   lic="$(docker compose logs --no-log-prefix --tail=300 web 2>/dev/null | grep -o '\[License\][^"]*' | tail -1)"
   if [ -n "$lic" ]; then ok "$lic"; fi
@@ -265,7 +323,7 @@ main() {
       fi ;;
   esac
 
-  step 8 "Tidying up"
+  step 9 "Tidying up"
   docker images "$IMAGE_REPO" --format '{{.Tag}}' 2>/dev/null \
     | grep -vxF -e "$TAG" -e "$OLD_TAG" -e '<none>' \
     | while read -r old; do docker rmi "$IMAGE_REPO:$old" </dev/null >/dev/null 2>&1; done
@@ -282,6 +340,7 @@ main() {
   else
     say " Update complete: $OLD_TAG -> $TAG"
   fi
+  if [ "${#CONVERTED[@]}" -gt 0 ]; then say " Data converted : ${CONVERTED[*]}"; fi
   say " Database backup : $APP_DIR/$BACKUP"
   say " Log file        : $APP_DIR/$LOG"
   say "============================================================"

@@ -119,7 +119,8 @@ The customer double-clicks the `.bat`, types the release tag you gave them (for 
 5. applies database changes with `prisma db push`, run from the **new** image, and never with `--accept-data-loss` — if a change could delete data it stops here, before the app is touched;
 6. switches only the `web` container to the new tag and records it in `.env`;
 7. waits for the health check and **rolls back to the previous tag automatically** if the new version doesn't come up;
-8. prints the license status, checks the public URL, and removes old images.
+8. runs any **one-time data conversion** the release ships with, once per server (see "One-time data conversions" below);
+9. prints the license status, checks the public URL, and removes old images.
 
 Every run writes a log to `update-logs/` that the customer can send you. The app is unavailable for about a minute during step 6.
 
@@ -128,7 +129,20 @@ Every run writes a log to `update-logs/` that the customer can send you. The app
 - It doesn't update Postgres, MinIO or `cloudflared`.
 - It uses `db push` because the project has no migration history. If you adopt Prisma migrations, switch step 5 to `migrate deploy` — after baselining existing databases, or the first run on them will fail.
 
-**Before you rely on it:** run it once on the real server with the tag that's *already installed*. That's a safe dry run — it downloads (a no-op), backs up, checks the schema and health, and changes nothing — and it proves the registry login, the backup and the WSL hand-off work before a real release depends on them.
+**One-time data conversions**
+
+Some releases change what *existing* records mean. v0.0.3, for example, retired the old unit, sale and demand statuses. `prisma db push` changes structure, not values, so such a release carries a small conversion and the updater runs it:
+
+- The Dockerfile compiles each conversion into the image as `/app/data-migrations/NNN-name.js` (minified; `scripts/` and `src/` are never shipped). Nothing is copied to the server by hand.
+- Once the new version is healthy, the updater runs every conversion in the image that this server hasn't run yet, in name order, in a throwaway container of the new image.
+- Each success is recorded in `data-migrations.applied` in the app folder, so it runs once per server. A failed one is **not** recorded. The app stays on the new version (switching back would not undo a half-finished conversion), the updater says so and exits with an error, and running it again with the same tag retries. If it keeps failing, the step 4 backup is the way back: restore it (below) and set `IMAGE_TAG` in `.env` back to the old tag.
+- To run one by hand: `docker compose run --rm --no-deps web node /app/data-migrations/<name>.js`. That doesn't write the ledger, so the next update runs it once more, which is harmless.
+
+A fresh install needs nothing. Conversions do nothing on a database that never held old data, and the first update on a new server just runs each one once.
+
+**Adding one in a future release:** write the script under `scripts/`, then add an esbuild line for it to the Dockerfile with the next `NNN-` prefix (the existing line is the template). The rule is **safe to repeat, and safe on a database that never needed it**; the ledger avoids repeats but is not what makes them safe. There is no transaction around a conversion, so test it on a copy of real data first. Scripts that write through the shared Prisma client should set `process.env.NEEV_SKIP_AUDIT = '1'` first (see `scripts/migrate-lifecycle-statuses.ts`), otherwise the audit hook prints an error for every row.
+
+**Before you rely on it:** run it once on the real server with the tag that's *already installed*. That's a safe dry run — it downloads (a no-op), backs up, checks the schema and health, and changes nothing apart from running a data conversion that is still pending — and it proves the registry login, the backup and the WSL hand-off work before a real release depends on them.
 
 **Restoring a backup** (vendor only, for example after a failed update that had already changed the database): stop the app, restore, start it again.
 
@@ -137,6 +151,8 @@ docker compose stop web
 gunzip -c backups/<file>.sql.gz | docker compose exec -T db sh -c 'psql -U "$POSTGRES_USER" "$POSTGRES_DB"'
 docker compose start web
 ```
+
+If the backup was taken before a data conversion ran, also delete that conversion's line from `data-migrations.applied` (or the whole file), so the next update runs it again.
 
 ## ⚠ One-time: lock down the package's visibility
 

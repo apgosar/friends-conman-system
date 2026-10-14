@@ -4,7 +4,13 @@
  *   2. Re-derive every active sale's status from its dates / payments and mirror it onto the unit.
  *   3. Make sure units without an active sale are Available or Inquiry Received, as the open inquiries dictate.
  *
- * Safe to re-run. Usage:  npx tsx scripts/migrate-lifecycle-statuses.ts
+ * Safe to re-run, and safe on a database that never had the old values. It only re-derives what the
+ * app itself derives.
+ *
+ * Cloud / local:  npx tsx scripts/migrate-lifecycle-statuses.ts
+ * On-prem:        nothing to do by hand. The Dockerfile bundles this into the image as
+ *                 /app/data-migrations/001-lifecycle-statuses.js and deploy/onprem/update.sh runs it
+ *                 once per server, after the new version is healthy.
  */
 import { PrismaClient } from '@prisma/client'
 import { syncSaleLifecycle } from '../src/lib/sale-lifecycle'
@@ -12,6 +18,9 @@ import { syncSaleLifecycle } from '../src/lib/sale-lifecycle'
 const prisma = new PrismaClient()
 
 async function main() {
+  // A bulk remap isn't a user action: don't write (and fail to write) one audit row per sale.
+  process.env.NEEV_SKIP_AUDIT = '1'
+
   // 1. Retired values
   const units = {
     agreement: await prisma.unit.updateMany({ where: { status: 'PAAA_DONE' }, data: { status: 'AGREEMENT_DONE' } }),
@@ -69,4 +78,10 @@ async function main() {
   })
 }
 
-main().catch((e) => { console.error(e); process.exit(1) }).finally(() => prisma.$disconnect())
+main()
+  .catch((e) => { console.error(e); process.exit(1) })
+  .finally(async () => {
+    await prisma.$disconnect()
+    // lib/db keeps its own client open. Don't let it hold the process (and the updater waiting on it) up.
+    setTimeout(() => process.exit(0), 3000).unref()
+  })

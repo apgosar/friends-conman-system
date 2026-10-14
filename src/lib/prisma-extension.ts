@@ -10,7 +10,10 @@ export const auditLogExtension = Prisma.defineExtension({
     $allModels: {
       async $allOperations({ model, operation, args, query }) {
         // Skip auditing for models not in our list, or read operations.
-        if (!AUDITABLE_MODELS.includes(model)) {
+        // NEEV_SKIP_AUDIT=1 is set by bulk system scripts (scripts/migrate-*.ts): their writes have no user
+        // to attribute to, and audit_logs.userId is a foreign key, so the 'SYSTEM' fallback below would
+        // fail and print an error for every row.
+        if (process.env.NEEV_SKIP_AUDIT === '1' || !AUDITABLE_MODELS.includes(model)) {
           return query(args)
         }
 

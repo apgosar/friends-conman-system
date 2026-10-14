@@ -125,7 +125,7 @@ Not yet done: swapping `build:` for a pulled `image:` tag once the private regis
 
 - Sentry is already wired ([next.config.ts](next.config.ts), `sentry.*.config.ts`) — confirm `SENTRY_DSN`/org/project env vars are set per deployment so errors route to your dashboard, not the customer's.
 - Add uptime monitoring from your side (UptimeRobot hitting the public hostname, or a self-hosted Uptime Kuma you control) — don't rely on the customer to tell you it's down.
-- **Update channel stays yours**: you push new image tags to the private registry, and the customer applies them with the one-click updater ([deploy/onprem/update.sh](deploy/onprem/update.sh) + `Update-NeevCMS.bat`, see [deploy/onprem/README.md](deploy/onprem/README.md#updating-a-customers-server-one-click)), which takes a pre-update database backup, applies schema changes and rolls back automatically if the new version doesn't become healthy. Keeping the update path in your hands also means the license-gate logic itself can be improved/patched over time without needing the customer to do anything.
+- **Update channel stays yours**: you push new image tags to the private registry, and the customer applies them with the one-click updater ([deploy/onprem/update.sh](deploy/onprem/update.sh) + `Update-NeevCMS.bat`, see [deploy/onprem/README.md](deploy/onprem/README.md#updating-a-customers-server-one-click)), which takes a pre-update database backup, applies schema changes, switches the app over and rolls back automatically if the new version doesn't become healthy, then runs any one-time data conversion the release ships with. Keeping the update path in your hands also means the license-gate logic itself can be improved/patched over time without needing the customer to do anything.
 
 ---
 

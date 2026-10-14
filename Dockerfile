@@ -42,6 +42,17 @@ COPY . .
 RUN npx prisma generate
 RUN npm run build
 
+# One-time data conversions. scripts/ and src/ are not shipped, so each conversion is bundled into
+# one minified file under /app/data-migrations/. deploy/onprem/update.sh runs the ones a server has
+# not run yet, in file-name order, once per server. To add one: write a script that is safe to repeat
+# and safe on a database that never needed it, then add a line here with the next NNN- prefix.
+# (esbuild comes with tsx, a devDependency.)
+RUN mkdir -p data-migrations \
+ && npx --no-install esbuild scripts/migrate-lifecycle-statuses.ts \
+      --bundle --platform=node --target=node20 --format=cjs --packages=external \
+      --tsconfig=tsconfig.json --minify --legal-comments=none \
+      --outfile=data-migrations/001-lifecycle-statuses.js
+
 # Runner layer — minimal production image
 FROM base AS runner
 WORKDIR /app
@@ -60,6 +71,7 @@ COPY --from=builder --chown=nextjs:nodejs /app/.next/static ./.next/static
 COPY --from=builder --chown=nextjs:nodejs /app/prisma ./prisma
 COPY --from=builder --chown=nextjs:nodejs /app/package.json ./package.json
 COPY --from=builder --chown=nextjs:nodejs /app/node_modules ./node_modules
+COPY --from=builder --chown=nextjs:nodejs /app/data-migrations ./data-migrations
 
 # Switch to non-root user
 USER nextjs
