@@ -1,187 +1,21 @@
 'use client'
 
-import { useEffect, useRef, useState, useCallback } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import Link from 'next/link'
 import { useSession } from 'next-auth/react'
 import { QuoteModal } from './QuoteModal'
 import { EditInquiryModal, ShareQuoteModal, LostInquiryModal, type InquiryData } from './InquiryModals'
 import { SOURCE_LABEL, LOST_REASON_LABEL } from '@/lib/inquiry-constants'
-import { UNIT_COLORS, UNIT_COLOR_LEGEND, UNIT_STATUS_ORDER, unitStatusLabel, unitStatusBadge, isUnsold } from '@/lib/status'
+import { wingLabel } from '@/lib/building-structure'
+import { UNIT_COLORS, unitStatusLabel, unitStatusBadge, isSaleable, isUnsold } from '@/lib/status'
+import BuildingCanvas, { BuildingSkeleton } from './BuildingCanvas'
+import { STATUS_COLOR, getStatusColor, statusMatches, type UnitData, type WingData } from './building-model'
 
-// ─── Types ───────────────────────────────────────────────────────────────────
-
-interface UnitData {
-  id: string
-  unitNumber: string
-  configuration: string
-  carpetAreaSqft: number
-  builtupAreaSqft: number | null
-  status: string
-  saleId: string | null
-  saleNumber: string | null
-  saleStatus: string | null
-  agreementValue: number | null
-  buyerName: string | null
-  inquiries: InquiryData[]
-}
-
-interface FloorData {
-  id: string
-  floorNumber: number
-  units: UnitData[]
-}
-
-interface WingData {
-  id: string
-  name: string
-  totalFloors: number
-  floors: FloorData[]
-}
-
-// ─── Constants ───────────────────────────────────────────────────────────────
-
-// Colours and labels come from lib/status.ts so every screen agrees
-const STATUS_COLOR: Record<string, { fill: string; stroke: string; top: string; label: string }> = Object.fromEntries(
-  UNIT_STATUS_ORDER.map((s) => [s, { ...UNIT_COLORS[s], label: unitStatusLabel(s) }]),
-)
-
-// 'UNSOLD' is a quick filter covering Available + Inquiry Received
-const statusMatches = (filter: string, status: string) =>
-  filter === 'ALL' || (filter === 'UNSOLD' ? isUnsold(status) : status === filter)
-
-const DEFAULT_COLOR = { fill: '#1c1917', stroke: '#71717a', top: '#9ca3af', label: 'Unknown' }
-
-// Isometric tile dimensions — balanced size
-const TW = 110  // tile full width
-const TH = 54   // tile top face height
-const TD = 28   // tile depth (front face)
-const GAP = 6   // gap between tiles
-const FLOOR_GAP = 6 // extra vertical gap between floors
-
-function floorPlanSrc(unit: { configuration: string }) {
+function floorPlanSrc(unit: { configuration: string; floorPlanUrl?: string | null }) {
+  if (unit.floorPlanUrl) return unit.floorPlanUrl
   return unit.configuration.startsWith('3') ? '/floorplan-3bhk.png'
     : unit.configuration.startsWith('2') ? '/floorplan-2bhk.png'
     : '/floorplan-1bhk.png'
-}
-
-function getStatusColor(status: string) {
-  return STATUS_COLOR[status] ?? DEFAULT_COLOR
-}
-
-// ─── Iso Math ────────────────────────────────────────────────────────────────
-
-function toIso(col: number, row: number, originX: number, originY: number) {
-  return {
-    x: originX + (col - row) * ((TW + GAP) / 2),
-    y: originY + (col + row) * ((TH + GAP) / 4),
-  }
-}
-
-function drawTile(
-  ctx: CanvasRenderingContext2D,
-  x: number,
-  y: number,
-  colors: { fill: string; stroke: string; top: string },
-  highlighted: boolean,
-) {
-  const hw = TW / 2
-  const qh = TH / 2
-
-  ctx.save()
-
-  if (highlighted) {
-    ctx.shadowColor = colors.stroke
-    ctx.shadowBlur = 24
-  }
-
-  // ── TOP face (diamond) ──
-  ctx.beginPath()
-  ctx.moveTo(x,        y)       // left
-  ctx.lineTo(x + hw,   y - qh) // top
-  ctx.lineTo(x + TW,   y)      // right
-  ctx.lineTo(x + hw,   y + qh) // bottom
-  ctx.closePath()
-
-  // Gradient on top face for 3D depth
-  const topGrad = ctx.createLinearGradient(x, y - qh, x + TW, y + qh)
-  topGrad.addColorStop(0, highlighted ? colors.top + 'ff' : colors.top + 'cc')
-  topGrad.addColorStop(1, highlighted ? colors.top + 'bb' : colors.top + '77')
-  ctx.fillStyle = topGrad
-  ctx.fill()
-  ctx.strokeStyle = highlighted ? colors.stroke : colors.stroke + 'aa'
-  ctx.lineWidth = highlighted ? 2 : 1
-  ctx.stroke()
-
-  // ── LEFT face ──
-  ctx.beginPath()
-  ctx.moveTo(x,      y)
-  ctx.lineTo(x + hw, y + qh)
-  ctx.lineTo(x + hw, y + qh + TD)
-  ctx.lineTo(x,      y + TD)
-  ctx.closePath()
-
-  const leftGrad = ctx.createLinearGradient(x, y, x + hw, y + qh + TD)
-  leftGrad.addColorStop(0, highlighted ? colors.fill + 'ff' : colors.fill + 'ee')
-  leftGrad.addColorStop(1, '#000000aa')
-  ctx.fillStyle = leftGrad
-  ctx.fill()
-  ctx.strokeStyle = highlighted ? colors.stroke : colors.stroke + '88'
-  ctx.lineWidth = highlighted ? 2 : 1
-  ctx.stroke()
-
-  // ── RIGHT face (darker for depth) ──
-  ctx.beginPath()
-  ctx.moveTo(x + hw, y + qh)
-  ctx.lineTo(x + TW, y)
-  ctx.lineTo(x + TW, y + TD)
-  ctx.lineTo(x + hw, y + qh + TD)
-  ctx.closePath()
-
-  const rightGrad = ctx.createLinearGradient(x + hw, y, x + TW, y + TD)
-  rightGrad.addColorStop(0, highlighted ? colors.fill + 'dd' : colors.fill + 'bb')
-  rightGrad.addColorStop(1, '#000000cc')
-  ctx.fillStyle = rightGrad
-  ctx.fill()
-  ctx.strokeStyle = highlighted ? colors.stroke : colors.stroke + '88'
-  ctx.lineWidth = highlighted ? 2 : 1
-  ctx.stroke()
-
-  ctx.restore()
-}
-
-// Draw just the text label for a tile (called in a second pass so it's never covered)
-function drawLabel(
-  ctx: CanvasRenderingContext2D,
-  x: number,
-  y: number,
-  label: string,
-  highlighted: boolean,
-) {
-  const hw = TW / 2
-  const [numPart, ...rest] = label.split(' ')
-  const configPart = rest.join(' ')
-
-  ctx.save()
-  ctx.textAlign = 'center'
-  ctx.textBaseline = 'middle'
-
-  if (highlighted) {
-    // Drop shadow so text pops on any background
-    ctx.shadowColor = '#000'
-    ctx.shadowBlur = 6
-  }
-
-  ctx.font = highlighted ? 'bold 13px Inter, sans-serif' : 'bold 12px Inter, sans-serif'
-  ctx.fillStyle = highlighted ? '#ffffff' : '#ffffffee'
-  ctx.fillText(numPart, x + hw, y - 5)
-
-  if (configPart) {
-    ctx.font = '10px Inter, sans-serif'
-    ctx.fillStyle = highlighted ? '#ffffffcc' : '#ffffffaa'
-    ctx.fillText(configPart, x + hw, y + 9)
-  }
-
-  ctx.restore()
 }
 
 // ─── Main Component ───────────────────────────────────────────────────────────
@@ -192,12 +26,11 @@ export default function BuildingViewer({ projectId, view = '3d' }: { projectId: 
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [selectedWingIdx, setSelectedWingIdx] = useState(0)
-  const [hoveredUnit, setHoveredUnit] = useState<{ unit: UnitData; x: number; y: number } | null>(null)
   const [selectedUnit, setSelectedUnit] = useState<UnitData | null>(null)
 
   // Filters
   const [filterStatus, setFilterStatus] = useState<string>('ALL')
-  const [filterType, setFilterType] = useState<string>('ALL')
+  const [typeFilter, setFilterType] = useState<string>('ALL')
 
   // Quote form state
   const [showQuoteForm, setShowQuoteForm] = useState(false)
@@ -205,13 +38,16 @@ export default function BuildingViewer({ projectId, view = '3d' }: { projectId: 
   const [isSubmittingQuote, setIsSubmittingQuote] = useState(false)
 
   const [showAllInquiries, setShowAllInquiries] = useState(false)
+  // The building view only carries inquiry COUNTS. The selected unit's inquiries are fetched when it is opened.
+  const [inquiryState, setInquiryState] = useState<{ unitId: string; items: InquiryData[] } | null>(null)
+  const [repeatMobiles, setRepeatMobiles] = useState<Record<string, number>>({})
+  const [matchState, setMatchState] = useState<{ mobile: string; items: any[] }>({ mobile: '', items: [] })
   const [showFloorPlan, setShowFloorPlan] = useState(false)
   const [tableQuery, setTableQuery] = useState('')
   const { data: session } = useSession()
   const canDelete = ['SUPER_ADMIN', 'ADMIN'].includes(session?.user?.role as string)
   const [inquiryAction, setInquiryAction] = useState<{ type: 'edit' | 'share' | 'lost'; inq: InquiryData } | null>(null)
 
-  const canvasRef = useRef<HTMLCanvasElement>(null)
   // The detail panel is sized to match the building view so a long inquiry list can't stretch the page
   const wrapperRef = useRef<HTMLDivElement>(null)
   const [wrapperHeight, setWrapperHeight] = useState<number | null>(null)
@@ -228,9 +64,6 @@ export default function BuildingViewer({ projectId, view = '3d' }: { projectId: 
     window.addEventListener('keydown', onKey)
     return () => window.removeEventListener('keydown', onKey)
   }, [showFloorPlan])
-  useEffect(() => { setShowFloorPlan(false) }, [selectedUnit?.id])
-  // Map from unit id → canvas bounding polygon for hit testing
-  const unitPolygonsRef = useRef<Map<string, { pts: [number, number][]; unit: UnitData }>>(new Map())
 
   // ── Fetch data ──
   useEffect(() => {
@@ -239,6 +72,7 @@ export default function BuildingViewer({ projectId, view = '3d' }: { projectId: 
       .then((data) => {
         if (data.wings) setWings(data.wings)
         if (data.projectParkingCharge) setProjectParkingCharge(data.projectParkingCharge)
+        setRepeatMobiles(data.repeatMobiles ?? {})
         setLoading(false)
       })
       .catch((err) => {
@@ -247,210 +81,50 @@ export default function BuildingViewer({ projectId, view = '3d' }: { projectId: 
       })
   }, [projectId])
 
-  // ── Draw building ──
-  const draw = useCallback(() => {
-    const canvas = canvasRef.current
-    if (!canvas) return
-    const ctx = canvas.getContext('2d')
-    if (!ctx) return
-
-    const wing = wings[selectedWingIdx]
-    if (!wing) return
-
-    const dpr = window.devicePixelRatio || 1
-
-    // Clear
-    ctx.clearRect(0, 0, canvas.width, canvas.height)
-
-    // Scale all drawing by DPR so coordinates are in logical pixels
-    ctx.save()
-    ctx.scale(dpr, dpr)
-
-    const logicalW = canvas.width / dpr
-    const logicalH = canvas.height / dpr
-
-    const polygons = new Map<string, { pts: [number, number][]; unit: UnitData }>()
-
-    const visibleFloors = wing.floors.filter(floor => {
-      if (filterStatus === 'ALL' && filterType === 'ALL') return true
-      return floor.units.some(unit => {
-        const matchesStatus = statusMatches(filterStatus, unit.status)
-        const matchesType = filterType === 'ALL' || unit.configuration === filterType
-        return matchesStatus && matchesType
-      })
-    })
-
-    const maxUnitsPerFloor = Math.max(...visibleFloors.map((f) => f.units.length), 1)
-    const numFloors = visibleFloors.length
-
-    // Canvas origin — center horizontally, leave room at top
-    const originX = 90 + (logicalW - 90 - maxUnitsPerFloor * (TW + GAP)) / 2
-    const originY = 80 + numFloors * ((TH / 2 + TD + FLOOR_GAP))
-
-    // Draw floors bottom → top so higher floors render on top
-    const sortedFloors = [...visibleFloors].sort((a, b) => a.floorNumber - b.floorNumber)
-    const rowStep = TH / 2 + TD + FLOOR_GAP
-
-    // ── Pass 1: draw all tile geometry (no labels) ──
-    const labelQueue: { x: number; y: number; label: string; highlighted: boolean }[] = []
-
-    sortedFloors.forEach((floor, floorRowIdx) => {
-      const rowOffset = floorRowIdx * rowStep
-
-      floor.units.forEach((unit, colIdx) => {
-        const x = originX + colIdx * (TW + GAP)
-        const y = originY - rowOffset
-
-        const colors = getStatusColor(unit.status)
-        const isHovered = hoveredUnit?.unit.id === unit.id
-        const tileLabel = `${unit.unitNumber} ${unit.configuration}`
-        
-        const matchesStatus = statusMatches(filterStatus, unit.status)
-        const matchesType = filterType === 'ALL' || unit.configuration === filterType
-        const isMatched = matchesStatus && matchesType
-
-        ctx.globalAlpha = isMatched ? 1 : 0.15
-        drawTile(ctx, x, y, colors, isHovered && isMatched)
-        ctx.globalAlpha = 1
-
-        // Queue label for second pass
-        labelQueue.push({ x, y, label: tileLabel, highlighted: isHovered })
-
-        // Store hit polygon
-        const hw = TW / 2
-        const qh = TH / 2
-        polygons.set(unit.id, {
-          pts: [
-            [x,      y - qh],
-            [x + TW, y - qh + TH],
-            [x + TW, y + TD],
-            [x + hw, y + qh + TD],
-            [x,      y + TD],
-          ],
-          unit,
-        })
-      })
-
-      // Floor label on the left side (also queued implicitly — draw immediately since it's outside tile area)
-      if (floor.units.length > 0) {
-        const lx = originX - 14
-        const ly = originY - rowOffset
-        ctx.save()
-        ctx.font = '700 11px Inter, sans-serif'
-        ctx.fillStyle = '#a1a1aa'
-        ctx.textAlign = 'right'
-        ctx.textBaseline = 'middle'
-        ctx.fillText(`F${floor.floorNumber}`, lx, ly + TH / 4 + TD / 2)
-        ctx.restore()
-      }
-    })
-
-    // ── Pass 2: draw all unit labels on top of every tile face ──
-    labelQueue.forEach(({ x, y, label, highlighted }) => {
-      drawLabel(ctx, x, y, label, highlighted)
-    })
-
-    ctx.restore() // remove DPR scale
-    unitPolygonsRef.current = polygons
-  }, [wings, selectedWingIdx, hoveredUnit, filterStatus, filterType])
-
-  useEffect(() => { draw() }, [draw])
-
-  // ── Resize canvas with DPR for crispness ──
+  // Inquiries of the selected unit
+  const loadInquiries = async (unitId: string) => {
+    try {
+      const res = await fetch(`/api/units/${unitId}/inquiries`)
+      const json = await res.json()
+      setInquiryState({ unitId, items: res.ok ? json.inquiries : [] })
+    } catch {
+      setInquiryState({ unitId, items: [] })
+    }
+  }
   useEffect(() => {
-    const canvas = canvasRef.current
-    if (!canvas) return
-    const wing = wings[selectedWingIdx]
-    if (!wing) return
+    const id = selectedUnit?.id
+    if (!id) return
+    let cancelled = false
+    fetch(`/api/units/${id}/inquiries`)
+      .then(async (res) => ({ ok: res.ok, json: await res.json() }))
+      .then(({ ok, json }) => { if (!cancelled) setInquiryState({ unitId: id, items: ok ? json.inquiries : [] }) })
+      .catch(() => { if (!cancelled) setInquiryState({ unitId: id, items: [] }) })
+    return () => { cancelled = true }
+  }, [selectedUnit?.id])
+  const unitInquiries = inquiryState && inquiryState.unitId === selectedUnit?.id ? inquiryState.items : null
 
-    const visibleFloors = wing.floors.filter(floor => {
-      if (filterStatus === 'ALL' && filterType === 'ALL') return true
-      return floor.units.some(unit => {
-        const matchesStatus = statusMatches(filterStatus, unit.status)
-        const matchesType = filterType === 'ALL' || unit.configuration === filterType
-        return matchesStatus && matchesType
-      })
-    })
+  // Repeat-customer warning in the quote form: look the number up once it is complete
+  useEffect(() => {
+    if (!showQuoteForm || quoteData.mobileNumber.length !== 10) return
+    const mobile = quoteData.mobileNumber
+    const t = setTimeout(async () => {
+      try {
+        const res = await fetch(`/api/projects/${projectId}/inquiries/lookup?mobile=${mobile}`)
+        const json = await res.json()
+        setMatchState({ mobile, items: json.matches ?? [] })
+      } catch {
+        setMatchState({ mobile, items: [] })
+      }
+    }, 250)
+    return () => clearTimeout(t)
+  }, [showQuoteForm, quoteData.mobileNumber, projectId])
+  const repeatMatches = showQuoteForm && matchState.mobile === quoteData.mobileNumber ? matchState.items : []
 
-    const dpr = window.devicePixelRatio || 1
-    const maxUnits = Math.max(...visibleFloors.map((f) => f.units.length), 4)
-    const numFloors = visibleFloors.length
-    const rowStep = TH / 2 + TD + FLOOR_GAP
-
-    // Logical (CSS) size
-    const logicalW = Math.max(700, maxUnits * (TW + GAP) + 200)
-    const logicalH = Math.max(400, numFloors * rowStep + 200)
-
-    // Physical (buffer) size = logical × DPR
-    canvas.width  = logicalW * dpr
-    canvas.height = logicalH * dpr
-
-    // CSS size stays at logical pixels — no stretching
-    canvas.style.width  = `${logicalW}px`
-    canvas.style.height = `${logicalH}px`
-
-    draw()
-  }, [wings, selectedWingIdx, draw, filterStatus, filterType, view])
-
-  // ── Point-in-polygon hit test ──
-  function pointInPolygon(px: number, py: number, pts: [number, number][]) {
-    let inside = false
-    for (let i = 0, j = pts.length - 1; i < pts.length; j = i++) {
-      const [xi, yi] = pts[i]
-      const [xj, yj] = pts[j]
-      const intersect = yi > py !== yj > py && px < ((xj - xi) * (py - yi)) / (yj - yi) + xi
-      if (intersect) inside = !inside
-    }
-    return inside
-  }
-
-  function getUnitAtPoint(px: number, py: number): UnitData | null {
-    // Iterate in reverse so topmost drawn tile wins
-    const entries = [...unitPolygonsRef.current.entries()].reverse()
-    for (const [, { pts, unit }] of entries) {
-      if (pointInPolygon(px, py, pts)) return unit
-    }
-    return null
-  }
-
-  // ── Mouse events ──
-  function handleMouseMove(e: React.MouseEvent<HTMLCanvasElement>) {
-    const canvas = canvasRef.current!
-    const rect = canvas.getBoundingClientRect()
-    // Scale CSS pixels → logical canvas pixels
-    const scaleX = (canvas.width / (window.devicePixelRatio || 1)) / rect.width
-    const scaleY = (canvas.height / (window.devicePixelRatio || 1)) / rect.height
-    const px = (e.clientX - rect.left) * scaleX
-    const py = (e.clientY - rect.top)  * scaleY
-    const unit = getUnitAtPoint(px, py)
-    if (unit) {
-      setHoveredUnit({ unit, x: e.clientX, y: e.clientY })
-      canvas.style.cursor = 'pointer'
-    } else {
-      setHoveredUnit(null)
-      canvas.style.cursor = 'default'
-    }
-  }
-
-  function handleMouseLeave() {
-    setHoveredUnit(null)
-    if (canvasRef.current) canvasRef.current.style.cursor = 'default'
-  }
-
-  function handleClick(e: React.MouseEvent<HTMLCanvasElement>) {
-    const canvas = canvasRef.current!
-    const rect = canvas.getBoundingClientRect()
-    const scaleX = (canvas.width / (window.devicePixelRatio || 1)) / rect.width
-    const scaleY = (canvas.height / (window.devicePixelRatio || 1)) / rect.height
-    const px = (e.clientX - rect.left) * scaleX
-    const py = (e.clientY - rect.top)  * scaleY
-    const unit = getUnitAtPoint(px, py)
-    if (unit) selectUnit(unit)
-  }
 
   // Used by both the 3D canvas and the table, so the unit panel behaves identically
   function selectUnit(unit: UnitData) {
     setSelectedUnit(unit)
+    setShowFloorPlan(false)
     setShowQuoteForm(false) // reset form on new unit click
     const defaultRate = 12000
     setQuoteData({ customerName: '', mobileNumber: '', email: '', source: '', sourceDetail: '', validityDays: '7', agreementValue: String(unit.carpetAreaSqft * defaultRate), rate: String(defaultRate), parkingIncluded: false })
@@ -462,9 +136,11 @@ export default function BuildingViewer({ projectId, view = '3d' }: { projectId: 
     const d = await dataRes.json()
     if (!d.wings) return
     setWings(d.wings)
+    setRepeatMobiles(d.repeatMobiles ?? {})
     if (selectedUnit) {
       const fresh = d.wings.flatMap((w: any) => w.floors.flatMap((f: any) => f.units)).find((u: any) => u.id === selectedUnit.id)
       if (fresh) setSelectedUnit(fresh)
+      await loadInquiries(selectedUnit.id)
     }
   }
 
@@ -509,14 +185,7 @@ export default function BuildingViewer({ projectId, view = '3d' }: { projectId: 
   }
 
   // ── Render ──
-  if (loading) {
-    return (
-      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: 300, color: 'var(--text-muted)' }}>
-        <span className="animate-spin" style={{ marginRight: 10, fontSize: '1.25rem' }}>⟳</span>
-        Loading building data…
-      </div>
-    )
-  }
+  if (loading) return <BuildingSkeleton />
 
   if (error) {
     return (
@@ -537,15 +206,14 @@ export default function BuildingViewer({ projectId, view = '3d' }: { projectId: 
   }
 
   const activeWing = wings[selectedWingIdx]
+  // A type filter chosen in one wing may not exist in another (e.g. "Shop" in the commercial block): treat it as All Types
+  const typesInWing = new Set(activeWing.floors.flatMap((f) => f.units.map((u) => u.configuration)))
+  const filterType = view === '3d' && typeFilter !== 'ALL' && !typesInWing.has(typeFilter) ? 'ALL' : typeFilter
   // A single-wing project doesn't need wing tabs or wing labels
   const singleWing = wings.length === 1
 
-  // Every inquiry in the project, used to spot repeat customers by mobile number
-  const allInquiries = wings.flatMap((w) =>
-    w.floors.flatMap((f) => f.units.flatMap((u) => u.inquiries.map((q) => ({ ...q, unitNumber: u.unitNumber })))),
-  )
-
-  const repeatCount = (mobile: string) => allInquiries.filter((q) => q.mobileNumber === mobile).length
+  // How many inquiries this number has in the project (from the building-view summary)
+  const repeatCount = (mobile: string) => repeatMobiles[mobile] ?? 1
 
   const renderInquiry = (unit: UnitData, inq: InquiryData) => {
     const expired = inq.status === 'OPEN' && !!inq.validUntil && new Date(inq.validUntil) < new Date()
@@ -590,7 +258,7 @@ export default function BuildingViewer({ projectId, view = '3d' }: { projectId: 
             >
               ✓ Converted
             </Link>
-          ) : inq.status === 'OPEN' && !unit.saleId ? (
+          ) : inq.status === 'OPEN' && !unit.saleId && isUnsold(unit.status) ? (
             <Link
               href={`/sales/new?inquiryId=${inq.id}`}
               className="btn btn-primary"
@@ -662,7 +330,7 @@ export default function BuildingViewer({ projectId, view = '3d' }: { projectId: 
             <tbody>
               {tableRows.map(({ unit, wingName, floorNumber }) => {
                 const selected = selectedUnit?.id === unit.id
-                const openInquiries = unit.inquiries.filter((q) => q.status === 'OPEN').length
+                const openInquiries = unit.openInquiries
                 return (
                   <tr
                     key={unit.id}
@@ -673,13 +341,13 @@ export default function BuildingViewer({ projectId, view = '3d' }: { projectId: 
                     className="hover-row"
                   >
                     <td style={{ fontWeight: 600 }}>{unit.unitNumber}</td>
-                    {wings.length > 1 && <td>{wingName}</td>}
+                    {wings.length > 1 && <td>{wingName === 'Commercial' ? 'Commercial' : wingName}</td>}
                     <td>{floorNumber}</td>
                     <td>{unit.configuration}</td>
                     <td>{unit.carpetAreaSqft} sqft</td>
                     <td><span className={`badge ${unitStatusBadge(unit.status)}`}>{unitStatusLabel(unit.status)}</span></td>
                     <td style={{ color: 'var(--text-secondary)' }}>
-                      {unit.buyerName ?? (unit.inquiries.length > 0 ? `${unit.inquiries.length} inquir${unit.inquiries.length === 1 ? 'y' : 'ies'}${openInquiries ? ` (${openInquiries} open)` : ''}` : '—')}
+                      {unit.buyerName ?? (unit.inquiryCount > 0 ? `${unit.inquiryCount} inquir${unit.inquiryCount === 1 ? 'y' : 'ies'}${openInquiries ? ` (${openInquiries} open)` : ''}` : '—')}
                     </td>
                     <td>{unit.saleNumber ? <span className="badge badge-info">{unit.saleNumber}</span> : <span className="text-muted">—</span>}</td>
                   </tr>
@@ -694,7 +362,7 @@ export default function BuildingViewer({ projectId, view = '3d' }: { projectId: 
   )
 
   const availableTypes = activeWing 
-    ? Array.from(new Set(activeWing.floors.flatMap(f => f.units.map(u => u.configuration)))).filter(Boolean).sort()
+    ? Array.from(new Set(activeWing.floors.flatMap(f => f.units.filter(u => isSaleable(u.status)).map(u => u.configuration)))).filter(Boolean).sort()
     : []
 
   return (
@@ -705,11 +373,11 @@ export default function BuildingViewer({ projectId, view = '3d' }: { projectId: 
         {wings.map((wing, idx) => (
           <button
             key={wing.id}
-            onClick={() => { setSelectedWingIdx(idx); setSelectedUnit(null); setHoveredUnit(null) }}
+            onClick={() => { setSelectedWingIdx(idx); setSelectedUnit(null); setFilterType('ALL') }}
             className={`btn ${idx === selectedWingIdx ? 'btn-primary' : 'btn-secondary'}`}
             style={{ minWidth: 80 }}
           >
-            Wing {wing.name}
+            {wingLabel(wing.name)}
           </button>
         ))}
         </div>}
@@ -761,7 +429,7 @@ export default function BuildingViewer({ projectId, view = '3d' }: { projectId: 
             >
               Unsold only
             </button>
-            {Object.keys(STATUS_COLOR).filter(status => status !== 'AVAILABLE').map(status => (
+            {Object.keys(STATUS_COLOR).filter(status => status !== 'AVAILABLE' && status !== 'NOT_FOR_SALE').map(status => (
               <button 
                 key={status}
                 onClick={() => setFilterStatus(status)}
@@ -783,49 +451,19 @@ export default function BuildingViewer({ projectId, view = '3d' }: { projectId: 
 
       {/* Canvas + Panel layout */}
       <div style={{ display: 'flex', gap: 20, alignItems: 'flex-start' }}>
-        {/* Canvas wrapper (3D) or table */}
+        {/* Building (3D) or table */}
         {view === 'table' ? tableView : (
-        <div
-          ref={wrapperRef}
-          style={{
-            flex: 1,
-            background: 'radial-gradient(ellipse at 50% 20%, #0f172a 0%, #09090b 70%)',
-            borderRadius: 'var(--radius-lg)',
-            border: '1px solid var(--border-color)',
-            overflow: 'auto',
-            position: 'relative',
-            minHeight: 500,
-          }}
-        >
-          {/* Wing header */}
-          <div style={{ padding: '14px 20px', borderBottom: '1px solid var(--border-color)', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-            <span style={{ fontWeight: 700, fontSize: '1rem', letterSpacing: '-0.01em' }}>{singleWing ? 'Building' : `Wing ${activeWing.name}`}</span>
-            <span style={{ fontSize: '0.8125rem', color: 'var(--text-muted)' }}>
-              {activeWing.totalFloors} floors · {activeWing.floors.reduce((s, f) => s + f.units.length, 0)} units
-            </span>
-          </div>
-
-          <canvas
-            ref={canvasRef}
-            onMouseMove={handleMouseMove}
-            onMouseLeave={handleMouseLeave}
-            onClick={handleClick}
-            style={{ display: 'block', maxWidth: '100%' }}
+          <BuildingCanvas
+            key={activeWing.id}
+            outerRef={wrapperRef}
+            wing={activeWing}
+            title={singleWing ? 'Building' : wingLabel(activeWing.name)}
+            filterStatus={filterStatus}
+            filterType={filterType}
+            selectedUnitId={selectedUnit?.id ?? null}
+            onSelect={selectUnit}
+            onClearFilters={() => { setFilterStatus('ALL'); setFilterType('ALL') }}
           />
-
-          {/* Legend */}
-          <div style={{ padding: '12px 20px', borderTop: '1px solid var(--border-color)', display: 'flex', gap: 16, flexWrap: 'wrap' }}>
-            {UNIT_COLOR_LEGEND.map((group) => {
-              const colors = STATUS_COLOR[group.statuses[0]]
-              return (
-                <div key={group.label} style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-                  <div style={{ width: 14, height: 14, borderRadius: 3, background: colors.top, border: `1.5px solid ${colors.stroke}`, flexShrink: 0 }} />
-                  <span style={{ fontSize: '0.8rem', color: 'var(--text-secondary)' }}>{group.label}</span>
-                </div>
-              )
-            })}
-          </div>
-        </div>
         )}
 
         {/* Unit detail panel */}
@@ -859,7 +497,7 @@ export default function BuildingViewer({ projectId, view = '3d' }: { projectId: 
                 <div style={{ fontWeight: 700, fontSize: '1.125rem', color: getStatusColor(selectedUnit.status).top }}>
                   {selectedUnit.unitNumber}
                 </div>
-                {!singleWing && <div style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>Wing {activeWing.name}</div>}
+                {!singleWing && <div style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>{wingLabel(activeWing.name)}</div>}
               </div>
               <button
                 onClick={() => setSelectedUnit(null)}
@@ -980,7 +618,7 @@ export default function BuildingViewer({ projectId, view = '3d' }: { projectId: 
                     View Sale →
                   </Link>
                 </div>
-              ) : (
+              ) : isUnsold(selectedUnit.status) ? (
                 <div style={{ marginTop: 4 }}>
                   <button
                     className="btn btn-primary"
@@ -990,14 +628,25 @@ export default function BuildingViewer({ projectId, view = '3d' }: { projectId: 
                     + Create Quote
                   </button>
                 </div>
+              ) : (
+                <div style={{ marginTop: 4, padding: 12, borderRadius: 'var(--radius-md)', background: 'var(--bg-surface)', fontSize: '0.8125rem', color: 'var(--text-secondary)' }}>
+                  {selectedUnit.status === 'NOT_FOR_SALE' ? (
+                    <>This is a <strong>common area</strong> ({selectedUnit.configuration}), not for sale, so quotes and sales are not available. Change it back to a flat in Building Setup if that&apos;s wrong.</>
+                  ) : (
+                    <>Marked as <strong>{unitStatusLabel(selectedUnit.status)}</strong> with no sale record (sold before this system was used), so quotes and sales are not available for this unit. Change its status in Building Setup if that&apos;s wrong.</>
+                  )}
+                </div>
               )}
 
               {/* Past Inquiries List */}
-              {selectedUnit.inquiries && selectedUnit.inquiries.length > 0 && (
+              {selectedUnit.inquiryCount > 0 && unitInquiries === null && (
+                <div style={{ marginTop: 8, fontSize: '0.8125rem', color: 'var(--text-muted)' }}>Loading inquiries…</div>
+              )}
+              {unitInquiries && unitInquiries.length > 0 && (
                 <div style={{ marginTop: 8, flex: '1 0 200px', minHeight: 0, display: 'flex', flexDirection: 'column' }}>
                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
                     <span style={{ fontSize: '0.75rem', fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
-                      Past Inquiries ({selectedUnit.inquiries.length})
+                      Past Inquiries ({unitInquiries?.length ?? 0})
                     </span>
                     <button
                       type="button"
@@ -1008,7 +657,7 @@ export default function BuildingViewer({ projectId, view = '3d' }: { projectId: 
                     </button>
                   </div>
                   <div style={{ display: 'flex', flexDirection: 'column', gap: 8, flex: 1, minHeight: 0, overflowY: 'auto' }}>
-                    {selectedUnit.inquiries.map(inq => renderInquiry(selectedUnit, inq))}
+                    {unitInquiries?.map(inq => renderInquiry(selectedUnit, inq))}
                   </div>
                 </div>
               )}
@@ -1016,38 +665,6 @@ export default function BuildingViewer({ projectId, view = '3d' }: { projectId: 
           </div>
         )}
       </div>
-
-      {/* Hover tooltip */}
-      {hoveredUnit && !selectedUnit && (
-        <div
-          style={{
-            position: 'fixed',
-            left: hoveredUnit.x + 14,
-            top: hoveredUnit.y - 10,
-            background: 'var(--bg-card)',
-            border: `1px solid ${getStatusColor(hoveredUnit.unit.status).stroke}`,
-            borderRadius: 'var(--radius-md)',
-            padding: '8px 12px',
-            fontSize: '0.8125rem',
-            color: 'var(--text-primary)',
-            pointerEvents: 'none',
-            zIndex: 200,
-            boxShadow: 'var(--shadow-md)',
-            maxWidth: 220,
-          }}
-        >
-          <div style={{ fontWeight: 700, color: getStatusColor(hoveredUnit.unit.status).top, marginBottom: 2 }}>
-            {hoveredUnit.unit.unitNumber}
-          </div>
-          <div style={{ color: 'var(--text-secondary)', fontSize: '0.75rem' }}>
-            {hoveredUnit.unit.configuration} · {hoveredUnit.unit.carpetAreaSqft} sqft
-          </div>
-          <div style={{ color: 'var(--text-muted)', fontSize: '0.75rem', marginTop: 2 }}>
-            {hoveredUnit.unit.buyerName ? `👤 ${hoveredUnit.unit.buyerName}` : getStatusColor(hoveredUnit.unit.status).label}
-          </div>
-          <div style={{ fontSize: '0.7rem', color: 'var(--text-disabled)', marginTop: 4 }}>Click to view details</div>
-        </div>
-      )}
 
       {/* ── Enlarged floor plan ── */}
       {showFloorPlan && selectedUnit && (
@@ -1089,12 +706,12 @@ export default function BuildingViewer({ projectId, view = '3d' }: { projectId: 
           <div style={{ position: 'relative', background: 'var(--bg-card)', width: '100%', maxWidth: 480, maxHeight: '85vh', display: 'flex', flexDirection: 'column', borderRadius: 12, boxShadow: 'var(--shadow-xl)', border: '1px solid var(--border-color)', overflow: 'hidden' }}>
             <div style={{ padding: '16px 20px', borderBottom: '1px solid var(--border-color)', display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: 'var(--bg-surface)' }}>
               <h3 style={{ fontSize: '1.125rem', fontWeight: 600, margin: 0, color: 'var(--text-primary)' }}>
-                Inquiries — {selectedUnit.unitNumber} ({selectedUnit.inquiries.length})
+                Inquiries — {selectedUnit.unitNumber} ({unitInquiries?.length ?? 0})
               </h3>
               <button type="button" onClick={() => setShowAllInquiries(false)} style={{ background: 'var(--bg-card)', border: '1px solid var(--border-color)', borderRadius: '50%', width: 32, height: 32, color: 'var(--text-muted)', fontSize: '1.2rem', cursor: 'pointer' }}>×</button>
             </div>
             <div style={{ padding: 16, overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: 8 }}>
-              {selectedUnit.inquiries.map(inq => renderInquiry(selectedUnit, inq))}
+              {unitInquiries?.map(inq => renderInquiry(selectedUnit, inq))}
             </div>
           </div>
         </div>
@@ -1110,7 +727,7 @@ export default function BuildingViewer({ projectId, view = '3d' }: { projectId: 
         handleGenerateQuote={handleGenerateQuote}
         isSubmittingQuote={isSubmittingQuote}
         projectParkingCharge={projectParkingCharge}
-        existingInquiries={allInquiries}
+        existingInquiries={repeatMatches}
       />
 
       {/* ── Inquiry action modals ── */}
