@@ -178,7 +178,7 @@ Only these files go on the customer's box — never this git repo, never source 
 - [docker-compose.yml](docker-compose.yml)
 - [.env.onprem.example](.env.onprem.example) (copied to `.env` and filled in)
 - [cloudflared/config.yml](cloudflared/config.yml) (filled in) and the `<TUNNEL_ID>.json` credentials file from your Cloudflare tunnel setup
-- [update.sh](update.sh), next to `docker-compose.yml` — the updater. Its Windows launcher [Update-NeevCMS.bat](Update-NeevCMS.bat) goes on the Windows side instead (Desktop or `C:\NeevCMS\`; edit its `DISTRO` and `APPDIR` lines first).
+- [update.sh](update.sh), next to `docker-compose.yml` — the updater. Its Windows launcher [Update-NeevCMS.bat](Update-NeevCMS.bat) goes on the Windows side instead (Desktop or `C:\NeevCMS\`; edit its `DISTRO` and `APPDIR` lines first). The exact steps, including how to find the right folder, are in [README.md](README.md#updating-a-customers-server-one-click) — the launcher only starts `update.sh`, so the script must already be inside WSL.
 
 Put them inside the **Linux filesystem**, not under `/mnt/c/...` — cross-filesystem access from WSL2 to Windows drives is noticeably slower and has occasional file-permission/inotify quirks; keep it native.
 
