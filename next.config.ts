@@ -10,7 +10,8 @@ const buildSha = (): string => {
   if (process.env.BUILD_SHA) return process.env.BUILD_SHA.trim().slice(0, 7)
   try {
     const run = (cmd: string) => execSync(cmd, { stdio: ['ignore', 'pipe', 'ignore'] }).toString().trim()
-    return run('git rev-parse --short HEAD') + (run('git status --porcelain --untracked-files=no') // untracked files (notes, decks) don't make a build "modified" ? '+' : '')
+    // Untracked files (notes, slide decks) don't make a build "modified", only changes to tracked files do
+    return run('git rev-parse --short HEAD') + (run('git status --porcelain --untracked-files=no') ? '+' : '')
   } catch {
     return ''
   }
