@@ -178,6 +178,7 @@ Only these files go on the customer's box — never this git repo, never source 
 - [docker-compose.yml](docker-compose.yml)
 - [.env.onprem.example](.env.onprem.example) (copied to `.env` and filled in)
 - [cloudflared/config.yml](cloudflared/config.yml) (filled in) and the `<TUNNEL_ID>.json` credentials file from your Cloudflare tunnel setup
+- [update.sh](update.sh), next to `docker-compose.yml` — the updater. Its Windows launcher [Update-NeevCMS.bat](Update-NeevCMS.bat) goes on the Windows side instead (Desktop or `C:\NeevCMS\`; edit its `DISTRO` and `APPDIR` lines first).
 
 Put them inside the **Linux filesystem**, not under `/mnt/c/...` — cross-filesystem access from WSL2 to Windows drives is noticeably slower and has occasional file-permission/inotify quirks; keep it native.
 
@@ -208,8 +209,11 @@ docker login ghcr.io -u <your-github-username>
 
 docker compose pull
 docker compose up -d
-docker compose exec web npx prisma migrate deploy
+docker compose exec web npx prisma db push
+docker compose exec web npx prisma db seed   # first install only; change the default passwords straight away
 ```
+
+The project has no migration history, so the tables are created with `db push`. `migrate deploy` would find nothing to apply and leave the database empty.
 
 ---
 
@@ -326,6 +330,6 @@ wevtutil sl Microsoft-Windows-TaskScheduler/Operational /ms:67108864
 ## Day-2 operations
 
 - **Logs**: `docker compose logs -f web`, run from `~/neev-cms` inside the Ubuntu shell.
-- **Updating**: tag and push a new release from your machine (`git tag vX.Y.Z && git push origin vX.Y.Z`), then on the server (inside the Ubuntu shell, from `~/neev-cms`): edit `IMAGE_TAG` in `.env`, `docker compose pull && docker compose up -d`.
+- **Updating**: tag and push a new release from your machine (`git tag vX.Y.Z && git push origin vX.Y.Z`) and wait for the "Release on-prem image" GitHub Action to go green. Then the customer double-clicks `Update-NeevCMS.bat` and types that tag — it downloads the image, backs up the database, applies schema changes, switches the app over and rolls back on its own if the new version doesn't come up. Setup and limits are in [README.md](README.md#updating-a-customers-server-one-click). You can also run it by hand from `~/neev-cms` in the Ubuntu shell: `bash update.sh vX.Y.Z`.
 - **Remote access without physically touching the Windows box**: RDP, or enable the OpenSSH Server Windows feature and SSH in, then `wsl -d <distro-name>` from there.
 - **Scheduled task account password rotated?** See Troubleshooting item 6 above — it breaks silently until the next reboot.

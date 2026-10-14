@@ -11,6 +11,7 @@ Companion files for [DEPLOYMENT_ONPREM.md](../../DEPLOYMENT_ONPREM.md). Run thes
 - `cloudflared/config.yml` — tunnel routing config template; needs a real tunnel ID and credentials file (see below).
 - [../../.github/workflows/release-onprem.yml](../../.github/workflows/release-onprem.yml) — builds, pushes, and signs the image customers pull, triggered by pushing a `v*.*.*` git tag.
 - `docker-compose.override.yml.example` — for testing on the host machine only, before touching Cloudflare Tunnel/DNS at all. Copy to `docker-compose.override.yml` (Compose merges it automatically) to expose the app at `http://localhost:8080` on the host only, then delete it again before going live.
+- `update.sh` + `Update-NeevCMS.bat` — the one-click updater for a customer's server; see "Updating a customer's server" below.
 
 ## Test locally before wiring up internet access
 
@@ -19,7 +20,8 @@ Confirm the stack actually works before spending any time on Cloudflare/DNS:
 ```bash
 cp docker-compose.override.yml.example docker-compose.override.yml
 docker compose up -d
-docker compose exec web npx prisma migrate deploy
+docker compose exec web npx prisma db push
+docker compose exec web npx prisma db seed   # starter logins; the default password is in prisma/seed.ts
 # open http://localhost:8080 in a browser on the host machine
 rm docker-compose.override.yml   # remove before going live — no ports should be published in production
 ```
@@ -74,11 +76,51 @@ docker login ghcr.io -u <your-github-username>
 docker compose pull
 docker compose up -d
 
-# 9) Apply the schema
-docker compose exec web npx prisma migrate deploy
+# 9) Create the database tables. This project has no migration history, so it
+#    is `db push` (what update.sh uses too), not `migrate deploy` — that finds
+#    nothing to apply and leaves the database empty.
+docker compose exec web npx prisma db push
+#    First install only: create the starter logins, then change their
+#    passwords straight away — the default is in the public repo (prisma/seed.ts).
+docker compose exec web npx prisma db seed
 ```
 
 Verify `https://<customer-slug>.<your-domain>/api/health` responds before considering the deployment live.
+
+## Updating a customer's server (one click)
+
+Two small files do this, and neither contains anything secret:
+
+- `update.sh` — goes in the same WSL folder as `docker-compose.yml` and `.env` (for example `~/neev-cms`).
+- `Update-NeevCMS.bat` — goes on the Windows side (Desktop, or `C:\NeevCMS\`; make a shortcut called "Update Neev CMS"). Open it in Notepad once and set `DISTRO` (the name from `wsl -l -v`) and `APPDIR`.
+
+The customer double-clicks the `.bat`, types the release tag you gave them (for example `v1.2.0`), confirms, and waits a few minutes. The script:
+
+1. checks Docker, `.env` and that the database container is running;
+2. asks for the tag, and refuses a downgrade unless they type `DOWNGRADE`;
+3. **downloads the new image first** — if that fails (wrong tag, registry login, network) nothing running is touched;
+4. backs up the database to `backups/` (gzipped SQL; the last 10 are kept);
+5. applies database changes with `prisma db push`, run from the **new** image, and never with `--accept-data-loss` — if a change could delete data it stops here, before the app is touched;
+6. switches only the `web` container to the new tag and records it in `.env`;
+7. waits for the health check and **rolls back to the previous tag automatically** if the new version doesn't come up;
+8. prints the license status, checks the public URL, and removes old images.
+
+Every run writes a log to `update-logs/` that the customer can send you. The app is unavailable for about a minute during step 6.
+
+**What it deliberately does not do**
+- It doesn't change `docker-compose.yml` or add settings to `.env`. If a release needs either, tell the customer separately (and send a new `update.sh` the same way). A missing required setting makes the new version fail its health check, so the script rolls back rather than leaving a broken app.
+- It doesn't update Postgres, MinIO or `cloudflared`.
+- It uses `db push` because the project has no migration history. If you adopt Prisma migrations, switch step 5 to `migrate deploy` — after baselining existing databases, or the first run on them will fail.
+
+**Before you rely on it:** run it once on the real server with the tag that's *already installed*. That's a safe dry run — it downloads (a no-op), backs up, checks the schema and health, and changes nothing — and it proves the registry login, the backup and the WSL hand-off work before a real release depends on them.
+
+**Restoring a backup** (vendor only, for example after a failed update that had already changed the database): stop the app, restore, start it again.
+
+```bash
+docker compose stop web
+gunzip -c backups/<file>.sql.gz | docker compose exec -T db sh -c 'psql -U "$POSTGRES_USER" "$POSTGRES_DB"'
+docker compose start web
+```
 
 ## ⚠ One-time: lock down the package's visibility
 

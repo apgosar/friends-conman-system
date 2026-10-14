@@ -1,0 +1,5 @@
+# update.sh runs inside Linux and must keep LF endings, even when checked out on
+# Windows where git would otherwise convert to CRLF and break it ("\r: command
+# not found"). The .bat file is the opposite: cmd.exe wants CRLF.
+*.sh  text eol=lf
+*.bat text eol=crlf

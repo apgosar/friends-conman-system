@@ -17,7 +17,7 @@ name: neev-cms
 #   docker login ghcr.io -u <github-username>   # once, or when rotating the token
 #   docker compose pull
 #   docker compose up -d
-#   docker compose exec web npx prisma migrate deploy
+#   docker compose exec web npx prisma db push   # no migration history exists, so not `migrate deploy`
 #
 # Usage (local testing — build from source instead):
 #   docker compose build

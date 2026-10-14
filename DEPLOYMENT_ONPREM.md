@@ -125,7 +125,7 @@ Not yet done: swapping `build:` for a pulled `image:` tag once the private regis
 
 - Sentry is already wired ([next.config.ts](next.config.ts), `sentry.*.config.ts`) — confirm `SENTRY_DSN`/org/project env vars are set per deployment so errors route to your dashboard, not the customer's.
 - Add uptime monitoring from your side (UptimeRobot hitting the public hostname, or a self-hosted Uptime Kuma you control) — don't rely on the customer to tell you it's down.
-- **Update channel stays yours**: you push new image tags to the private registry; a small pull/redeploy script (or a `watchtower` instance scoped only to your registry) applies updates. Keeping the update path in your hands also means the license-gate logic itself can be improved/patched over time without needing the customer to do anything.
+- **Update channel stays yours**: you push new image tags to the private registry, and the customer applies them with the one-click updater ([deploy/onprem/update.sh](deploy/onprem/update.sh) + `Update-NeevCMS.bat`, see [deploy/onprem/README.md](deploy/onprem/README.md#updating-a-customers-server-one-click)), which takes a pre-update database backup, applies schema changes and rolls back automatically if the new version doesn't become healthy. Keeping the update path in your hands also means the license-gate logic itself can be improved/patched over time without needing the customer to do anything.
 
 ---
 
@@ -150,7 +150,7 @@ The license-gating mechanism in §4 is what makes that agreement enforceable in 
 4. [ ] License issued for this customer (`scripts/license/issue-license.ts`, from your machine) — get `LICENSE_TOKEN`'s value before touching the server.
 5. [ ] `deploy/onprem/.env` (from `.env.onprem.example`, including `LICENSE_TOKEN` and `IMAGE_TAG`) placed on server by you; `docker login ghcr.io` once, then `docker compose pull && docker compose up -d`.
 6. [ ] `cloudflared` tunnel created, DNS routed, WAF/rate-limit rules configured on Cloudflare — see [deploy/onprem/README.md](deploy/onprem/README.md).
-7. [ ] `docker compose exec web npx prisma migrate deploy` run against the fresh Postgres container.
+7. [ ] `docker compose exec web npx prisma db push` run against the fresh Postgres container (the project has no migration history, so `migrate deploy` would do nothing).
 8. [ ] `minio-init` ran successfully (bucket created) — check `docker compose logs minio-init`.
 9. [ ] GHCR package visibility confirmed **Private** (one-time, after the first tag push — §1).
 10. [ ] Backups scheduled and one restore tested.
