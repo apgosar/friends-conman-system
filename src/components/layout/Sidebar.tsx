@@ -3,6 +3,7 @@
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 import { signOut, useSession } from 'next-auth/react'
+import { buildTitle, versionLabel } from '@/lib/version'
 
 const NAV_ITEMS = [
   {
@@ -126,6 +127,9 @@ export default function Sidebar() {
           <span className="nav-item-icon">↩</span>
           <span>Sign Out</span>
         </button>
+        <div title={buildTitle()} style={{ padding: '10px 1rem 4px', fontSize: '0.6875rem', color: '#6b7280', letterSpacing: '0.02em' }}>
+          {versionLabel()}
+        </div>
       </div>
     </aside>
     </>

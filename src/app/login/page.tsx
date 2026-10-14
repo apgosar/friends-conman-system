@@ -3,6 +3,7 @@
 import { useState, FormEvent } from 'react'
 import { signIn } from 'next-auth/react'
 import { useRouter } from 'next/navigation'
+import { buildTitle, versionLabel } from '@/lib/version'
 
 export default function LoginPage() {
   const router = useRouter()
@@ -90,6 +91,7 @@ export default function LoginPage() {
             ) : 'Sign In'}
           </button>
         </form>
+        <div title={buildTitle()} style={{ marginTop: 20, textAlign: 'center', fontSize: '0.75rem', color: 'var(--text-muted)' }}>{versionLabel()}</div>
       </div>
 
       <style jsx>{`

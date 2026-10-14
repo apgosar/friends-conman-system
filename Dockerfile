@@ -36,6 +36,9 @@ RUN npm ci
 FROM base AS builder
 WORKDIR /app
 ENV BUILDING=true
+# Shown in the app and in /api/health. Pass it with: docker build --build-arg BUILD_SHA=$(git rev-parse --short HEAD) ...
+ARG BUILD_SHA=""
+ENV BUILD_SHA=$BUILD_SHA
 COPY --from=deps /app/node_modules ./node_modules
 COPY . .
 # Generate Prisma Client

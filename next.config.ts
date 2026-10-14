@@ -1,7 +1,28 @@
 import type { NextConfig } from 'next'
+import { execSync } from 'node:child_process'
+import { readFileSync } from 'node:fs'
+import { join } from 'node:path'
+
+// Which build is this? Shown in the app and returned by /api/health, so you can tell what is running.
+const appVersion: string = JSON.parse(readFileSync(join(process.cwd(), 'package.json'), 'utf8')).version
+const buildSha = (): string => {
+  // A Docker build has no .git, so the build can be given the commit: docker build --build-arg BUILD_SHA=<sha>
+  if (process.env.BUILD_SHA) return process.env.BUILD_SHA.trim().slice(0, 7)
+  try {
+    const run = (cmd: string) => execSync(cmd, { stdio: ['ignore', 'pipe', 'ignore'] }).toString().trim()
+    return run('git rev-parse --short HEAD') + (run('git status --porcelain') ? '+' : '')
+  } catch {
+    return ''
+  }
+}
 
 const nextConfig: NextConfig = {
   output: 'standalone',
+  env: {
+    NEXT_PUBLIC_APP_VERSION: appVersion,
+    NEXT_PUBLIC_BUILD_SHA: buildSha(),
+    NEXT_PUBLIC_BUILD_TIME: new Date().toISOString(),
+  },
   serverExternalPackages: ['tesseract.js'],
   async headers() {
     return [
