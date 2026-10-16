@@ -4,9 +4,28 @@ import { useMemo, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { MANUAL_UNIT_STATUSES, unitStatusBadge, unitStatusLabel } from '@/lib/status'
 import { CATEGORIES, COMMON_AREA_SUGGESTIONS, categoryLabel, wingLabel } from '@/lib/building-structure'
-import { Modal, StructureUnit, UnitTypeRow, WingRow, api, fmtNum, inputStyle, jsonInit, labelStyle } from './ui'
+import { BookerFields, Modal, StructureUnit, UnitTypeRow, WingRow, api, fmtNum, inputStyle, jsonInit, labelStyle } from './ui'
 
 const PAGE = 100
+const OTHER = '__other__'
+
+/** Pick what a common area is from the usual list, or choose Other and type it. (A plain select renders reliably; a datalist did not.) */
+function CommonAreaPicker({ value, onChange, autoFocus }: { value: string; onChange: (v: string) => void; autoFocus?: boolean }) {
+  const known = (COMMON_AREA_SUGGESTIONS as readonly string[]).includes(value)
+  const [other, setOther] = useState(!!value && !known)
+  return (
+    <>
+      <select required autoFocus={autoFocus} style={inputStyle} value={other ? OTHER : value} onChange={(e) => {
+        if (e.target.value === OTHER) { setOther(true); onChange('') } else { setOther(false); onChange(e.target.value) }
+      }}>
+        <option value="" disabled>Choose…</option>
+        {COMMON_AREA_SUGGESTIONS.map((s) => <option key={s} value={s}>{s}</option>)}
+        <option value={OTHER}>Other…</option>
+      </select>
+      {other && <input required autoFocus style={{ ...inputStyle, marginTop: 8 }} value={value} maxLength={30} placeholder="What is it?" onChange={(e) => onChange(e.target.value)} />}
+    </>
+  )
+}
 
 function EditUnit({ unit, types, onClose }: { unit: StructureUnit; types: UnitTypeRow[]; onClose: () => void }) {
   const router = useRouter()
@@ -18,6 +37,8 @@ function EditUnit({ unit, types, onClose }: { unit: StructureUnit; types: UnitTy
     builtupAreaSqft: unit.builtupAreaSqft ? String(unit.builtupAreaSqft) : '',
     basePricePerSqft: unit.basePricePerSqft ? String(unit.basePricePerSqft) : '',
     status: unit.status === 'INQUIRY_RECEIVED' ? 'AVAILABLE' : unit.status,
+    bookedByName: unit.bookedByName ?? '',
+    bookedByMobile: unit.bookedByMobile ?? '',
   })
   const originalStatus = unit.status === 'INQUIRY_RECEIVED' ? 'AVAILABLE' : unit.status
   // A flat can be turned into a common area (refuge area, society office...) and back
@@ -54,6 +75,7 @@ function EditUnit({ unit, types, onClose }: { unit: StructureUnit; types: UnitTy
         basePricePerSqft: f.basePricePerSqft ? Number(f.basePricePerSqft) : null,
         ...(kindChanged ? { kind } : {}),
         ...(!isCommon && !kindChanged && f.status !== originalStatus ? { status: f.status } : {}),
+        ...(!isCommon && !kindChanged && f.status === 'BOOKED' ? { bookedByName: f.bookedByName, bookedByMobile: f.bookedByMobile || null } : {}),
       }))
       router.refresh()
       onClose()
@@ -70,7 +92,12 @@ function EditUnit({ unit, types, onClose }: { unit: StructureUnit; types: UnitTy
         {canSwitchKind && (
           <div style={{ marginBottom: 12 }}>
             <label style={labelStyle}>Kind</label>
-            <select style={inputStyle} value={kind} onChange={(e) => { setKind(e.target.value as 'FLAT' | 'COMMON'); set('unitTypeId', '') }}>
+            <select style={inputStyle} value={kind} onChange={(e) => {
+              const next = e.target.value as 'FLAT' | 'COMMON'
+              setKind(next)
+              // what the unit is called belongs to its kind: start fresh when it changes, restore it when switching back
+              setF((p) => ({ ...p, unitTypeId: '', configuration: next === originalKind ? unit.configuration : '' }))
+            }}>
               <option value="FLAT">Flat (for sale)</option>
               <option value="COMMON">Common area (not for sale)</option>
             </select>
@@ -90,8 +117,9 @@ function EditUnit({ unit, types, onClose }: { unit: StructureUnit; types: UnitTy
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr 1fr', gap: 12, marginBottom: 12 }}>
           <div>
             <label style={labelStyle}>{isCommon ? 'What is it? *' : 'Configuration *'}</label>
-            <input required style={inputStyle} value={f.configuration} list={isCommon ? 'common-area-suggestions' : undefined} placeholder={isCommon ? 'Refuge Area' : undefined} onChange={(e) => set('configuration', e.target.value)} />
-            <datalist id="common-area-suggestions">{COMMON_AREA_SUGGESTIONS.map((s) => <option key={s} value={s} />)}</datalist>
+            {isCommon
+              ? <CommonAreaPicker value={f.configuration} onChange={(v) => set('configuration', v)} />
+              : <input required style={inputStyle} value={f.configuration} onChange={(e) => set('configuration', e.target.value)} />}
           </div>
           <div><label style={labelStyle}>Carpet (sqft) *</label><input required type="number" min="1" step="0.01" style={inputStyle} value={f.carpetAreaSqft} onChange={(e) => set('carpetAreaSqft', e.target.value)} /></div>
           <div><label style={labelStyle}>Built-up</label><input type="number" min="1" step="0.01" style={inputStyle} value={f.builtupAreaSqft} onChange={(e) => set('builtupAreaSqft', e.target.value)} /></div>
@@ -103,6 +131,7 @@ function EditUnit({ unit, types, onClose }: { unit: StructureUnit; types: UnitTy
             <select style={inputStyle} value={f.status} onChange={(e) => set('status', e.target.value)}>
               {MANUAL_UNIT_STATUSES.map((s) => <option key={s} value={s}>{unitStatusLabel(s)}</option>)}
             </select>
+            {f.status === 'BOOKED' && <div style={{ marginTop: 10 }}><BookerFields name={f.bookedByName} mobile={f.bookedByMobile} onName={(v) => set('bookedByName', v)} onMobile={(v) => set('bookedByMobile', v)} /></div>}
             <p style={{ margin: '6px 0 0', fontSize: '0.75rem', color: 'var(--text-muted)' }}>
               Leave it Available for units you will sell here. Choose another status only for a unit that was sold before you started using the system: it will have no sale record. “Inquiry Received” is set automatically from inquiries.
             </p>
@@ -156,8 +185,9 @@ function KindModal({ projectId, kind, unitIds, onClose, onDone }: {
     <Modal title={toCommon ? 'Mark as common area' : 'Change back to flats'} subtitle={`${unitIds.length} unit(s) selected`} onClose={onClose}>
       <form onSubmit={submit}>
         <label style={labelStyle}>{toCommon ? 'What is it? *' : 'Configuration *'}</label>
-        <input required autoFocus style={inputStyle} value={text} list={toCommon ? 'kind-suggestions' : undefined} placeholder={toCommon ? 'Refuge Area' : '2BHK'} onChange={(e) => setText(e.target.value)} />
-        <datalist id="kind-suggestions">{COMMON_AREA_SUGGESTIONS.map((s) => <option key={s} value={s} />)}</datalist>
+        {toCommon
+          ? <CommonAreaPicker autoFocus value={text} onChange={setText} />
+          : <input required autoFocus style={inputStyle} value={text} placeholder="2BHK" onChange={(e) => setText(e.target.value)} />}
         <p style={{ margin: '8px 0 14px', fontSize: '0.8125rem', color: 'var(--text-muted)' }}>
           {toCommon
             ? 'These units become part of the building but not for sale: they leave the available and sold counts and cannot be quoted or sold. Flats with a sale or inquiries are skipped.'
@@ -185,6 +215,8 @@ export default function UnitsTable({ projectId, units, wings, types }: { project
   const [bulkStatus, setBulkStatus] = useState<string>('BOOKED')
   const [bulkMessage, setBulkMessage] = useState('')
   const [kindModal, setKindModal] = useState<'COMMON' | 'FLAT' | null>(null)
+  const [bulkName, setBulkName] = useState('')
+  const [bulkMobile, setBulkMobile] = useState('')
 
   const rows = useMemo(() => {
     const q = query.trim().toLowerCase()
@@ -205,9 +237,11 @@ export default function UnitsTable({ projectId, units, wings, types }: { project
   const toggleOne = (id: string) => setSelected((s) => { const n = new Set(s); if (n.has(id)) n.delete(id); else n.add(id); return n })
   const applyBulk = () =>
     act(async () => {
-      const res = await api(`/api/projects/${projectId}/units/status`, jsonInit('POST', { unitIds: [...selected], status: bulkStatus }))
+      const res = await api(`/api/projects/${projectId}/units/status`, jsonInit('POST', { unitIds: [...selected], status: bulkStatus, ...(bulkStatus === 'BOOKED' ? { bookedByName: bulkName, bookedByMobile: bulkMobile || null } : {}) }))
       setBulkMessage(`Set ${res.updated} unit(s) to ${unitStatusLabel(bulkStatus)}.${res.skippedWithSale ? ` ${res.skippedWithSale} skipped because they have a sale.` : ''}`)
       setSelected(new Set())
+      setBulkName('')
+      setBulkMobile('')
     })
   const deleteUnit = (u: StructureUnit) =>
     window.confirm(`Delete unit ${u.unitNumber}? This cannot be undone.`) && act(() => api(`/api/units/${u.id}`, { method: 'DELETE' }))
@@ -256,7 +290,13 @@ export default function UnitsTable({ projectId, units, wings, types }: { project
               <select value={bulkStatus} onChange={(e) => setBulkStatus(e.target.value)} style={{ ...inputStyle, width: 'auto' }}>
                 {MANUAL_UNIT_STATUSES.map((s) => <option key={s} value={s}>{unitStatusLabel(s)}</option>)}
               </select>
-              <button className="btn btn-primary btn-sm" onClick={applyBulk}>Apply</button>
+              {bulkStatus === 'BOOKED' && (
+                <>
+                  <input aria-label="Booked by (name)" placeholder="Booked by (name) *" maxLength={100} value={bulkName} onChange={(e) => setBulkName(e.target.value)} style={{ ...inputStyle, width: 190 }} />
+                  <input aria-label="Mobile (optional)" placeholder="Mobile (optional)" inputMode="numeric" maxLength={14} value={bulkMobile} onChange={(e) => setBulkMobile(e.target.value)} style={{ ...inputStyle, width: 150 }} />
+                </>
+              )}
+              <button className="btn btn-primary btn-sm" disabled={bulkStatus === 'BOOKED' && !bulkName.trim()} onClick={applyBulk}>Apply</button>
               <span style={{ width: 1, alignSelf: 'stretch', background: 'var(--border-color)' }} />
               <span style={{ fontSize: '0.8125rem', color: 'var(--text-secondary)' }}>or mark as</span>
               <button className="btn btn-secondary btn-sm" onClick={() => setKindModal('COMMON')} title="Refuge area, society office, gym... (not for sale)">Common area…</button>
@@ -284,6 +324,7 @@ export default function UnitsTable({ projectId, units, wings, types }: { project
                       <td>{u.basePricePerSqft ? `₹${fmtNum(u.basePricePerSqft)}` : '—'}</td>
                       <td>
                         <span className={`badge ${unitStatusBadge(u.status)}`}>{unitStatusLabel(u.status)}</span>
+                        {u.status === 'BOOKED' && u.bookedByName && <span title={u.bookedByMobile ?? undefined} style={{ marginLeft: 6, fontSize: '0.75rem', color: 'var(--text-secondary)' }}>by {u.bookedByName}{u.bookedByMobile ? ` · ${u.bookedByMobile}` : ''}</span>}
                         {u.statusManual && <span title="Set by hand: this unit has no sale record" style={{ marginLeft: 6, fontSize: '0.7rem', color: 'var(--text-muted)' }}>manual</span>}
                       </td>
                       <td style={{ whiteSpace: 'nowrap' }}>

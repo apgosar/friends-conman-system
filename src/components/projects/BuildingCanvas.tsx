@@ -413,7 +413,7 @@ export default function BuildingCanvas({ wing, title, filterStatus, filterType, 
           <div style={{ fontWeight: 700, color: getStatusColor(hovered.unit.status).top, marginBottom: 2 }}>{hovered.unit.unitNumber}</div>
           <div style={{ color: 'var(--text-secondary)', fontSize: '0.75rem' }}>{hovered.unit.configuration} · {hovered.unit.carpetAreaSqft} sqft</div>
           <div style={{ color: 'var(--text-muted)', fontSize: '0.75rem', marginTop: 2 }}>
-            {hovered.unit.buyerName ? `👤 ${hovered.unit.buyerName}` : getStatusColor(hovered.unit.status).label}
+            {hovered.unit.buyerName || hovered.unit.bookedByName ? `👤 ${hovered.unit.buyerName ?? hovered.unit.bookedByName}` : getStatusColor(hovered.unit.status).label}
           </div>
           {hovered.unit.openInquiries > 0 && (
             <div style={{ color: '#2dd4bf', fontSize: '0.75rem', marginTop: 2 }}>{hovered.unit.openInquiries} open inquir{hovered.unit.openInquiries === 1 ? 'y' : 'ies'}{hovered.unit.quoteExpiring ? ' · quote expiring' : ''}</div>

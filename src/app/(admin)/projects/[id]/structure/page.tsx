@@ -51,7 +51,7 @@ export default async function ProjectStructurePage(props: PageProps<'/projects/[
       f.units.map((u) => ({
         id: u.id, category: u.category, unitNumber: u.unitNumber, wingId: w.id, wingName: w.name, floorNumber: f.floorNumber, unitTypeId: u.unitTypeId,
         typeName: u.unitType?.name ?? null, configuration: u.configuration, carpetAreaSqft: u.carpetAreaSqft, builtupAreaSqft: u.builtupAreaSqft,
-        basePricePerSqft: u.basePricePerSqft, status: u.status, statusManual: u.statusManual, hasSale: u._count.sales > 0, inquiryCount: u._count.inquiries,
+        basePricePerSqft: u.basePricePerSqft, status: u.status, statusManual: u.statusManual, bookedByName: u.bookedByName, bookedByMobile: u.bookedByMobile, hasSale: u._count.sales > 0, inquiryCount: u._count.inquiries,
       })),
     ),
   )

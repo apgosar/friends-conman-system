@@ -258,11 +258,11 @@ export default function StructureBuilder({ projectId, types, existingWings }: { 
         <div style={{ marginTop: 14, maxWidth: 320 }}>
           <label style={labelStyle}>Status of the new units</label>
           <select style={inputStyle} value={status} onChange={(e) => setStatus(e.target.value)}>
-            {MANUAL_UNIT_STATUSES.map((s) => <option key={s} value={s}>{unitStatusLabel(s)}</option>)}
+            {MANUAL_UNIT_STATUSES.filter((s) => s !== 'BOOKED').map((s) => <option key={s} value={s}>{unitStatusLabel(s)}</option>)}
           </select>
           <p style={{ margin: '6px 0 0', fontSize: '0.75rem', color: status === 'AVAILABLE' ? 'var(--text-muted)' : 'var(--color-warning, #d97706)' }}>
             {status === 'AVAILABLE'
-              ? 'Available is right for units you will sell in this app. You can change individual units, or many at once, afterwards.'
+              ? 'Available is right for units you will sell in this app. You can change individual units, or many at once, afterwards (marking a unit Booked asks who booked it).'
               : 'These units will show as ' + unitStatusLabel(status) + ' with no sale record: they were sold before you started using the system, so no payments or demands are tracked for them.'}
           </p>
         </div>

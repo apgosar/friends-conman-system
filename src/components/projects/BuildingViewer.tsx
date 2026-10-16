@@ -208,7 +208,7 @@ export default function BuildingViewer({ projectId, view = '3d' }: { projectId: 
   const activeWing = wings[selectedWingIdx]
   // A type filter chosen in one wing may not exist in another (e.g. "Shop" in the commercial block): treat it as All Types
   const typesInWing = new Set(activeWing.floors.flatMap((f) => f.units.map((u) => u.configuration)))
-  const filterType = view === '3d' && typeFilter !== 'ALL' && !typesInWing.has(typeFilter) ? 'ALL' : typeFilter
+  const filterType = typeFilter !== 'ALL' && !typesInWing.has(typeFilter) ? 'ALL' : typeFilter
   // A single-wing project doesn't need wing tabs or wing labels
   const singleWing = wings.length === 1
 
@@ -283,14 +283,14 @@ export default function BuildingViewer({ projectId, view = '3d' }: { projectId: 
   }
   
   // ── Table mode: every unit of every wing, filtered by the same status / type filters ──
-  const tableRows = wings
+  const tableRows = [activeWing]
     .flatMap((w) => w.floors.flatMap((f) => f.units.map((u) => ({ unit: u, wingName: w.name, floorNumber: f.floorNumber }))))
     .filter(({ unit, wingName }) => {
       const q = tableQuery.trim().toLowerCase()
       return (
         statusMatches(filterStatus, unit.status) &&
         (filterType === 'ALL' || unit.configuration === filterType) &&
-        (!q || [unit.unitNumber, wingName, unit.configuration, unit.saleNumber ?? '', unit.buyerName ?? ''].some((v) => v.toLowerCase().includes(q)))
+        (!q || [unit.unitNumber, wingName, unit.configuration, unit.saleNumber ?? '', unit.buyerName ?? '', unit.bookedByName ?? '', unit.bookedByMobile ?? ''].some((v) => v.toLowerCase().includes(q)))
       )
     })
     .sort((a, b) => a.wingName.localeCompare(b.wingName) || a.floorNumber - b.floorNumber || a.unit.unitNumber.localeCompare(b.unit.unitNumber, undefined, { numeric: true }))
@@ -306,13 +306,13 @@ export default function BuildingViewer({ projectId, view = '3d' }: { projectId: 
       <div style={{ padding: '12px 16px', borderBottom: '1px solid var(--border-color)', display: 'flex', gap: 12, alignItems: 'center', flexWrap: 'wrap' }}>
         <input
           type="search"
-          placeholder="Search unit, configuration, buyer or sale #"
+          placeholder="Search unit, configuration, buyer, booked by or sale #"
           value={tableQuery}
           onChange={(e) => setTableQuery(e.target.value)}
           style={{ flex: '1 1 220px', maxWidth: 360, padding: '8px 12px', borderRadius: 8, border: '1px solid var(--border-color)', background: 'var(--bg-surface)', color: 'var(--text-primary)', fontSize: '0.875rem' }}
         />
         <span style={{ fontSize: '0.8125rem', color: 'var(--text-muted)' }}>
-          {tableRows.length} units · click a row for floor plan, quotes and inquiries
+          {tableRows.filter((r) => isSaleable(r.unit.status)).length} units{tableRows.some((r) => !isSaleable(r.unit.status)) ? ` + ${tableRows.filter((r) => !isSaleable(r.unit.status)).length} common area(s)` : ''} · click a row for floor plan, quotes and inquiries
         </span>
       </div>
       <div style={{ flex: 1, minHeight: 0, overflow: 'auto' }}>
@@ -323,7 +323,6 @@ export default function BuildingViewer({ projectId, view = '3d' }: { projectId: 
             <thead style={{ position: 'sticky', top: 0, background: 'var(--bg-card)', zIndex: 1 }}>
               <tr>
                 <th>Unit #</th>
-                {wings.length > 1 && <th>Wing</th>}
                 <th>Floor</th><th>Configuration</th><th>Carpet Area</th><th>Status</th><th>Buyer / Inquiries</th><th>Sale Ref</th>
               </tr>
             </thead>
@@ -341,13 +340,12 @@ export default function BuildingViewer({ projectId, view = '3d' }: { projectId: 
                     className="hover-row"
                   >
                     <td style={{ fontWeight: 600 }}>{unit.unitNumber}</td>
-                    {wings.length > 1 && <td>{wingName === 'Commercial' ? 'Commercial' : wingName}</td>}
                     <td>{floorNumber}</td>
                     <td>{unit.configuration}</td>
                     <td>{unit.carpetAreaSqft} sqft</td>
                     <td><span className={`badge ${unitStatusBadge(unit.status)}`}>{unitStatusLabel(unit.status)}</span></td>
                     <td style={{ color: 'var(--text-secondary)' }}>
-                      {unit.buyerName ?? (unit.inquiryCount > 0 ? `${unit.inquiryCount} inquir${unit.inquiryCount === 1 ? 'y' : 'ies'}${openInquiries ? ` (${openInquiries} open)` : ''}` : '—')}
+                      {unit.buyerName ?? (unit.bookedByName ? `${unit.bookedByName}${unit.bookedByMobile ? ` · ${unit.bookedByMobile}` : ''}` : null) ?? (unit.inquiryCount > 0 ? `${unit.inquiryCount} inquir${unit.inquiryCount === 1 ? 'y' : 'ies'}${openInquiries ? ` (${openInquiries} open)` : ''}` : '—')}
                     </td>
                     <td>{unit.saleNumber ? <span className="badge badge-info">{unit.saleNumber}</span> : <span className="text-muted">—</span>}</td>
                   </tr>
@@ -361,6 +359,13 @@ export default function BuildingViewer({ projectId, view = '3d' }: { projectId: 
     </div>
   )
 
+  // Counts shown on the chips: for the shown wing, saleable units only. Each group respects the other group's filter,
+  // so a chip's number is how many units you would see if you picked it.
+  const saleable = activeWing.floors.flatMap((f) => f.units).filter((u) => isSaleable(u.status))
+  const typeCount = (type: string) => saleable.filter((u) => (type === 'ALL' || u.configuration === type) && statusMatches(filterStatus, u.status)).length
+  const statusCount = (status: string) => saleable.filter((u) => (filterType === 'ALL' || u.configuration === filterType) && statusMatches(status, u.status)).length
+  const countTag = (n: number) => <span style={{ opacity: 0.75, fontWeight: 600, marginLeft: 5 }}>{n}</span>
+
   const availableTypes = activeWing 
     ? Array.from(new Set(activeWing.floors.flatMap(f => f.units.filter(u => isSaleable(u.status)).map(u => u.configuration)))).filter(Boolean).sort()
     : []
@@ -369,7 +374,7 @@ export default function BuildingViewer({ projectId, view = '3d' }: { projectId: 
     <div style={{ position: 'relative' }}>
       {/* Filters and Wing selector */}
       <div style={{ display: 'flex', gap: 16, marginBottom: 16, flexWrap: 'wrap', alignItems: 'center' }}>
-        {!singleWing && view === '3d' && <div style={{ display: 'flex', gap: 8 }}>
+        {!singleWing && <div style={{ display: 'flex', gap: 8 }}>
         {wings.map((wing, idx) => (
           <button
             key={wing.id}
@@ -391,7 +396,7 @@ export default function BuildingViewer({ projectId, view = '3d' }: { projectId: 
               className={`badge ${filterType === 'ALL' ? 'badge-primary' : 'badge-muted'}`}
               style={{ cursor: 'pointer', background: filterType === 'ALL' ? 'var(--color-primary)' : 'transparent', color: filterType === 'ALL' ? '#fff' : 'var(--text-secondary)' }}
             >
-              All Types
+              All Types{countTag(typeCount('ALL'))}
             </button>
             {availableTypes.map(type => (
               <button 
@@ -400,7 +405,7 @@ export default function BuildingViewer({ projectId, view = '3d' }: { projectId: 
                 className={`badge ${filterType === type ? 'badge-primary' : 'badge-muted'}`}
                 style={{ cursor: 'pointer', background: filterType === type ? 'var(--color-primary)' : 'transparent', color: filterType === type ? '#fff' : 'var(--text-secondary)' }}
               >
-                {type as string}
+                {type as string}{countTag(typeCount(type as string))}
               </button>
             ))}
           </div>
@@ -413,7 +418,7 @@ export default function BuildingViewer({ projectId, view = '3d' }: { projectId: 
               className={`badge ${filterStatus === 'ALL' ? 'badge-primary' : 'badge-muted'}`}
               style={{ cursor: 'pointer', background: filterStatus === 'ALL' ? 'var(--color-primary)' : 'transparent', color: filterStatus === 'ALL' ? '#fff' : 'var(--text-secondary)' }}
             >
-              All Status
+              All Status{countTag(statusCount('ALL'))}
             </button>
             <button
               onClick={() => setFilterStatus('UNSOLD')}
@@ -427,7 +432,7 @@ export default function BuildingViewer({ projectId, view = '3d' }: { projectId: 
                 border: `1px solid ${UNIT_COLORS.AVAILABLE.stroke}`,
               }}
             >
-              Unsold only
+              Unsold only{countTag(statusCount('UNSOLD'))}
             </button>
             {Object.keys(STATUS_COLOR).filter(status => status !== 'AVAILABLE' && status !== 'NOT_FOR_SALE').map(status => (
               <button 
@@ -442,7 +447,7 @@ export default function BuildingViewer({ projectId, view = '3d' }: { projectId: 
                   opacity: filterStatus !== 'ALL' && filterStatus !== status ? 0.5 : 1
                 }}
               >
-                {STATUS_COLOR[status].label}
+                {STATUS_COLOR[status].label}{countTag(statusCount(status))}
               </button>
             ))}
           </div>
@@ -630,6 +635,13 @@ export default function BuildingViewer({ projectId, view = '3d' }: { projectId: 
                 </div>
               ) : (
                 <div style={{ marginTop: 4, padding: 12, borderRadius: 'var(--radius-md)', background: 'var(--bg-surface)', fontSize: '0.8125rem', color: 'var(--text-secondary)' }}>
+                  {selectedUnit.status === 'BOOKED' && selectedUnit.bookedByName && (
+                    <div style={{ marginBottom: 8, color: 'var(--text-primary)' }}>
+                      <div style={{ fontSize: '0.75rem', fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: 4 }}>Booked by</div>
+                      <div style={{ fontWeight: 600 }}>{selectedUnit.bookedByName}</div>
+                      {selectedUnit.bookedByMobile && <div>{selectedUnit.bookedByMobile}</div>}
+                    </div>
+                  )}
                   {selectedUnit.status === 'NOT_FOR_SALE' ? (
                     <>This is a <strong>common area</strong> ({selectedUnit.configuration}), not for sale, so quotes and sales are not available. Change it back to a flat in Building Setup if that&apos;s wrong.</>
                   ) : (

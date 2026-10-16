@@ -29,6 +29,8 @@ export interface StructureUnit {
   basePricePerSqft: number | null
   status: string
   statusManual: boolean
+  bookedByName: string | null
+  bookedByMobile: string | null
   hasSale: boolean
   inquiryCount: number
 }
@@ -58,6 +60,16 @@ export async function api<T = any>(url: string, init?: RequestInit): Promise<T> 
 export const jsonInit = (method: string, body: unknown): RequestInit => ({ method, headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) })
 
 export const fmtNum = (n: number | null | undefined) => (n === null || n === undefined ? '—' : n.toLocaleString('en-IN'))
+
+/** Name (required) and mobile (optional) of the person who booked a unit. */
+export function BookerFields({ name, mobile, onName, onMobile }: { name: string; mobile: string; onName: (v: string) => void; onMobile: (v: string) => void }) {
+  return (
+    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, marginBottom: 12 }}>
+      <div><label style={labelStyle}>Booked by (name) *</label><input required maxLength={100} style={inputStyle} value={name} onChange={(e) => onName(e.target.value)} /></div>
+      <div><label style={labelStyle}>Mobile (optional)</label><input type="tel" inputMode="numeric" maxLength={14} placeholder="10 digits" style={inputStyle} value={mobile} onChange={(e) => onMobile(e.target.value)} /></div>
+    </div>
+  )
+}
 
 export function Modal({ title, subtitle, onClose, children, maxWidth = 520 }: { title: string; subtitle?: string; onClose: () => void; children: ReactNode; maxWidth?: number }) {
   return (

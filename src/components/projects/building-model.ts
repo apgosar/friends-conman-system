@@ -16,6 +16,9 @@ export interface UnitData {
   saleStatus: string | null
   agreementValue: number | null
   buyerName: string | null
+  /** Who booked it, for a unit marked Booked by hand (it has no sale). */
+  bookedByName: string | null
+  bookedByMobile: string | null
   /** Counts only: the inquiries themselves are loaded when the unit is selected. */
   inquiryCount: number
   openInquiries: number
