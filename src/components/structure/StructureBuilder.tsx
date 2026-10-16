@@ -29,9 +29,9 @@ function PatternRows({ patterns, types, onChange }: { patterns: FloorPattern[]; 
       {patterns.map((p, pi) => (
         <div key={pi} style={{ display: 'flex', gap: 10, alignItems: 'center', flexWrap: 'wrap', padding: '10px 0', borderTop: pi === 0 ? 'none' : '1px dashed var(--border-color)' }}>
           <span style={small}>Floors</span>
-          <input type="number" min={0} aria-label="From floor" style={numInput} value={Number.isNaN(p.from) ? '' : p.from} onChange={(e) => setPattern(pi, (x) => ({ ...x, from: num(e.target.value) }))} />
+          <input type="number" min={0} aria-label="From floor" style={numInput} value={Number.isNaN(p.from) ? '' : p.from} onChange={(e) => setPattern(pi, (x) => { const from = num(e.target.value); return { ...x, from, to: Number.isNaN(from) || !(x.to >= from) ? from : x.to } })} />
           <span style={small}>to</span>
-          <input type="number" min={0} aria-label="To floor" style={numInput} value={Number.isNaN(p.to) ? '' : p.to} onChange={(e) => setPattern(pi, (x) => ({ ...x, to: num(e.target.value) }))} />
+          <input type="number" aria-label="To floor" min={Number.isNaN(p.from) ? 0 : p.from} style={numInput} value={Number.isNaN(p.to) ? '' : p.to} onChange={(e) => setPattern(pi, (x) => ({ ...x, to: num(e.target.value) }))} onBlur={() => setPattern(pi, (x) => (x.to >= x.from ? x : { ...x, to: x.from }))} />
           <span style={small}>have:</span>
           {p.unitTypeIds.map((tid, ui) => (
             <span key={ui} style={{ display: 'inline-flex', gap: 2, alignItems: 'center' }}>
@@ -72,9 +72,9 @@ function ExtraRows({ extras, types, onChange }: { extras: ExtraPattern[]; types:
           <div key={i} style={{ padding: '10px 0', borderTop: i === 0 ? 'none' : '1px dashed var(--border-color)' }}>
             <div style={{ display: 'flex', gap: 10, alignItems: 'center', flexWrap: 'wrap' }}>
               <span style={small}>On floors</span>
-              <input type="number" min={0} aria-label="From floor" style={numInput} value={Number.isNaN(x.from) ? '' : x.from} onChange={(e) => set(i, (v) => ({ ...v, from: num(e.target.value) }))} />
+              <input type="number" min={0} aria-label="From floor" style={numInput} value={Number.isNaN(x.from) ? '' : x.from} onChange={(e) => set(i, (v) => { const from = num(e.target.value); return { ...v, from, to: Number.isNaN(from) || !(v.to >= from) ? from : v.to } })} />
               <span style={small}>to</span>
-              <input type="number" min={0} aria-label="To floor" style={numInput} value={Number.isNaN(x.to) ? '' : x.to} onChange={(e) => set(i, (v) => ({ ...v, to: num(e.target.value) }))} />
+              <input type="number" aria-label="To floor" min={Number.isNaN(x.from) ? 0 : x.from} style={numInput} value={Number.isNaN(x.to) ? '' : x.to} onChange={(e) => set(i, (v) => ({ ...v, to: num(e.target.value) }))} onBlur={() => set(i, (v) => (v.to >= v.from ? v : { ...v, to: v.from }))} />
               <span style={small}>every</span>
               <input type="number" min={1} aria-label="Every N floors" style={numInput} value={Number.isNaN(x.every) ? '' : x.every} onChange={(e) => set(i, (v) => ({ ...v, every: num(e.target.value) }))} />
               <span style={small}>floor(s), add:</span>
