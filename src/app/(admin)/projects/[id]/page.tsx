@@ -39,6 +39,18 @@ export default async function ProjectDetailPage(props: PageProps<'/projects/[id]
   const commonAreas = allUnits.length - saleable.length
   const available = saleable.filter((u) => isUnsold(u.status)).length
   const sold = saleable.length - available
+  // Residential = flats; commercial = shops and offices. Shown only when the project has both.
+  const isCommercial = (category: string) => category === 'SHOP' || category === 'OFFICE'
+  const hasCommercial = saleable.some((u) => isCommercial(u.category))
+  const split = (n: (u: (typeof allUnits)[number]) => boolean, extra = '') => {
+    if (!hasCommercial) return undefined
+    const list = saleable.filter(n)
+    const commercial = list.filter((u) => isCommercial(u.category)).length
+    return `Residential ${list.length - commercial} · Commercial ${commercial}${extra}`
+  }
+  const salesSplit = hasCommercial
+    ? `Residential ${project.sales.filter((s) => s.unit && !isCommercial(s.unit.category)).length} · Commercial ${project.sales.filter((s) => s.unit && isCommercial(s.unit.category)).length}`
+    : undefined
   const soldPct = saleable.length > 0 ? Math.round((sold / saleable.length) * 100) : 0
 
   return (
@@ -75,10 +87,10 @@ export default async function ProjectDetailPage(props: PageProps<'/projects/[id]
         {/* Stats */}
         <div className="grid grid-4 gap-4 mb-6">
           {[
-            { label: 'Total Units', value: saleable.length, color: undefined, note: commonAreas > 0 ? `+ ${commonAreas} common area${commonAreas === 1 ? '' : 's'} (not for sale)` : undefined },
-            { label: 'Available', value: available, color: '#10b981', note: undefined },
-            { label: 'Sold / Booked', value: sold, color: '#6366f1', note: undefined },
-            { label: 'Total Sales', value: project._count.sales, color: undefined, note: undefined },
+            { label: 'Total Units', value: saleable.length, color: undefined, note: [split(() => true), commonAreas > 0 ? `+ ${commonAreas} common area${commonAreas === 1 ? '' : 's'} (not for sale)` : undefined].filter(Boolean).join(' · ') || undefined },
+            { label: 'Available', value: available, color: '#10b981', note: split((u) => isUnsold(u.status)) },
+            { label: 'Sold / Booked', value: sold, color: '#6366f1', note: split((u) => !isUnsold(u.status)) },
+            { label: 'Total Sales', value: project._count.sales, color: undefined, note: salesSplit },
           ].map((s) => (
             <div key={s.label} className="card">
               <div className="stat-label">{s.label}</div>
