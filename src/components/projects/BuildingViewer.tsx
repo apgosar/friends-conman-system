@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useState } from 'react'
 import Link from 'next/link'
 import { useSession } from 'next-auth/react'
 import { QuoteModal } from './QuoteModal'
@@ -49,15 +49,15 @@ export default function BuildingViewer({ projectId, view = '3d' }: { projectId: 
   const [inquiryAction, setInquiryAction] = useState<{ type: 'edit' | 'share' | 'lost'; inq: InquiryData } | null>(null)
 
   // The detail panel is sized to match the building view so a long inquiry list can't stretch the page
-  const wrapperRef = useRef<HTMLDivElement>(null)
+  // A state-backed ref: the 3D canvas (and the table) are re-created when the wing or view changes, and the new element must be observed
+  const [wrapperEl, wrapperRef] = useState<HTMLDivElement | null>(null)
   const [wrapperHeight, setWrapperHeight] = useState<number | null>(null)
   useEffect(() => {
-    const el = wrapperRef.current
-    if (!el) return
-    const ro = new ResizeObserver(() => setWrapperHeight(el.offsetHeight))
-    ro.observe(el)
+    if (!wrapperEl) return
+    const ro = new ResizeObserver(() => setWrapperHeight(wrapperEl.offsetHeight))
+    ro.observe(wrapperEl)
     return () => ro.disconnect()
-  }, [loading, view])
+  }, [wrapperEl])
   useEffect(() => {
     if (!showFloorPlan) return
     const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape') setShowFloorPlan(false) }
