@@ -10,7 +10,7 @@ const Patterns = z.array(z.object({ from: z.number().int(), to: z.number().int()
 
 const Schema = z.object({
   numbering: z.enum(['W-FNN', 'WFNN', 'FNN']),
-  status: z.enum(MANUAL_UNIT_STATUSES).default('AVAILABLE'),
+  status: z.enum(MANUAL_UNIT_STATUSES).refine((s) => s !== 'BOOKED', 'Mark units as Booked afterwards, one at a time, so you can say who booked each').default('AVAILABLE'),
   shops: Patterns.default([]),
   offices: Patterns.default([]),
   wings: z.array(z.object({

@@ -160,6 +160,8 @@ model Unit {
   basePricePerSqft    Float?    
   status String @default("AVAILABLE")
   statusManual        Boolean     @default(false) // status set by hand (unit sold before the system was used), not derived from a sale
+  bookedByName        String?     // who booked it, for a unit marked Booked by hand (no sale record)
+  bookedByMobile      String?
   createdAt           DateTime    @default(now())
   updatedAt           DateTime    @updatedAt
 

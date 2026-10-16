@@ -14,16 +14,16 @@ export async function GET(_req: NextRequest, props: { params: Promise<{ id: stri
 
   const wb = new ExcelJS.Workbook()
   const ws = wb.addWorksheet('Units')
-  ws.addRow(['Wing', 'Floor', 'Unit Number', 'Category', 'Unit Type', 'Configuration', 'Carpet Area (sqft)', 'Built-up Area (sqft)', 'Price per sqft', 'Status'])
+  ws.addRow(['Wing', 'Floor', 'Unit Number', 'Category', 'Unit Type', 'Configuration', 'Carpet Area (sqft)', 'Built-up Area (sqft)', 'Price per sqft', 'Status', 'Booked By', 'Booked By Mobile'])
   ws.getRow(1).font = { bold: true }
   ws.views = [{ state: 'frozen', ySplit: 1 }]
   const first = project.unitTypes[0]
   ws.addRow(['A', 1, 'A-101', 'FLAT', first?.name ?? '', first ? '' : '2BHK', first ? '' : 750, '', '', 'Available'])
-  ws.addRow(['A', 1, 'A-102', 'FLAT', '', '3BHK', 1100, 1300, 9500, 'Booked'])
+  ws.addRow(['A', 1, 'A-102', 'FLAT', '', '3BHK', 1100, 1300, 9500, 'Booked', 'Ramesh Shah', '9876543210'])
   ws.addRow(['', 'G', 'SHOP NO 1', 'SHOP', '', 'Shop', 300, '', '', ''])
   ws.addRow(['', 1, 'OFFICE NO 101', 'OFFICE', '', 'Office', 450, '', '', ''])
   ws.addRow(['A', 7, 'A-REFUGE AREA-7', 'COMMON', '', 'Refuge Area', 400, '', '', ''])
-  ws.columns.forEach((c, i) => { c.width = [8, 8, 16, 12, 18, 16, 20, 22, 16, 18][i] })
+  ws.columns.forEach((c, i) => { c.width = [8, 8, 16, 12, 18, 16, 20, 22, 16, 18, 20, 18][i] })
   ws.getColumn(3).numFmt = '@'
 
   const help = wb.addWorksheet('How to fill')
@@ -35,6 +35,7 @@ export async function GET(_req: NextRequest, props: { params: Promise<{ id: stri
     ['Shops and offices are named SHOP NO 1, SHOP NO 101 (1st floor)... and OFFICE NO 1, OFFICE NO 101... but you can use any unique name.'],
     ['Floor: a whole number, or G for the ground floor.'],
     ['Status (optional): Available (default), Booked, Agreement Done, In Progress, All Paid or Handover Completed. Use it for units sold before you started using the system. They will have no sale record. To track payments for a sale, leave the unit Available and create the sale in the app.'],
+    ['Booked By (required when Status is Booked) and Booked By Mobile (optional, 10 digits): who booked the unit, so you have a reference.'],
     ['Unit Number: must be unique in the project. Numbers that already exist are skipped, never overwritten.'],
     ['Unit Type (optional): the name of one of this project\'s unit types (sheet "Unit Types"). Its configuration, areas and price are filled in for you.'],
     ['If you leave Unit Type empty, fill Configuration and Carpet Area. Built-up Area and Price per sqft are optional.'],

@@ -103,6 +103,8 @@ export async function GET(
           saleStatus: sale?.status ?? null,
           agreementValue: sale?.agreementValue ?? null,
           buyerName: sale?.buyers[0]?.fullName ?? null,
+          bookedByName: unit.bookedByName,
+          bookedByMobile: unit.bookedByMobile,
           inquiryCount: counts?.total ?? 0,
           openInquiries: counts?.open ?? 0,
           quoteExpiring: counts?.expiring ?? false,

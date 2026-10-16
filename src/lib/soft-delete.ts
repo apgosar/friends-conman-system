@@ -52,7 +52,7 @@ export const softDelete = {
         const openInquiries = await tx.inquiry.count({ where: { unitId: sale.unitId, status: 'OPEN' } })
         await tx.unit.update({
           where: { id: sale.unitId },
-          data: { status: openInquiries > 0 ? 'INQUIRY_RECEIVED' : 'AVAILABLE', statusManual: false },
+          data: { status: openInquiries > 0 ? 'INQUIRY_RECEIVED' : 'AVAILABLE', statusManual: false, bookedByName: null, bookedByMobile: null },
         })
       }
 

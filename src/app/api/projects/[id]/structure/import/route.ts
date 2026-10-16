@@ -4,7 +4,7 @@ import { prisma } from '@/lib/db'
 import { createAuditLog } from '@/lib/audit'
 import { createUnits, requireAdmin, type UnitRow } from '@/lib/building-create'
 import { COMMERCIAL_WING, LIMITS, isCategory, type UnitCategory } from '@/lib/building-structure'
-import { NOT_FOR_SALE_STATUS, parseManualUnitStatus } from '@/lib/status'
+import { NOT_FOR_SALE_STATUS, parseBooker, parseManualUnitStatus } from '@/lib/status'
 
 const MAX_BYTES = 5 * 1024 * 1024
 const cellText = (v: ExcelJS.CellValue): string => {
@@ -47,7 +47,7 @@ export async function POST(req: NextRequest, props: { params: Promise<{ id: stri
 
   ws.eachRow({ includeEmpty: false }, (row, n) => {
     if (n === 1) return // header
-    const [wingRaw, floorRaw, unitNumber, categoryRaw, typeName, config, carpetRaw, builtupRaw, priceRaw, statusRaw] = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10].map((c) => cellText(row.getCell(c).value))
+    const [wingRaw, floorRaw, unitNumber, categoryRaw, typeName, config, carpetRaw, builtupRaw, priceRaw, statusRaw, bookedByRaw, bookedMobileRaw] = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12].map((c) => cellText(row.getCell(c).value))
     if (![wingRaw, floorRaw, unitNumber, categoryRaw, typeName, config, carpetRaw].some(Boolean)) return // blank row
     const where = `Row ${n}`
 
@@ -79,7 +79,16 @@ export async function POST(req: NextRequest, props: { params: Promise<{ id: stri
     const status = category === 'COMMON' ? NOT_FOR_SALE_STATUS : statusRaw ? parseManualUnitStatus(statusRaw) : 'AVAILABLE'
     if (!status) return errors.push(`${where}: Status "${statusRaw}" isn't valid. Use Available, Booked, Agreement Done, In Progress, All Paid or Handover Completed`)
 
-    rows.push({ status, category, wing, floor, unitNumber, unitTypeId: type?.id ?? null, configuration, carpetAreaSqft: carpet, builtupAreaSqft: builtup, basePricePerSqft: price })
+    let bookedByName: string | null = null
+    let bookedByMobile: string | null = null
+    if (status === 'BOOKED') {
+      const booker = parseBooker(bookedByRaw, bookedMobileRaw)
+      if (!booker.ok) return errors.push(`${where}: ${booker.error} (column "Booked By"; mobile is column "Booked By Mobile")`)
+      bookedByName = booker.name
+      bookedByMobile = booker.mobile
+    }
+
+    rows.push({ status, bookedByName, bookedByMobile, category, wing, floor, unitNumber, unitTypeId: type?.id ?? null, configuration, carpetAreaSqft: carpet, builtupAreaSqft: builtup, basePricePerSqft: price })
   })
 
   // Duplicate numbers inside the file itself

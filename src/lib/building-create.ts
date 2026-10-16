@@ -23,6 +23,8 @@ export interface UnitRow {
   carpetAreaSqft: number
   builtupAreaSqft?: number | null
   basePricePerSqft?: number | null
+  bookedByName?: string | null
+  bookedByMobile?: string | null
 }
 
 export interface CreateResult {
@@ -81,6 +83,8 @@ export async function createUnits(projectId: string, rows: UnitRow[]): Promise<C
         basePricePerSqft: row.basePricePerSqft ?? null,
         status: row.status ?? 'AVAILABLE',
         statusManual: !!row.status && row.status !== 'AVAILABLE',
+        bookedByName: row.status === 'BOOKED' ? row.bookedByName ?? null : null,
+        bookedByMobile: row.status === 'BOOKED' ? row.bookedByMobile ?? null : null,
       })
     }
 

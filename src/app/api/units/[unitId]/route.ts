@@ -3,7 +3,7 @@ import { prisma } from '@/lib/db'
 import { z, parseBody } from '@/lib/validate'
 import { createAuditLog } from '@/lib/audit'
 import { requireAdmin } from '@/lib/building-create'
-import { MANUAL_UNIT_STATUSES } from '@/lib/status'
+import { MANUAL_UNIT_STATUSES, parseBooker } from '@/lib/status'
 import { syncUnitInquiryStatus } from '@/lib/inquiry'
 import { NOT_FOR_SALE_STATUS } from '@/lib/status'
 
@@ -15,6 +15,8 @@ const PatchSchema = z.object({
   builtupAreaSqft: z.number().positive().max(100000).nullable().optional(),
   basePricePerSqft: z.number().min(0).max(10000000).nullable().optional(),
   status: z.enum(MANUAL_UNIT_STATUSES).optional(), // for units sold before the system was used
+  bookedByName: z.string().max(100).nullable().optional(), // required when the status is Booked
+  bookedByMobile: z.string().max(20).nullable().optional(),
   kind: z.enum(['FLAT', 'COMMON']).optional(), // turn a flat into a common area (refuge area, society office...) or back
 })
 
@@ -64,11 +66,23 @@ export async function PATCH(req: NextRequest, props: { params: Promise<{ unitId:
     return Response.json({ error: 'A common area is not for sale, so it has no sale status.' }, { status: 400 })
   }
 
-  const { kind, ...fields } = data
+  const { kind, bookedByName, bookedByMobile, ...fields } = data
   const update: Record<string, unknown> = { ...fields }
   if (kind === 'COMMON') Object.assign(update, { category: 'COMMON', status: NOT_FOR_SALE_STATUS, statusManual: true, unitTypeId: null })
   if (kind === 'FLAT') Object.assign(update, { category: 'FLAT', status: 'AVAILABLE', statusManual: false })
   if (data.status !== undefined && kind === undefined) update.statusManual = data.status !== 'AVAILABLE'
+  // Booked needs to say who booked it; any other status (or a change of kind) clears it
+  if (kind !== undefined || (data.status !== undefined && data.status !== 'BOOKED')) Object.assign(update, { bookedByName: null, bookedByMobile: null })
+  if (data.status === 'BOOKED' && kind === undefined) {
+    const booker = parseBooker(bookedByName, bookedByMobile)
+    if (!booker.ok) return Response.json({ error: booker.error }, { status: 400 })
+    Object.assign(update, { bookedByName: booker.name, bookedByMobile: booker.mobile })
+  } else if (data.status === undefined && kind === undefined && bookedByName !== undefined && unit.status === 'BOOKED') {
+    // editing who booked it, without changing the status
+    const booker = parseBooker(bookedByName, bookedByMobile)
+    if (!booker.ok) return Response.json({ error: booker.error }, { status: 400 })
+    Object.assign(update, { bookedByName: booker.name, bookedByMobile: booker.mobile })
+  }
   // Picking a unit type copies its details onto the unit (they can still be adjusted afterwards)
   if (data.unitTypeId) {
     const type = await prisma.unitType.findFirst({ where: { id: data.unitTypeId, projectId } })

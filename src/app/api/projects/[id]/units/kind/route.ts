@@ -39,12 +39,12 @@ export async function POST(req: NextRequest, props: { params: Promise<{ id: stri
     if (data.kind === 'COMMON') {
       await prisma.unit.updateMany({
         where: { id: { in: editable } },
-        data: { category: 'COMMON', status: NOT_FOR_SALE_STATUS, statusManual: true, configuration: data.label, unitTypeId: null },
+        data: { category: 'COMMON', status: NOT_FOR_SALE_STATUS, statusManual: true, bookedByName: null, bookedByMobile: null, configuration: data.label, unitTypeId: null },
       })
     } else {
       await prisma.unit.updateMany({
         where: { id: { in: editable } },
-        data: { category: 'FLAT', status: 'AVAILABLE', statusManual: false, configuration: data.configuration, unitTypeId: null },
+        data: { category: 'FLAT', status: 'AVAILABLE', statusManual: false, bookedByName: null, bookedByMobile: null, configuration: data.configuration, unitTypeId: null },
       })
     }
     await createAuditLog({
