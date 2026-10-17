@@ -68,14 +68,14 @@ export default async function TemplatesPage(props: PageProps<'/projects/[id]/tem
             <tbody>
               {templates.length === 0 ? (
                 <tr>
-                  <td colSpan={6} style={{ textAlign: 'center', padding: '40px', color: 'var(--text-muted)' }}>
+                  <td colSpan={6} className="text-center p-10 text-muted">
                     No templates uploaded yet
                   </td>
                 </tr>
               ) : (
                 templates.map(t => (
                   <tr key={t.id}>
-                    <td style={{ fontWeight: 500 }}>{t.name}</td>
+                    <td className="font-medium">{t.name}</td>
                     <td><span className="badge badge-muted">{t.type}</span></td>
                     <td>v{t.version}</td>
                     <td>
@@ -86,7 +86,7 @@ export default async function TemplatesPage(props: PageProps<'/projects/[id]/tem
                         isActive={t.isActive} 
                       />
                     </td>
-                    <td style={{ color: 'var(--text-muted)' }}>{formatDate(t.updatedAt)}</td>
+                    <td className="text-muted">{formatDate(t.updatedAt)}</td>
                     <td>
                       <div className="tpl-actions">
                         <div className="tpl-slot">
@@ -112,19 +112,19 @@ export default async function TemplatesPage(props: PageProps<'/projects/[id]/tem
         </div>
 
         {activity.length > 0 && (
-          <div className="card" style={{ marginTop: 24 }}>
+          <div className="card mt-6">
             <div className="card-header"><span className="card-title">Recent template activity</span></div>
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 8, fontSize: '0.8125rem' }}>
+            <div className="flex dir-col gap-2 text-sm">
               {activity.map((a) => {
                 const v = (a.newValues ?? a.oldValues) as { name?: string; type?: string; version?: number } | null
                 const typeLabel = TEMPLATE_TYPES.find((t) => t.value === v?.type)?.label ?? v?.type
                 return (
-                  <div key={a.id} style={{ display: 'flex', justifyContent: 'space-between', gap: 12 }}>
+                  <div key={a.id} className="flex justify-between gap-3">
                     <span>
                       <b>{a.user?.name ?? 'Someone'}</b> {ACTION_LABEL[a.action] ?? a.action} {typeLabel ? <>{typeLabel} </> : null}
                       {v?.name ? <>“{v.name}” </> : null}{v?.version ? <>(v{v.version})</> : null}
                     </span>
-                    <span style={{ color: 'var(--text-muted)', whiteSpace: 'nowrap' }}>{a.createdAt.toLocaleString('en-IN')}</span>
+                    <span className="text-muted nowrap">{a.createdAt.toLocaleString('en-IN')}</span>
                   </div>
                 )
               })}

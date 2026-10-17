@@ -22,7 +22,7 @@ function CommonAreaPicker({ value, onChange, autoFocus }: { value: string; onCha
         {COMMON_AREA_SUGGESTIONS.map((s) => <option key={s} value={s}>{s}</option>)}
         <option value={OTHER}>Other…</option>
       </select>
-      {other && <input required autoFocus style={{ ...inputStyle, marginTop: 8 }} value={value} maxLength={30} placeholder="What is it?" onChange={(e) => onChange(e.target.value)} />}
+      {other && <input required autoFocus className="mt-2" style={{ ...inputStyle }} value={value} maxLength={30} placeholder="What is it?" onChange={(e) => onChange(e.target.value)} />}
     </>
   )
 }
@@ -90,7 +90,7 @@ function EditUnit({ unit, types, onClose }: { unit: StructureUnit; types: UnitTy
     <Modal title={`Edit unit ${unit.unitNumber}`} subtitle={`${wingLabel(unit.wingName)}, floor ${unit.floorNumber === 0 ? 'G' : unit.floorNumber}`} onClose={onClose}>
       <form onSubmit={submit}>
         {canSwitchKind && (
-          <div style={{ marginBottom: 12 }}>
+          <div className="mb-3">
             <label style={labelStyle}>Kind</label>
             <select style={inputStyle} value={kind} onChange={(e) => {
               const next = e.target.value as 'FLAT' | 'COMMON'
@@ -101,10 +101,10 @@ function EditUnit({ unit, types, onClose }: { unit: StructureUnit; types: UnitTy
               <option value="FLAT">Flat (for sale)</option>
               <option value="COMMON">Common area (not for sale)</option>
             </select>
-            {kind === 'COMMON' && <p style={{ margin: '6px 0 0', fontSize: '0.75rem', color: 'var(--text-muted)' }}>For a refuge area, society office, gym and so on. It stays out of the available and sold counts and can&apos;t be quoted or sold.</p>}
+            {kind === 'COMMON' && <p className="text-xs text-muted" style={{ margin: '6px 0 0' }}>For a refuge area, society office, gym and so on. It stays out of the available and sold counts and can&apos;t be quoted or sold.</p>}
           </div>
         )}
-        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, marginBottom: 12 }}>
+        <div className="grid gap-3 mb-3" style={{ gridTemplateColumns: '1fr 1fr' }}>
           <div><label style={labelStyle}>Unit number *</label><input required style={inputStyle} value={f.unitNumber} onChange={(e) => set('unitNumber', e.target.value)} /></div>
           <div>
             <label style={labelStyle}>Unit type</label>
@@ -114,7 +114,7 @@ function EditUnit({ unit, types, onClose }: { unit: StructureUnit; types: UnitTy
             </select>
           </div>
         </div>
-        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr 1fr', gap: 12, marginBottom: 12 }}>
+        <div className="grid gap-3 mb-3" style={{ gridTemplateColumns: '1fr 1fr 1fr 1fr' }}>
           <div>
             <label style={labelStyle}>{isCommon ? 'What is it? *' : 'Configuration *'}</label>
             {isCommon
@@ -126,19 +126,19 @@ function EditUnit({ unit, types, onClose }: { unit: StructureUnit; types: UnitTy
           <div><label style={labelStyle}>Price / sqft</label><input type="number" min="0" style={inputStyle} value={f.basePricePerSqft} onChange={(e) => set('basePricePerSqft', e.target.value)} /></div>
         </div>
         {!isCommon && (
-          <div style={{ marginBottom: 12 }}>
+          <div className="mb-3">
             <label style={labelStyle}>Status</label>
             <select style={inputStyle} value={f.status} onChange={(e) => set('status', e.target.value)}>
               {MANUAL_UNIT_STATUSES.map((s) => <option key={s} value={s}>{unitStatusLabel(s)}</option>)}
             </select>
             {f.status === 'BOOKED' && <div style={{ marginTop: 10 }}><BookerFields name={f.bookedByName} mobile={f.bookedByMobile} onName={(v) => set('bookedByName', v)} onMobile={(v) => set('bookedByMobile', v)} /></div>}
-            <p style={{ margin: '6px 0 0', fontSize: '0.75rem', color: 'var(--text-muted)' }}>
+            <p className="text-xs text-muted" style={{ margin: '6px 0 0' }}>
               Leave it Available for units you will sell here. Choose another status only for a unit that was sold before you started using the system: it will have no sale record. “Inquiry Received” is set automatically from inquiries.
             </p>
           </div>
         )}
-        {error && <div role="alert" style={{ color: 'var(--color-danger)', fontSize: '0.8125rem', marginBottom: 12 }}>{error}</div>}
-        <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 10 }}>
+        {error && <div role="alert" className="text-danger text-sm mb-3">{error}</div>}
+        <div className="flex justify-end" style={{ gap: 10 }}>
           <button type="button" className="btn btn-secondary" onClick={onClose}>Cancel</button>
           <button type="submit" className="btn btn-primary" disabled={busy}>{busy ? 'Saving…' : 'Save'}</button>
         </div>
@@ -188,13 +188,13 @@ function KindModal({ projectId, kind, unitIds, onClose, onDone }: {
         {toCommon
           ? <CommonAreaPicker autoFocus value={text} onChange={setText} />
           : <input required autoFocus style={inputStyle} value={text} placeholder="2BHK" onChange={(e) => setText(e.target.value)} />}
-        <p style={{ margin: '8px 0 14px', fontSize: '0.8125rem', color: 'var(--text-muted)' }}>
+        <p className="text-sm text-muted" style={{ margin: '8px 0 14px' }}>
           {toCommon
             ? 'These units become part of the building but not for sale: they leave the available and sold counts and cannot be quoted or sold. Flats with a sale or inquiries are skipped.'
             : 'These common areas become flats for sale again, with the configuration above.'}
         </p>
-        {error && <div role="alert" style={{ color: 'var(--color-danger)', fontSize: '0.8125rem', marginBottom: 12 }}>{error}</div>}
-        <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 10 }}>
+        {error && <div role="alert" className="text-danger text-sm mb-3">{error}</div>}
+        <div className="flex justify-end" style={{ gap: 10 }}>
           <button type="button" className="btn btn-secondary" onClick={onClose}>Cancel</button>
           <button type="submit" className="btn btn-primary" disabled={busy || !text.trim()}>{busy ? 'Saving…' : 'Apply'}</button>
         </div>
@@ -253,9 +253,9 @@ export default function UnitsTable({ projectId, units, wings, types }: { project
       <div className="card-header"><span className="card-title">3. Units in this project ({units.length})</span></div>
 
       {wings.length > 0 && (
-        <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap', marginBottom: 14 }}>
+        <div className="flex wrap" style={{ gap: 10, marginBottom: 14 }}>
           {wings.map((w) => (
-            <div key={w.id} style={{ padding: '8px 12px', borderRadius: 8, border: '1px solid var(--border-color)', fontSize: '0.8125rem', display: 'flex', gap: 10, alignItems: 'center' }}>
+            <div key={w.id} className="text-sm flex items-center" style={{ padding: '8px 12px', borderRadius: 8, border: '1px solid var(--border-color)', gap: 10 }}>
               <span><b>{wingLabel(w.name)}</b> · {w.floors} floor{w.floors === 1 ? '' : 's'} · {w.units} units</span>
               <button className="btn btn-ghost btn-sm" style={{ color: 'var(--color-danger, #ef4444)', padding: '0 6px' }} onClick={() => deleteWing(w)}>Delete</button>
             </div>
@@ -263,13 +263,13 @@ export default function UnitsTable({ projectId, units, wings, types }: { project
         </div>
       )}
 
-      {error && <div role="alert" className="alert alert-danger" style={{ marginBottom: 12 }}>{error}</div>}
+      {error && <div role="alert" className="alert alert-danger mb-3">{error}</div>}
 
       {units.length === 0 ? (
-        <div style={{ textAlign: 'center', padding: 28, color: 'var(--text-muted)' }}>No units yet. Build the structure above or import an Excel file.</div>
+        <div className="text-center text-muted" style={{ padding: 28 }}>No units yet. Build the structure above or import an Excel file.</div>
       ) : (
         <>
-          <div style={{ display: 'flex', gap: 12, marginBottom: 12, flexWrap: 'wrap', alignItems: 'center' }}>
+          <div className="flex gap-3 mb-3 wrap items-center">
             <input type="search" placeholder="Search unit number or type" value={query} onChange={(e) => setQuery(e.target.value)} style={{ ...inputStyle, maxWidth: 280 }} />
             <select value={categoryFilter} onChange={(e) => setCategoryFilter(e.target.value)} style={{ ...inputStyle, width: 'auto' }}>
               <option value="ALL">Flats, shops and offices</option>
@@ -281,12 +281,12 @@ export default function UnitsTable({ projectId, units, wings, types }: { project
                 {wings.map((w) => <option key={w.id} value={w.id}>{wingLabel(w.name)}</option>)}
               </select>
             )}
-            <span style={{ fontSize: '0.8125rem', color: 'var(--text-muted)' }}>{rows.length} of {units.length}</span>
+            <span className="text-sm text-muted">{rows.length} of {units.length}</span>
           </div>
           {selected.size > 0 && (
-            <div style={{ display: 'flex', gap: 10, alignItems: 'center', flexWrap: 'wrap', marginBottom: 10, padding: '10px 12px', borderRadius: 8, background: 'var(--bg-surface)', border: '1px solid var(--border-color)' }}>
-              <strong style={{ fontSize: '0.875rem' }}>{selected.size} selected</strong>
-              <span style={{ fontSize: '0.8125rem', color: 'var(--text-secondary)' }}>Set status to</span>
+            <div className="flex items-center wrap" style={{ gap: 10, marginBottom: 10, padding: '10px 12px', borderRadius: 8, background: 'var(--bg-surface)', border: '1px solid var(--border-color)' }}>
+              <strong className="text-base">{selected.size} selected</strong>
+              <span className="text-sm text-secondary">Set status to</span>
               <select value={bulkStatus} onChange={(e) => setBulkStatus(e.target.value)} style={{ ...inputStyle, width: 'auto' }}>
                 {MANUAL_UNIT_STATUSES.map((s) => <option key={s} value={s}>{unitStatusLabel(s)}</option>)}
               </select>
@@ -298,13 +298,13 @@ export default function UnitsTable({ projectId, units, wings, types }: { project
               )}
               <button className="btn btn-primary btn-sm" disabled={bulkStatus === 'BOOKED' && !bulkName.trim()} onClick={applyBulk}>Apply</button>
               <span style={{ width: 1, alignSelf: 'stretch', background: 'var(--border-color)' }} />
-              <span style={{ fontSize: '0.8125rem', color: 'var(--text-secondary)' }}>or mark as</span>
+              <span className="text-sm text-secondary">or mark as</span>
               <button className="btn btn-secondary btn-sm" onClick={() => setKindModal('COMMON')} title="Refuge area, society office, gym... (not for sale)">Common area…</button>
               <button className="btn btn-secondary btn-sm" onClick={() => setKindModal('FLAT')} title="Turn selected common areas back into flats">Flats…</button>
               <button className="btn btn-ghost btn-sm" onClick={() => setSelected(new Set())}>Clear</button>
             </div>
           )}
-          {bulkMessage && selected.size === 0 && <div role="status" style={{ marginBottom: 10, fontSize: '0.8125rem', color: 'var(--color-success)' }}>{bulkMessage}</div>}
+          {bulkMessage && selected.size === 0 && <div role="status" className="text-sm text-success" style={{ marginBottom: 10 }}>{bulkMessage}</div>}
           <div className="table-wrapper" style={{ border: 'none' }}>
             <table>
               <thead><tr><th style={{ width: 32 }}><input type="checkbox" aria-label="Select all shown units" checked={allVisibleSelected} onChange={toggleAll} /></th><th>Unit</th><th>Kind</th>{wings.length > 1 && <th>Wing</th>}<th>Floor</th><th>Type</th><th>Configuration</th><th>Carpet</th><th>Price / sqft</th><th>Status</th><th></th></tr></thead>
@@ -314,7 +314,7 @@ export default function UnitsTable({ projectId, units, wings, types }: { project
                   return (
                     <tr key={u.id}>
                       <td><input type="checkbox" aria-label={`Select ${u.unitNumber}`} disabled={!selectable(u)} checked={selected.has(u.id)} onChange={() => toggleOne(u.id)} title={u.hasSale ? 'Status follows its sale' : undefined} /></td>
-                      <td style={{ fontWeight: 600 }}>{u.unitNumber}</td>
+                      <td className="font-semibold">{u.unitNumber}</td>
                       <td>{categoryLabel(u.category)}</td>
                       {wings.length > 1 && <td>{u.wingName === 'Commercial' ? 'Commercial' : u.wingName}</td>}
                       <td>{u.floorNumber === 0 ? 'G' : u.floorNumber}</td>
@@ -324,10 +324,10 @@ export default function UnitsTable({ projectId, units, wings, types }: { project
                       <td>{u.basePricePerSqft ? `₹${fmtNum(u.basePricePerSqft)}` : '—'}</td>
                       <td>
                         <span className={`badge ${unitStatusBadge(u.status)}`}>{unitStatusLabel(u.status)}</span>
-                        {u.status === 'BOOKED' && u.bookedByName && <span title={u.bookedByMobile ?? undefined} style={{ marginLeft: 6, fontSize: '0.75rem', color: 'var(--text-secondary)' }}>by {u.bookedByName}{u.bookedByMobile ? ` · ${u.bookedByMobile}` : ''}</span>}
-                        {u.statusManual && <span title="Set by hand: this unit has no sale record" style={{ marginLeft: 6, fontSize: '0.7rem', color: 'var(--text-muted)' }}>manual</span>}
+                        {u.status === 'BOOKED' && u.bookedByName && <span title={u.bookedByMobile ?? undefined} className="text-xs text-secondary" style={{ marginLeft: 6 }}>by {u.bookedByName}{u.bookedByMobile ? ` · ${u.bookedByMobile}` : ''}</span>}
+                        {u.statusManual && <span title="Set by hand: this unit has no sale record" className="text-muted" style={{ marginLeft: 6, fontSize: '0.7rem' }}>manual</span>}
                       </td>
-                      <td style={{ whiteSpace: 'nowrap' }}>
+                      <td className="nowrap">
                         <button className="btn btn-ghost btn-sm" disabled={locked} title={locked ? 'Locked: this unit has a sale' : undefined} onClick={() => setEditing(u)}>Edit</button>
                         <button className="btn btn-ghost btn-sm" style={{ color: 'var(--color-danger, #ef4444)' }} disabled={locked || u.inquiryCount > 0} title={locked ? 'This unit has a sale' : u.inquiryCount > 0 ? 'This unit has inquiries' : undefined} onClick={() => deleteUnit(u)}>Delete</button>
                       </td>
@@ -338,7 +338,7 @@ export default function UnitsTable({ projectId, units, wings, types }: { project
             </table>
           </div>
           {!query && rows.length > PAGE && (
-            <div style={{ textAlign: 'center', marginTop: 10 }}>
+            <div className="text-center" style={{ marginTop: 10 }}>
               <button className="btn btn-ghost btn-sm" onClick={() => setShowAll((v) => !v)}>{showAll ? 'Show fewer' : `Show all ${rows.length}`}</button>
             </div>
           )}

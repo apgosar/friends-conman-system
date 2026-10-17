@@ -53,10 +53,9 @@ export default function PaymentScheduleRow({ schedule, saleId }: { schedule: any
     <>
       <tr 
         onClick={() => setShowDetailsModal(true)}
-        style={{ cursor: 'pointer' }}
-        className="hover-row"
+        className="hover-row cursor-pointer"
       >
-        <td style={{ fontWeight: 500 }}>
+        <td className="font-medium">
           {schedule.description}
         </td>
         <td>
@@ -64,7 +63,7 @@ export default function PaymentScheduleRow({ schedule, saleId }: { schedule: any
             {schedule.status.replace(/_/g, ' ')}
           </span>
         </td>
-        <td style={{ color: 'var(--text-muted)' }}>{schedule.dueDate ? formatDate(schedule.dueDate) : '—'}</td>
+        <td className="text-muted">{schedule.dueDate ? formatDate(schedule.dueDate) : '—'}</td>
         <td>{formatCurrency(Number(schedule.principalAmount))}</td>
         <td>{formatCurrency(Number(schedule.gstAmount ?? 0))}</td>
         <td style={{ color: received >= totalDue ? 'var(--color-success)' : 'inherit', fontWeight: received > 0 ? 600 : 400 }}>
@@ -90,31 +89,31 @@ export default function PaymentScheduleRow({ schedule, saleId }: { schedule: any
       {/* Record Payment Modal */}
       {showPayModal && (
         <td colSpan={0}>
-          <div style={{ position: 'fixed', inset: 0, zIndex: 1000, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+          <div className="flex items-center justify-center" style={{ position: 'fixed', inset: 0, zIndex: 1000 }}>
             <div style={{ position: 'absolute', inset: 0, background: 'rgba(0,0,0,0.5)', backdropFilter: 'blur(2px)' }} onClick={() => setShowPayModal(false)} />
-            <div style={{ position: 'relative', background: 'var(--bg-card)', width: '100%', maxWidth: 500, borderRadius: '12px', boxShadow: 'var(--shadow-xl)', overflow: 'hidden', border: '1px solid var(--border-color)' }}>
+            <div className="relative w-full overflow-hidden" style={{ background: 'var(--bg-card)', maxWidth: 500, borderRadius: '12px', boxShadow: 'var(--shadow-xl)', border: '1px solid var(--border-color)' }}>
               
-              <div style={{ padding: '20px 24px', borderBottom: '1px solid var(--border-color)', display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: 'var(--bg-surface)' }}>
+              <div className="flex justify-between items-center" style={{ padding: '20px 24px', borderBottom: '1px solid var(--border-color)', background: 'var(--bg-surface)' }}>
                 <div>
-                  <h3 style={{ fontSize: '1.25rem', fontWeight: 600, margin: 0, color: 'var(--text-primary)' }}>Record Payment</h3>
-                  <p style={{ margin: '4px 0 0', fontSize: '0.8125rem', color: 'var(--text-muted)' }}>
-                    Full amount: <span style={{ fontWeight: 600 }}>{formatCurrency(Number(schedule.principalAmount) + Number(schedule.gstAmount))}</span>
+                  <h3 className="text-xl font-semibold m-0 text-primary">Record Payment</h3>
+                  <p className="text-sm text-muted" style={{ margin: '4px 0 0' }}>
+                    Full amount: <span className="font-semibold">{formatCurrency(Number(schedule.principalAmount) + Number(schedule.gstAmount))}</span>
                   </p>
                 </div>
-                <button onClick={() => setShowPayModal(false)} style={{ background: 'var(--bg-card)', border: '1px solid var(--border-color)', borderRadius: '50%', width: 32, height: 32, display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--text-muted)', fontSize: '1.2rem', cursor: 'pointer', transition: 'background 0.2s' }}>×</button>
+                <button onClick={() => setShowPayModal(false)} className="flex items-center justify-center text-muted cursor-pointer" style={{ background: 'var(--bg-card)', border: '1px solid var(--border-color)', borderRadius: '50%', width: 32, height: 32, fontSize: '1.2rem', transition: 'background 0.2s' }}>×</button>
               </div>
 
-              <form onSubmit={handleRecordPayment} style={{ padding: 24 }}>
-                <div style={{ marginBottom: 16 }}>
-                  <label style={{ display: 'block', fontSize: '0.8125rem', fontWeight: 500, color: 'var(--text-secondary)', marginBottom: 6 }}>Payment Date</label>
+              <form onSubmit={handleRecordPayment} className="p-6">
+                <div className="mb-4">
+                  <label className="block text-sm font-medium text-secondary" style={{ marginBottom: 6 }}>Payment Date</label>
                   <input type="date" required value={paymentDate} onChange={e => setPaymentDate(e.target.value)}
-                    style={{ width: '100%', padding: '10px 14px', borderRadius: 8, border: '1px solid var(--border-color)', background: 'var(--bg-surface)', outline: 'none', fontSize: '0.9rem', color: 'var(--text-primary)' }}
+                    className="w-full text-primary" style={{ padding: '10px 14px', borderRadius: 8, border: '1px solid var(--border-color)', background: 'var(--bg-surface)', outline: 'none', fontSize: '0.9rem' }}
                   />
                 </div>
-                <div style={{ marginBottom: 16 }}>
-                  <label style={{ display: 'block', fontSize: '0.8125rem', fontWeight: 500, color: 'var(--text-secondary)', marginBottom: 6 }}>Payment Mode</label>
+                <div className="mb-4">
+                  <label className="block text-sm font-medium text-secondary" style={{ marginBottom: 6 }}>Payment Mode</label>
                   <select required value={mode} onChange={e => setMode(e.target.value)}
-                    style={{ width: '100%', padding: '10px 14px', borderRadius: 8, border: '1px solid var(--border-color)', background: 'var(--bg-surface)', outline: 'none', fontSize: '0.9rem', color: 'var(--text-primary)' }}
+                    className="w-full text-primary" style={{ padding: '10px 14px', borderRadius: 8, border: '1px solid var(--border-color)', background: 'var(--bg-surface)', outline: 'none', fontSize: '0.9rem' }}
                   >
                     <option value="NEFT">NEFT / RTGS / IMPS</option>
                     <option value="CHEQUE">Cheque</option>
@@ -122,21 +121,21 @@ export default function PaymentScheduleRow({ schedule, saleId }: { schedule: any
                     <option value="CASH">Cash</option>
                   </select>
                 </div>
-                <div style={{ marginBottom: 16 }}>
-                  <label style={{ display: 'block', fontSize: '0.8125rem', fontWeight: 500, color: 'var(--text-secondary)', marginBottom: 6 }}>Reference Number</label>
+                <div className="mb-4">
+                  <label className="block text-sm font-medium text-secondary" style={{ marginBottom: 6 }}>Reference Number</label>
                   <input type="text" placeholder="e.g. UTR / Cheque No." required value={referenceNumber} onChange={e => setReferenceNumber(e.target.value)}
-                    style={{ width: '100%', padding: '10px 14px', borderRadius: 8, border: '1px solid var(--border-color)', background: 'var(--bg-surface)', outline: 'none', fontSize: '0.9rem', color: 'var(--text-primary)' }}
+                    className="w-full text-primary" style={{ padding: '10px 14px', borderRadius: 8, border: '1px solid var(--border-color)', background: 'var(--bg-surface)', outline: 'none', fontSize: '0.9rem' }}
                   />
                 </div>
-                <div style={{ marginBottom: 24 }}>
-                  <label style={{ display: 'block', fontSize: '0.8125rem', fontWeight: 500, color: 'var(--text-secondary)', marginBottom: 6 }}>Remark</label>
+                <div className="mb-6">
+                  <label className="block text-sm font-medium text-secondary" style={{ marginBottom: 6 }}>Remark</label>
                   <textarea placeholder="Optional remarks" value={remark} onChange={e => setRemark(e.target.value)}
-                    style={{ width: '100%', padding: '10px 14px', borderRadius: 8, border: '1px solid var(--border-color)', background: 'var(--bg-surface)', outline: 'none', fontSize: '0.9rem', color: 'var(--text-primary)', minHeight: 60 }}
+                    className="w-full text-primary" style={{ padding: '10px 14px', borderRadius: 8, border: '1px solid var(--border-color)', background: 'var(--bg-surface)', outline: 'none', fontSize: '0.9rem', minHeight: 60 }}
                   />
                 </div>
 
-                <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 12 }}>
-                  <button type="button" className="btn" style={{ background: 'var(--bg-surface)', border: '1px solid var(--border-color)', color: 'var(--text-primary)', borderRadius: '8px' }} onClick={() => setShowPayModal(false)}>
+                <div className="flex justify-end gap-3">
+                  <button type="button" className="btn text-primary" style={{ background: 'var(--bg-surface)', border: '1px solid var(--border-color)', borderRadius: '8px' }} onClick={() => setShowPayModal(false)}>
                     Cancel
                   </button>
                   <button type="submit" className="btn btn-primary" style={{ borderRadius: '8px' }} disabled={loading}>
@@ -152,53 +151,53 @@ export default function PaymentScheduleRow({ schedule, saleId }: { schedule: any
       {/* Payment Details Modal */}
       {showDetailsModal && (
         <td colSpan={0}>
-          <div style={{ position: 'fixed', inset: 0, zIndex: 1000, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+          <div className="flex items-center justify-center" style={{ position: 'fixed', inset: 0, zIndex: 1000 }}>
             <div style={{ position: 'absolute', inset: 0, background: 'rgba(0,0,0,0.5)', backdropFilter: 'blur(2px)' }} onClick={() => setShowDetailsModal(false)} />
-            <div style={{ position: 'relative', background: 'var(--bg-card)', width: '100%', maxWidth: 500, borderRadius: '12px', boxShadow: 'var(--shadow-xl)', overflow: 'hidden', border: '1px solid var(--border-color)' }}>
+            <div className="relative w-full overflow-hidden" style={{ background: 'var(--bg-card)', maxWidth: 500, borderRadius: '12px', boxShadow: 'var(--shadow-xl)', border: '1px solid var(--border-color)' }}>
               
-              <div style={{ padding: '20px 24px', borderBottom: '1px solid var(--border-color)', display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: 'var(--bg-surface)' }}>
-                <h3 style={{ fontSize: '1.25rem', fontWeight: 600, margin: 0, color: 'var(--text-primary)' }}>Payment Details</h3>
-                <button onClick={() => setShowDetailsModal(false)} style={{ background: 'var(--bg-card)', border: '1px solid var(--border-color)', borderRadius: '50%', width: 32, height: 32, display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--text-muted)', fontSize: '1.2rem', cursor: 'pointer', transition: 'background 0.2s' }}>×</button>
+              <div className="flex justify-between items-center" style={{ padding: '20px 24px', borderBottom: '1px solid var(--border-color)', background: 'var(--bg-surface)' }}>
+                <h3 className="text-xl font-semibold m-0 text-primary">Payment Details</h3>
+                <button onClick={() => setShowDetailsModal(false)} className="flex items-center justify-center text-muted cursor-pointer" style={{ background: 'var(--bg-card)', border: '1px solid var(--border-color)', borderRadius: '50%', width: 32, height: 32, fontSize: '1.2rem', transition: 'background 0.2s' }}>×</button>
               </div>
 
-              <div style={{ padding: 24, fontSize: '0.9rem' }}>
-                <div style={{ display: 'grid', gap: '12px', marginBottom: 32 }}>
-                  <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                    <span style={{ color: 'var(--text-secondary)' }}>Description</span>
-                    <span style={{ fontWeight: 600, color: 'var(--text-primary)' }}>{schedule.description}</span>
+              <div className="p-6" style={{ fontSize: '0.9rem' }}>
+                <div className="grid gap-3 mb-8">
+                  <div className="flex justify-between">
+                    <span className="text-secondary">Description</span>
+                    <span className="font-semibold text-primary">{schedule.description}</span>
                   </div>
-                  <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                    <span style={{ color: 'var(--text-secondary)' }}>Status</span>
+                  <div className="flex justify-between">
+                    <span className="text-secondary">Status</span>
                     <span className="badge badge-success">{schedule.status}</span>
                   </div>
-                  <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                    <span style={{ color: 'var(--text-secondary)' }}>Due Date</span>
-                    <span style={{ color: 'var(--text-primary)' }}>{schedule.dueDate ? formatDate(schedule.dueDate) : '—'}</span>
+                  <div className="flex justify-between">
+                    <span className="text-secondary">Due Date</span>
+                    <span className="text-primary">{schedule.dueDate ? formatDate(schedule.dueDate) : '—'}</span>
                   </div>
-                  <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                    <span style={{ color: 'var(--text-secondary)' }}>Principal Amount</span>
-                    <span style={{ color: 'var(--text-primary)' }}>{formatCurrency(schedule.principalAmount)}</span>
+                  <div className="flex justify-between">
+                    <span className="text-secondary">Principal Amount</span>
+                    <span className="text-primary">{formatCurrency(schedule.principalAmount)}</span>
                   </div>
-                  <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                    <span style={{ color: 'var(--text-secondary)' }}>GST Amount</span>
-                    <span style={{ color: 'var(--text-primary)' }}>{formatCurrency(schedule.gstAmount)}</span>
+                  <div className="flex justify-between">
+                    <span className="text-secondary">GST Amount</span>
+                    <span className="text-primary">{formatCurrency(schedule.gstAmount)}</span>
                   </div>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', paddingTop: 12, borderTop: '1px solid var(--border-color)' }}>
-                    <span style={{ color: 'var(--text-secondary)' }}>Total Received</span>
-                    <span style={{ fontWeight: 700, color: 'var(--color-success)' }}>{formatCurrency(received)}</span>
+                  <div className="flex justify-between pt-3" style={{ borderTop: '1px solid var(--border-color)' }}>
+                    <span className="text-secondary">Total Received</span>
+                    <span className="font-bold text-success">{formatCurrency(received)}</span>
                   </div>
                 </div>
 
                 {schedule.payments && schedule.payments.length > 0 && (
                   <div>
-                    <h4 style={{ fontSize: '0.8125rem', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.05em', color: 'var(--text-secondary)', marginBottom: 12 }}>Receipts</h4>
-                    <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+                    <h4 className="text-sm font-semibold text-secondary mb-3" style={{ textTransform: 'uppercase', letterSpacing: '0.05em' }}>Receipts</h4>
+                    <div className="flex dir-col gap-3">
                       {schedule.payments.map((pmt: any) => (
-                        <div key={pmt.id} style={{ background: 'var(--bg-surface)', padding: '12px 16px', borderRadius: 8, fontSize: '0.8125rem', border: '1px solid var(--border-color)' }}>
-                          <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 4 }}>
-                            <span style={{ fontWeight: 600, color: 'var(--text-primary)' }}>{formatCurrency(Number(pmt.amount) + Number(pmt.gstPaid))}</span>
-                            <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-                              <span style={{ color: 'var(--text-muted)' }}>{formatDate(pmt.paymentDate)}</span>
+                        <div key={pmt.id} className="text-sm" style={{ background: 'var(--bg-surface)', padding: '12px 16px', borderRadius: 8, border: '1px solid var(--border-color)' }}>
+                          <div className="flex justify-between mb-1">
+                            <span className="font-semibold text-primary">{formatCurrency(Number(pmt.amount) + Number(pmt.gstPaid))}</span>
+                            <div className="flex items-center gap-3">
+                              <span className="text-muted">{formatDate(pmt.paymentDate)}</span>
                               <a 
                                 href={`/api/documents/preview/receipt?paymentId=${pmt.id}`}
                                 target="_blank"
@@ -210,11 +209,11 @@ export default function PaymentScheduleRow({ schedule, saleId }: { schedule: any
                               </a>
                             </div>
                           </div>
-                          <div style={{ color: 'var(--text-muted)' }}>
+                          <div className="text-muted">
                             {pmt.mode} {pmt.referenceNumber ? `· Ref: ${pmt.referenceNumber}` : ''}
                           </div>
                           {pmt.remark && (
-                            <div style={{ marginTop: 6, fontStyle: 'italic', color: 'var(--text-secondary)' }}>&ldquo;{pmt.remark}&rdquo;</div>
+                            <div className="italic text-secondary" style={{ marginTop: 6 }}>&ldquo;{pmt.remark}&rdquo;</div>
                           )}
                         </div>
                       ))}

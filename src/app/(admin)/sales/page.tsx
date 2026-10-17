@@ -43,11 +43,11 @@ export default async function SalesPage() {
             </thead>
             <tbody>
               {sales.length === 0 ? (
-                <tr><td colSpan={9} style={{ textAlign: 'center', padding: '40px', color: 'var(--text-muted)' }}>No sales yet</td></tr>
+                <tr><td colSpan={9} className="text-center p-10 text-muted">No sales yet</td></tr>
               ) : sales.map((sale) => (
                 <ClickableRow key={sale.id} href={`/sales/${sale.id}`}>
                   <td><span className="badge badge-muted">{sale.saleNumber}</span></td>
-                  <td style={{ fontWeight: 500 }}>{sale.project.name}</td>
+                  <td className="font-medium">{sale.project.name}</td>
                   <td>{sale.unit.unitNumber} <span className="text-muted text-xs">({sale.unit.configuration})</span></td>
                   <td>{sale.buyers[0]?.fullName ?? '—'}</td>
                   <td>
@@ -55,14 +55,14 @@ export default async function SalesPage() {
                       {sale.saleType}
                     </span>
                   </td>
-                  <td style={{ fontWeight: 600 }}>{formatCurrency(Number(sale.agreementValue))}</td>
+                  <td className="font-semibold">{formatCurrency(Number(sale.agreementValue))}</td>
                   <td>
                     <span className={`badge ${saleStatusBadge(sale.status)}`}>
                       {saleStatusLabel(sale.status)}
                     </span>
                   </td>
-                  <td style={{ color: 'var(--text-muted)' }}>{formatDate(sale.bookingDate)}</td>
-                  <td style={{ textAlign: 'center' }}>{sale._count.payments}</td>
+                  <td className="text-muted">{formatDate(sale.bookingDate)}</td>
+                  <td className="text-center">{sale._count.payments}</td>
                 </ClickableRow>
               ))}
             </tbody>

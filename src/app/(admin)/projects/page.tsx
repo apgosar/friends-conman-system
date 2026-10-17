@@ -45,10 +45,10 @@ export default async function ProjectsPage() {
         </div>
 
         {projects.length === 0 ? (
-          <div className="card" style={{ textAlign: 'center', padding: '60px 20px' }}>
-            <div style={{ fontSize: '3rem', marginBottom: 16 }}>🏗️</div>
-            <h3 style={{ marginBottom: 8 }}>No projects yet</h3>
-            <p style={{ marginBottom: 24 }}>Create your first project to get started</p>
+          <div className="card text-center" style={{ padding: '60px 20px' }}>
+            <div className="mb-4" style={{ fontSize: '3rem' }}>🏗️</div>
+            <h3 className="mb-2">No projects yet</h3>
+            <p className="mb-6">Create your first project to get started</p>
             <Link href="/projects/new" className="btn btn-primary">Create Project</Link>
           </div>
         ) : (
@@ -61,34 +61,34 @@ export default async function ProjectsPage() {
                 style={{ textDecoration: 'none', display: 'block' }}
               >
                 <div className="flex items-center justify-between mb-4">
-                  <div style={{ display: 'flex', gap: 8 }}>
+                  <div className="flex gap-2">
                     <span className={`badge ${TYPE_BADGE[project.type] ?? 'badge-muted'}`}>{project.type}</span>
                     <span className={`badge ${STATUS_BADGE[project.status] ?? 'badge-muted'}`}>{project.status.replace(/_/g, ' ')}</span>
                   </div>
                 </div>
-                <h3 style={{ marginBottom: 4, fontSize: '1.0625rem' }}>{project.name}</h3>
-                <p style={{ fontSize: '0.8125rem', color: 'var(--text-muted)', marginBottom: 16 }}>
+                <h3 className="mb-1" style={{ fontSize: '1.0625rem' }}>{project.name}</h3>
+                <p className="text-sm text-muted mb-4">
                   {project.city}, {project.state}
                 </p>
                 <div className="divider" />
-                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 8 }}>
-                  <div style={{ textAlign: 'center' }}>
-                    <div style={{ fontWeight: 700, fontSize: '1.125rem' }}>{project.wings.length}</div>
-                    <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>Wings</div>
+                <div className="grid gap-2" style={{ gridTemplateColumns: '1fr 1fr 1fr' }}>
+                  <div className="text-center">
+                    <div className="font-bold text-lg">{project.wings.length}</div>
+                    <div className="text-xs text-muted">Wings</div>
                   </div>
-                  <div style={{ textAlign: 'center' }}>
-                    <div style={{ fontWeight: 700, fontSize: '1.125rem' }}>{project._count.sales}</div>
-                    <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>Sales</div>
+                  <div className="text-center">
+                    <div className="font-bold text-lg">{project._count.sales}</div>
+                    <div className="text-xs text-muted">Sales</div>
                   </div>
-                  <div style={{ textAlign: 'center' }}>
-                    <div style={{ fontWeight: 700, fontSize: '1.125rem', color: project.reraNumber ? 'var(--color-success)' : 'var(--text-muted)' }}>
+                  <div className="text-center">
+                    <div className="font-bold text-lg" style={{ color: project.reraNumber ? 'var(--color-success)' : 'var(--text-muted)' }}>
                       {project.reraNumber ? '✓' : '—'}
                     </div>
-                    <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>RERA</div>
+                    <div className="text-xs text-muted">RERA</div>
                   </div>
                 </div>
                 {project.expectedCompletion && (
-                  <div style={{ marginTop: 12, fontSize: '0.8125rem', color: 'var(--text-muted)' }}>
+                  <div className="mt-3 text-sm text-muted">
                     Expected: {formatDate(project.expectedCompletion)}
                   </div>
                 )}

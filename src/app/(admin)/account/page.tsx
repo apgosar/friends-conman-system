@@ -42,17 +42,17 @@ export default function AccountPage() {
       <div className="admin-content">
         <div className="card" style={{ maxWidth: 480 }}>
           {session?.user && (
-            <div style={{ marginBottom: 20 }}>
-              <div style={{ fontWeight: 600 }}>{session.user.name}</div>
+            <div className="mb-5">
+              <div className="font-semibold">{session.user.name}</div>
               <div className="text-muted text-base">{session.user.email} · {ROLE_LABELS[normalizeRole(session.user.role)]}</div>
             </div>
           )}
 
-          <h2 className="card-title" style={{ marginBottom: 12 }}>Change password</h2>
+          <h2 className="card-title mb-3">Change password</h2>
           {done ? (
             <div className="alert alert-success">Password changed. You are being signed out so you can sign in with the new one…</div>
           ) : (
-            <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+            <form onSubmit={handleSubmit} className="flex dir-col gap-4">
               {error && <div className="alert alert-danger">{error}</div>}
               <div className="form-group">
                 <label className="form-label" htmlFor="current-password">Current password</label>

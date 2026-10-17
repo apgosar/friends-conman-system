@@ -26,34 +26,24 @@ export default function EscalationAlerts({ escalations }: { escalations: any[] }
       <div className="card-header">
         <div className="flex items-center gap-2">
           <span className="status-dot status-dot-red status-dot-pulse" />
-          <span className="card-title" style={{ color: 'var(--color-danger)' }}>Management Action Required</span>
+          <span className="card-title text-danger">Management Action Required</span>
           <span className="badge badge-danger">{visible.length}</span>
         </div>
       </div>
-      <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+      <div className="flex dir-col" style={{ gap: 10 }}>
         {visible.map((esc) => (
           <div
             key={esc.id}
-            style={{
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'space-between',
-              padding: '14px 16px',
-              background: 'var(--bg-card)',
-              border: '1px solid rgba(239,68,68,0.2)',
-              borderRadius: 'var(--radius-md)',
-              gap: 16,
-              flexWrap: 'wrap',
-            }}
+            className="flex items-center justify-between gap-4 wrap" style={{ padding: '14px 16px', background: 'var(--bg-card)', border: '1px solid rgba(239,68,68,0.2)', borderRadius: 'var(--radius-md)' }}
           >
-            <div style={{ flex: 1, minWidth: 200 }}>
-              <div style={{ fontWeight: 600, marginBottom: 2 }}>
+            <div className="flex-1" style={{ minWidth: 200 }}>
+              <div className="font-semibold" style={{ marginBottom: 2 }}>
                 {esc.sale?.project?.name} — {esc.sale?.unit?.unitNumber}
               </div>
-              <div style={{ fontSize: '0.8125rem', color: 'var(--text-muted)' }}>
+              <div className="text-sm text-muted">
                 {esc.sale?.buyers?.[0]?.fullName} · Demand: {esc.demandGeneratedDate ? formatDate(esc.demandGeneratedDate) : '-'}
               </div>
-              <div style={{ fontSize: '0.8125rem', color: 'var(--color-danger)', marginTop: 4, fontWeight: 600 }}>
+              <div className="text-sm text-danger mt-1 font-semibold">
                 Outstanding: {formatCurrency(Number(esc.principalAmount) + Number(esc.gstAmount) + Number(esc.interestAmount))}
               </div>
             </div>

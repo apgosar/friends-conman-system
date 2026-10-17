@@ -32,7 +32,7 @@ export default async function ProjectTenantsPage(props: PageProps<'/projects/[id
 
         <div className="card">
           {project.tenants.length === 0 ? (
-            <div style={{ textAlign: 'center', padding: '40px', color: 'var(--text-muted)' }}>
+            <div className="text-center p-10 text-muted">
               No redevelopment tenants registered for this project.
             </div>
           ) : (
@@ -51,7 +51,7 @@ export default async function ProjectTenantsPage(props: PageProps<'/projects/[id
                 <tbody>
                   {project.tenants.map((t) => (
                     <tr key={t.id}>
-                      <td style={{ fontWeight: 600 }}>{t.name}</td>
+                      <td className="font-semibold">{t.name}</td>
                       <td>{t.oldFlatNumber}</td>
                       <td>{t.oldAreaSqft.toString()}</td>
                       <td>
@@ -63,7 +63,7 @@ export default async function ProjectTenantsPage(props: PageProps<'/projects/[id
                       </td>
                       <td>
                         {Number(t.extraAreaSqft) > 0 ? (
-                          <span style={{ color: 'var(--color-success)', fontWeight: 500 }}>
+                          <span className="text-success font-medium">
                             +{t.extraAreaSqft.toString()}
                           </span>
                         ) : (

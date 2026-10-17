@@ -33,15 +33,15 @@ const toDateInput = (d: string | null) => (d ? new Date(d).toISOString().split('
 
 function Shell({ title, subtitle, onClose, children }: { title: string; subtitle?: string; onClose: () => void; children: React.ReactNode }) {
   return (
-    <div style={{ position: 'fixed', inset: 0, zIndex: 1100, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+    <div className="flex items-center justify-center" style={{ position: 'fixed', inset: 0, zIndex: 1100 }}>
       <div style={{ position: 'absolute', inset: 0, background: 'rgba(0,0,0,0.5)', backdropFilter: 'blur(2px)' }} onClick={onClose} />
-      <div style={{ position: 'relative', background: 'var(--bg-card)', width: '100%', maxWidth: 480, maxHeight: '92vh', overflowY: 'auto', borderRadius: 12, boxShadow: 'var(--shadow-xl)', border: '1px solid var(--border-color)' }}>
-        <div style={{ padding: '18px 22px', borderBottom: '1px solid var(--border-color)', display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: 'var(--bg-surface)' }}>
+      <div className="relative w-full" style={{ background: 'var(--bg-card)', maxWidth: 480, maxHeight: '92vh', overflowY: 'auto', borderRadius: 12, boxShadow: 'var(--shadow-xl)', border: '1px solid var(--border-color)' }}>
+        <div className="flex justify-between items-center" style={{ padding: '18px 22px', borderBottom: '1px solid var(--border-color)', background: 'var(--bg-surface)' }}>
           <div>
-            <h3 style={{ fontSize: '1.125rem', fontWeight: 600, margin: 0, color: 'var(--text-primary)' }}>{title}</h3>
-            {subtitle && <p style={{ margin: '4px 0 0', fontSize: '0.8125rem', color: 'var(--text-muted)' }}>{subtitle}</p>}
+            <h3 className="text-lg font-semibold m-0 text-primary">{title}</h3>
+            {subtitle && <p className="text-sm text-muted" style={{ margin: '4px 0 0' }}>{subtitle}</p>}
           </div>
-          <button type="button" onClick={onClose} style={{ background: 'var(--bg-card)', border: '1px solid var(--border-color)', borderRadius: '50%', width: 32, height: 32, color: 'var(--text-muted)', fontSize: '1.2rem', cursor: 'pointer' }}>×</button>
+          <button type="button" onClick={onClose} className="text-muted cursor-pointer" style={{ background: 'var(--bg-card)', border: '1px solid var(--border-color)', borderRadius: '50%', width: 32, height: 32, fontSize: '1.2rem' }}>×</button>
         </div>
         <div style={{ padding: 22 }}>{children}</div>
       </div>
@@ -104,19 +104,19 @@ export function EditInquiryModal({ unitId, unitNumber, inq, onClose, onDone }: {
   return (
     <Shell title="Edit Inquiry" subtitle={`Unit ${unitNumber} · changing price or validity regenerates the quote PDF`} onClose={onClose}>
       <form onSubmit={submit}>
-        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, marginBottom: 12 }}>
+        <div className="grid gap-3 mb-3" style={{ gridTemplateColumns: '1fr 1fr' }}>
           <div><label style={label}>Customer Name</label><input required style={input} value={f.customerName} onChange={(e) => set('customerName', e.target.value)} /></div>
           <div><label style={label}>Mobile</label><input required style={input} maxLength={10} pattern="[0-9]{10}" title="10-digit mobile number" value={f.mobileNumber} onChange={(e) => set('mobileNumber', e.target.value.replace(/\D/g, ''))} /></div>
         </div>
-        <div style={{ marginBottom: 12 }}><label style={label}>Email</label><input type="email" style={input} value={f.email} onChange={(e) => set('email', e.target.value)} /></div>
-        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, marginBottom: 12 }}>
+        <div className="mb-3"><label style={label}>Email</label><input type="email" style={input} value={f.email} onChange={(e) => set('email', e.target.value)} /></div>
+        <div className="grid gap-3 mb-3" style={{ gridTemplateColumns: '1fr 1fr' }}>
           <div><label style={label}>Agreement Value (₹)</label><input required type="number" min="1" style={input} value={f.agreementValue} onChange={(e) => set('agreementValue', e.target.value)} /></div>
           <div><label style={label}>Valid Until</label><input type="date" style={input} value={f.validUntil} onChange={(e) => set('validUntil', e.target.value)} /></div>
         </div>
-        <label style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: '0.875rem', marginBottom: 12, cursor: 'pointer' }}>
+        <label className="flex items-center gap-2 text-base mb-3 cursor-pointer">
           <input type="checkbox" checked={f.parkingIncluded} onChange={(e) => set('parkingIncluded', e.target.checked)} /> Include parking
         </label>
-        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, marginBottom: 16 }}>
+        <div className="grid gap-3 mb-4" style={{ gridTemplateColumns: '1fr 1fr' }}>
           <div>
             <label style={label}>Lead Source</label>
             <select style={input} value={f.source} onChange={(e) => set('source', e.target.value)}>
@@ -126,8 +126,8 @@ export function EditInquiryModal({ unitId, unitNumber, inq, onClose, onDone }: {
           </div>
           <div><label style={label}>Referrer / Broker</label><input style={input} disabled={!['REFERRAL', 'BROKER'].includes(f.source)} value={f.sourceDetail} onChange={(e) => set('sourceDetail', e.target.value)} /></div>
         </div>
-        {error && <div style={{ color: 'var(--color-danger)', fontSize: '0.8125rem', marginBottom: 12 }}>{error}</div>}
-        <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 10 }}>
+        {error && <div className="text-danger text-sm mb-3">{error}</div>}
+        <div className="flex justify-end" style={{ gap: 10 }}>
           <button type="button" className="btn btn-secondary" onClick={onClose}>Cancel</button>
           <button type="submit" className="btn btn-primary" disabled={saving}>{saving ? 'Saving…' : 'Save Changes'}</button>
         </div>
@@ -167,25 +167,25 @@ export function ShareQuoteModal({ unitId, unitNumber, inq, onClose, onDone }: {
 
   return (
     <Shell title="Share Quote" subtitle={`${inq.customerName} · Unit ${unitNumber}`} onClose={results ? onDone : onClose}>
-      <label style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '10px 12px', border: '1px solid var(--border-color)', borderRadius: 8, marginBottom: 10, cursor: 'pointer' }}>
+      <label className="flex items-center cursor-pointer" style={{ gap: 10, padding: '10px 12px', border: '1px solid var(--border-color)', borderRadius: 8, marginBottom: 10 }}>
         <input type="checkbox" checked={viaWhatsApp} onChange={(e) => setViaWhatsApp(e.target.checked)} />
-        <div><div style={{ fontWeight: 600, fontSize: '0.875rem' }}>WhatsApp</div><div style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>+91 {inq.mobileNumber}</div></div>
+        <div><div className="font-semibold text-base">WhatsApp</div><div className="text-xs text-muted">+91 {inq.mobileNumber}</div></div>
       </label>
-      <label style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '10px 12px', border: '1px solid var(--border-color)', borderRadius: 8, marginBottom: 10, cursor: 'pointer' }}>
+      <label className="flex items-center cursor-pointer" style={{ gap: 10, padding: '10px 12px', border: '1px solid var(--border-color)', borderRadius: 8, marginBottom: 10 }}>
         <input type="checkbox" checked={viaEmail} onChange={(e) => setViaEmail(e.target.checked)} />
-        <div style={{ flex: 1 }}>
-          <div style={{ fontWeight: 600, fontSize: '0.875rem', marginBottom: viaEmail ? 6 : 0 }}>Email</div>
+        <div className="flex-1">
+          <div className="font-semibold text-base" style={{ marginBottom: viaEmail ? 6 : 0 }}>Email</div>
           {viaEmail && <input type="email" placeholder="customer@example.com" style={input} value={email} onChange={(e) => setEmail(e.target.value)} onClick={(e) => e.preventDefault()} />}
         </div>
       </label>
       {inq.lastSharedAt && (
-        <p style={{ fontSize: '0.75rem', color: 'var(--text-muted)', margin: '0 0 12px' }}>
+        <p className="text-xs text-muted" style={{ margin: '0 0 12px' }}>
           Last shared {new Date(inq.lastSharedAt).toLocaleString('en-IN')} via {inq.lastSharedVia?.replace('+', ' + ')}
         </p>
       )}
-      {error && <div style={{ color: 'var(--color-danger)', fontSize: '0.8125rem', marginBottom: 12 }}>{error}</div>}
+      {error && <div className="text-danger text-sm mb-3">{error}</div>}
       {results && (
-        <div style={{ marginBottom: 12, fontSize: '0.8125rem' }}>
+        <div className="mb-3 text-sm">
           {results.map((r) => (
             <div key={r.channel} style={{ color: r.ok ? 'var(--color-success)' : 'var(--color-danger)' }}>
               {r.ok ? '✓' : '✗'} {r.channel}{r.detail ? ` — ${r.detail}` : ''}
@@ -193,7 +193,7 @@ export function ShareQuoteModal({ unitId, unitNumber, inq, onClose, onDone }: {
           ))}
         </div>
       )}
-      <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 10 }}>
+      <div className="flex justify-end" style={{ gap: 10 }}>
         <button type="button" className="btn btn-secondary" onClick={results ? onDone : onClose}>{results ? 'Close' : 'Cancel'}</button>
         {!results && <button type="button" className="btn btn-primary" disabled={sending} onClick={send}>{sending ? 'Sending…' : 'Send Quote'}</button>}
       </div>
@@ -228,19 +228,19 @@ export function LostInquiryModal({ unitId, inq, onClose, onDone }: {
   return (
     <Shell title="Mark as Lost" subtitle={`${inq.customerName} · ${inq.mobileNumber}`} onClose={onClose}>
       <form onSubmit={submit}>
-        <div style={{ marginBottom: 12 }}>
+        <div className="mb-3">
           <label style={label}>Reason *</label>
           <select required style={input} value={reason} onChange={(e) => setReason(e.target.value)}>
             <option value="">— Select a reason —</option>
             {LOST_REASONS.map((r) => <option key={r} value={r}>{LOST_REASON_LABEL[r]}</option>)}
           </select>
         </div>
-        <div style={{ marginBottom: 16 }}>
+        <div className="mb-4">
           <label style={label}>Note</label>
           <textarea style={{ ...input, minHeight: 70 }} maxLength={500} placeholder="Optional details" value={note} onChange={(e) => setNote(e.target.value)} />
         </div>
-        {error && <div style={{ color: 'var(--color-danger)', fontSize: '0.8125rem', marginBottom: 12 }}>{error}</div>}
-        <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 10 }}>
+        {error && <div className="text-danger text-sm mb-3">{error}</div>}
+        <div className="flex justify-end" style={{ gap: 10 }}>
           <button type="button" className="btn btn-secondary" onClick={onClose}>Cancel</button>
           <button type="submit" className="btn btn-primary" disabled={saving}>{saving ? 'Saving…' : 'Mark Lost'}</button>
         </div>

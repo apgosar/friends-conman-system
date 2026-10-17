@@ -64,7 +64,7 @@ export const fmtNum = (n: number | null | undefined) => (n === null || n === und
 /** Name (required) and mobile (optional) of the person who booked a unit. */
 export function BookerFields({ name, mobile, onName, onMobile }: { name: string; mobile: string; onName: (v: string) => void; onMobile: (v: string) => void }) {
   return (
-    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, marginBottom: 12 }}>
+    <div className="grid gap-3 mb-3" style={{ gridTemplateColumns: '1fr 1fr' }}>
       <div><label style={labelStyle}>Booked by (name) *</label><input required maxLength={100} style={inputStyle} value={name} onChange={(e) => onName(e.target.value)} /></div>
       <div><label style={labelStyle}>Mobile (optional)</label><input type="tel" inputMode="numeric" maxLength={14} placeholder="10 digits" style={inputStyle} value={mobile} onChange={(e) => onMobile(e.target.value)} /></div>
     </div>
@@ -73,15 +73,15 @@ export function BookerFields({ name, mobile, onName, onMobile }: { name: string;
 
 export function Modal({ title, subtitle, onClose, children, maxWidth = 520 }: { title: string; subtitle?: string; onClose: () => void; children: ReactNode; maxWidth?: number }) {
   return (
-    <div style={{ position: 'fixed', inset: 0, zIndex: 1100, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+    <div className="flex items-center justify-center" style={{ position: 'fixed', inset: 0, zIndex: 1100 }}>
       <div style={{ position: 'absolute', inset: 0, background: 'rgba(0,0,0,0.5)', backdropFilter: 'blur(2px)' }} onClick={onClose} />
-      <div style={{ position: 'relative', background: 'var(--bg-card)', width: '100%', maxWidth, maxHeight: '92vh', overflowY: 'auto', borderRadius: 12, boxShadow: 'var(--shadow-xl)', border: '1px solid var(--border-color)' }}>
-        <div style={{ padding: '16px 22px', borderBottom: '1px solid var(--border-color)', display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: 'var(--bg-surface)' }}>
+      <div className="relative w-full" style={{ background: 'var(--bg-card)', maxWidth, maxHeight: '92vh', overflowY: 'auto', borderRadius: 12, boxShadow: 'var(--shadow-xl)', border: '1px solid var(--border-color)' }}>
+        <div className="flex justify-between items-center" style={{ padding: '16px 22px', borderBottom: '1px solid var(--border-color)', background: 'var(--bg-surface)' }}>
           <div>
-            <h3 style={{ fontSize: '1.125rem', fontWeight: 600, margin: 0, color: 'var(--text-primary)' }}>{title}</h3>
-            {subtitle && <p style={{ margin: '4px 0 0', fontSize: '0.8125rem', color: 'var(--text-muted)' }}>{subtitle}</p>}
+            <h3 className="text-lg font-semibold m-0 text-primary">{title}</h3>
+            {subtitle && <p className="text-sm text-muted" style={{ margin: '4px 0 0' }}>{subtitle}</p>}
           </div>
-          <button type="button" onClick={onClose} aria-label="Close" style={{ background: 'var(--bg-card)', border: '1px solid var(--border-color)', borderRadius: '50%', width: 32, height: 32, color: 'var(--text-muted)', fontSize: '1.2rem', cursor: 'pointer' }}>×</button>
+          <button type="button" onClick={onClose} aria-label="Close" className="text-muted cursor-pointer" style={{ background: 'var(--bg-card)', border: '1px solid var(--border-color)', borderRadius: '50%', width: 32, height: 32, fontSize: '1.2rem' }}>×</button>
         </div>
         <div style={{ padding: 22 }}>{children}</div>
       </div>

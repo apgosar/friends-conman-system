@@ -72,15 +72,15 @@ export default function MilestoneRow({ m }: { m: any }) {
 
   return (
     <tr>
-      <td style={{ fontWeight: 600 }}>{m.sequence}</td>
-      <td style={{ fontWeight: 500 }}>{m.name}</td>
+      <td className="font-semibold">{m.sequence}</td>
+      <td className="font-medium">{m.name}</td>
       <td>
         <span className={`badge ${m.status === 'COMPLETED' ? 'badge-success' : m.status === 'IN_PROGRESS' ? 'badge-warning' : 'badge-muted'}`}>
           {m.status.replace(/_/g, ' ')}
         </span>
       </td>
-      <td style={{ color: 'var(--text-muted)' }}>{m.plannedDate ? formatDate(m.plannedDate) : '—'}</td>
-      <td style={{ color: 'var(--text-muted)' }}>{m.actualDate ? formatDate(m.actualDate) : '—'}</td>
+      <td className="text-muted">{m.plannedDate ? formatDate(m.plannedDate) : '—'}</td>
+      <td className="text-muted">{m.actualDate ? formatDate(m.actualDate) : '—'}</td>
       <td>
         <div className="flex gap-2">
           {m.architectCertificateUrl ? (
@@ -88,7 +88,7 @@ export default function MilestoneRow({ m }: { m: any }) {
               View Cert
             </a>
           ) : (
-            <span style={{ color: 'var(--text-muted)', fontSize: '0.85rem' }}>None</span>
+            <span className="text-muted" style={{ fontSize: '0.85rem' }}>None</span>
           )}
           
           {m.status !== 'COMPLETED' && (
@@ -114,36 +114,36 @@ export default function MilestoneRow({ m }: { m: any }) {
 
       {showModal && (
         <td colSpan={0}>
-          <div style={{ position: 'fixed', inset: 0, zIndex: 1000, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+          <div className="flex items-center justify-center" style={{ position: 'fixed', inset: 0, zIndex: 1000 }}>
             <div style={{ position: 'absolute', inset: 0, background: 'rgba(0,0,0,0.5)', backdropFilter: 'blur(2px)' }} onClick={() => setShowModal(false)} />
-            <div style={{ position: 'relative', background: 'var(--bg-card)', width: '100%', maxWidth: 500, borderRadius: '12px', boxShadow: 'var(--shadow-xl)', overflow: 'hidden', border: '1px solid var(--border-color)' }}>
-              <div style={{ padding: '20px 24px', borderBottom: '1px solid var(--border-color)', display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: 'var(--bg-surface)' }}>
+            <div className="relative w-full overflow-hidden" style={{ background: 'var(--bg-card)', maxWidth: 500, borderRadius: '12px', boxShadow: 'var(--shadow-xl)', border: '1px solid var(--border-color)' }}>
+              <div className="flex justify-between items-center" style={{ padding: '20px 24px', borderBottom: '1px solid var(--border-color)', background: 'var(--bg-surface)' }}>
                 <div>
-                  <h3 style={{ fontSize: '1.25rem', fontWeight: 600, margin: 0, color: 'var(--text-primary)' }}>Complete Milestone</h3>
-                  <p style={{ margin: '4px 0 0', fontSize: '0.8125rem', color: 'var(--text-muted)' }}>{m.name}</p>
+                  <h3 className="text-xl font-semibold m-0 text-primary">Complete Milestone</h3>
+                  <p className="text-sm text-muted" style={{ margin: '4px 0 0' }}>{m.name}</p>
                 </div>
-                <button onClick={() => setShowModal(false)} style={{ background: 'var(--bg-card)', border: '1px solid var(--border-color)', borderRadius: '50%', width: 32, height: 32, display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--text-muted)', fontSize: '1.2rem', cursor: 'pointer', transition: 'background 0.2s' }}>×</button>
+                <button onClick={() => setShowModal(false)} className="flex items-center justify-center text-muted cursor-pointer" style={{ background: 'var(--bg-card)', border: '1px solid var(--border-color)', borderRadius: '50%', width: 32, height: 32, fontSize: '1.2rem', transition: 'background 0.2s' }}>×</button>
               </div>
               
-              <form onSubmit={handleComplete} style={{ padding: 24 }}>
-                <div className="form-control" style={{ marginBottom: 24 }}>
-                  <label style={{ display: 'block', fontSize: '0.8125rem', fontWeight: 500, color: 'var(--text-secondary)', marginBottom: 6 }}>
+              <form onSubmit={handleComplete} className="p-6">
+                <div className="form-control mb-6">
+                  <label className="block text-sm font-medium text-secondary" style={{ marginBottom: 6 }}>
                     Architect Completion Certificate (PDF/Image) *
                   </label>
                   <input 
                     type="file" 
                     required 
                     accept=".pdf,image/*"
-                    style={{ width: '100%', padding: '10px 14px', borderRadius: 8, border: '1px solid var(--border-color)', background: 'var(--bg-surface)', outline: 'none', fontSize: '0.9rem', color: 'var(--text-primary)', boxSizing: 'border-box' }}
+                    className="w-full text-primary" style={{ padding: '10px 14px', borderRadius: 8, border: '1px solid var(--border-color)', background: 'var(--bg-surface)', outline: 'none', fontSize: '0.9rem', boxSizing: 'border-box' }}
                     onChange={e => setCertificateFile(e.target.files?.[0] || null)}
                   />
-                  <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)', marginTop: 8, display: 'block' }}>
+                  <span className="text-xs text-muted mt-2 block">
                     Upload the signed completion certificate from the architect.
                   </span>
                 </div>
                 
-                <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 12, marginTop: 32 }}>
-                  <button type="button" className="btn" style={{ background: 'var(--bg-surface)', border: '1px solid var(--border-color)', color: 'var(--text-primary)', borderRadius: '8px' }} onClick={() => setShowModal(false)}>
+                <div className="flex justify-end gap-3 mt-8">
+                  <button type="button" className="btn text-primary" style={{ background: 'var(--bg-surface)', border: '1px solid var(--border-color)', borderRadius: '8px' }} onClick={() => setShowModal(false)}>
                     Cancel
                   </button>
                   <button type="submit" className="btn btn-primary" style={{ borderRadius: '8px' }} disabled={loading || !certificateFile}>
@@ -158,27 +158,27 @@ export default function MilestoneRow({ m }: { m: any }) {
 
       {showDeleteModal && (
         <td colSpan={0}>
-          <div style={{ position: 'fixed', inset: 0, zIndex: 1000, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+          <div className="flex items-center justify-center" style={{ position: 'fixed', inset: 0, zIndex: 1000 }}>
             <div style={{ position: 'absolute', inset: 0, background: 'rgba(0,0,0,0.5)', backdropFilter: 'blur(2px)' }} onClick={() => setShowDeleteModal(false)} />
-            <div style={{ position: 'relative', background: 'var(--bg-card)', width: '100%', maxWidth: 500, borderRadius: '12px', boxShadow: 'var(--shadow-xl)', overflow: 'hidden', border: '1px solid var(--border-color)' }}>
-              <div style={{ padding: '20px 24px', borderBottom: '1px solid var(--border-color)', display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: 'var(--bg-error)', color: 'var(--text-on-error)' }}>
+            <div className="relative w-full overflow-hidden" style={{ background: 'var(--bg-card)', maxWidth: 500, borderRadius: '12px', boxShadow: 'var(--shadow-xl)', border: '1px solid var(--border-color)' }}>
+              <div className="flex justify-between items-center" style={{ padding: '20px 24px', borderBottom: '1px solid var(--border-color)', background: 'var(--bg-error)', color: 'var(--text-on-error)' }}>
                 <div>
-                  <h3 style={{ fontSize: '1.25rem', fontWeight: 600, margin: 0, color: 'white' }}>Delete Milestone</h3>
-                  <p style={{ margin: '4px 0 0', fontSize: '0.8125rem', color: 'rgba(255,255,255,0.8)' }}>{m.name}</p>
+                  <h3 className="text-xl font-semibold m-0" style={{ color: 'white' }}>Delete Milestone</h3>
+                  <p className="text-sm" style={{ margin: '4px 0 0', color: 'rgba(255,255,255,0.8)' }}>{m.name}</p>
                 </div>
-                <button onClick={() => setShowDeleteModal(false)} style={{ background: 'transparent', border: 'none', color: 'white', fontSize: '1.2rem', cursor: 'pointer' }}>×</button>
+                <button onClick={() => setShowDeleteModal(false)} className="cursor-pointer" style={{ background: 'transparent', border: 'none', color: 'white', fontSize: '1.2rem' }}>×</button>
               </div>
               
-              <div style={{ padding: 24 }}>
-                <p style={{ color: 'var(--text-primary)', marginBottom: 16 }}>
+              <div className="p-6">
+                <p className="text-primary mb-4">
                   Are you sure you want to delete this milestone?
                 </p>
-                <p style={{ color: 'var(--text-muted)', fontSize: '0.9rem', marginBottom: 24, padding: 12, background: 'var(--bg-surface)', borderRadius: 8, borderLeft: '4px solid var(--color-warning)' }}>
+                <p className="text-muted mb-6 p-3" style={{ fontSize: '0.9rem', background: 'var(--bg-surface)', borderRadius: 8, borderLeft: '4px solid var(--color-warning)' }}>
                   This will also delete <strong>all pending payment schedules (Demand Letters)</strong> generated for this milestone across all sales. If payments have already been made against these schedules, deletion will be blocked to preserve financial data integrity.
                 </p>
                 
-                <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 12 }}>
-                  <button type="button" className="btn" style={{ background: 'var(--bg-surface)', border: '1px solid var(--border-color)', color: 'var(--text-primary)', borderRadius: '8px' }} onClick={() => setShowDeleteModal(false)}>
+                <div className="flex justify-end gap-3">
+                  <button type="button" className="btn text-primary" style={{ background: 'var(--bg-surface)', border: '1px solid var(--border-color)', borderRadius: '8px' }} onClick={() => setShowDeleteModal(false)}>
                     Cancel
                   </button>
                   <button type="button" onClick={handleDelete} className="btn" style={{ background: 'var(--bg-error)', color: 'var(--text-on-error)', borderRadius: '8px', border: 'none' }} disabled={loading}>

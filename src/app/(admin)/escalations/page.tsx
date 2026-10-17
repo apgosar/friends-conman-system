@@ -42,7 +42,7 @@ export default async function EscalationsPage() {
 
         {pendingApproval.length > 0 && (
           <div className="mb-6">
-            <h3 style={{ marginBottom: 16, color: 'var(--color-danger)' }}>⚠ Pending Management Approval</h3>
+            <h3 className="mb-4 text-danger">⚠ Pending Management Approval</h3>
             <EscalationAlerts escalations={pendingApproval} />
           </div>
         )}
@@ -53,14 +53,14 @@ export default async function EscalationsPage() {
               <span className="card-title">Stern Reminder Sent</span>
               <span className="badge badge-success">{sternSent.length}</span>
             </div>
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+            <div className="flex dir-col gap-2">
               {sternSent.map((e) => (
                 <div key={e.id} className="flex items-center justify-between" style={{ padding: '10px 12px', background: 'var(--bg-input)', borderRadius: 'var(--radius-md)' }}>
                   <div>
-                    <div style={{ fontWeight: 500 }}>{e.sale?.project?.name} — {e.sale?.unit?.unitNumber}</div>
-                    <div style={{ fontSize: '0.8125rem', color: 'var(--text-muted)' }}>{e.sale?.buyers?.[0]?.fullName}</div>
+                    <div className="font-medium">{e.sale?.project?.name} — {e.sale?.unit?.unitNumber}</div>
+                    <div className="text-sm text-muted">{e.sale?.buyers?.[0]?.fullName}</div>
                   </div>
-                  <div style={{ fontWeight: 600, color: 'var(--color-danger)' }}>
+                  <div className="font-semibold text-danger">
                     {formatCurrency(Number(e.principalAmount) + Number(e.gstAmount) + Number(e.interestAmount))}
                   </div>
                   <span className="badge badge-warning">Stern Sent ✓</span>
@@ -71,10 +71,10 @@ export default async function EscalationsPage() {
         )}
 
         {escalations.length === 0 && (
-          <div className="card" style={{ textAlign: 'center', padding: '60px 20px' }}>
-            <div style={{ fontSize: '3rem', marginBottom: 16 }}>✅</div>
+          <div className="card text-center" style={{ padding: '60px 20px' }}>
+            <div className="mb-4" style={{ fontSize: '3rem' }}>✅</div>
             <h3>No escalations</h3>
-            <p style={{ color: 'var(--text-muted)', marginTop: 8 }}>All payments are on track</p>
+            <p className="text-muted mt-2">All payments are on track</p>
           </div>
         )}
       </div>

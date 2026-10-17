@@ -105,10 +105,10 @@ export default function UsersPage() {
           </button>
         </div>
 
-        {pageError && <div className="alert alert-danger" style={{ marginBottom: 16 }}>{pageError}</div>}
+        {pageError && <div className="alert alert-danger mb-4">{pageError}</div>}
 
-        <div className="card" style={{ padding: 0 }}>
-          <div className="table-wrapper" style={{ border: 'none', margin: 0 }}>
+        <div className="card p-0">
+          <div className="table-wrapper m-0" style={{ border: 'none' }}>
             <table>
               <thead>
                 <tr>
@@ -122,19 +122,19 @@ export default function UsersPage() {
               </thead>
               <tbody>
                 {loading ? (
-                  <tr><td colSpan={6} style={{ textAlign: 'center', padding: 40, color: 'var(--text-muted)' }}>Loading…</td></tr>
+                  <tr><td colSpan={6} className="text-center p-10 text-muted">Loading…</td></tr>
                 ) : users.length === 0 ? (
-                  <tr><td colSpan={6} style={{ textAlign: 'center', padding: 40, color: 'var(--text-muted)' }}>No users found</td></tr>
+                  <tr><td colSpan={6} className="text-center p-10 text-muted">No users found</td></tr>
                 ) : users.map((user) => (
                   <tr key={user.id} className="hover-row">
-                    <td style={{ fontWeight: 500 }}>{user.name}</td>
-                    <td style={{ color: 'var(--text-muted)' }}>{user.email}</td>
+                    <td className="font-medium">{user.name}</td>
+                    <td className="text-muted">{user.email}</td>
                     <td>
                       <select 
                         value={user.role} 
                         onChange={(e) => changeRole(user.id, e.target.value)}
-                        className="form-input"
-                        style={{ padding: '4px 8px', height: 'auto', fontSize: '0.8125rem', width: 'auto' }}
+                        className="form-input text-sm"
+                        style={{ padding: '4px 8px', height: 'auto', width: 'auto' }}
                       >
                         {ROLES.map(r => <option key={r} value={r}>{ROLE_LABELS[r]}</option>)}
                       </select>
@@ -144,7 +144,7 @@ export default function UsersPage() {
                         {user.isActive ? 'Active' : 'Suspended'}
                       </span>
                     </td>
-                    <td style={{ fontSize: '0.8125rem', color: 'var(--text-muted)' }}>
+                    <td className="text-sm text-muted">
                       {new Date(user.createdAt).toLocaleDateString('en-IN')}
                     </td>
                     <td>
@@ -167,14 +167,14 @@ export default function UsersPage() {
       </div>
 
       {showModal && (
-        <div style={{ position: 'fixed', inset: 0, zIndex: 1000, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+        <div className="flex items-center justify-center" style={{ position: 'fixed', inset: 0, zIndex: 1000 }}>
           <div style={{ position: 'absolute', inset: 0, background: 'rgba(0,0,0,0.6)', backdropFilter: 'blur(2px)' }} onClick={() => setShowModal(false)} />
-          <div style={{ position: 'relative', background: 'var(--bg-card)', width: '100%', maxWidth: 400, borderRadius: 12, boxShadow: 'var(--shadow-xl)', overflow: 'hidden' }}>
-            <div style={{ padding: '20px 24px', borderBottom: '1px solid var(--border-color)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-              <h3 style={{ margin: 0 }}>Add New User</h3>
-              <button onClick={() => setShowModal(false)} style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: '1.2rem', color: 'var(--text-muted)' }}>×</button>
+          <div className="relative w-full overflow-hidden" style={{ background: 'var(--bg-card)', maxWidth: 400, borderRadius: 12, boxShadow: 'var(--shadow-xl)' }}>
+            <div className="flex justify-between items-center" style={{ padding: '20px 24px', borderBottom: '1px solid var(--border-color)' }}>
+              <h3 className="m-0">Add New User</h3>
+              <button onClick={() => setShowModal(false)} className="cursor-pointer text-muted" style={{ background: 'none', border: 'none', fontSize: '1.2rem' }}>×</button>
             </div>
-            <form onSubmit={handleCreateUser} style={{ padding: 24, display: 'flex', flexDirection: 'column', gap: 16 }}>
+            <form onSubmit={handleCreateUser} className="p-6 flex dir-col gap-4">
               {errorMsg && <div className="alert alert-danger">{errorMsg}</div>}
               <div>
                 <label className="form-label">Full Name</label>
@@ -189,16 +189,16 @@ export default function UsersPage() {
                 <select className="form-input" value={role} onChange={e => setRole(e.target.value as Role)} required>
                   {ROLES.map(r => <option key={r} value={r}>{ROLE_LABELS[r]}</option>)}
                 </select>
-                <div className="form-hint" style={{ marginTop: 4 }}>{ROLE_DESCRIPTIONS[role]}</div>
+                <div className="form-hint mt-1">{ROLE_DESCRIPTIONS[role]}</div>
               </div>
               <div>
                 <label className="form-label">Temporary Password</label>
                 <input type="password" autoComplete="new-password" className="form-input" value={password} onChange={e => setPassword(e.target.value)} required />
-                <div className="form-hint" style={{ marginTop: 4 }}>{PASSWORD_RULES}</div>
+                <div className="form-hint mt-1">{PASSWORD_RULES}</div>
               </div>
-              <div style={{ marginTop: 8, display: 'flex', gap: 12 }}>
-                <button type="button" className="btn btn-secondary" style={{ flex: 1 }} onClick={() => setShowModal(false)}>Cancel</button>
-                <button type="submit" className="btn btn-primary" style={{ flex: 1 }} disabled={submitting}>
+              <div className="mt-2 flex gap-3">
+                <button type="button" className="btn btn-secondary flex-1" onClick={() => setShowModal(false)}>Cancel</button>
+                <button type="submit" className="btn btn-primary flex-1" disabled={submitting}>
                   {submitting ? 'Saving...' : 'Create User'}
                 </button>
               </div>
@@ -209,16 +209,16 @@ export default function UsersPage() {
 
       {resetFor && (
         <Modal title="Reset password" subtitle={`Set a new password for ${resetFor.name}. They are signed out everywhere.`} onClose={() => setResetFor(null)} maxWidth={420}>
-          <form onSubmit={handleResetPassword} style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+          <form onSubmit={handleResetPassword} className="flex dir-col gap-4">
             {resetError && <div className="alert alert-danger">{resetError}</div>}
             <div>
               <label className="form-label" htmlFor="reset-password">New password</label>
               <input id="reset-password" type="password" autoComplete="new-password" className="form-input" value={newPassword} onChange={(e) => setNewPassword(e.target.value)} required autoFocus />
-              <div className="form-hint" style={{ marginTop: 4 }}>{PASSWORD_RULES}</div>
+              <div className="form-hint mt-1">{PASSWORD_RULES}</div>
             </div>
-            <div style={{ display: 'flex', gap: 12 }}>
-              <button type="button" className="btn btn-secondary" style={{ flex: 1 }} onClick={() => setResetFor(null)}>Cancel</button>
-              <button type="submit" className="btn btn-primary" style={{ flex: 1 }} disabled={resetBusy}>{resetBusy ? 'Saving…' : 'Set password'}</button>
+            <div className="flex gap-3">
+              <button type="button" className="btn btn-secondary flex-1" onClick={() => setResetFor(null)}>Cancel</button>
+              <button type="submit" className="btn btn-primary flex-1" disabled={resetBusy}>{resetBusy ? 'Saving…' : 'Set password'}</button>
             </div>
           </form>
         </Modal>

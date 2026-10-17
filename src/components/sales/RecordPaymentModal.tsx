@@ -113,16 +113,16 @@ export default function RecordPaymentModal({ schedules, saleId }: { schedules: a
       </button>
 
       {open && (
-        <div style={{ position: 'fixed', inset: 0, zIndex: 1000, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+        <div className="flex items-center justify-center" style={{ position: 'fixed', inset: 0, zIndex: 1000 }}>
           <div style={{ position: 'absolute', inset: 0, background: 'rgba(0,0,0,0.5)', backdropFilter: 'blur(2px)' }} onClick={() => setOpen(false)} />
-          <div style={{ position: 'relative', background: 'var(--bg-card)', width: '100%', maxWidth: 540, maxHeight: '92vh', overflowY: 'auto', borderRadius: 12, boxShadow: 'var(--shadow-xl)', border: '1px solid var(--border-color)' }}>
-            <div style={{ padding: '20px 24px', borderBottom: '1px solid var(--border-color)', display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: 'var(--bg-surface)' }}>
-              <h3 style={{ fontSize: '1.25rem', fontWeight: 600, margin: 0, color: 'var(--text-primary)' }}>Record Payment</h3>
-              <button type="button" onClick={() => setOpen(false)} style={{ background: 'var(--bg-card)', border: '1px solid var(--border-color)', borderRadius: '50%', width: 32, height: 32, color: 'var(--text-muted)', fontSize: '1.2rem', cursor: 'pointer' }}>×</button>
+          <div className="relative w-full" style={{ background: 'var(--bg-card)', maxWidth: 540, maxHeight: '92vh', overflowY: 'auto', borderRadius: 12, boxShadow: 'var(--shadow-xl)', border: '1px solid var(--border-color)' }}>
+            <div className="flex justify-between items-center" style={{ padding: '20px 24px', borderBottom: '1px solid var(--border-color)', background: 'var(--bg-surface)' }}>
+              <h3 className="text-xl font-semibold m-0 text-primary">Record Payment</h3>
+              <button type="button" onClick={() => setOpen(false)} className="text-muted cursor-pointer" style={{ background: 'var(--bg-card)', border: '1px solid var(--border-color)', borderRadius: '50%', width: 32, height: 32, fontSize: '1.2rem' }}>×</button>
             </div>
 
-            <form onSubmit={submit} style={{ padding: 24 }}>
-              <div style={{ marginBottom: 16 }}>
+            <form onSubmit={submit} className="p-6">
+              <div className="mb-4">
                 <label style={labelStyle}>Against Demand</label>
                 <select required value={scheduleId} onChange={(e) => selectSchedule(e.target.value)} style={inputStyle}>
                   {outstanding.map((o) => (
@@ -132,13 +132,13 @@ export default function RecordPaymentModal({ schedules, saleId }: { schedules: a
                   ))}
                 </select>
                 {selected && (
-                  <p style={{ margin: '6px 0 0', fontSize: '0.75rem', color: 'var(--text-muted)' }}>
+                  <p className="text-xs text-muted" style={{ margin: '6px 0 0' }}>
                     Outstanding: Principal {formatCurrency(selected.principal)} · GST {formatCurrency(selected.gst)}
                   </p>
                 )}
               </div>
 
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, marginBottom: 8 }}>
+              <div className="grid gap-3 mb-2" style={{ gridTemplateColumns: '1fr 1fr' }}>
                 <div>
                   <label style={labelStyle}>Principal Amount (₹)</label>
                   <input type="number" min="0" step="0.01" value={principal} onChange={(e) => setPrincipal(e.target.value)} style={inputStyle} />
@@ -148,12 +148,12 @@ export default function RecordPaymentModal({ schedules, saleId }: { schedules: a
                   <input type="number" min="0" step="0.01" value={gst} onChange={(e) => setGst(e.target.value)} style={inputStyle} />
                 </div>
               </div>
-              <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 16, padding: '8px 12px', borderRadius: 8, background: 'var(--bg-surface)', fontSize: '0.875rem' }}>
-                <span style={{ color: 'var(--text-secondary)' }}>Total being recorded</span>
-                <span style={{ fontWeight: 700 }}>{formatCurrency(round2(principalNum + gstNum))}</span>
+              <div className="flex justify-between mb-4 text-base" style={{ padding: '8px 12px', borderRadius: 8, background: 'var(--bg-surface)' }}>
+                <span className="text-secondary">Total being recorded</span>
+                <span className="font-bold">{formatCurrency(round2(principalNum + gstNum))}</span>
               </div>
 
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, marginBottom: 16 }}>
+              <div className="grid gap-3 mb-4" style={{ gridTemplateColumns: '1fr 1fr' }}>
                 <div>
                   <label style={labelStyle}>Payment Date</label>
                   <input type="date" required value={paymentDate} onChange={(e) => setPaymentDate(e.target.value)} style={inputStyle} />
@@ -174,25 +174,25 @@ export default function RecordPaymentModal({ schedules, saleId }: { schedules: a
               </div>
 
               {(mode === 'CHEQUE' || mode === 'DD') && (
-                <div style={{ marginBottom: 16 }}>
+                <div className="mb-4">
                   <label style={labelStyle}>Bank Name</label>
                   <input type="text" value={bankName} onChange={(e) => setBankName(e.target.value)} style={inputStyle} />
                 </div>
               )}
 
-              <div style={{ marginBottom: 16 }}>
+              <div className="mb-4">
                 <label style={labelStyle}>Reference Number</label>
                 <input type="text" placeholder="e.g. UTR / Cheque No." value={referenceNumber} onChange={(e) => setReferenceNumber(e.target.value)} style={inputStyle} />
               </div>
-              <div style={{ marginBottom: 20 }}>
+              <div className="mb-5">
                 <label style={labelStyle}>Remark</label>
                 <textarea placeholder="Optional remarks" value={remark} onChange={(e) => setRemark(e.target.value)} style={{ ...inputStyle, minHeight: 60 }} />
               </div>
 
-              {error && <div style={{ marginBottom: 16, color: 'var(--color-danger)', fontSize: '0.8125rem' }}>{error}</div>}
+              {error && <div className="mb-4 text-danger text-sm">{error}</div>}
 
-              <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 12 }}>
-                <button type="button" className="btn" style={{ background: 'var(--bg-surface)', border: '1px solid var(--border-color)', color: 'var(--text-primary)', borderRadius: 8 }} onClick={() => setOpen(false)}>
+              <div className="flex justify-end gap-3">
+                <button type="button" className="btn text-primary" style={{ background: 'var(--bg-surface)', border: '1px solid var(--border-color)', borderRadius: 8 }} onClick={() => setOpen(false)}>
                   Cancel
                 </button>
                 <button type="submit" className="btn btn-primary" style={{ borderRadius: 8 }} disabled={loading || !selected}>

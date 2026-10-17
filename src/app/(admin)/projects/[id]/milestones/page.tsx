@@ -30,7 +30,7 @@ export default async function ProjectMilestonesPage(props: PageProps<'/projects/
 
         <div className="card">
           {project.milestones.length === 0 ? (
-            <div style={{ textAlign: 'center', padding: '40px', color: 'var(--text-muted)' }}>
+            <div className="text-center p-10 text-muted">
               No milestones defined for this project.
             </div>
           ) : (

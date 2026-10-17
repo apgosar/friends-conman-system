@@ -97,7 +97,7 @@ export default async function ProjectDetailPage(props: PageProps<'/projects/[id]
             <div key={s.label} className="card">
               <div className="stat-label">{s.label}</div>
               <div className="stat-value" style={s.color ? { color: s.color } : undefined}>{s.value}</div>
-              {s.note && <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', marginTop: 2 }}>{s.note}</div>}
+              {s.note && <div className="text-xs text-muted" style={{ marginTop: 2 }}>{s.note}</div>}
             </div>
           ))}
         </div>
@@ -117,9 +117,9 @@ export default async function ProjectDetailPage(props: PageProps<'/projects/[id]
         {project.wings.length > 0 ? (
           <UnitsView projectId={id} />
         ) : (
-          <div className="card mb-6" style={{ textAlign: 'center', padding: 32 }}>
+          <div className="card mb-6 text-center p-8">
             <h3 style={{ margin: '0 0 6px' }}>This project has no building yet</h3>
-            <p style={{ margin: '0 0 16px', color: 'var(--text-muted)' }}>
+            <p className="text-muted" style={{ margin: '0 0 16px' }}>
               Add the wings, floors and units to start quoting and selling. It takes a few minutes: define your unit types once, then describe each wing floor by floor.
             </p>
             <Link href={`/projects/${id}/structure`} className="btn btn-primary">Set up the building</Link>
@@ -133,18 +133,13 @@ export default async function ProjectDetailPage(props: PageProps<'/projects/[id]
               <span className="card-title">Construction Milestones</span>
               <Link href={`/projects/${id}/milestones`} className="btn btn-ghost btn-sm">Manage</Link>
             </div>
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+            <div className="flex dir-col" style={{ gap: 10 }}>
               {project.milestones.map((m) => (
-                <div key={m.id} style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '8px 0', borderBottom: '1px solid var(--border-color)' }}>
-                  <div style={{
-                    width: 28, height: 28, borderRadius: '50%', flexShrink: 0,
-                    background: m.status === 'COMPLETED' ? 'var(--color-success-light)' : m.status === 'IN_PROGRESS' ? 'var(--color-warning-light)' : 'var(--bg-muted)',
-                    display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '0.75rem', fontWeight: 700,
-                    color: m.status === 'COMPLETED' ? 'var(--color-success)' : m.status === 'IN_PROGRESS' ? 'var(--color-warning)' : 'var(--text-muted)',
-                  }}>{m.sequence}</div>
-                  <div style={{ flex: 1 }}>
-                    <div style={{ fontWeight: 500, fontSize: '0.875rem' }}>{m.name}</div>
-                    <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>
+                <div key={m.id} className="flex items-center gap-3" style={{ padding: '8px 0', borderBottom: '1px solid var(--border-color)' }}>
+                  <div className="shrink-0 flex items-center justify-center text-xs font-bold" style={{ width: 28, height: 28, borderRadius: '50%', background: m.status === 'COMPLETED' ? 'var(--color-success-light)' : m.status === 'IN_PROGRESS' ? 'var(--color-warning-light)' : 'var(--bg-muted)', color: m.status === 'COMPLETED' ? 'var(--color-success)' : m.status === 'IN_PROGRESS' ? 'var(--color-warning)' : 'var(--text-muted)' }}>{m.sequence}</div>
+                  <div className="flex-1">
+                    <div className="font-medium text-base">{m.name}</div>
+                    <div className="text-xs text-muted">
                       {m.plannedDate ? `Planned: ${formatDate(m.plannedDate)}` : 'Date TBD'}{m.actualDate ? ` · Actual: ${formatDate(m.actualDate)}` : ''}
                     </div>
                   </div>

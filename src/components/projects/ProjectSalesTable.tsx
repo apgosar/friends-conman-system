@@ -30,7 +30,7 @@ export default function ProjectSalesTable({ sales }: { sales: ProjectSaleRow[] }
 
   return (
     <div className="card">
-      <div className="card-header" style={{ flexWrap: 'wrap', gap: 12 }}>
+      <div className="card-header wrap gap-3">
         <span className="card-title">Sales in this Project</span>
         <input
           type="search"
@@ -38,12 +38,12 @@ export default function ProjectSalesTable({ sales }: { sales: ProjectSaleRow[] }
           aria-label="Search sales by customer name or unit number"
           value={query}
           onChange={(e) => setQuery(e.target.value)}
-          style={{ flex: '0 1 300px', padding: '8px 12px', borderRadius: 8, border: '1px solid var(--border-color)', background: 'var(--bg-surface)', color: 'var(--text-primary)', fontSize: '0.875rem' }}
+          className="text-primary text-base" style={{ flex: '0 1 300px', padding: '8px 12px', borderRadius: 8, border: '1px solid var(--border-color)', background: 'var(--bg-surface)' }}
         />
       </div>
 
       {rows.length === 0 ? (
-        <div style={{ textAlign: 'center', padding: 32, color: 'var(--text-muted)' }}>No sales match “{query}”.</div>
+        <div className="text-center p-8 text-muted">No sales match “{query}”.</div>
       ) : (
         <div className="table-wrapper" style={{ border: 'none' }}>
           <table>
@@ -54,7 +54,7 @@ export default function ProjectSalesTable({ sales }: { sales: ProjectSaleRow[] }
                   <td><span className="badge badge-muted">{sale.saleNumber}</span></td>
                   <td>{sale.unitNumber}</td>
                   <td>{sale.buyerName ?? '—'}</td>
-                  <td style={{ fontWeight: 600 }}>{formatCurrency(sale.agreementValue)}</td>
+                  <td className="font-semibold">{formatCurrency(sale.agreementValue)}</td>
                   <td><span className={`badge ${saleStatusBadge(sale.status)}`}>{saleStatusLabel(sale.status)}</span></td>
                   <td><Link href={`/sales/${sale.id}`} className="btn btn-ghost btn-sm">View →</Link></td>
                 </tr>
@@ -64,10 +64,10 @@ export default function ProjectSalesTable({ sales }: { sales: ProjectSaleRow[] }
         </div>
       )}
 
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '10px 4px 0', fontSize: '0.8125rem', color: 'var(--text-muted)' }}>
+      <div className="flex justify-between items-center text-sm text-muted" style={{ padding: '10px 4px 0' }}>
         <span>{q ? `${matches.length} of ${sales.length} sales` : `Showing ${rows.length} of ${sales.length} sales`}</span>
         {!q && sales.length > PREVIEW_COUNT && (
-          <button type="button" onClick={() => setShowAll((v) => !v)} style={{ background: 'none', border: 'none', color: 'var(--color-primary)', fontWeight: 600, cursor: 'pointer' }}>
+          <button type="button" onClick={() => setShowAll((v) => !v)} className="text-brand font-semibold cursor-pointer" style={{ background: 'none', border: 'none' }}>
             {showAll ? 'Show fewer' : `Show all ${sales.length}`}
           </button>
         )}

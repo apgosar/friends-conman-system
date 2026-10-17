@@ -60,14 +60,14 @@ export default async function ReceivablesPage({ searchParams }: { searchParams: 
           <Link href="/dashboard" className="btn btn-ghost btn-sm">← Back to Dashboard</Link>
         </div>
         
-        <div className="card" style={{ padding: 0 }}>
-          <div className="card-header" style={{ display: 'flex', justifyContent: 'space-between', padding: '16px 20px', borderBottom: '1px solid var(--border-color)' }}>
+        <div className="card p-0">
+          <div className="card-header flex justify-between" style={{ padding: '16px 20px', borderBottom: '1px solid var(--border-color)' }}>
             <span className="card-title">Demands</span>
-            <span style={{ fontWeight: 600, color: 'var(--color-primary)' }}>Total: {formatCurrency(totalAmount)}</span>
+            <span className="font-semibold text-brand">Total: {formatCurrency(totalAmount)}</span>
           </div>
 
           {filtered.length === 0 ? (
-            <div style={{ textAlign: 'center', padding: '60px 20px', color: 'var(--text-muted)' }}>
+            <div className="text-center text-muted" style={{ padding: '60px 20px' }}>
               No receivables found in this bucket.
             </div>
           ) : (
@@ -81,7 +81,7 @@ export default async function ReceivablesPage({ searchParams }: { searchParams: 
                     <th>Description</th>
                     <th>Due Date</th>
                     <th>Days Overdue</th>
-                    <th style={{ textAlign: 'right' }}>Amount</th>
+                    <th className="text-right">Amount</th>
                     <th>Action</th>
                   </tr>
                 </thead>
@@ -93,10 +93,10 @@ export default async function ReceivablesPage({ searchParams }: { searchParams: 
                     return (
                       <tr key={s.id}>
                         <td>{s.sale?.project?.name}</td>
-                        <td style={{ fontWeight: 500 }}>{s.sale?.unit?.unitNumber}</td>
+                        <td className="font-medium">{s.sale?.unit?.unitNumber}</td>
                         <td>{s.sale?.buyers[0]?.fullName || '-'}</td>
-                        <td style={{ color: 'var(--text-secondary)' }}>{s.description || s.milestone?.name}</td>
-                        <td style={{ color: 'var(--text-muted)' }}>{s.dueDate ? formatDate(s.dueDate) : 'On milestone'}</td>
+                        <td className="text-secondary">{s.description || s.milestone?.name}</td>
+                        <td className="text-muted">{s.dueDate ? formatDate(s.dueDate) : 'On milestone'}</td>
                         <td>
                           {daysPast > 0 ? (
                             <span className={`badge ${daysPast > 30 ? 'badge-danger' : daysPast > 15 ? 'badge-orange' : daysPast > 7 ? 'badge-warning' : 'badge-primary'}`}>
@@ -106,8 +106,8 @@ export default async function ReceivablesPage({ searchParams }: { searchParams: 
                             <span className="badge badge-success">Current</span>
                           )}
                         </td>
-                        <td style={{ textAlign: 'right', fontWeight: 600 }}>{formatCurrency(amt)}</td>
-                        <td style={{ textAlign: 'right' }}>
+                        <td className="text-right font-semibold">{formatCurrency(amt)}</td>
+                        <td className="text-right">
                            <Link href={`/sales/${s.saleId}`} className="btn btn-primary btn-sm">View Sale</Link>
                         </td>
                       </tr>

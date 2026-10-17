@@ -95,13 +95,13 @@ export default function SaleDocumentsPage(props: { params: Promise<{ id: string 
           
           {/* Generator Actions */}
           <div className="card">
-            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 16 }}>
-              <h3 style={{ margin: 0 }}>Generate Documents</h3>
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="m-0">Generate Documents</h3>
               <span className={`badge ${sale.saleType === 'FRESH' ? 'badge-primary' : 'badge-orange'}`}>
                 {sale.saleType} SALE
               </span>
             </div>
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+            <div className="flex dir-col gap-3">
               {sale.saleType === 'FRESH' && (
                 <button 
                   className="btn btn-primary" 
@@ -135,24 +135,23 @@ export default function SaleDocumentsPage(props: { params: Promise<{ id: string 
                 {generating ? '...' : 'Generate Receipt (PDF)'}
               </button>
               <button 
-                className="btn btn-primary" 
+                className="btn btn-primary mt-3" 
                 onClick={() => handleGenerate('POSSESSION_LETTER')}
                 disabled={generating}
-                style={{ marginTop: '12px' }}
               >
                 {generating ? '...' : 'Generate Possession Letter (DOCX)'}
               </button>
             </div>
-            <p style={{ marginTop: 16, fontSize: '0.85rem', color: 'var(--text-muted)' }}>
+            <p className="mt-4 text-muted" style={{ fontSize: '0.85rem' }}>
               Make sure you have uploaded the corresponding templates in the Project Templates section before generating.
             </p>
           </div>
 
           {/* Document List */}
           <div className="card">
-            <h3 style={{ marginBottom: 16 }}>Generated Documents</h3>
+            <h3 className="mb-4">Generated Documents</h3>
             {documents.length === 0 ? (
-              <p style={{ color: 'var(--text-muted)' }}>No documents generated yet.</p>
+              <p className="text-muted">No documents generated yet.</p>
             ) : (
               <div className="table-wrapper">
                 <table>
@@ -169,7 +168,7 @@ export default function SaleDocumentsPage(props: { params: Promise<{ id: string 
                     {documents.map((doc) => (
                       <tr key={doc.id}>
                         <td>
-                          <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
+                          <div className="flex items-center wrap" style={{ gap: 6 }}>
                             <span className="badge badge-info">{doc.type.replace(/_/g, ' ')}</span>
                             {latestByType[doc.type] === doc.id && (
                               <span className="badge badge-success" style={{ fontSize: '0.68rem', padding: '2px 7px', letterSpacing: '0.03em' }}>
@@ -183,10 +182,10 @@ export default function SaleDocumentsPage(props: { params: Promise<{ id: string 
                             {doc.status}
                           </span>
                         </td>
-                        <td style={{ color: 'var(--text-muted)' }}>{formatDate(doc.createdAt)}</td>
+                        <td className="text-muted">{formatDate(doc.createdAt)}</td>
                         <td>
                           {doc.pdfUrl && (
-                            <div style={{ display: 'flex', gap: 6 }}>
+                            <div className="flex" style={{ gap: 6 }}>
                               <button
                                 className="btn btn-primary btn-sm"
                                 onClick={() => window.open(`/documents/preview?url=${encodeURIComponent(doc.pdfUrl)}`, '_blank')}

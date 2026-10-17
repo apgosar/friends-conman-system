@@ -80,7 +80,7 @@ export default function SettingsPage() {
           </div>
         </div>
 
-        <div style={{ display: 'grid', gap: 24, maxWidth: 820 }}>
+        <div className="grid gap-6" style={{ maxWidth: 820 }}>
 
           {/* ── Email Integration ─────────────────────────────── */}
           <div className="card">
@@ -92,23 +92,23 @@ export default function SettingsPage() {
             </div>
 
             <div style={{ padding: '0 0 20px' }}>
-              <p style={{ color: 'var(--text-secondary)', fontSize: '0.9rem', marginBottom: 20 }}>
+              <p className="text-secondary mb-5" style={{ fontSize: '0.9rem' }}>
                 Emails are sent via Gmail SMTP using a Google App Password. Set the following in your{' '}
                 <code style={{ background: 'var(--bg-input)', padding: '2px 6px', borderRadius: 4 }}>.env.local</code> file:
               </p>
 
-              <div style={{ background: 'var(--bg-input)', borderRadius: 8, padding: '16px 20px', fontFamily: 'monospace', fontSize: '0.85rem', color: 'var(--color-success)', marginBottom: 20, lineHeight: 2 }}>
-                <div><span style={{ color: 'var(--text-muted)' }}># Email (Gmail App Password)</span></div>
-                <div>GMAIL_USER=<span style={{ color: 'var(--color-warning)' }}>neevcms@gmail.com</span></div>
-                <div>GMAIL_APP_PASSWORD=<span style={{ color: 'var(--color-warning)' }}>xxxx-xxxx-xxxx-xxxx</span></div>
-                <div>COMPANY_NAME=<span style={{ color: 'var(--color-warning)' }}>Your Company Name</span></div>
+              <div className="text-success mb-5" style={{ background: 'var(--bg-input)', borderRadius: 8, padding: '16px 20px', fontFamily: 'monospace', fontSize: '0.85rem', lineHeight: 2 }}>
+                <div><span className="text-muted"># Email (Gmail App Password)</span></div>
+                <div>GMAIL_USER=<span className="text-warning">neevcms@gmail.com</span></div>
+                <div>GMAIL_APP_PASSWORD=<span className="text-warning">xxxx-xxxx-xxxx-xxxx</span></div>
+                <div>COMPANY_NAME=<span className="text-warning">Your Company Name</span></div>
               </div>
 
-              <details style={{ marginBottom: 20 }}>
-                <summary style={{ cursor: 'pointer', fontSize: '0.875rem', color: 'var(--text-secondary)', fontWeight: 500 }}>
+              <details className="mb-5">
+                <summary className="cursor-pointer text-base text-secondary font-medium">
                   📖 How to create a Gmail App Password
                 </summary>
-                <ol style={{ marginTop: 12, paddingLeft: 20, fontSize: '0.875rem', color: 'var(--text-muted)', lineHeight: 1.8 }}>
+                <ol className="mt-3 pl-5 text-base text-muted" style={{ lineHeight: 1.8 }}>
                   <li>Sign in to <strong>neevcms@gmail.com</strong></li>
                   <li>Go to <strong>Google Account → Security → 2-Step Verification</strong> (enable it first)</li>
                   <li>At the bottom, click <strong>App passwords</strong></li>
@@ -117,8 +117,8 @@ export default function SettingsPage() {
                 </ol>
               </details>
 
-              <form onSubmit={handleTestEmail} style={{ display: 'flex', gap: 12, alignItems: 'flex-end' }}>
-                <div style={{ flex: 1 }}>
+              <form onSubmit={handleTestEmail} className="flex gap-3 items-end">
+                <div className="flex-1">
                   <label className="form-label">Send test email to</label>
                   <input
                     type="email"
@@ -134,7 +134,7 @@ export default function SettingsPage() {
                 </button>
               </form>
               {emailMsg && (
-                <div className={`alert ${emailStatus === 'success' ? 'alert-success' : 'alert-danger'} mt-4`} style={{ marginTop: 12 }}>
+                <div className={`alert ${emailStatus === 'success' ? 'alert-success' : 'alert-danger'} mt-4 mt-3`}>
                   {emailMsg}
                 </div>
               )}
@@ -149,23 +149,23 @@ export default function SettingsPage() {
             </div>
 
             <div style={{ padding: '0 0 20px' }}>
-              <p style={{ color: 'var(--text-secondary)', fontSize: '0.9rem', marginBottom: 20 }}>
+              <p className="text-secondary mb-5" style={{ fontSize: '0.9rem' }}>
                 Uses the <strong>official WhatsApp Business Cloud API</strong> by Meta — completely free to set up, 
                 pay only per conversation beyond the free tier. No Gupshup or Wati needed.
               </p>
 
-              <div style={{ background: 'var(--bg-input)', borderRadius: 8, padding: '16px 20px', fontFamily: 'monospace', fontSize: '0.85rem', color: 'var(--color-success)', marginBottom: 20, lineHeight: 2 }}>
-                <div><span style={{ color: 'var(--text-muted)' }}># WhatsApp Business Cloud API (Meta)</span></div>
-                <div>WHATSAPP_PHONE_NUMBER_ID=<span style={{ color: 'var(--color-warning)' }}>your_phone_number_id</span></div>
-                <div>WHATSAPP_ACCESS_TOKEN=<span style={{ color: 'var(--color-warning)' }}>your_permanent_access_token</span></div>
+              <div className="text-success mb-5" style={{ background: 'var(--bg-input)', borderRadius: 8, padding: '16px 20px', fontFamily: 'monospace', fontSize: '0.85rem', lineHeight: 2 }}>
+                <div><span className="text-muted"># WhatsApp Business Cloud API (Meta)</span></div>
+                <div>WHATSAPP_PHONE_NUMBER_ID=<span className="text-warning">your_phone_number_id</span></div>
+                <div>WHATSAPP_ACCESS_TOKEN=<span className="text-warning">your_permanent_access_token</span></div>
               </div>
 
-              <details style={{ marginBottom: 20 }}>
-                <summary style={{ cursor: 'pointer', fontSize: '0.875rem', color: 'var(--text-secondary)', fontWeight: 500 }}>
+              <details className="mb-5">
+                <summary className="cursor-pointer text-base text-secondary font-medium">
                   📖 How to set up WhatsApp Cloud API (5 steps)
                 </summary>
-                <ol style={{ marginTop: 12, paddingLeft: 20, fontSize: '0.875rem', color: 'var(--text-muted)', lineHeight: 2 }}>
-                  <li>Go to <a href="https://developers.facebook.com" target="_blank" rel="noreferrer" style={{ color: 'var(--color-primary)' }}>developers.facebook.com</a> → Create App → Business type</li>
+                <ol className="mt-3 pl-5 text-base text-muted" style={{ lineHeight: 2 }}>
+                  <li>Go to <a href="https://developers.facebook.com" target="_blank" rel="noreferrer" className="text-brand">developers.facebook.com</a> → Create App → Business type</li>
                   <li>Add the <strong>WhatsApp</strong> product to your app</li>
                   <li>In <strong>WhatsApp → API Setup</strong>, copy the <em>Phone Number ID</em> → paste as <code>WHATSAPP_PHONE_NUMBER_ID</code></li>
                   <li>Go to <strong>Business Settings → System Users</strong> → Create a system user → Generate a permanent token with <em>whatsapp_business_messaging</em> permission → paste as <code>WHATSAPP_ACCESS_TOKEN</code></li>
@@ -175,8 +175,8 @@ export default function SettingsPage() {
 
 
 
-              <form onSubmit={handleTestWhatsApp} style={{ display: 'flex', gap: 12, alignItems: 'flex-end' }}>
-                <div style={{ flex: 1 }}>
+              <form onSubmit={handleTestWhatsApp} className="flex gap-3 items-end">
+                <div className="flex-1">
                   <label className="form-label">Send test WhatsApp to (with country code)</label>
                   <input
                     type="tel"
@@ -192,7 +192,7 @@ export default function SettingsPage() {
                 </button>
               </form>
               {waMsg && (
-                <div className={`alert ${waStatus === 'success' ? 'alert-success' : 'alert-danger'} mt-4`} style={{ marginTop: 12 }}>
+                <div className={`alert ${waStatus === 'success' ? 'alert-success' : 'alert-danger'} mt-4 mt-3`}>
                   {waMsg}
                 </div>
               )}
@@ -205,18 +205,18 @@ export default function SettingsPage() {
               <span className="card-title">⚙️ App Configuration</span>
             </div>
             <div style={{ padding: '0 0 8px' }}>
-              <p style={{ color: 'var(--text-secondary)', fontSize: '0.9rem', marginBottom: 16 }}>
+              <p className="text-secondary mb-4" style={{ fontSize: '0.9rem' }}>
                 Additional environment variables to configure in <code style={{ background: 'var(--bg-input)', padding: '2px 6px', borderRadius: 4 }}>.env.local</code>:
               </p>
-              <div style={{ background: 'var(--bg-input)', borderRadius: 8, padding: '16px 20px', fontFamily: 'monospace', fontSize: '0.85rem', color: 'var(--color-success)', lineHeight: 2 }}>
-                <div><span style={{ color: 'var(--text-muted)' }}># Application URL (used in document links sent via WhatsApp)</span></div>
-                <div>APP_URL=<span style={{ color: 'var(--color-warning)' }}>https://your-production-domain.com</span></div>
-                <div style={{ marginTop: 8 }}><span style={{ color: 'var(--text-muted)' }}># Interest & Tax defaults</span></div>
-                <div>INTEREST_RATE_PA=<span style={{ color: 'var(--color-warning)' }}>12</span></div>
-                <div>GST_RATE=<span style={{ color: 'var(--color-warning)' }}>5</span></div>
-                <div>TDS_THRESHOLD=<span style={{ color: 'var(--color-warning)' }}>5000000</span></div>
+              <div className="text-success" style={{ background: 'var(--bg-input)', borderRadius: 8, padding: '16px 20px', fontFamily: 'monospace', fontSize: '0.85rem', lineHeight: 2 }}>
+                <div><span className="text-muted"># Application URL (used in document links sent via WhatsApp)</span></div>
+                <div>APP_URL=<span className="text-warning">https://your-production-domain.com</span></div>
+                <div className="mt-2"><span className="text-muted"># Interest & Tax defaults</span></div>
+                <div>INTEREST_RATE_PA=<span className="text-warning">12</span></div>
+                <div>GST_RATE=<span className="text-warning">5</span></div>
+                <div>TDS_THRESHOLD=<span className="text-warning">5000000</span></div>
               </div>
-              <div style={{ marginTop: 16, display: 'flex', gap: 12 }}>
+              <div className="mt-4 flex gap-3">
                 <Link href="/communications" className="btn btn-secondary btn-sm">
                   💬 View Communications Inbox
                 </Link>

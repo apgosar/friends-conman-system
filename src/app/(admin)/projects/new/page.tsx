@@ -91,7 +91,7 @@ export default function NewProjectPage() {
                 </div>
               </div>
               <div className="divider" />
-              <h4 style={{ marginBottom: 16 }}>Company / Developer Details</h4>
+              <h4 className="mb-4">Company / Developer Details</h4>
               <div className="grid grid-2 gap-4 mb-4">
                 <div className="form-group">
                   <label className="form-label">Company Name *</label>
@@ -103,7 +103,7 @@ export default function NewProjectPage() {
                 </div>
               </div>
               <h4 style={{ margin: '8px 0 4px' }}>Tax and pricing</h4>
-              <p className="form-hint" style={{ marginBottom: 12 }}>Defaults suit Maharashtra. Change them if this project&apos;s state or year differs; you can edit them later.</p>
+              <p className="form-hint mb-3">Defaults suit Maharashtra. Change them if this project&apos;s state or year differs; you can edit them later.</p>
               <PricingFields />
               <div className="form-group mb-6">
                 <label className="form-label">Company Address *</label>

@@ -224,12 +224,8 @@ function AgingBucketCard({ label, amount, color, critical, bucket }: {
 }) {
   const content = (
     <div
-      className="card hoverable-card"
-      style={{
-        borderColor: critical && amount > 0 ? 'rgba(239,68,68,0.3)' : undefined,
-        background: critical && amount > 0 ? 'rgba(239,68,68,0.05)' : undefined,
-        cursor: 'pointer',
-      }}
+      className="card hoverable-card cursor-pointer"
+      style={{ borderColor: critical && amount > 0 ? 'rgba(239,68,68,0.3)' : undefined, background: critical && amount > 0 ? 'rgba(239,68,68,0.05)' : undefined }}
     >
       <div className="flex items-center gap-2 mb-2">
         <div className="status-dot" style={{ background: color }} />
@@ -239,12 +235,7 @@ function AgingBucketCard({ label, amount, color, critical, bucket }: {
         )}
       </div>
       <div
-        style={{
-          fontSize: '1.375rem',
-          fontFamily: 'var(--font-display)',
-          fontWeight: 700,
-          color: amount > 0 ? color : 'var(--text-muted)',
-        }}
+        className="font-bold" style={{ fontSize: '1.375rem', fontFamily: 'var(--font-display)', color: amount > 0 ? color : 'var(--text-muted)' }}
       >
         {formatCurrency(amount)}
       </div>

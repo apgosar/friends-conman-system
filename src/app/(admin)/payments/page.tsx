@@ -54,18 +54,18 @@ export default async function PaymentsPage() {
             </thead>
             <tbody>
               {payments.length === 0 ? (
-                <tr><td colSpan={11} style={{ textAlign: 'center', padding: '40px', color: 'var(--text-muted)' }}>No payments recorded</td></tr>
+                <tr><td colSpan={11} className="text-center p-10 text-muted">No payments recorded</td></tr>
               ) : payments.map((p) => (
                 <tr key={p.id}>
                   <td><span className="badge badge-primary">{p.receiptNumber}</span></td>
-                  <td style={{ fontWeight: 500 }}>{p.sale?.project?.name}</td>
+                  <td className="font-medium">{p.sale?.project?.name}</td>
                   <td>{p.sale?.unit?.unitNumber}</td>
                   <td>{p.sale?.buyers?.[0]?.fullName ?? '—'}</td>
-                  <td style={{ color: 'var(--text-secondary)', maxWidth: 140 }}>{p.schedule?.description}</td>
+                  <td className="text-secondary" style={{ maxWidth: 140 }}>{p.schedule?.description}</td>
                   <td><span className="badge badge-muted">{MODE_LABELS[p.mode] ?? p.mode}</span></td>
-                  <td style={{ color: 'var(--text-muted)', fontSize: '0.8125rem' }}>{p.referenceNumber ?? '—'}</td>
-                  <td style={{ color: 'var(--text-muted)' }}>{formatDate(p.paymentDate)}</td>
-                  <td style={{ fontWeight: 700, color: 'var(--color-success)' }}>{formatCurrency(Number(p.amount))}</td>
+                  <td className="text-muted text-sm">{p.referenceNumber ?? '—'}</td>
+                  <td className="text-muted">{formatDate(p.paymentDate)}</td>
+                  <td className="font-bold text-success">{formatCurrency(Number(p.amount))}</td>
                   <td>
                     {p.tdsRecord ? (
                       <span className={`badge ${p.tdsRecord.status === 'CERTIFICATE_RECEIVED' ? 'badge-success' : p.tdsRecord.status === 'DEPOSITED' ? 'badge-info' : 'badge-warning'}`}>

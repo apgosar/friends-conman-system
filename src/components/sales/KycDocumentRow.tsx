@@ -23,13 +23,13 @@ export default function KycDocumentRow({ doc }: { doc: any }) {
 
   return (
     <tr>
-      <td style={{ fontWeight: 500 }}>{doc.docType.replace(/_/g, ' ')}</td>
+      <td className="font-medium">{doc.docType.replace(/_/g, ' ')}</td>
       <td>
         <span className={`badge ${doc.status === 'VERIFIED' ? 'badge-success' : doc.status === 'REJECTED' ? 'badge-danger' : 'badge-warning'}`}>
           {doc.status}
         </span>
       </td>
-      <td style={{ color: 'var(--text-muted)' }}>{formatDate(doc.createdAt)}</td>
+      <td className="text-muted">{formatDate(doc.createdAt)}</td>
       <td>
         <div className="flex gap-2">
           <a href={doc.fileUrl} target="_blank" rel="noreferrer" className="btn btn-ghost btn-sm">

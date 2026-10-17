@@ -42,13 +42,13 @@ export default function CopyTemplateButton({ projectId, templateId, projects }: 
       </button>
 
       {open && (
-        <div style={{ position: 'fixed', inset: 0, zIndex: 1000, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+        <div className="flex items-center justify-center" style={{ position: 'fixed', inset: 0, zIndex: 1000 }}>
           <div style={{ position: 'absolute', inset: 0, background: 'rgba(0,0,0,0.5)', backdropFilter: 'blur(2px)' }} onClick={close} />
-          <div style={{ position: 'relative', background: 'var(--bg-card)', width: '100%', maxWidth: 440, borderRadius: 12, border: '1px solid var(--border-color)', boxShadow: 'var(--shadow-xl)', overflow: 'hidden' }}>
-            <div style={{ padding: '16px 20px', borderBottom: '1px solid var(--border-color)', background: 'var(--bg-surface)', fontWeight: 600 }}>Copy template to another project</div>
-            <div style={{ padding: 20 }}>
+          <div className="relative w-full overflow-hidden" style={{ background: 'var(--bg-card)', maxWidth: 440, borderRadius: 12, border: '1px solid var(--border-color)', boxShadow: 'var(--shadow-xl)' }}>
+            <div className="font-semibold" style={{ padding: '16px 20px', borderBottom: '1px solid var(--border-color)', background: 'var(--bg-surface)' }}>Copy template to another project</div>
+            <div className="p-5">
               {done ? (
-                <p style={{ margin: 0, fontSize: '0.9rem' }}>
+                <p className="m-0" style={{ fontSize: '0.9rem' }}>
                   Copied to <b>{done.project}</b>.{' '}
                   {done.activated
                     ? 'It had no template of this type, so the copy is now its active template.'
@@ -56,18 +56,18 @@ export default function CopyTemplateButton({ projectId, templateId, projects }: 
                 </p>
               ) : (
                 <>
-                  <label style={{ display: 'block', fontSize: '0.8125rem', fontWeight: 500, color: 'var(--text-secondary)', marginBottom: 6 }}>Target project</label>
-                  <select value={target} onChange={(e) => setTarget(e.target.value)} style={{ width: '100%', padding: '10px 14px', borderRadius: 8, border: '1px solid var(--border-color)', background: 'var(--bg-surface)', color: 'var(--text-primary)' }}>
+                  <label className="block text-sm font-medium text-secondary" style={{ marginBottom: 6 }}>Target project</label>
+                  <select value={target} onChange={(e) => setTarget(e.target.value)} className="w-full text-primary" style={{ padding: '10px 14px', borderRadius: 8, border: '1px solid var(--border-color)', background: 'var(--bg-surface)' }}>
                     <option value="">— Select a project —</option>
                     {projects.map((p) => <option key={p.id} value={p.id}>{p.name}</option>)}
                   </select>
-                  <p style={{ fontSize: '0.75rem', color: 'var(--text-muted)', margin: '10px 0 0' }}>
+                  <p className="text-xs text-muted" style={{ margin: '10px 0 0' }}>
                     The copy becomes active only if that project has no template of this type yet. It never replaces a live one.
                   </p>
-                  {error && <div role="alert" style={{ color: 'var(--color-danger)', fontSize: '0.8125rem', marginTop: 10 }}>{error}</div>}
+                  {error && <div role="alert" className="text-danger text-sm" style={{ marginTop: 10 }}>{error}</div>}
                 </>
               )}
-              <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 10, marginTop: 18 }}>
+              <div className="flex justify-end" style={{ gap: 10, marginTop: 18 }}>
                 <button type="button" className="btn btn-secondary" onClick={close}>{done ? 'Close' : 'Cancel'}</button>
                 {!done && <button type="button" className="btn btn-primary" disabled={!target || busy} onClick={copy}>{busy ? 'Copying…' : 'Copy'}</button>}
               </div>

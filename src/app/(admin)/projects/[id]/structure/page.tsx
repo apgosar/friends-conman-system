@@ -70,14 +70,14 @@ export default async function ProjectStructurePage(props: PageProps<'/projects/[
         </div>
 
         {isNew && (
-          <div className="alert alert-success mb-6" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 12, flexWrap: 'wrap' }}>
+          <div className="alert alert-success mb-6 flex justify-between items-center gap-3 wrap">
             <span><strong>Project created.</strong> Next, describe the building so units can be quoted and sold. You can also do this later.</span>
             <Link href={`/projects/${id}`} className="btn btn-secondary btn-sm">Skip for now</Link>
           </div>
         )}
 
         {!canEdit ? (
-          <div className="card"><p style={{ margin: 0 }}>Only administrators can change a project’s building structure.</p></div>
+          <div className="card"><p className="m-0">Only administrators can change a project’s building structure.</p></div>
         ) : (
           <>
             <UnitTypesPanel projectId={id} types={types} />

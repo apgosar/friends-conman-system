@@ -41,7 +41,7 @@ export default async function SaleKycPage(props: PageProps<'/sales/[id]/kyc'>) {
             </div>
             
             {buyer.kycDocuments.length === 0 ? (
-              <div style={{ textAlign: 'center', padding: '20px', color: 'var(--text-muted)' }}>
+              <div className="text-center p-5 text-muted">
                 No KYC documents uploaded for this buyer.
               </div>
             ) : (

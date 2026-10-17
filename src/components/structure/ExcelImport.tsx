@@ -35,16 +35,16 @@ export default function ExcelImport({ projectId }: { projectId: string }) {
       <div className="card-header">
         <div>
           <span className="card-title">Or import from Excel</span>
-          <p style={{ margin: '4px 0 0', fontSize: '0.8125rem', color: 'var(--text-muted)' }}>For irregular buildings, or to bring in an existing unit list. One row per unit.</p>
+          <p className="text-sm text-muted" style={{ margin: '4px 0 0' }}>For irregular buildings, or to bring in an existing unit list. One row per unit.</p>
         </div>
         <a href={`/api/projects/${projectId}/structure/template`} className="btn btn-secondary btn-sm">⬇ Download template</a>
       </div>
-      <div style={{ display: 'flex', gap: 12, alignItems: 'center', flexWrap: 'wrap' }}>
+      <div className="flex gap-3 items-center wrap">
         <input type="file" accept=".xlsx,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" onChange={(e) => { setFile(e.target.files?.[0] ?? null); setResult(null) }} style={{ ...inputStyle, maxWidth: 380 }} />
         <button className="btn btn-primary" disabled={!file || busy} onClick={upload}>{busy ? 'Importing…' : 'Import'}</button>
       </div>
       {result && (
-        <div role={result.ok ? 'status' : 'alert'} style={{ marginTop: 12, fontSize: '0.875rem', color: result.ok ? 'var(--color-success)' : 'var(--color-danger)' }}>
+        <div role={result.ok ? 'status' : 'alert'} className="mt-3 text-base" style={{ color: result.ok ? 'var(--color-success)' : 'var(--color-danger)' }}>
           {result.text}
           {result.details && <ul style={{ margin: '6px 0 0', paddingLeft: 18 }}>{result.details.map((d) => <li key={d}>{d}</li>)}</ul>}
         </div>

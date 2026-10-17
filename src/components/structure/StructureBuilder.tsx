@@ -27,20 +27,20 @@ function PatternRows({ patterns, types, onChange }: { patterns: FloorPattern[]; 
   return (
     <>
       {patterns.map((p, pi) => (
-        <div key={pi} style={{ display: 'flex', gap: 10, alignItems: 'center', flexWrap: 'wrap', padding: '10px 0', borderTop: pi === 0 ? 'none' : '1px dashed var(--border-color)' }}>
+        <div key={pi} className="flex items-center wrap" style={{ gap: 10, padding: '10px 0', borderTop: pi === 0 ? 'none' : '1px dashed var(--border-color)' }}>
           <span style={small}>Floors</span>
           <input type="number" min={0} aria-label="From floor" style={numInput} value={Number.isNaN(p.from) ? '' : p.from} onChange={(e) => setPattern(pi, (x) => { const from = num(e.target.value); return { ...x, from, to: Number.isNaN(from) || !(x.to >= from) ? from : x.to } })} />
           <span style={small}>to</span>
           <input type="number" aria-label="To floor" min={Number.isNaN(p.from) ? 0 : p.from} style={numInput} value={Number.isNaN(p.to) ? '' : p.to} onChange={(e) => setPattern(pi, (x) => ({ ...x, to: num(e.target.value) }))} onBlur={() => setPattern(pi, (x) => (x.to >= x.from ? x : { ...x, to: x.from }))} />
           <span style={small}>have:</span>
           {p.unitTypeIds.map((tid, ui) => (
-            <span key={ui} style={{ display: 'inline-flex', gap: 2, alignItems: 'center' }}>
+            <span key={ui} className="inline-flex items-center" style={{ gap: 2 }}>
               <select aria-label={`Unit ${ui + 1} type`} style={{ ...inputStyle, width: 'auto', minWidth: 110 }} value={tid} onChange={(e) => setPattern(pi, (x) => ({ ...x, unitTypeIds: x.unitTypeIds.map((t, i) => (i === ui ? e.target.value : t)) }))}>
                 <option value="">— type —</option>
                 {types.map((t) => <option key={t.id} value={t.id}>{t.name}</option>)}
               </select>
               {p.unitTypeIds.length > 1 && (
-                <button type="button" aria-label="Remove this unit" onClick={() => setPattern(pi, (x) => ({ ...x, unitTypeIds: x.unitTypeIds.filter((_, i) => i !== ui) }))} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text-muted)' }}>✕</button>
+                <button type="button" aria-label="Remove this unit" onClick={() => setPattern(pi, (x) => ({ ...x, unitTypeIds: x.unitTypeIds.filter((_, i) => i !== ui) }))} className="cursor-pointer text-muted" style={{ background: 'none', border: 'none' }}>✕</button>
               )}
             </span>
           ))}
@@ -48,7 +48,7 @@ function PatternRows({ patterns, types, onChange }: { patterns: FloorPattern[]; 
           <button type="button" className="btn btn-ghost btn-sm" style={dangerBtn} onClick={() => onChange(patterns.filter((_, i) => i !== pi))}>Remove range</button>
         </div>
       ))}
-      <button type="button" className="btn btn-secondary btn-sm" style={{ marginTop: 8 }} onClick={addRange}>+ Add floor range</button>
+      <button type="button" className="btn btn-secondary btn-sm mt-2" onClick={addRange}>+ Add floor range</button>
     </>
   )
 }
@@ -70,7 +70,7 @@ function ExtraRows({ extras, types, onChange }: { extras: ExtraPattern[]; types:
         const floors = floorsOf(x)
         return (
           <div key={i} style={{ padding: '10px 0', borderTop: i === 0 ? 'none' : '1px dashed var(--border-color)' }}>
-            <div style={{ display: 'flex', gap: 10, alignItems: 'center', flexWrap: 'wrap' }}>
+            <div className="flex items-center wrap" style={{ gap: 10 }}>
               <span style={small}>On floors</span>
               <input type="number" min={0} aria-label="From floor" style={numInput} value={Number.isNaN(x.from) ? '' : x.from} onChange={(e) => set(i, (v) => { const from = num(e.target.value); return { ...v, from, to: Number.isNaN(from) || !(v.to >= from) ? from : v.to } })} />
               <span style={small}>to</span>
@@ -79,19 +79,19 @@ function ExtraRows({ extras, types, onChange }: { extras: ExtraPattern[]; types:
               <input type="number" min={1} aria-label="Every N floors" style={numInput} value={Number.isNaN(x.every) ? '' : x.every} onChange={(e) => set(i, (v) => ({ ...v, every: num(e.target.value) }))} />
               <span style={small}>floor(s), add:</span>
               {x.unitTypeIds.map((tid, k) => (
-                <span key={k} style={{ display: 'inline-flex', gap: 2, alignItems: 'center' }}>
+                <span key={k} className="inline-flex items-center" style={{ gap: 2 }}>
                   <select aria-label="Common area type" style={{ ...inputStyle, width: 'auto', minWidth: 130 }} value={tid} onChange={(e) => set(i, (v) => ({ ...v, unitTypeIds: v.unitTypeIds.map((t, j) => (j === k ? e.target.value : t)) }))}>
                     <option value="">— type —</option>
                     {types.map((t) => <option key={t.id} value={t.id}>{t.name}</option>)}
                   </select>
-                  {x.unitTypeIds.length > 1 && <button type="button" aria-label="Remove" onClick={() => set(i, (v) => ({ ...v, unitTypeIds: v.unitTypeIds.filter((_, j) => j !== k) }))} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text-muted)' }}>✕</button>}
+                  {x.unitTypeIds.length > 1 && <button type="button" aria-label="Remove" onClick={() => set(i, (v) => ({ ...v, unitTypeIds: v.unitTypeIds.filter((_, j) => j !== k) }))} className="cursor-pointer text-muted" style={{ background: 'none', border: 'none' }}>✕</button>}
                 </span>
               ))}
               <button type="button" className="btn btn-ghost btn-sm" onClick={() => set(i, (v) => ({ ...v, unitTypeIds: [...v.unitTypeIds, ''] }))}>+ another</button>
               <button type="button" className="btn btn-ghost btn-sm" style={dangerBtn} onClick={() => onChange(extras.filter((_, k) => k !== i))}>Remove</button>
             </div>
             {floors.length > 0 && (
-              <div style={{ marginTop: 6, fontSize: '0.75rem', color: 'var(--text-muted)' }}>
+              <div className="text-xs text-muted" style={{ marginTop: 6 }}>
                 On floors {floors.slice(0, 12).join(', ')}{floors.length > 12 ? '…' : ''}, in addition to the flats on those floors.
               </div>
             )}
@@ -101,7 +101,7 @@ function ExtraRows({ extras, types, onChange }: { extras: ExtraPattern[]; types:
       <button type="button" className="btn btn-secondary btn-sm" style={{ marginTop: 6 }} onClick={() => onChange([...extras, { from: 7, to: 7, every: 1, unitTypeIds: [types[0]?.id ?? ''] }])}>
         + Add common areas
       </button>
-      <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)', marginLeft: 10 }}>Example: floors 7 to 35, every 7 floors gives floors 7, 14, 21, 28 and 35.</span>
+      <span className="text-xs text-muted" style={{ marginLeft: 10 }}>Example: floors 7 to 35, every 7 floors gives floors 7, 14, 21, 28 and 35.</span>
     </>
   )
 }
@@ -150,13 +150,13 @@ export default function StructureBuilder({ projectId, types, existingWings }: { 
     return (
       <div className="card mb-6">
         <div className="card-header"><span className="card-title">2. Build the structure</span></div>
-        <p style={{ margin: 0, color: 'var(--text-muted)' }}>Add at least one unit type above first. Then you can describe the building floor by floor.</p>
+        <p className="m-0 text-muted">Add at least one unit type above first. Then you can describe the building floor by floor.</p>
       </div>
     )
   }
 
   const noTypesHint = (c: UnitCategory) => (
-    <p style={{ margin: 0, fontSize: '0.8125rem', color: 'var(--text-muted)' }}>Add a {categoryLabel(c).toLowerCase()} type in step 1 first.</p>
+    <p className="m-0 text-sm text-muted">Add a {categoryLabel(c).toLowerCase()} type in step 1 first.</p>
   )
 
   return (
@@ -164,16 +164,16 @@ export default function StructureBuilder({ projectId, types, existingWings }: { 
       <div className="card-header">
         <div>
           <span className="card-title">2. Build the structure</span>
-          <p style={{ margin: '4px 0 0', fontSize: '0.8125rem', color: 'var(--text-muted)' }}>
+          <p className="text-sm text-muted" style={{ margin: '4px 0 0' }}>
             Flats are set up wing by wing. Shops and offices are one continuous block for the whole project. Use floor 0 for the ground floor.
           </p>
         </div>
       </div>
 
       {/* ── Flats ── */}
-      <div style={{ marginBottom: 20 }}>
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end', gap: 12, flexWrap: 'wrap', marginBottom: 10 }}>
-          <div style={{ fontSize: '1rem', fontWeight: 700 }}>Flats</div>
+      <div className="mb-5">
+        <div className="flex justify-between items-end gap-3 wrap" style={{ marginBottom: 10 }}>
+          <div className="text-md font-bold">Flats</div>
           <div style={{ minWidth: 260 }}>
             <label style={labelStyle}>Flat numbering</label>
             <select style={inputStyle} value={numbering} onChange={(e) => setNumbering(e.target.value as NumberingFormat)}>
@@ -183,27 +183,27 @@ export default function StructureBuilder({ projectId, types, existingWings }: { 
         </div>
 
         {flatTypes.length === 0 ? noTypesHint('FLAT') : (
-          <div style={{ display: 'grid', gap: 16 }}>
+          <div className="grid gap-4">
             {wings.map((wing, wi) => (
-              <div key={wi} style={{ border: '1px solid var(--border-color)', borderRadius: 10, padding: 16, background: 'var(--bg-surface)' }}>
-                <div style={{ display: 'flex', gap: 12, alignItems: 'flex-end', flexWrap: 'wrap', marginBottom: 12 }}>
+              <div key={wi} className="p-4" style={{ border: '1px solid var(--border-color)', borderRadius: 10, background: 'var(--bg-surface)' }}>
+                <div className="flex gap-3 items-end wrap mb-3">
                   <div style={{ width: 160 }}>
                     <label style={labelStyle}>Wing / tower name</label>
                     <input style={inputStyle} value={wing.name} onChange={(e) => setWing(wi, (w) => ({ ...w, name: e.target.value }))} placeholder="A" />
                   </div>
                   {existingNames.has(wing.name.trim().toLowerCase()) && (
-                    <span style={{ fontSize: '0.75rem', color: 'var(--color-warning, #d97706)', paddingBottom: 10 }}>Wing already exists: only new floors and unit numbers will be added.</span>
+                    <span className="text-xs" style={{ color: 'var(--color-warning, #d97706)', paddingBottom: 10 }}>Wing already exists: only new floors and unit numbers will be added.</span>
                   )}
-                  <div style={{ flex: 1 }} />
+                  <div className="flex-1" />
                   <button type="button" className="btn btn-ghost btn-sm" onClick={() => duplicateWing(wi)} title="Copy this wing, e.g. for an identical tower">Duplicate wing</button>
                   <button type="button" className="btn btn-ghost btn-sm" style={dangerBtn} onClick={() => setWings((ws) => ws.filter((_, i) => i !== wi))}>Remove wing</button>
                 </div>
-                <div style={{ ...sectionTitle, marginBottom: 8 }}>Floors and the flats on each</div>
+                <div className="mb-2" style={{ ...sectionTitle }}>Floors and the flats on each</div>
                 <PatternRows patterns={wing.patterns} types={flatTypes} onChange={(patterns) => setWing(wi, (w) => ({ ...w, patterns }))} />
 
                 <div style={{ ...sectionTitle, margin: '18px 0 6px' }}>Common areas in this wing <span style={{ textTransform: 'none', fontWeight: 400, letterSpacing: 0 }}>(refuge area, society office… not for sale)</span></div>
                 {commonTypes.length === 0 ? (
-                  <p style={{ margin: 0, fontSize: '0.8125rem', color: 'var(--text-muted)' }}>Add a common-area type in step 1 first (for example “Refuge Area”).</p>
+                  <p className="m-0 text-sm text-muted">Add a common-area type in step 1 first (for example “Refuge Area”).</p>
                 ) : (
                   <ExtraRows extras={wing.extras ?? []} types={commonTypes} onChange={(extras) => setWing(wi, (w) => ({ ...w, extras }))} />
                 )}
@@ -219,15 +219,15 @@ export default function StructureBuilder({ projectId, types, existingWings }: { 
         ['SHOP', 'Shops', shopTypes, shops, setShops, 'SHOP NO 1, 2, 3… on the ground floor, SHOP NO 101, 102… on the 1st floor'],
         ['OFFICE', 'Offices', officeTypes, offices, setOffices, 'OFFICE NO 1, 2, 3… on the ground floor, OFFICE NO 101, 102… on the 1st floor'],
       ] as const).map(([cat, title, list, patterns, setPatterns, example]) => (
-        <div key={cat} style={{ marginBottom: 20 }}>
-          <div style={{ fontSize: '1rem', fontWeight: 700 }}>{title} <span style={{ fontSize: '0.75rem', fontWeight: 400, color: 'var(--text-muted)' }}>one block for the whole project, not split by wing</span></div>
-          <p style={{ margin: '2px 0 10px', fontSize: '0.75rem', color: 'var(--text-muted)' }}>Named {example}.</p>
+        <div key={cat} className="mb-5">
+          <div className="text-md font-bold">{title} <span className="text-xs text-muted" style={{ fontWeight: 400 }}>one block for the whole project, not split by wing</span></div>
+          <p className="text-xs text-muted" style={{ margin: '2px 0 10px' }}>Named {example}.</p>
           {list.length === 0 ? noTypesHint(cat) : (
             patterns.length === 0 ? (
               <button type="button" className="btn btn-secondary" onClick={() => setPatterns([{ from: 0, to: 0, unitTypeIds: [list[0].id] }])}>+ Add {title.toLowerCase()}</button>
             ) : (
-              <div style={{ border: '1px solid var(--border-color)', borderRadius: 10, padding: 16, background: 'var(--bg-surface)' }}>
-                <div style={{ ...sectionTitle, marginBottom: 8 }}>Floors and the {title.toLowerCase()} on each</div>
+              <div className="p-4" style={{ border: '1px solid var(--border-color)', borderRadius: 10, background: 'var(--bg-surface)' }}>
+                <div className="mb-2" style={{ ...sectionTitle }}>Floors and the {title.toLowerCase()} on each</div>
                 <PatternRows patterns={patterns} types={list} onChange={setPatterns} />
                 <button type="button" className="btn btn-ghost btn-sm" style={{ ...dangerBtn, marginLeft: 10 }} onClick={() => setPatterns([])}>Remove all {title.toLowerCase()}</button>
               </div>
@@ -237,19 +237,19 @@ export default function StructureBuilder({ projectId, types, existingWings }: { 
       ))}
 
       {/* Preview */}
-      <div style={{ marginTop: 8, padding: 16, borderRadius: 10, border: '1px solid var(--border-color)' }}>
+      <div className="mt-2 p-4" style={{ borderRadius: 10, border: '1px solid var(--border-color)' }}>
         <div style={{ ...sectionTitle, marginBottom: 10 }}>Preview</div>
         {errors.length > 0 ? (
-          <ul role="alert" style={{ margin: 0, paddingLeft: 18, color: 'var(--color-danger)', fontSize: '0.875rem' }}>
+          <ul role="alert" className="m-0 text-danger text-base" style={{ paddingLeft: 18 }}>
             {errors.slice(0, 6).map((e) => <li key={e}>{e}</li>)}
           </ul>
         ) : (
           <>
-            <div style={{ fontSize: '1rem', fontWeight: 700, marginBottom: 8 }}>{units.length} units will be created</div>
-            <div style={{ display: 'flex', gap: 24, flexWrap: 'wrap', fontSize: '0.8125rem', color: 'var(--text-secondary)' }}>
+            <div className="text-md font-bold mb-2">{units.length} units will be created</div>
+            <div className="flex gap-6 wrap text-sm text-secondary">
               <div>{summary.perWing.map((w) => <div key={w.wing}>{wingLabel(w.wing)}: {w.floors} floor{w.floors === 1 ? '' : 's'}, {w.units} units</div>)}</div>
               <div>{[...summary.perType].map(([id, n]) => <div key={id}>{typeName(id)}: {n}</div>)}</div>
-              <div style={{ color: 'var(--text-muted)' }}>
+              <div className="text-muted">
                 e.g. {units.slice(0, 8).map((u) => u.unitNumber).join(', ')}{units.length > 8 ? ', …' : ''}
               </div>
             </div>
@@ -260,18 +260,18 @@ export default function StructureBuilder({ projectId, types, existingWings }: { 
           <select style={inputStyle} value={status} onChange={(e) => setStatus(e.target.value)}>
             {MANUAL_UNIT_STATUSES.filter((s) => s !== 'BOOKED').map((s) => <option key={s} value={s}>{unitStatusLabel(s)}</option>)}
           </select>
-          <p style={{ margin: '6px 0 0', fontSize: '0.75rem', color: status === 'AVAILABLE' ? 'var(--text-muted)' : 'var(--color-warning, #d97706)' }}>
+          <p className="text-xs" style={{ margin: '6px 0 0', color: status === 'AVAILABLE' ? 'var(--text-muted)' : 'var(--color-warning, #d97706)' }}>
             {status === 'AVAILABLE'
               ? 'Available is right for units you will sell in this app. You can change individual units, or many at once, afterwards (marking a unit Booked asks who booked it).'
               : 'These units will show as ' + unitStatusLabel(status) + ' with no sale record: they were sold before you started using the system, so no payments or demands are tracked for them.'}
           </p>
         </div>
-        {message && <div role="status" style={{ marginTop: 12, fontSize: '0.875rem', color: message.ok ? 'var(--color-success)' : 'var(--color-danger)' }}>{message.text}</div>}
+        {message && <div role="status" className="mt-3 text-base" style={{ color: message.ok ? 'var(--color-success)' : 'var(--color-danger)' }}>{message.text}</div>}
         <div style={{ marginTop: 14 }}>
           <button className="btn btn-primary" disabled={busy || errors.length > 0 || units.length === 0} onClick={generate}>
             {busy ? 'Creating…' : units.length ? `Create ${units.length} units` : 'Create units'}
           </button>
-          <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)', marginLeft: 12 }}>This only adds. Existing units are never changed or removed.</span>
+          <span className="text-xs text-muted ml-3">This only adds. Existing units are never changed or removed.</span>
         </div>
       </div>
     </div>

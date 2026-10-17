@@ -25,10 +25,10 @@ export default function TemplateCoverage({ projectId, projectType, templates, va
     if (missing.length === 0) return null
     const automatic = missing.filter((t) => LETTERHEAD_TYPES.includes(t))
     return (
-      <div className="alert alert-warning mb-6" role="alert" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 12, flexWrap: 'wrap' }}>
+      <div className="alert alert-warning mb-6 flex justify-between items-center gap-3 wrap" role="alert">
         <div>
           <strong>Missing active template{missing.length > 1 ? 's' : ''}: {missing.map(labelOf).join(', ')}.</strong>
-          <div style={{ fontSize: '0.8125rem', marginTop: 2 }}>
+          <div className="text-sm" style={{ marginTop: 2 }}>
             {automatic.length > 0
               ? `${automatic.map(labelOf).join(' and ')} ${automatic.length > 1 ? 'are' : 'is'} generated automatically for buyers, so ${automatic.length > 1 ? 'they' : 'it'} will fail until a template is uploaded.`
               : 'Documents of this type can’t be generated until a template is uploaded.'}
@@ -41,17 +41,17 @@ export default function TemplateCoverage({ projectId, projectType, templates, va
 
   const optional = TEMPLATE_TYPES.map((t) => t.value as string).filter((t) => !required.includes(t))
   return (
-    <div className="card mb-6" style={{ padding: 16 }}>
-      <div style={{ fontSize: '0.75rem', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.05em', color: 'var(--text-muted)', marginBottom: 10 }}>
+    <div className="card mb-6 p-4">
+      <div className="text-xs font-bold text-muted" style={{ textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: 10 }}>
         Active templates
       </div>
-      <div style={{ display: 'flex', flexWrap: 'wrap', gap: 10 }}>
+      <div className="flex wrap" style={{ gap: 10 }}>
         {[...required, ...optional].map((type) => {
           const t = active.get(type)
           const isRequired = required.includes(type)
           return (
-            <div key={type} style={{ padding: '8px 12px', borderRadius: 8, fontSize: '0.8125rem', border: `1px solid ${t ? 'var(--border-color)' : isRequired ? 'var(--color-danger, #ef4444)' : 'var(--border-color)'}`, background: 'var(--bg-surface)' }}>
-              <div style={{ fontWeight: 600 }}>{labelOf(type)}</div>
+            <div key={type} className="text-sm" style={{ padding: '8px 12px', borderRadius: 8, border: `1px solid ${t ? 'var(--border-color)' : isRequired ? 'var(--color-danger, #ef4444)' : 'var(--border-color)'}`, background: 'var(--bg-surface)' }}>
+              <div className="font-semibold">{labelOf(type)}</div>
               <div style={{ color: t ? 'var(--color-success)' : isRequired ? 'var(--color-danger, #ef4444)' : 'var(--text-muted)' }}>
                 {t ? `v${t.version} · ${t.fileUrl ? 'DOCX' : 'HTML'}` : isRequired ? 'Missing' : 'Not set (optional)'}
               </div>

@@ -84,17 +84,17 @@ export default async function SaleDetailPage(props: PageProps<'/sales/[id]'>) {
           <div className="card-header">
             <span className="card-title">Buyers ({sale.buyers.length})</span>
           </div>
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))', gap: 16 }}>
+          <div className="grid gap-4" style={{ gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))' }}>
             {sale.buyers.map((buyer) => (
               <div key={buyer.id} style={{ padding: '14px', background: 'var(--bg-input)', borderRadius: 'var(--radius-md)', border: '1px solid var(--border-color)' }}>
                 <div className="flex items-center justify-between mb-2">
-                  <div style={{ fontWeight: 600, fontSize: '0.9375rem' }}>{buyer.fullName}</div>
-                  <div style={{ display: 'flex', gap: 6 }}>
+                  <div className="font-semibold" style={{ fontSize: '0.9375rem' }}>{buyer.fullName}</div>
+                  <div className="flex" style={{ gap: 6 }}>
                     {buyer.isPrimary && <span className="badge badge-primary">Primary</span>}
                     {buyer.receiveComms && <span className="badge badge-success">Comms On</span>}
                   </div>
                 </div>
-                <div style={{ fontSize: '0.8125rem', color: 'var(--text-muted)' }}>
+                <div className="text-sm text-muted">
                   {buyer.email && <div>✉ {buyer.email}</div>}
                   {buyer.whatsappNumber && <div>📱 {buyer.whatsappNumber}</div>}
                   {buyer.panNumber && <div>PAN: {buyer.panNumber}</div>}
@@ -109,7 +109,7 @@ export default async function SaleDetailPage(props: PageProps<'/sales/[id]'>) {
         <div className="grid gap-6 mb-6" style={{ gridTemplateColumns: '1fr 1fr' }}>
           <div className="card">
             <div className="card-header"><span className="card-title">Sale Details</span></div>
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+            <div className="flex dir-col gap-3">
               {[
                 ['Agreement Value', formatCurrency(Number(sale.agreementValue))],
                 ['GST (5%)', formatCurrency(Number(sale.gstAmount))],
@@ -120,8 +120,8 @@ export default async function SaleDetailPage(props: PageProps<'/sales/[id]'>) {
                 ['Handover Date', sale.possessionDate ? formatDate(sale.possessionDate) : 'Pending'],
               ].map(([label, value]) => (
                 <div key={label} className="flex justify-between">
-                  <span style={{ color: 'var(--text-muted)', fontSize: '0.875rem' }}>{label}</span>
-                  <span style={{ fontWeight: 500, fontSize: '0.875rem' }}>{value}</span>
+                  <span className="text-muted text-base">{label}</span>
+                  <span className="font-medium text-base">{value}</span>
                 </div>
               ))}
             </div>
@@ -129,29 +129,29 @@ export default async function SaleDetailPage(props: PageProps<'/sales/[id]'>) {
 
           <div className="card">
             <div className="card-header"><span className="card-title">Payment Summary</span></div>
-            <div style={{ marginBottom: 16 }}>
+            <div className="mb-4">
               <div className="flex justify-between mb-2">
                 <span className="text-base">Total Collected</span>
-                <span style={{ fontWeight: 700, color: 'var(--color-success)' }}>{formatCurrency(totalPaid)}</span>
+                <span className="font-bold text-success">{formatCurrency(totalPaid)}</span>
               </div>
               <div className="flex justify-between mb-2">
                 <span className="text-base">Total Due</span>
-                <span style={{ fontWeight: 500 }}>{formatCurrency(totalDue)}</span>
+                <span className="font-medium">{formatCurrency(totalDue)}</span>
               </div>
-              <div className="flex justify-between mb-2" style={{ fontSize: '0.8125rem', color: 'var(--text-muted)' }}>
+              <div className="flex justify-between mb-2 text-sm text-muted">
                 <span>Principal: {formatCurrency(principalPaid)} / {formatCurrency(principalDue)}</span>
                 <span>GST: {formatCurrency(gstReceived)} / {formatCurrency(gstDue)}</span>
               </div>
               <div className="flex justify-between mb-3">
                 <span className="text-base">Outstanding</span>
-                <span style={{ fontWeight: 700, color: totalDue - totalPaid > 0 ? 'var(--color-danger)' : 'var(--color-success)' }}>
+                <span className="font-bold" style={{ color: totalDue - totalPaid > 0 ? 'var(--color-danger)' : 'var(--color-success)' }}>
                   {formatCurrency(Math.max(0, totalDue - totalPaid))}
                 </span>
               </div>
               <div className="progress-bar">
                 <div className="progress-fill" style={{ width: `${paidPct}%` }} />
               </div>
-              <div style={{ textAlign: 'right', fontSize: '0.8125rem', color: 'var(--text-muted)', marginTop: 4 }}>{paidPct}% paid</div>
+              <div className="text-right text-sm text-muted mt-1">{paidPct}% paid</div>
             </div>
           </div>
         </div>
@@ -176,9 +176,9 @@ export default async function SaleDetailPage(props: PageProps<'/sales/[id]'>) {
                 ['New Flat #', sale.unit.unitNumber],
                 ['Extra Area', `${sale.tenant.extraAreaSqft} sqft`],
               ].map(([label, value]) => (
-                <div key={label} className="card" style={{ padding: '12px' }}>
-                  <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>{label}</div>
-                  <div style={{ fontWeight: 700, marginTop: 4 }}>{value}</div>
+                <div key={label} className="card p-3">
+                  <div className="text-xs text-muted">{label}</div>
+                  <div className="font-bold mt-1">{value}</div>
                 </div>
               ))}
             </div>
@@ -201,12 +201,12 @@ export default async function SaleDetailPage(props: PageProps<'/sales/[id]'>) {
               <span className="card-title">Documents ({sale.documents.length})</span>
               <Link href={`/sales/${id}/documents`} className="btn btn-ghost btn-sm">Manage</Link>
             </div>
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+            <div className="flex dir-col gap-2">
               {sale.documents.map((doc) => (
                 <div key={doc.id} className="flex items-center justify-between" style={{ padding: '10px 12px', background: 'var(--bg-input)', borderRadius: 'var(--radius-md)' }}>
                   <div>
-                    <span style={{ fontWeight: 500, fontSize: '0.875rem' }}>{doc.type.replace(/_/g, ' ')}</span>
-                    <span className={`badge ${DOCUMENT_STATUS[doc.status]?.badge ?? 'badge-muted'} ml-auto`} style={{ marginLeft: 8 }}>{DOCUMENT_STATUS[doc.status]?.label ?? doc.status}</span>
+                    <span className="font-medium text-base">{doc.type.replace(/_/g, ' ')}</span>
+                    <span className={`badge ${DOCUMENT_STATUS[doc.status]?.badge ?? 'badge-muted'} ml-auto ml-2`}>{DOCUMENT_STATUS[doc.status]?.label ?? doc.status}</span>
                   </div>
                   {doc.pdfUrl && (
                     <a

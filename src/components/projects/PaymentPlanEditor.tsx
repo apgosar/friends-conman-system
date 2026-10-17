@@ -91,47 +91,43 @@ export default function PaymentPlanEditor({ projectId, milestones }: { projectId
               <tr>
                 <th style={{ width: 40 }}>#</th>
                 <th>Milestone</th>
-                <th style={{ width: 180, textAlign: 'right' }}>% of Agreement Value</th>
+                <th className="text-right" style={{ width: 180 }}>% of Agreement Value</th>
                 <th style={{ width: 48 }}></th>
               </tr>
             </thead>
             <tbody>
               {rows.map((row, idx) => (
                 <tr key={idx}>
-                  <td style={{ color: 'var(--text-muted)', fontWeight: 600 }}>{idx + 1}</td>
+                  <td className="text-muted font-semibold">{idx + 1}</td>
                   <td>
                     <input
-                      className="form-input"
-                      style={{ padding: '6px 10px', fontSize: '0.875rem' }}
+                      className="form-input text-base"
+                      style={{ padding: '6px 10px' }}
                       value={row.name}
                       onChange={e => updateRow(idx, 'name', e.target.value)}
                       placeholder="Milestone name"
                     />
                   </td>
                   <td>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: 4, justifyContent: 'flex-end' }}>
+                    <div className="flex items-center gap-1 justify-end">
                       <input
                         type="number"
                         min={0}
                         max={100}
                         step={0.5}
-                        className="form-input"
-                        style={{ padding: '6px 10px', fontSize: '0.875rem', width: 80, textAlign: 'right' }}
+                        className="form-input text-base text-right"
+                        style={{ padding: '6px 10px', width: 80 }}
                         value={row.percentOfAV}
                         onChange={e => updateRow(idx, 'percentOfAV', parseFloat(e.target.value) || 0)}
                       />
-                      <span style={{ color: 'var(--text-muted)', fontSize: '0.875rem' }}>%</span>
+                      <span className="text-muted text-base">%</span>
                     </div>
                   </td>
                   <td>
                     <button
                       type="button"
                       onClick={() => removeRow(idx)}
-                      style={{
-                        background: 'none', border: 'none', cursor: 'pointer',
-                        color: 'var(--text-muted)', fontSize: '1rem', padding: '4px 6px',
-                        borderRadius: 4,
-                      }}
+                      className="cursor-pointer text-muted text-md" style={{ background: 'none', border: 'none', padding: '4px 6px', borderRadius: 4 }}
                       title="Remove row"
                     >
                       ✕
@@ -143,11 +139,8 @@ export default function PaymentPlanEditor({ projectId, milestones }: { projectId
             <tfoot>
               <tr style={{ borderTop: '2px solid var(--border-color)' }}>
                 <td></td>
-                <td style={{ fontWeight: 700, fontSize: '0.9rem', paddingTop: 10 }}>TOTAL</td>
-                <td style={{
-                  textAlign: 'right', fontWeight: 700, fontSize: '1rem', paddingTop: 10,
-                  color: isValid ? 'var(--color-success)' : 'var(--color-danger)',
-                }}>
+                <td className="font-bold" style={{ fontSize: '0.9rem', paddingTop: 10 }}>TOTAL</td>
+                <td className="text-right font-bold text-md" style={{ paddingTop: 10, color: isValid ? 'var(--color-success)' : 'var(--color-danger)' }}>
                   {total}%
                 </td>
                 <td></td>
@@ -165,12 +158,7 @@ export default function PaymentPlanEditor({ projectId, milestones }: { projectId
 
       {/* Validation hint */}
       {!isValid && (
-        <div style={{
-          background: 'var(--color-warning-light, #fef3c7)',
-          border: '1px solid var(--color-warning, #f59e0b)',
-          borderRadius: 8, padding: '10px 16px', marginBottom: 16,
-          fontSize: '0.875rem', color: '#92400e',
-        }}>
+        <div className="mb-4 text-base" style={{ background: 'var(--color-warning-light, #fef3c7)', border: '1px solid var(--color-warning, #f59e0b)', borderRadius: 8, padding: '10px 16px', color: '#92400e' }}>
           ⚠ Total must equal 100%. Currently {total}% ({total > 100 ? `${total - 100}% over` : `${100 - total}% short`}).
         </div>
       )}

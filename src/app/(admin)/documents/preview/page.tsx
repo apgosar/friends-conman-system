@@ -54,7 +54,7 @@ export default function DocPreviewPage() {
 
   if (!fileUrl) {
     return (
-      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '100vh', fontFamily: 'sans-serif' }}>
+      <div className="flex items-center justify-center" style={{ height: '100vh', fontFamily: 'sans-serif' }}>
         <p style={{ color: '#666' }}>No document URL provided.</p>
       </div>
     )
@@ -63,35 +63,19 @@ export default function DocPreviewPage() {
   return (
     <div style={{ minHeight: '100vh', background: '#e5e7eb' }}>
       {/* Toolbar */}
-      <div style={{
-        position: 'sticky', top: 0, zIndex: 10,
-        background: '#1e293b', color: '#fff',
-        padding: '10px 24px',
-        display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-        boxShadow: '0 2px 8px rgba(0,0,0,0.3)'
-      }}>
-        <span style={{ fontWeight: 600, fontSize: '0.9rem' }}>📄 Document Preview</span>
-        <div style={{ display: 'flex', gap: 12 }}>
+      <div className="flex items-center justify-between" style={{ position: 'sticky', top: 0, zIndex: 10, background: '#1e293b', color: '#fff', padding: '10px 24px', boxShadow: '0 2px 8px rgba(0,0,0,0.3)' }}>
+        <span className="font-semibold" style={{ fontSize: '0.9rem' }}>📄 Document Preview</span>
+        <div className="flex gap-3">
           <a
             href={fileUrl}
             download
-            style={{
-              background: '#3b82f6', color: '#fff',
-              padding: '6px 16px', borderRadius: 6,
-              fontSize: '0.85rem', fontWeight: 500,
-              textDecoration: 'none'
-            }}
+            className="font-medium" style={{ background: '#3b82f6', color: '#fff', padding: '6px 16px', borderRadius: 6, fontSize: '0.85rem', textDecoration: 'none' }}
           >
             ⬇ Download DOCX
           </a>
           <button
             onClick={() => window.close()}
-            style={{
-              background: 'transparent', color: '#94a3b8',
-              border: '1px solid #475569',
-              padding: '6px 14px', borderRadius: 6,
-              fontSize: '0.85rem', cursor: 'pointer'
-            }}
+            className="cursor-pointer" style={{ background: 'transparent', color: '#94a3b8', border: '1px solid #475569', padding: '6px 14px', borderRadius: 6, fontSize: '0.85rem' }}
           >
             Close
           </button>
@@ -101,31 +85,21 @@ export default function DocPreviewPage() {
       {/* Content */}
       <div style={{ maxWidth: 900, margin: '0 auto', padding: '32px 16px' }}>
         {loading && (
-          <div style={{ textAlign: 'center', padding: 60, color: '#64748b', fontFamily: 'sans-serif' }}>
-            <div style={{ fontSize: '2rem', marginBottom: 12 }}>⏳</div>
+          <div className="text-center" style={{ padding: 60, color: '#64748b', fontFamily: 'sans-serif' }}>
+            <div className="mb-3" style={{ fontSize: '2rem' }}>⏳</div>
             <p>Rendering document…</p>
           </div>
         )}
 
         {error && (
-          <div style={{
-            background: '#fef2f2', border: '1px solid #fca5a5',
-            borderRadius: 8, padding: 20, color: '#b91c1c',
-            fontFamily: 'sans-serif', marginBottom: 20
-          }}>
+          <div className="p-5 mb-5" style={{ background: '#fef2f2', border: '1px solid #fca5a5', borderRadius: 8, color: '#b91c1c', fontFamily: 'sans-serif' }}>
             ⚠ {error}
           </div>
         )}
 
         <div
           ref={containerRef}
-          style={{
-            background: '#fff',
-            borderRadius: 8,
-            boxShadow: '0 4px 24px rgba(0,0,0,0.12)',
-            minHeight: 400,
-            overflow: 'hidden'
-          }}
+          className="overflow-hidden" style={{ background: '#fff', borderRadius: 8, boxShadow: '0 4px 24px rgba(0,0,0,0.12)', minHeight: 400 }}
         />
       </div>
 

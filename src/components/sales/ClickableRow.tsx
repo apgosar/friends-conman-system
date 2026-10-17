@@ -8,7 +8,7 @@ export default function ClickableRow({ href, children }: { href: string, childre
   return (
     <tr 
       onClick={() => router.push(href)}
-      style={{ cursor: 'pointer', transition: 'background-color 0.2s' }}
+      className="cursor-pointer" style={{ transition: 'background-color 0.2s' }}
       onMouseEnter={(e) => (e.currentTarget.style.backgroundColor = 'var(--bg-muted, #f3f4f6)')}
       onMouseLeave={(e) => (e.currentTarget.style.backgroundColor = 'transparent')}
     >

@@ -38,7 +38,7 @@ export default function CommunicationLogTable({ logs }: { logs: any[] }) {
 
   if (!logs || logs.length === 0) {
     return (
-      <div style={{ padding: '24px', textAlign: 'center', color: 'var(--text-muted)' }}>
+      <div className="p-6 text-center text-muted">
         No communications logged yet.
       </div>
     )
@@ -67,12 +67,11 @@ export default function CommunicationLogTable({ logs }: { logs: any[] }) {
                 <tr 
                   key={log.key}
                   onClick={() => setSelectedLog(log)}
-                  style={{ cursor: 'pointer' }}
-                  className="hover-row"
+                  className="hover-row cursor-pointer"
                 >
                   <td>{log.createdAt ? new Date(log.createdAt).toLocaleString('en-IN') : '—'}</td>
                   <td>
-                    <div style={{ display: 'flex', gap: 6 }}>
+                    <div className="flex" style={{ gap: 6 }}>
                       {log.logs.map((l: any) => (
                         <span key={l.id} className={`badge ${statusBadge(l.status)}`} title={statusLabel(l.status)}>{l.channel}</span>
                       ))}
@@ -80,7 +79,7 @@ export default function CommunicationLogTable({ logs }: { logs: any[] }) {
                   </td>
                   <td>{log.type.replace(/_/g, ' ')}</td>
                   <td>{milestoneName}</td>
-                  <td style={{ color: 'var(--text-muted)', maxWidth: '300px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                  <td className="text-muted overflow-hidden nowrap" style={{ maxWidth: '300px', textOverflow: 'ellipsis' }}>
                     {log.messageContent ? log.messageContent.split('MILESTONE:')[0].split('ATTACHMENTS:')[0].substring(0, 50) + '...' : '—'}
                   </td>
                 </tr>
@@ -91,56 +90,54 @@ export default function CommunicationLogTable({ logs }: { logs: any[] }) {
       </div>
 
       {selectedLog && (
-        <div style={{ position: 'fixed', inset: 0, zIndex: 1000, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+        <div className="flex items-center justify-center" style={{ position: 'fixed', inset: 0, zIndex: 1000 }}>
           <div style={{ position: 'absolute', inset: 0, background: 'rgba(0,0,0,0.5)', backdropFilter: 'blur(2px)' }} onClick={() => setSelectedLog(null)} />
-          <div style={{ position: 'relative', background: 'var(--bg-card)', width: '100%', maxWidth: 600, borderRadius: '12px', boxShadow: 'var(--shadow-xl)', overflow: 'hidden', border: '1px solid var(--border-color)' }}>
+          <div className="relative w-full overflow-hidden" style={{ background: 'var(--bg-card)', maxWidth: 600, borderRadius: '12px', boxShadow: 'var(--shadow-xl)', border: '1px solid var(--border-color)' }}>
             
-            <div style={{ padding: '20px 24px', borderBottom: '1px solid var(--border-color)', display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: 'var(--bg-surface)' }}>
+            <div className="flex justify-between items-center" style={{ padding: '20px 24px', borderBottom: '1px solid var(--border-color)', background: 'var(--bg-surface)' }}>
               <div>
-                <h3 style={{ fontSize: '1.25rem', fontWeight: 600, margin: 0, color: 'var(--text-primary)' }}>Communication Details</h3>
-                <p style={{ margin: '4px 0 0', fontSize: '0.8125rem', color: 'var(--text-muted)' }}>
+                <h3 className="text-xl font-semibold m-0 text-primary">Communication Details</h3>
+                <p className="text-sm text-muted" style={{ margin: '4px 0 0' }}>
                   {selectedLog.logs.map((l: any) => l.channel).join(' + ')} • {fmt(selectedLog.createdAt)}
                 </p>
               </div>
-              <button onClick={() => setSelectedLog(null)} style={{ background: 'var(--bg-card)', border: '1px solid var(--border-color)', borderRadius: '50%', width: 32, height: 32, display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--text-muted)', fontSize: '1.2rem', cursor: 'pointer', transition: 'background 0.2s' }}>×</button>
+              <button onClick={() => setSelectedLog(null)} className="flex items-center justify-center text-muted cursor-pointer" style={{ background: 'var(--bg-card)', border: '1px solid var(--border-color)', borderRadius: '50%', width: 32, height: 32, fontSize: '1.2rem', transition: 'background 0.2s' }}>×</button>
             </div>
 
-            <div style={{ padding: 24 }}>
-              <div style={{ display: 'flex', gap: 12, marginBottom: 20 }}>
+            <div className="p-6">
+              <div className="flex gap-3 mb-5">
                 <span className="badge badge-info">{selectedLog.type.replace(/_/g, ' ')}</span>
               </div>
 
-              <div style={{ display: 'grid', gridTemplateColumns: `repeat(${selectedLog.logs.length}, 1fr)`, gap: 12, marginBottom: 20 }}>
+              <div className="grid gap-3 mb-5" style={{ gridTemplateColumns: `repeat(${selectedLog.logs.length}, 1fr)` }}>
                 {selectedLog.logs.map((l: any) => (
-                  <div key={l.id} style={{ border: '1px solid var(--border-color)', borderRadius: 8, padding: 14, background: 'var(--bg-surface)', fontSize: '0.8125rem' }}>
-                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 10 }}>
-                      <span style={{ fontWeight: 600, color: 'var(--text-primary)' }}>{l.channel}</span>
+                  <div key={l.id} className="text-sm" style={{ border: '1px solid var(--border-color)', borderRadius: 8, padding: 14, background: 'var(--bg-surface)' }}>
+                    <div className="flex justify-between items-center" style={{ marginBottom: 10 }}>
+                      <span className="font-semibold text-primary">{l.channel}</span>
                       <span className={`badge ${statusBadge(l.status)}`}>{statusLabel(l.status)}</span>
                     </div>
-                    <div style={{ display: 'grid', gap: 4, color: 'var(--text-secondary)' }}>
+                    <div className="grid gap-1 text-secondary">
                       <div>Sent: {fmt(l.sentAt)}</div>
                       <div>Delivered: {fmt(l.deliveredAt)}</div>
                       {l.readAt && <div>Read: {fmt(l.readAt)}</div>}
                       {l.retryCount > 0 && <div>Retries: {l.retryCount}</div>}
-                      {l.failureReason && <div style={{ color: 'var(--color-danger)' }}>Failure: {l.failureReason}</div>}
+                      {l.failureReason && <div className="text-danger">Failure: {l.failureReason}</div>}
                     </div>
                   </div>
                 ))}
               </div>
 
-              <div style={{ 
-                background: 'var(--bg-surface)', border: '1px solid var(--border-color)', borderRadius: '8px', padding: 20 
-              }}>
-                <div style={{ color: 'var(--text-secondary)', marginBottom: 8, fontSize: '0.8125rem', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+              <div className="p-5" style={{ background: 'var(--bg-surface)', border: '1px solid var(--border-color)', borderRadius: '8px' }}>
+                <div className="text-secondary mb-2 text-sm font-semibold" style={{ textTransform: 'uppercase', letterSpacing: '0.05em' }}>
                   Message Content
                 </div>
-                <div style={{ whiteSpace: 'pre-wrap', lineHeight: '1.6', fontSize: '0.9rem', color: 'var(--text-primary)' }}>
+                <div className="text-primary" style={{ whiteSpace: 'pre-wrap', lineHeight: '1.6', fontSize: '0.9rem' }}>
                   {selectedLog.messageContent ? selectedLog.messageContent.split('MILESTONE:')[0].split('ATTACHMENTS:')[0].trim() : 'No content'}
                 </div>
 
                 {selectedLog.messageContent && selectedLog.messageContent.includes('ATTACHMENTS:') && (
-                  <div style={{ marginTop: 24, borderTop: '1px solid var(--border-color)', paddingTop: 16 }}>
-                    <div style={{ color: 'var(--text-secondary)', marginBottom: 12, fontSize: '0.8125rem', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+                  <div className="mt-6 pt-4" style={{ borderTop: '1px solid var(--border-color)' }}>
+                    <div className="text-secondary mb-3 text-sm font-semibold" style={{ textTransform: 'uppercase', letterSpacing: '0.05em' }}>
                       Attachments
                     </div>
                     <div className="flex gap-3 flex-wrap">
@@ -164,8 +161,8 @@ export default function CommunicationLogTable({ logs }: { logs: any[] }) {
                             href={finalUrl} 
                             target="_blank" 
                             rel="noreferrer"
-                            className="btn btn-secondary btn-sm"
-                            style={{ borderRadius: 8, fontSize: '0.8125rem' }}
+                            className="btn btn-secondary btn-sm text-sm"
+                            style={{ borderRadius: 8 }}
                           >
                             📄 {name.trim()}
                           </a>
@@ -176,8 +173,8 @@ export default function CommunicationLogTable({ logs }: { logs: any[] }) {
                 )}
               </div>
 
-              <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: 32 }}>
-                <button type="button" className="btn" style={{ background: 'var(--bg-surface)', border: '1px solid var(--border-color)', color: 'var(--text-primary)', borderRadius: '8px' }} onClick={() => setSelectedLog(null)}>
+              <div className="flex justify-end mt-8">
+                <button type="button" className="btn text-primary" style={{ background: 'var(--bg-surface)', border: '1px solid var(--border-color)', borderRadius: '8px' }} onClick={() => setSelectedLog(null)}>
                   Close
                 </button>
               </div>

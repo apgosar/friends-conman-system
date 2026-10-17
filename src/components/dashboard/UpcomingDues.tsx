@@ -8,11 +8,11 @@ export default function UpcomingDues({ dues }: { dues: any[] }) {
         <span className="card-title">Upcoming Dues (30 days)</span>
       </div>
       {dues.length === 0 ? (
-        <div style={{ textAlign: 'center', padding: '40px', color: 'var(--text-muted)' }}>
+        <div className="text-center p-10 text-muted">
           No upcoming dues
         </div>
       ) : (
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+        <div className="flex dir-col" style={{ gap: 10 }}>
           {dues.map((d) => (
             <Link
               key={d.id}
@@ -28,19 +28,19 @@ export default function UpcomingDues({ dues }: { dues: any[] }) {
                 textDecoration: 'none',
               }}
             >
-              <div style={{ flex: 1, minWidth: 0 }}>
-                <div style={{ fontSize: '0.875rem', fontWeight: 500, color: 'var(--text-primary)' }}>
+              <div className="flex-1 min-w-0">
+                <div className="text-base font-medium text-primary">
                   {d.sale?.unit?.unitNumber} — {d.sale?.buyers?.[0]?.fullName ?? '-'}
                 </div>
-                <div style={{ fontSize: '0.8125rem', color: 'var(--text-muted)', marginTop: 2 }}>
+                <div className="text-sm text-muted" style={{ marginTop: 2 }}>
                   {d.description} · {d.sale?.project?.name}
                 </div>
               </div>
-              <div style={{ textAlign: 'right', flexShrink: 0 }}>
-                <div style={{ fontWeight: 700, fontSize: '0.9375rem' }}>
+              <div className="text-right shrink-0">
+                <div className="font-bold" style={{ fontSize: '0.9375rem' }}>
                   {formatCurrency(Number(d.principalAmount) + Number(d.gstAmount))}
                 </div>
-                <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', marginTop: 2 }}>
+                <div className="text-xs text-muted" style={{ marginTop: 2 }}>
                   Due {d.dueDate ? formatDate(d.dueDate) : 'On milestone'}
                 </div>
               </div>

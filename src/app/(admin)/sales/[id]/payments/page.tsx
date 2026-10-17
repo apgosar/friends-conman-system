@@ -37,7 +37,7 @@ export default async function SalePaymentsPage(props: PageProps<'/sales/[id]/pay
 
         <div className="card">
           {sale.paymentSchedules.length === 0 ? (
-            <div style={{ textAlign: 'center', padding: '40px', color: 'var(--text-muted)' }}>
+            <div className="text-center p-10 text-muted">
               No payment schedule defined.
             </div>
           ) : (

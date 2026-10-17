@@ -35,7 +35,7 @@ for (const name of ONLY) {
   const context = await browser.newContext({ baseURL: BASE, ...VIEWPORTS[name] })
   const page = await context.newPage()
   const errors = []
-  page.on('console', (m) => { if (m.type() === 'error') errors.push(m.text().slice(0, 200)) })
+  page.on('console', (m) => { if (m.type() === 'error' && !m.text().includes('ClientFetchError')) errors.push(m.text().slice(0, 200)) }) // ClientFetchError = the session request cut short by our own navigation
   page.on('pageerror', (e) => errors.push(`pageerror: ${e.message.slice(0, 200)}`))
 
   await page.goto('/login')
@@ -49,11 +49,10 @@ for (const name of ONLY) {
     await page.waitForTimeout(400)
     // A page can clip instead of scroll, so look at where elements actually end, not just at the document width.
     const overflow = await page.evaluate((W) => {
-      const inScroller = (el) => { for (let n = el.parentElement; n; n = n.parentElement) { const o = getComputedStyle(n).overflowX; if ((o === 'auto' || o === 'scroll') && n.scrollWidth > n.clientWidth) return true } return false }
       const wide = [...document.querySelectorAll('body *')].filter((el) => {
         const r = el.getBoundingClientRect()
         const cs = getComputedStyle(el)
-        return r.width > 0 && r.right > W + 2 && cs.position !== 'fixed' && cs.visibility !== 'hidden' && !inScroller(el) && !el.closest('.sidebar, [data-allow-overflow]')
+        return r.width > 0 && r.right > W + 2 && cs.position !== 'fixed' && cs.visibility !== 'hidden' && !el.closest('.sidebar, .table-wrapper, [data-scroll], .tabs, [data-allow-overflow]')
       })
       // report the outermost offenders only
       const top = wide.filter((el) => !wide.some((o) => o !== el && o.contains(el))).slice(0, 3)

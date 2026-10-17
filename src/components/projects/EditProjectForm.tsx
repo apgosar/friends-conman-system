@@ -126,7 +126,7 @@ export default function EditProjectForm({ project }: { project: any }) {
           </div>
 
           <div className="divider" />
-          <h4 style={{ marginBottom: 16 }}>Company / Developer Details</h4>
+          <h4 className="mb-4">Company / Developer Details</h4>
 
           <div className="grid grid-2 gap-4 mb-4">
             <div className="form-group">
@@ -144,8 +144,8 @@ export default function EditProjectForm({ project }: { project: any }) {
           </div>
 
           <div className="divider" />
-          <h4 style={{ marginBottom: 4 }}>Tax and pricing</h4>
-          <p className="form-hint" style={{ marginBottom: 16 }}>Used for new sales, demand letters and overdue interest in this project. Sales already created keep the figures they were created with.</p>
+          <h4 className="mb-1">Tax and pricing</h4>
+          <p className="form-hint mb-4">Used for new sales, demand letters and overdue interest in this project. Sales already created keep the figures they were created with.</p>
 
           <PricingFields values={project} />
 

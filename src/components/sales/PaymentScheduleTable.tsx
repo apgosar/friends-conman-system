@@ -29,14 +29,11 @@ export default function PaymentScheduleTable({ schedules }: { schedules: any[] }
               return (
                 <tr 
                   key={s.id} 
-                  style={{ 
-                    ...(isOverdue ? { backgroundColor: 'var(--color-danger-light, #fee2e2)' } : {}),
-                    cursor: 'pointer' 
-                  }}
-                  className="hover-row"
+                  style={{ ...(isOverdue ? { backgroundColor: 'var(--color-danger-light, #fee2e2)' } : {}) }}
+                  className="hover-row cursor-pointer"
                   onClick={() => setSelectedSchedule({ ...s, paid, gstPaid, totalReceived, totalDue })}
                 >
-                  <td style={{ fontWeight: 500 }}>{s.description}</td>
+                  <td className="font-medium">{s.description}</td>
                   <td>{formatCurrency(Number(s.principalAmount))}</td>
                   <td>{formatCurrency(Number(s.gstAmount))}</td>
                   <td style={{ color: Number(s.interestAmount) > 0 ? 'var(--color-danger)' : 'var(--text-muted)' }}>
@@ -49,8 +46,8 @@ export default function PaymentScheduleTable({ schedules }: { schedules: any[] }
                     {s.dueDate ? formatDate(s.dueDate) : 'On milestone'} {isOverdue && '⚠️'}
                   </td>
                   <td><span className={`badge ${scheduleStatusBadge(s.status)}`}>{scheduleStatusLabel(s.status)}</span></td>
-                  <td style={{ color: 'var(--color-success)', fontWeight: 600 }}>{paid > 0 ? formatCurrency(paid) : '—'}</td>
-                  <td style={{ color: 'var(--color-success)', fontWeight: 600 }}>{gstPaid > 0 ? formatCurrency(gstPaid) : '—'}</td>
+                  <td className="text-success font-semibold">{paid > 0 ? formatCurrency(paid) : '—'}</td>
+                  <td className="text-success font-semibold">{gstPaid > 0 ? formatCurrency(gstPaid) : '—'}</td>
                 </tr>
               )
             })}
@@ -60,53 +57,53 @@ export default function PaymentScheduleTable({ schedules }: { schedules: any[] }
 
       {/* Details Modal */}
       {selectedSchedule && (
-        <div style={{ position: 'fixed', inset: 0, zIndex: 1000, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+        <div className="flex items-center justify-center" style={{ position: 'fixed', inset: 0, zIndex: 1000 }}>
           <div style={{ position: 'absolute', inset: 0, background: 'rgba(0,0,0,0.5)', backdropFilter: 'blur(2px)' }} onClick={() => setSelectedSchedule(null)} />
-          <div style={{ position: 'relative', background: 'var(--bg-card)', width: '100%', maxWidth: 500, borderRadius: '12px', boxShadow: 'var(--shadow-xl)', overflow: 'hidden', border: '1px solid var(--border-color)' }}>
+          <div className="relative w-full overflow-hidden" style={{ background: 'var(--bg-card)', maxWidth: 500, borderRadius: '12px', boxShadow: 'var(--shadow-xl)', border: '1px solid var(--border-color)' }}>
             
-            <div style={{ padding: '20px 24px', borderBottom: '1px solid var(--border-color)', display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: 'var(--bg-surface)' }}>
-              <h3 style={{ fontSize: '1.25rem', fontWeight: 600, margin: 0, color: 'var(--text-primary)' }}>Payment Details</h3>
-              <button onClick={() => setSelectedSchedule(null)} style={{ background: 'var(--bg-card)', border: '1px solid var(--border-color)', borderRadius: '50%', width: 32, height: 32, display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--text-muted)', fontSize: '1.2rem', cursor: 'pointer', transition: 'background 0.2s' }}>×</button>
+            <div className="flex justify-between items-center" style={{ padding: '20px 24px', borderBottom: '1px solid var(--border-color)', background: 'var(--bg-surface)' }}>
+              <h3 className="text-xl font-semibold m-0 text-primary">Payment Details</h3>
+              <button onClick={() => setSelectedSchedule(null)} className="flex items-center justify-center text-muted cursor-pointer" style={{ background: 'var(--bg-card)', border: '1px solid var(--border-color)', borderRadius: '50%', width: 32, height: 32, fontSize: '1.2rem', transition: 'background 0.2s' }}>×</button>
             </div>
 
-            <div style={{ padding: 24, fontSize: '0.9rem' }}>
-              <div style={{ display: 'grid', gap: '12px', marginBottom: 32 }}>
-                <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                  <span style={{ color: 'var(--text-secondary)' }}>Description</span>
-                  <span style={{ fontWeight: 600, color: 'var(--text-primary)' }}>{selectedSchedule.description}</span>
+            <div className="p-6" style={{ fontSize: '0.9rem' }}>
+              <div className="grid gap-3 mb-8">
+                <div className="flex justify-between">
+                  <span className="text-secondary">Description</span>
+                  <span className="font-semibold text-primary">{selectedSchedule.description}</span>
                 </div>
-                <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                  <span style={{ color: 'var(--text-secondary)' }}>Status</span>
+                <div className="flex justify-between">
+                  <span className="text-secondary">Status</span>
                   <span className={`badge ${scheduleStatusBadge(selectedSchedule.status)}`}>{scheduleStatusLabel(selectedSchedule.status)}</span>
                 </div>
-                <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                  <span style={{ color: 'var(--text-secondary)' }}>Due Date</span>
-                  <span style={{ color: 'var(--text-primary)' }}>{selectedSchedule.dueDate ? formatDate(selectedSchedule.dueDate) : '—'}</span>
+                <div className="flex justify-between">
+                  <span className="text-secondary">Due Date</span>
+                  <span className="text-primary">{selectedSchedule.dueDate ? formatDate(selectedSchedule.dueDate) : '—'}</span>
                 </div>
-                <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                  <span style={{ color: 'var(--text-secondary)' }}>Principal Amount</span>
-                  <span style={{ color: 'var(--text-primary)' }}>{formatCurrency(Number(selectedSchedule.principalAmount))}</span>
+                <div className="flex justify-between">
+                  <span className="text-secondary">Principal Amount</span>
+                  <span className="text-primary">{formatCurrency(Number(selectedSchedule.principalAmount))}</span>
                 </div>
-                <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                  <span style={{ color: 'var(--text-secondary)' }}>GST Amount</span>
-                  <span style={{ color: 'var(--text-primary)' }}>{formatCurrency(Number(selectedSchedule.gstAmount ?? 0))}</span>
+                <div className="flex justify-between">
+                  <span className="text-secondary">GST Amount</span>
+                  <span className="text-primary">{formatCurrency(Number(selectedSchedule.gstAmount ?? 0))}</span>
                 </div>
-                <div style={{ display: 'flex', justifyContent: 'space-between', paddingTop: 12, borderTop: '1px solid var(--border-color)' }}>
-                  <span style={{ color: 'var(--text-secondary)' }}>Total Received</span>
-                  <span style={{ fontWeight: 700, color: 'var(--color-success)' }}>{formatCurrency(selectedSchedule.totalReceived)}</span>
+                <div className="flex justify-between pt-3" style={{ borderTop: '1px solid var(--border-color)' }}>
+                  <span className="text-secondary">Total Received</span>
+                  <span className="font-bold text-success">{formatCurrency(selectedSchedule.totalReceived)}</span>
                 </div>
               </div>
 
               {selectedSchedule.payments && selectedSchedule.payments.length > 0 && (
                 <div>
-                  <h4 style={{ fontSize: '0.8125rem', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.05em', color: 'var(--text-secondary)', marginBottom: 12 }}>Receipts</h4>
-                  <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+                  <h4 className="text-sm font-semibold text-secondary mb-3" style={{ textTransform: 'uppercase', letterSpacing: '0.05em' }}>Receipts</h4>
+                  <div className="flex dir-col gap-3">
                     {selectedSchedule.payments.map((pmt: any) => (
-                      <div key={pmt.id} style={{ background: 'var(--bg-surface)', padding: '12px 16px', borderRadius: 8, fontSize: '0.8125rem', border: '1px solid var(--border-color)' }}>
-                        <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 4 }}>
-                          <span style={{ fontWeight: 600, color: 'var(--text-primary)' }}>{formatCurrency(Number(pmt.amount) + Number(pmt.gstPaid ?? 0))}</span>
-                          <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-                            <span style={{ color: 'var(--text-muted)' }}>{formatDate(pmt.paymentDate)}</span>
+                      <div key={pmt.id} className="text-sm" style={{ background: 'var(--bg-surface)', padding: '12px 16px', borderRadius: 8, border: '1px solid var(--border-color)' }}>
+                        <div className="flex justify-between mb-1">
+                          <span className="font-semibold text-primary">{formatCurrency(Number(pmt.amount) + Number(pmt.gstPaid ?? 0))}</span>
+                          <div className="flex items-center gap-3">
+                            <span className="text-muted">{formatDate(pmt.paymentDate)}</span>
                             <a 
                               href={`/api/documents/preview/receipt?paymentId=${pmt.id}`}
                               target="_blank"
@@ -118,11 +115,11 @@ export default function PaymentScheduleTable({ schedules }: { schedules: any[] }
                             </a>
                           </div>
                         </div>
-                        <div style={{ color: 'var(--text-muted)' }}>
+                        <div className="text-muted">
                           {pmt.mode} {pmt.referenceNumber ? `· Ref: ${pmt.referenceNumber}` : ''}
                         </div>
                         {pmt.remark && (
-                          <div style={{ marginTop: 6, fontStyle: 'italic', color: 'var(--text-secondary)' }}>&ldquo;{pmt.remark}&rdquo;</div>
+                          <div className="italic text-secondary" style={{ marginTop: 6 }}>&ldquo;{pmt.remark}&rdquo;</div>
                         )}
                       </div>
                     ))}

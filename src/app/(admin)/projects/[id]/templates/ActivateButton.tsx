@@ -17,8 +17,7 @@ export default function ActivateButton({ projectId, templateId, type, isActive }
   return (
     <button 
       type="button"
-      className="btn btn-ghost btn-sm"
-      style={{ color: 'var(--color-primary)' }}
+      className="btn btn-ghost btn-sm text-brand"
       disabled={isPending}
       onClick={() => {
         startTransition(() => {

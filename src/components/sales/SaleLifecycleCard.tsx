@@ -52,40 +52,34 @@ export default function SaleLifecycleCard({ saleId, status, agreementDate, posse
     <div className="card mb-6">
       <div className="card-header"><span className="card-title">Sale Lifecycle</span></div>
 
-      <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginBottom: 12 }}>
+      <div className="flex gap-2 wrap mb-3">
         {SALE_LIFECYCLE.map((s, i) => {
           const done = !cancelled && i < currentIdx
           const current = !cancelled && i === currentIdx
           return (
-            <div key={s} title={SALE_STATUS[s].description} style={{
-              flex: '1 1 140px', padding: '10px 12px', borderRadius: 8, fontSize: '0.8125rem',
-              border: `1px solid ${current ? 'var(--color-primary)' : 'var(--border-color)'}`,
-              background: current ? 'var(--color-primary-light, rgba(99,102,241,0.1))' : 'var(--bg-surface)',
-              color: done || current ? 'var(--text-primary)' : 'var(--text-muted)',
-              fontWeight: current ? 700 : 500,
-            }}>
+            <div key={s} title={SALE_STATUS[s].description} className="text-sm" style={{ flex: '1 1 140px', padding: '10px 12px', borderRadius: 8, border: `1px solid ${current ? 'var(--color-primary)' : 'var(--border-color)'}`, background: current ? 'var(--color-primary-light, rgba(99,102,241,0.1))' : 'var(--bg-surface)', color: done || current ? 'var(--text-primary)' : 'var(--text-muted)', fontWeight: current ? 700 : 500 }}>
               {done ? '✓ ' : current ? '● ' : ''}{SALE_STATUS[s].label}
             </div>
           )
         })}
       </div>
-      <p style={{ margin: '0 0 12px', fontSize: '0.8125rem', color: 'var(--text-muted)' }}>
+      <p className="text-sm text-muted" style={{ margin: '0 0 12px' }}>
         {cancelled ? SALE_STATUS.CANCELLED.description : SALE_STATUS[status]?.description}
         {' '}The status updates automatically from payments and the dates below.
       </p>
 
       {!cancelled && (
-        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+        <div className="grid gap-3" style={{ gridTemplateColumns: '1fr 1fr' }}>
           {([
             ['agreement', 'Agreement signed', agreementDate, undefined],
             ['handover', 'Handover completed', possessionDate, !agreementDate ? 'Record the agreement date first' : undefined],
           ] as const).map(([key, label, value, blocked]) => (
-            <div key={key} style={{ padding: 12, border: '1px solid var(--border-color)', borderRadius: 8 }}>
-              <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: 4 }}>{label}</div>
+            <div key={key} className="p-3" style={{ border: '1px solid var(--border-color)', borderRadius: 8 }}>
+              <div className="text-xs text-muted mb-1" style={{ textTransform: 'uppercase', letterSpacing: '0.05em' }}>{label}</div>
               {editing === key ? (
-                <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
+                <div className="flex gap-2 items-center wrap">
                   <input type="date" value={date} max={todayStr()} onChange={(e) => setDate(e.target.value)}
-                    style={{ padding: '6px 10px', borderRadius: 6, border: '1px solid var(--border-color)', background: 'var(--bg-surface)', color: 'var(--text-primary)' }} />
+                    className="text-primary" style={{ padding: '6px 10px', borderRadius: 6, border: '1px solid var(--border-color)', background: 'var(--bg-surface)' }} />
                   <button className="btn btn-primary btn-sm" disabled={saving || !date}
                     onClick={() => save({ [key === 'agreement' ? 'agreementDate' : 'possessionDate']: new Date(date).toISOString() })}>
                     {saving ? 'Saving…' : 'Save'}
@@ -93,13 +87,13 @@ export default function SaleLifecycleCard({ saleId, status, agreementDate, posse
                   <button style={linkBtn} onClick={() => setEditing(null)}>Cancel</button>
                 </div>
               ) : (
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 8 }}>
-                  <span style={{ fontWeight: 600 }}>{value ? formatDate(value) : 'Pending'}</span>
+                <div className="flex justify-between items-center gap-2">
+                  <span className="font-semibold">{value ? formatDate(value) : 'Pending'}</span>
                   {canEdit && (
-                    blocked ? <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>{blocked}</span> : (
-                      <span style={{ display: 'flex', gap: 10 }}>
+                    blocked ? <span className="text-xs text-muted">{blocked}</span> : (
+                      <span className="flex" style={{ gap: 10 }}>
                         <button style={linkBtn} onClick={() => open(key)}>{value ? 'Change' : 'Record'}</button>
-                        {value && <button style={{ ...linkBtn, color: 'var(--color-danger)' }}
+                        {value && <button className="text-danger" style={{ ...linkBtn }}
                           onClick={() => window.confirm(`Clear the ${label.toLowerCase()} date? The sale status will be recalculated.`) && save({ [key === 'agreement' ? 'agreementDate' : 'possessionDate']: null })}>Clear</button>}
                       </span>
                     )
@@ -110,7 +104,7 @@ export default function SaleLifecycleCard({ saleId, status, agreementDate, posse
           ))}
         </div>
       )}
-      {error && <div style={{ color: 'var(--color-danger)', fontSize: '0.8125rem', marginTop: 10 }}>{error}</div>}
+      {error && <div className="text-danger text-sm" style={{ marginTop: 10 }}>{error}</div>}
     </div>
   )
 }

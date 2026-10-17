@@ -53,17 +53,17 @@ export default function AuditLogsPage() {
         </div>
 
         {/* Filters */}
-        <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap', marginBottom: 20 }}>
-          <div style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
-            <span style={{ fontSize: '0.8125rem', color: 'var(--text-muted)' }}>Entity:</span>
+        <div className="flex gap-3 wrap mb-5">
+          <div className="flex items-center" style={{ gap: 6 }}>
+            <span className="text-sm text-muted">Entity:</span>
             {ENTITY_TYPES.map(e => (
               <button key={e} onClick={() => { setEntityType(e); setPage(1) }}
                 className={`btn btn-sm ${entityType === e ? 'btn-primary' : 'btn-secondary'}`}
               >{e === 'ALL' ? 'All' : e}</button>
             ))}
           </div>
-          <div style={{ display: 'flex', gap: 6, alignItems: 'center', marginLeft: 16 }}>
-            <span style={{ fontSize: '0.8125rem', color: 'var(--text-muted)' }}>Action:</span>
+          <div className="flex items-center ml-4" style={{ gap: 6 }}>
+            <span className="text-sm text-muted">Action:</span>
             {ACTIONS.map(a => (
               <button key={a} onClick={() => { setAction(a); setPage(1) }}
                 className={`btn btn-sm ${action === a ? 'btn-primary' : 'btn-secondary'}`}
@@ -73,8 +73,8 @@ export default function AuditLogsPage() {
         </div>
 
         {/* Timeline/Table */}
-        <div className="card" style={{ padding: 0 }}>
-          <div className="table-wrapper" style={{ border: 'none', margin: 0 }}>
+        <div className="card p-0">
+          <div className="table-wrapper m-0" style={{ border: 'none' }}>
             <table>
               <thead>
                 <tr>
@@ -89,15 +89,15 @@ export default function AuditLogsPage() {
               </thead>
               <tbody>
                 {loading ? (
-                  <tr><td colSpan={7} style={{ textAlign: 'center', padding: 40, color: 'var(--text-muted)' }}>Loading…</td></tr>
+                  <tr><td colSpan={7} className="text-center p-10 text-muted">Loading…</td></tr>
                 ) : logs.length === 0 ? (
-                  <tr><td colSpan={7} style={{ textAlign: 'center', padding: 40, color: 'var(--text-muted)' }}>No logs found</td></tr>
+                  <tr><td colSpan={7} className="text-center p-10 text-muted">No logs found</td></tr>
                 ) : logs.map((log) => (
-                  <tr key={log.id} onClick={() => setSelectedLog(log)} style={{ cursor: 'pointer' }} className="hover-row">
-                    <td style={{ fontSize: '0.8125rem', color: 'var(--text-muted)', whiteSpace: 'nowrap' }}>
+                  <tr key={log.id} onClick={() => setSelectedLog(log)} className="hover-row cursor-pointer">
+                    <td className="text-sm text-muted nowrap">
                       {new Date(log.createdAt).toLocaleString('en-IN')}
                     </td>
-                    <td style={{ fontSize: '0.8125rem', fontWeight: 500 }}>
+                    <td className="text-sm font-medium">
                       {log.user?.name ?? 'System'}
                     </td>
                     <td>
@@ -105,14 +105,14 @@ export default function AuditLogsPage() {
                         {log.action}
                       </span>
                     </td>
-                    <td style={{ fontSize: '0.8125rem', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+                    <td className="text-sm" style={{ textTransform: 'uppercase', letterSpacing: '0.05em' }}>
                       {log.entityType}
                     </td>
-                    <td style={{ fontSize: '0.8125rem', color: 'var(--text-muted)', fontFamily: 'monospace' }}>
+                    <td className="text-sm text-muted" style={{ fontFamily: 'monospace' }}>
                       {log.entityId.slice(-8)}
                     </td>
-                    <td style={{ fontSize: '0.8125rem' }}>{log.project?.name ?? '—'}</td>
-                    <td style={{ fontSize: '0.8125rem', color: 'var(--text-muted)' }}>{log.ipAddress ?? '—'}</td>
+                    <td className="text-sm">{log.project?.name ?? '—'}</td>
+                    <td className="text-sm text-muted">{log.ipAddress ?? '—'}</td>
                   </tr>
                 ))}
               </tbody>
@@ -120,9 +120,9 @@ export default function AuditLogsPage() {
           </div>
           {/* Pagination */}
           {pages > 1 && (
-            <div style={{ padding: '12px 20px', display: 'flex', gap: 8, justifyContent: 'flex-end', borderTop: '1px solid var(--border-color)' }}>
+            <div className="flex gap-2 justify-end" style={{ padding: '12px 20px', borderTop: '1px solid var(--border-color)' }}>
               <button className="btn btn-secondary btn-sm" disabled={page <= 1} onClick={() => setPage(p => p - 1)}>← Prev</button>
-              <span style={{ padding: '5px 12px', fontSize: '0.8125rem', color: 'var(--text-muted)' }}>Page {page} of {pages}</span>
+              <span className="text-sm text-muted" style={{ padding: '5px 12px' }}>Page {page} of {pages}</span>
               <button className="btn btn-secondary btn-sm" disabled={page >= pages} onClick={() => setPage(p => p + 1)}>Next →</button>
             </div>
           )}
@@ -131,29 +131,29 @@ export default function AuditLogsPage() {
 
       {/* Log Detail Modal */}
       {selectedLog && (
-        <div style={{ position: 'fixed', inset: 0, zIndex: 1000, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+        <div className="flex items-center justify-center" style={{ position: 'fixed', inset: 0, zIndex: 1000 }}>
           <div style={{ position: 'absolute', inset: 0, background: 'rgba(0,0,0,0.6)', backdropFilter: 'blur(2px)' }} onClick={() => setSelectedLog(null)} />
-          <div style={{ position: 'relative', background: 'var(--bg-card)', width: '100%', maxWidth: 700, borderRadius: 12, boxShadow: 'var(--shadow-xl)', overflow: 'hidden', border: '1px solid var(--border-color)' }}>
-            <div style={{ padding: '20px 24px', borderBottom: '1px solid var(--border-color)', display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: 'var(--bg-surface)' }}>
+          <div className="relative w-full overflow-hidden" style={{ background: 'var(--bg-card)', maxWidth: 700, borderRadius: 12, boxShadow: 'var(--shadow-xl)', border: '1px solid var(--border-color)' }}>
+            <div className="flex justify-between items-center" style={{ padding: '20px 24px', borderBottom: '1px solid var(--border-color)', background: 'var(--bg-surface)' }}>
               <div>
-                <h3 style={{ margin: 0, fontWeight: 600 }}>Audit Log Details</h3>
-                <p style={{ margin: '4px 0 0', fontSize: '0.8125rem', color: 'var(--text-muted)' }}>
+                <h3 className="m-0 font-semibold">Audit Log Details</h3>
+                <p className="text-sm text-muted" style={{ margin: '4px 0 0' }}>
                   {new Date(selectedLog.createdAt).toLocaleString('en-IN')} by {selectedLog.user?.name ?? 'System'}
                 </p>
               </div>
-              <button onClick={() => setSelectedLog(null)} style={{ background: 'var(--bg-card)', border: '1px solid var(--border-color)', borderRadius: '50%', width: 32, height: 32, display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', color: 'var(--text-muted)', fontSize: '1.2rem' }}>×</button>
+              <button onClick={() => setSelectedLog(null)} className="flex items-center justify-center cursor-pointer text-muted" style={{ background: 'var(--bg-card)', border: '1px solid var(--border-color)', borderRadius: '50%', width: 32, height: 32, fontSize: '1.2rem' }}>×</button>
             </div>
-            <div style={{ padding: 24, maxHeight: '70vh', overflowY: 'auto' }}>
-              <div style={{ display: 'flex', gap: 10, marginBottom: 20, flexWrap: 'wrap' }}>
+            <div className="p-6" style={{ maxHeight: '70vh', overflowY: 'auto' }}>
+              <div className="flex mb-5 wrap" style={{ gap: 10 }}>
                 <span className={`badge ${ACTION_BADGE[selectedLog.action] ?? 'badge-muted'}`}>{selectedLog.action}</span>
                 <span className="badge badge-info">{selectedLog.entityType.toUpperCase()}</span>
                 <span className="badge badge-muted" style={{ fontFamily: 'monospace' }}>ID: {selectedLog.entityId}</span>
               </div>
               
               {selectedLog.oldValues && Object.keys(selectedLog.oldValues).length > 0 && (
-                <div style={{ marginBottom: 20 }}>
-                  <div style={{ fontSize: '0.75rem', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.05em', color: 'var(--color-danger)', marginBottom: 8 }}>Old Values</div>
-                  <pre style={{ margin: 0, background: 'rgba(239,68,68,0.05)', border: '1px solid rgba(239,68,68,0.2)', padding: 16, borderRadius: 8, fontSize: '0.8125rem', overflowX: 'auto', color: 'var(--color-danger)' }}>
+                <div className="mb-5">
+                  <div className="text-xs font-semibold text-danger mb-2" style={{ textTransform: 'uppercase', letterSpacing: '0.05em' }}>Old Values</div>
+                  <pre className="m-0 p-4 text-sm overflow-x-auto text-danger" style={{ background: 'rgba(239,68,68,0.05)', border: '1px solid rgba(239,68,68,0.2)', borderRadius: 8 }}>
                     {JSON.stringify(selectedLog.oldValues, null, 2)}
                   </pre>
                 </div>
@@ -161,15 +161,15 @@ export default function AuditLogsPage() {
               
               {selectedLog.newValues && Object.keys(selectedLog.newValues).length > 0 && (
                 <div>
-                  <div style={{ fontSize: '0.75rem', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.05em', color: 'var(--color-success)', marginBottom: 8 }}>New Values</div>
-                  <pre style={{ margin: 0, background: 'rgba(16,185,129,0.05)', border: '1px solid rgba(16,185,129,0.2)', padding: 16, borderRadius: 8, fontSize: '0.8125rem', overflowX: 'auto', color: 'var(--color-success)' }}>
+                  <div className="text-xs font-semibold text-success mb-2" style={{ textTransform: 'uppercase', letterSpacing: '0.05em' }}>New Values</div>
+                  <pre className="m-0 p-4 text-sm overflow-x-auto text-success" style={{ background: 'rgba(16,185,129,0.05)', border: '1px solid rgba(16,185,129,0.2)', borderRadius: 8 }}>
                     {JSON.stringify(selectedLog.newValues, null, 2)}
                   </pre>
                 </div>
               )}
 
               {!selectedLog.oldValues && !selectedLog.newValues && (
-                <div style={{ padding: 20, textAlign: 'center', color: 'var(--text-muted)', background: 'var(--bg-surface)', borderRadius: 8 }}>
+                <div className="p-5 text-center text-muted" style={{ background: 'var(--bg-surface)', borderRadius: 8 }}>
                   No data payload attached to this event.
                 </div>
               )}

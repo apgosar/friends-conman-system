@@ -20,32 +20,15 @@ export default function ProjectTabs({ projectId, overviewContent }: Props) {
     <>
       {/* Tab bar */}
       <div
-        style={{
-          display: 'flex',
-          gap: 4,
-          marginBottom: 24,
-          borderBottom: '1px solid var(--border-color)',
-          paddingBottom: 0,
-        }}
+        className="flex gap-1 mb-6 pb-0" style={{ borderBottom: '1px solid var(--border-color)' }}
       >
         {TABS.map((tab) => (
           <button
             key={tab.id}
             onClick={() => setActiveTab(tab.id as typeof activeTab)}
-            style={{
-              padding: '10px 20px',
-              fontSize: '0.9rem',
-              fontWeight: 600,
-              background: 'none',
-              border: 'none',
-              borderBottom: activeTab === tab.id
+            className="font-semibold cursor-pointer" style={{ padding: '10px 20px', fontSize: '0.9rem', background: 'none', border: 'none', borderBottom: activeTab === tab.id
                 ? '2px solid var(--color-primary)'
-                : '2px solid transparent',
-              color: activeTab === tab.id ? 'var(--color-primary)' : 'var(--text-muted)',
-              cursor: 'pointer',
-              transition: 'all 150ms ease',
-              marginBottom: -1,
-            }}
+                : '2px solid transparent', color: activeTab === tab.id ? 'var(--color-primary)' : 'var(--text-muted)', transition: 'all 150ms ease', marginBottom: -1 }}
           >
             {tab.label}
           </button>
@@ -55,7 +38,7 @@ export default function ProjectTabs({ projectId, overviewContent }: Props) {
       {/* Tab content */}
       {activeTab === 'overview' && overviewContent}
       {activeTab === 'building' && (
-        <div className="card" style={{ padding: 20 }}>
+        <div className="card p-5">
           <BuildingViewer projectId={projectId} />
         </div>
       )}
