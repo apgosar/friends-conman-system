@@ -26,6 +26,7 @@ export async function runDailyInterestAndStatus() {
     const interest = calculateInterest({
       principalAmount: Number(schedule.principalAmount),
       demandGeneratedDate: schedule.demandGeneratedDate!,
+      ratePA: schedule.sale.project.interestRatePercent,
     })
 
     await prisma.paymentSchedule.update({

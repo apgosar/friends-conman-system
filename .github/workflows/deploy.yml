@@ -17,7 +17,12 @@ env:
   SERVICE_ACCOUNT: ${{ secrets.SA_EMAIL }}
 
 jobs:
+  # Nothing deploys unless lint, types, migrations, tests and the production build all pass.
+  verify:
+    uses: ./.github/workflows/ci.yml
+
   deploy:
+    needs: verify
     runs-on: ubuntu-latest
     
     # Required for Workload Identity Federation

@@ -1,7 +1,7 @@
 import { NextRequest } from 'next/server'
 import { requireRole } from '@/lib/guard'
 import { parseBody, z } from '@/lib/validate'
-import { commsRateLimit, rateLimitExceeded } from '@/lib/rate-limit'
+import { paymentsRateLimit, rateLimitExceeded } from '@/lib/rate-limit'
 import { PaymentError, recordPayment } from '@/lib/payments/record-payment'
 import { dispatchAllPending } from '@/lib/comms-dispatcher'
 import { logger } from '@/lib/logger'
@@ -24,7 +24,7 @@ export async function POST(req: NextRequest) {
   const guard = await requireRole('admin')
   if ('error' in guard) return guard.error
 
-  const rl = await commsRateLimit(req)
+  const rl = await paymentsRateLimit(req, guard.user.id)
   if (!rl.ok) return rateLimitExceeded(rl.reset)
 
   const { data, error } = await parseBody(req, PaymentSchema)

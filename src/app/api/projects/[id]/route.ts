@@ -2,6 +2,7 @@ import { NextRequest } from 'next/server'
 import { prisma } from '@/lib/db'
 import { auth } from '@/lib/auth'
 import { requireRole } from '@/lib/guard'
+import { parsePricingSettings } from '@/lib/pricing-settings'
 import { createAuditLog } from '@/lib/audit'
 import { activeSale } from '@/lib/soft-delete'
 
@@ -34,9 +35,12 @@ export async function PATCH(req: NextRequest, props: { params: Promise<{ id: str
   const {
     name, reraNumber, address, city, state, type, status,
     companyName, companyAddress, companyGstin,
-    stampDutyPercent, regChargesPercent, carParkingCharges,
+    carParkingCharges,
     launchDate, expectedCompletion,
   } = body
+
+  const pricing = parsePricingSettings(body)
+  if (pricing.error) return Response.json({ error: pricing.error }, { status: 400 })
 
   try {
     const updated = await prisma.project.update({
@@ -52,8 +56,7 @@ export async function PATCH(req: NextRequest, props: { params: Promise<{ id: str
         ...(companyName && { companyName }),
         ...(companyAddress && { companyAddress }),
         companyGstin: companyGstin ?? null,
-        ...(stampDutyPercent !== undefined && { stampDutyPercent: parseFloat(stampDutyPercent) }),
-        ...(regChargesPercent !== undefined && { regChargesPercent: parseFloat(regChargesPercent) }),
+        ...pricing.data,
         ...(carParkingCharges !== undefined && { carParkingCharges: parseFloat(carParkingCharges) }),
         ...(launchDate && { launchDate: new Date(launchDate) }),
         ...(expectedCompletion && { expectedCompletion: new Date(expectedCompletion) }),
@@ -66,7 +69,7 @@ export async function PATCH(req: NextRequest, props: { params: Promise<{ id: str
       entityType: 'project',
       entityId: id,
       action: 'updated',
-      newValues: { name, type, status },
+      newValues: { name, type, status, ...pricing.data },
     })
 
     return Response.json({ success: true, data: updated })

@@ -5,11 +5,10 @@ import { kycRateLimit, rateLimitExceeded } from '@/lib/rate-limit'
 export async function POST(req: NextRequest) {
   const guard = await requireRole('staff')
   if ('error' in guard) return guard.error
-  const session = { user: guard.user }
 
   // Rate limit: 20 OCR calls per hour per IP (protects paid AZAPI token)
-  const rl = await kycRateLimit(req)
-  if (!rl.ok) return rateLimitExceeded(rl.reset) as unknown as NextResponse
+  const rl = await kycRateLimit(req, guard.user.id)
+  if (!rl.ok) return rateLimitExceeded(rl.reset)
 
   const token = process.env.AZAPI_TOKEN
   if (!token) {

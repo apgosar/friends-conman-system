@@ -21,8 +21,8 @@ export async function POST(req: NextRequest) {
   if ('error' in guard) return guard.error
 
   // 2. Rate limit: 30 uploads per hour per IP
-  const rl = await uploadRateLimit(req)
-  if (!rl.ok) return rateLimitExceeded(rl.reset) as unknown as NextResponse
+  const rl = await uploadRateLimit(req, guard.user.id)
+  if (!rl.ok) return rateLimitExceeded(rl.reset)
 
   try {
     const formData = await req.formData()

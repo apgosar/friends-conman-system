@@ -1,27 +1,28 @@
 /**
- * In-memory sliding-window rate limiter.
+ * Fixed-window rate limiter backed by Postgres (table rate_limits), so the limits hold across restarts and across
+ * every running instance of the app. (The old in-memory version reset on each deploy and was per-container.)
  *
- * Works correctly for single-instance deployments (single Docker container).
- * For multi-instance / serverless: swap the `store` Map for an Upstash Redis
- * client — the interface is identical.
+ *   const rl = await rateLimit(req, { limit: 5, windowMs: 60_000, prefix: 'x', key: user.id })
+ *   if (!rl.ok) return rateLimitExceeded(rl.reset)
  *
- * Usage:
- *   const result = await rateLimit(req, { limit: 5, windowMs: 60_000 })
- *   if (!result.ok) return NextResponse.json({ error: 'Too many requests' }, { status: 429 })
+ * The key is the signed-in user when there is one, otherwise the client IP. If the database cannot be reached the
+ * limiter fails OPEN (and logs): it protects against abuse, it must not become the reason nobody can work.
  */
-
-import { NextRequest } from 'next/server'
+import { prisma } from '@/lib/db'
+import { logger } from '@/lib/logger'
 
 interface RateLimitOptions {
   /** Max number of requests allowed per window. */
   limit: number
   /** Window duration in milliseconds. */
   windowMs: number
-  /** Optional key prefix to separate different limit buckets. */
+  /** Separates the buckets of different features. */
   prefix?: string
+  /** Who is being limited. Defaults to the client IP. */
+  key?: string
 }
 
-interface RateLimitResult {
+export interface RateLimitResult {
   ok: boolean
   /** Remaining allowed requests in the current window. */
   remaining: number
@@ -29,99 +30,100 @@ interface RateLimitResult {
   reset: number
 }
 
-// ---------------------------------------------------------------------------
-// Store — in-memory sliding window using a Map of request timestamps per key
-// ---------------------------------------------------------------------------
-const store = new Map<string, number[]>()
+type HeaderSource = { headers: { get(name: string): string | null } }
 
-// Purge stale entries every 5 minutes to prevent unbounded memory growth
-setInterval(
-  () => {
-    const now = Date.now()
-    for (const [key, timestamps] of store.entries()) {
-      // If all timestamps are older than 10 minutes, remove the entry
-      if (timestamps.every((t) => now - t > 10 * 60 * 1000)) {
-        store.delete(key)
-      }
-    }
-  },
-  5 * 60 * 1000
-)
+/**
+ * The caller's IP as seen by the outermost proxy WE trust. X-Forwarded-For is a list the client can pre-fill, so the
+ * address is counted from the right: with TRUSTED_PROXY_COUNT=1 (default; Cloud Run, nginx, cloudflared) it is the last
+ * entry, the one our own proxy appended. Anything to its left is client-supplied and ignored.
+ */
+export function clientIp(req: HeaderSource, trustedProxies = Number(process.env.TRUSTED_PROXY_COUNT ?? 1)): string {
+  const list = (req.headers.get('x-forwarded-for') ?? '').split(',').map((s) => s.trim()).filter(Boolean)
+  if (list.length > 0) return list[Math.max(list.length - Math.max(trustedProxies, 1), 0)]
+  return req.headers.get('x-real-ip')?.trim() || 'unknown'
+}
 
-// ---------------------------------------------------------------------------
-// Core rate-limit function
-// ---------------------------------------------------------------------------
-export async function rateLimit(
-  req: NextRequest,
-  options: RateLimitOptions
-): Promise<RateLimitResult> {
-  const { limit, windowMs, prefix = 'rl' } = options
+const failOpen = (limit: number, windowMs: number): RateLimitResult => ({ ok: true, remaining: limit, reset: Date.now() + windowMs })
 
-  // Key = prefix + IP (falls back to a constant if IP unavailable)
-  const ip =
-    req.headers.get('x-forwarded-for')?.split(',')[0]?.trim() ??
-    req.headers.get('x-real-ip') ??
-    'unknown'
-  const key = `${prefix}:${ip}`
-
-  const now = Date.now()
-  const windowStart = now - windowMs
-
-  // Get existing timestamps for this key; drop any outside the current window
-  const timestamps = (store.get(key) ?? []).filter((t) => t > windowStart)
-
-  if (timestamps.length >= limit) {
-    const oldest = timestamps[0]
-    const reset = oldest + windowMs
-    return { ok: false, remaining: 0, reset }
-  }
-
-  // Record this request
-  timestamps.push(now)
-  store.set(key, timestamps)
-
-  return {
-    ok: true,
-    remaining: limit - timestamps.length,
-    reset: now + windowMs,
+/** Count one hit against `bucket` and report whether it is still within the limit. */
+export async function hit(bucket: string, limit: number, windowMs: number): Promise<RateLimitResult> {
+  try {
+    const rows = await prisma.$queryRaw<{ count: number; resetAt: Date }[]>`
+      INSERT INTO rate_limits ("key", "count", "resetAt")
+      VALUES (${bucket}, 1, (NOW() AT TIME ZONE 'UTC') + make_interval(secs => ${windowMs / 1000}))
+      ON CONFLICT ("key") DO UPDATE SET
+        "count"   = CASE WHEN rate_limits."resetAt" <= (NOW() AT TIME ZONE 'UTC') THEN 1 ELSE rate_limits."count" + 1 END,
+        "resetAt" = CASE WHEN rate_limits."resetAt" <= (NOW() AT TIME ZONE 'UTC') THEN (NOW() AT TIME ZONE 'UTC') + make_interval(secs => ${windowMs / 1000}) ELSE rate_limits."resetAt" END
+      RETURNING "count", "resetAt"`
+    const { count, resetAt } = rows[0]
+    if (Math.random() < 0.01) void purgeExpired()
+    return { ok: count <= limit, remaining: Math.max(limit - count, 0), reset: resetAt.getTime() }
+  } catch (err) {
+    logger.error({ err, bucket }, 'Rate limiter unavailable; allowing the request')
+    return failOpen(limit, windowMs)
   }
 }
 
+/** How many hits the bucket has in its current window, without adding one. */
+export async function peek(bucket: string): Promise<{ count: number; reset: number } | null> {
+  try {
+    const rows = await prisma.$queryRaw<{ count: number; resetAt: Date }[]>`
+      SELECT "count", "resetAt" FROM rate_limits WHERE "key" = ${bucket} AND "resetAt" > (NOW() AT TIME ZONE 'UTC')`
+    if (!rows[0]) return null
+    return { count: rows[0].count, reset: rows[0].resetAt.getTime() }
+  } catch (err) {
+    logger.error({ err, bucket }, 'Rate limiter unavailable; treating the bucket as empty')
+    return null
+  }
+}
+
+export async function clearBucket(bucket: string): Promise<void> {
+  try {
+    await prisma.rateLimitBucket.deleteMany({ where: { key: bucket } })
+  } catch (err) {
+    logger.error({ err, bucket }, 'Could not clear rate-limit bucket')
+  }
+}
+
+async function purgeExpired() {
+  try {
+    await prisma.rateLimitBucket.deleteMany({ where: { resetAt: { lt: new Date(Date.now() - 24 * 60 * 60 * 1000) } } })
+  } catch { /* housekeeping only */ }
+}
+
+export async function rateLimit(req: HeaderSource, options: RateLimitOptions): Promise<RateLimitResult> {
+  const { limit, windowMs, prefix = 'rl', key } = options
+  return hit(`${prefix}:${key ?? clientIp(req)}`, limit, windowMs)
+}
+
 // ---------------------------------------------------------------------------
-// Pre-configured limiters for common scenarios
+// Pre-configured limiters. Pass the signed-in user's id so a shared office IP is not one big bucket.
 // ---------------------------------------------------------------------------
 
-/** Login: 10 attempts per 15 minutes per IP */
-export const loginRateLimit = (req: NextRequest) =>
-  rateLimit(req, { limit: 10, windowMs: 15 * 60 * 1000, prefix: 'login' })
+/** KYC / OCR API: 20 calls per hour (protects paid API tokens) */
+export const kycRateLimit = (req: HeaderSource, userId?: string) =>
+  rateLimit(req, { limit: 20, windowMs: 60 * 60 * 1000, prefix: 'kyc', key: userId })
 
-/** KYC / OCR API: 20 calls per hour per IP (protects paid API tokens) */
-export const kycRateLimit = (req: NextRequest) =>
-  rateLimit(req, { limit: 20, windowMs: 60 * 60 * 1000, prefix: 'kyc' })
+/** File upload: 60 uploads per hour */
+export const uploadRateLimit = (req: HeaderSource, userId?: string) =>
+  rateLimit(req, { limit: 60, windowMs: 60 * 60 * 1000, prefix: 'upload', key: userId })
 
-/** File upload: 30 uploads per hour per IP */
-export const uploadRateLimit = (req: NextRequest) =>
-  rateLimit(req, { limit: 30, windowMs: 60 * 60 * 1000, prefix: 'upload' })
+/** Recording payments: 300 per hour per user (a busy accounts desk, not a script) */
+export const paymentsRateLimit = (req: HeaderSource, userId?: string) =>
+  rateLimit(req, { limit: 300, windowMs: 60 * 60 * 1000, prefix: 'payments', key: userId })
 
-/** Communications send/dispatch: 50 per hour per IP */
-export const commsRateLimit = (req: NextRequest) =>
-  rateLimit(req, { limit: 50, windowMs: 60 * 60 * 1000, prefix: 'comms' })
+/** Password changes / resets: 5 per 15 minutes per user */
+export const passwordRateLimit = (req: HeaderSource, userId?: string) =>
+  rateLimit(req, { limit: 5, windowMs: 15 * 60 * 1000, prefix: 'password', key: userId })
 
-/** General API: 200 requests per minute per IP */
-export const apiRateLimit = (req: NextRequest) =>
-  rateLimit(req, { limit: 200, windowMs: 60 * 1000, prefix: 'api' })
-
-/**
- * Returns a 429 Response with standard rate-limit headers.
- */
+/** Returns a 429 Response with standard rate-limit headers. */
 export function rateLimitExceeded(reset: number) {
   return Response.json(
     { error: 'Too many requests. Please try again later.' },
     {
       status: 429,
       headers: {
-        'Retry-After': String(Math.ceil((reset - Date.now()) / 1000)),
-        'X-RateLimit-Limit': '0',
+        'Retry-After': String(Math.max(Math.ceil((reset - Date.now()) / 1000), 1)),
         'X-RateLimit-Remaining': '0',
         'X-RateLimit-Reset': String(Math.ceil(reset / 1000)),
       },

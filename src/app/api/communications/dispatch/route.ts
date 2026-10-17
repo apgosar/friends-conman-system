@@ -7,7 +7,6 @@ import { dispatchAllPending } from '@/lib/comms-dispatcher'
 export async function POST(req: NextRequest) {
   const guard = await requireRole('admin')
   if ('error' in guard) return guard.error
-  const session = { user: guard.user }
 
   try {
     const results = await dispatchAllPending()

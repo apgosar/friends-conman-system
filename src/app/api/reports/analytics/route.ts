@@ -7,7 +7,6 @@ import { activeSale } from '@/lib/soft-delete'
 export async function GET(req: NextRequest) {
   const guard = await requireRole('admin')
   if ('error' in guard) return guard.error
-  const session = { user: guard.user }
 
   try {
     const now = new Date()

@@ -20,7 +20,6 @@ export async function GET(req: NextRequest, props: { params: Promise<{ id: strin
 export async function PUT(req: NextRequest, props: { params: Promise<{ id: string }> }) {
   const guard = await requireRole('admin')
   if ('error' in guard) return guard.error
-  const session = { user: guard.user }
 
   const { id } = await props.params
   const body = await req.json()

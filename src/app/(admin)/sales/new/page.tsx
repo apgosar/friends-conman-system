@@ -1,6 +1,7 @@
 import { prisma } from '@/lib/db'
 import TopNav from '@/components/layout/TopNav'
 import NewSaleForm from '@/components/sales/NewSaleForm'
+import { pricingFromProject } from '@/lib/pricing'
 
 export default async function NewSalePage(props: PageProps<'/sales/new'>) {
   const { inquiryId } = await props.searchParams
@@ -49,6 +50,7 @@ export default async function NewSalePage(props: PageProps<'/sales/new'>) {
       name: p.name,
       type: p.type,
       carParkingCharges: p.carParkingCharges,
+      pricing: pricingFromProject(p),
       units,
       tenants: p.tenants.map(t => ({ id: t.id, name: t.name, oldFlatNumber: t.oldFlatNumber })),
       milestones: p.milestones.map(m => ({

@@ -1,6 +1,14 @@
 import { z, ZodSchema } from 'zod'
 import { NextResponse } from 'next/server'
 
+/** The first problem, worded so a person can act on it: "Enter a valid email address", or "email: Invalid input…" for a bare type error. */
+function firstMessage(error: z.ZodError): string {
+  const issue = error.issues[0]
+  if (!issue) return 'Validation failed'
+  const field = issue.path.join('.')
+  return field && /^Invalid input/.test(issue.message) ? `${field}: ${issue.message}` : issue.message
+}
+
 export async function parseBody<T>(
   req: Request,
   schema: ZodSchema<T>
@@ -12,7 +20,7 @@ export async function parseBody<T>(
       return {
         data: null,
         error: NextResponse.json(
-          { error: 'Validation failed', details: result.error.flatten() },
+          { error: firstMessage(result.error), details: result.error.flatten() },
           { status: 400 }
         ),
       }

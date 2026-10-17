@@ -35,7 +35,6 @@ async function loadInquiry(unitId: string, quoteId: string) {
 export async function PATCH(req: NextRequest, { params }: Ctx) {
   const guard = await requireRole('staff')
   if ('error' in guard) return guard.error
-  const session = { user: guard.user }
 
   const { unitId, quoteId } = await params
   const { data, error } = await parseBody(req, PatchSchema)
@@ -88,7 +87,6 @@ export async function PATCH(req: NextRequest, { params }: Ctx) {
 export async function DELETE(_req: NextRequest, { params }: Ctx) {
   const guard = await requireRole('admin')
   if ('error' in guard) return guard.error
-  const session = { user: guard.user }
 
   const { unitId, quoteId } = await params
   const inquiry = await prisma.inquiry.findFirst({ where: { id: quoteId, unitId } })

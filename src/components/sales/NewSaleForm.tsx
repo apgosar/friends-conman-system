@@ -2,12 +2,9 @@
 
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
+import { DEFAULT_PRICING, computeCharges, gstOn, type PricingConfig } from '@/lib/pricing'
 
-// ─── Constants ───────────────────────────────────────────────
-const GST_RATE = 0.05
-const STAMP_DUTY_RATE = 0.06
-const REG_BASE = 30000
-const REG_PARKING = 20000
+// Tax and pricing rules come from the selected project's settings (see lib/pricing.ts)
 
 function fmt(n: number) {
   return new Intl.NumberFormat('en-IN', { style: 'currency', currency: 'INR', maximumFractionDigits: 0 }).format(n)
@@ -69,10 +66,9 @@ export default function NewSaleWizard({ projects, prefill = null }: { projects: 
   const [buyers, setBuyers] = useState<Buyer[]>([prefill ? { ...emptyBuyer(), fullName: prefill.buyerName, whatsappNumber: prefill.mobileNumber } : emptyBuyer()])
 
   // Derived financials
-  const stampDuty = Math.round(agreementValue * STAMP_DUTY_RATE)
-  const gst = Math.round(agreementValue * GST_RATE)
+  const pricing: PricingConfig = selectedProject?.pricing ?? DEFAULT_PRICING
+  const { gst, stampDuty, registration: regCharges } = computeCharges(pricing, agreementValue, carParking)
   const parkingCost = selectedProject?.carParkingCharges ?? 0
-  const regCharges = carParking ? REG_BASE + REG_PARKING : REG_BASE
 
   // Step 2 state — editable payment schedule
   const [schedules, setSchedules] = useState<ScheduleRow[]>([])
@@ -193,7 +189,7 @@ export default function NewSaleWizard({ projects, prefill = null }: { projects: 
 
       if (shouldKeep && (basePrincipal > 0 || index === 0)) {
         const pct = Number(((basePrincipal / agreementValue) * 100).toFixed(2))
-        const gstAmt = Math.round(basePrincipal * GST_RATE)
+        const gstAmt = gstOn(pricing, basePrincipal)
         rows.push({
           milestoneId: m.id,
           description: m.name,
@@ -236,7 +232,7 @@ export default function NewSaleWizard({ projects, prefill = null }: { projects: 
   const updateScheduleAmount = (idx: number, newAmt: number) => {
     setSchedules(prev => prev.map((r, i) => {
       if (i !== idx) return r
-      const newGst = r.percentOfAV !== undefined ? Math.round(newAmt * GST_RATE) : 0
+      const newGst = r.percentOfAV !== undefined ? gstOn(pricing, newAmt) : 0
       const newPct = r.percentOfAV !== undefined ? Number(((newAmt / agreementValue) * 100).toFixed(2)) : undefined
       return { ...r, principalAmount: newAmt, gstAmount: newGst, percentOfAV: newPct }
     }))
@@ -246,7 +242,7 @@ export default function NewSaleWizard({ projects, prefill = null }: { projects: 
     setSchedules(prev => prev.map((r, i) => {
       if (i !== idx) return r
       const newAmt = Math.round((newPct / 100) * agreementValue)
-      const newGst = r.percentOfAV !== undefined ? Math.round(newAmt * GST_RATE) : 0
+      const newGst = r.percentOfAV !== undefined ? gstOn(pricing, newAmt) : 0
       return { ...r, principalAmount: newAmt, gstAmount: newGst, percentOfAV: newPct }
     }))
   }
@@ -542,7 +538,7 @@ export default function NewSaleWizard({ projects, prefill = null }: { projects: 
             {carParking && selectedProject && (
               <div style={{ marginTop: 12 }}>
                 <p style={{ marginBottom: 12, fontSize: '0.875rem', color: 'var(--text-muted)' }}>
-                  Car parking: <strong>{fmt(parkingCost)}</strong> + Registration: <strong>{fmt(REG_PARKING)}</strong>
+                  Car parking: <strong>{fmt(parkingCost)}</strong> + Registration: <strong>{fmt(pricing.regParkingCharges)}</strong>
                 </p>
                 <div className="grid grid-3 gap-4">
                   <div className="form-group">
@@ -567,8 +563,8 @@ export default function NewSaleWizard({ projects, prefill = null }: { projects: 
             <div style={{ fontWeight: 600, marginBottom: 10, fontSize: '0.875rem' }}>Estimated Costs</div>
             {[
               ['Agreement Value', agreementValue],
-              [`GST (5%)`, gst],
-              [`Stamp Duty (6%)`, stampDuty],
+              [`GST (${pricing.gstRatePercent}%)`, gst],
+              [`Stamp Duty (${pricing.stampDutyPercent}%)`, stampDuty],
               [`Registration${carParking ? ' (incl. parking)' : ''}`, regCharges],
               ...(carParking ? [['Car Parking', parkingCost]] : []),
             ].map(([label, amount]) => (
@@ -600,7 +596,7 @@ export default function NewSaleWizard({ projects, prefill = null }: { projects: 
           </div>
           {error && <div className="alert alert-danger mb-4">{error}</div>}
           <p style={{ fontSize: '0.875rem', color: 'var(--text-muted)', marginBottom: 20 }}>
-            Review the milestone-based payment schedule below. Amounts are pre-calculated from the project's payment plan and your Agreement Value. You may adjust them before confirming.
+            Review the milestone-based payment schedule below. Amounts are pre-calculated from the project&apos;s payment plan and your Agreement Value. You may adjust them before confirming.
           </p>
 
           <div className="table-wrapper" style={{ border: 'none', marginBottom: 16 }}>

@@ -6,7 +6,6 @@ import { sendWhatsApp } from '@/lib/whatsapp'
 export async function POST(req: NextRequest) {
   const guard = await requireRole('superadmin')
   if ('error' in guard) return guard.error
-  const session = { user: guard.user }
 
   try {
     const { to } = await req.json()

@@ -8,7 +8,6 @@ import { dispatchCommunicationLog } from '@/lib/comms-dispatcher'
 export async function POST(req: NextRequest) {
   const guard = await requireRole('admin')
   if ('error' in guard) return guard.error
-  const session = { user: guard.user }
 
   try {
     const body = await req.json()
@@ -40,7 +39,6 @@ export async function POST(req: NextRequest) {
 export async function GET(req: NextRequest) {
   const guard = await requireRole('admin')
   if ('error' in guard) return guard.error
-  const session = { user: guard.user }
 
   const { searchParams } = new URL(req.url)
   const channel = searchParams.get('channel')

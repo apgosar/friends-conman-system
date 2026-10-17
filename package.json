@@ -12,10 +12,9 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "lint": "eslint",
+    "lint": "eslint src tests",
     "worker": "npx tsx src/scripts/process-email-queue.ts",
     "db:generate": "prisma generate",
-    "db:push": "prisma db push",
     "db:migrate": "prisma migrate dev",
     "db:seed": "tsx prisma/seed.ts",
     "db:studio": "prisma studio",
@@ -24,7 +23,8 @@
     "test:watch": "vitest",
     "test:db": "node scripts/test-db.mjs",
     "db:deploy": "prisma migrate deploy",
-    "db:baseline": "prisma migrate resolve --applied 0_init"
+    "db:baseline": "prisma migrate resolve --applied 0_init",
+    "lint:ci": "eslint src tests --max-warnings 214"
   },
   "dependencies": {
     "@auth/prisma-adapter": "^2.11.2",

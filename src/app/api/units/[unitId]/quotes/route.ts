@@ -10,7 +10,6 @@ export async function POST(
 ) {
   const guard = await requireRole('staff')
   if ('error' in guard) return guard.error
-  const session = { user: guard.user }
 
   const { unitId } = await params
   

@@ -1,0 +1,103 @@
+name: CI
+
+# The quality gate. Runs on every pull request and on branch pushes, and is also called by deploy.yml and
+# release-onprem.yml so that nothing reaches Cloud Run or a customer's server unless it passed.
+
+on:
+  pull_request:
+  push:
+    branches-ignore:
+      - main
+  workflow_call:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name != 'workflow_call' }}
+
+env:
+  NEXT_TELEMETRY_DISABLED: '1'
+  CHECKPOINT_DISABLE: '1'
+  PRISMA_HIDE_UPDATE_MESSAGE: '1'
+
+jobs:
+  verify:
+    name: Lint, types, tests
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: neev_test
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+
+    env:
+      TEST_DATABASE_URL: postgresql://postgres:postgres@localhost:5432/neev_test
+      DATABASE_URL: postgresql://postgres:postgres@localhost:5432/neev_test
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - run: npm ci
+
+      - name: Prisma schema is valid and matches the migrations
+        run: |
+          npx prisma validate
+          npx prisma generate
+          # Migrations applied to an empty database must produce exactly schema.prisma. Fails when someone edits the
+          # schema without adding a migration (or edits a shipped migration).
+          createdb_url="postgresql://postgres:postgres@localhost:5432/neev_shadow"
+          PGPASSWORD=postgres psql -h localhost -U postgres -c "CREATE DATABASE neev_shadow"
+          DATABASE_URL="$createdb_url" npx prisma migrate deploy
+          npx prisma migrate diff --from-url "$createdb_url" --to-schema-datamodel prisma/schema.prisma --exit-code
+
+      - name: Type check
+        run: npm run typecheck
+
+      - name: Lint
+        run: npm run lint:ci
+
+      - name: Tests (unit + integration against Postgres)
+        run: npm test
+
+      - name: Dependency audit (production, high severity)
+        run: npm audit --omit=dev --audit-level=high
+        continue-on-error: true # reported, not yet blocking: triage the existing findings first
+
+  build:
+    name: Production build
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - run: npx prisma generate
+      - name: next build
+        run: npm run build
+        env:
+          BUILDING: 'true'
+          DATABASE_URL: postgresql://postgres:postgres@localhost:5432/neev_test
+          NEXTAUTH_SECRET: ci-build-secret-ci-build-secret-123456
+          NEXTAUTH_URL: http://localhost:3000
+          APP_URL: http://localhost:3000

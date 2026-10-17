@@ -7,7 +7,6 @@ import { sendWhatsApp } from '@/lib/whatsapp'
 export async function POST(req: NextRequest) {
   const guard = await requireRole('superadmin')
   if ('error' in guard) return guard.error
-  const session = { user: guard.user }
 
   try {
     const { to } = await req.json()
@@ -19,7 +18,7 @@ export async function POST(req: NextRequest) {
       html: `
         <div style="font-family: Arial, sans-serif; max-width: 560px; margin: 0 auto;">
           <div style="background: #0F2A4A; padding: 24px 32px;">
-            <h1 style="color: #fff; margin: 0; font-size: 20px;">PARADIGM FRIENDS REALTORS LLP</h1>
+            <h1 style="color: #fff; margin: 0; font-size: 20px;">${process.env.COMPANY_NAME?.trim() || 'Neev CMS'}</h1>
             <p style="color: #a0bbd8; margin: 4px 0 0; font-size: 13px;">Neev CMS - Construction Management Systems</p>
           </div>
           <div style="padding: 32px; background: #fff;">

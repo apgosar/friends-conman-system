@@ -5,7 +5,6 @@ import { prisma } from '@/lib/db'
 export async function GET(req: NextRequest) {
   const guard = await requireRole('admin')
   if ('error' in guard) return guard.error
-  const session = { user: guard.user }
 
   const { searchParams } = new URL(req.url)
   const action = searchParams.get('action')

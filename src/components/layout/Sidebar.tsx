@@ -5,7 +5,7 @@ import { usePathname } from 'next/navigation'
 import { signOut, useSession } from 'next-auth/react'
 import { buildTitle, versionLabel } from '@/lib/version'
 import { canAccessPath } from '@/lib/authz'
-import { normalizeRole } from '@/lib/roles'
+import { ROLE_LABELS, normalizeRole } from '@/lib/roles'
 
 const NAV_ITEMS = [
   {
@@ -106,10 +106,14 @@ export default function Sidebar() {
         {session?.user && (
           <div className="sidebar-user" style={{ padding: '0 1rem 1rem 1rem', fontSize: '0.875rem' }}>
             <div style={{ fontWeight: '600', color: '#f9fafb' }}>{session.user.name}</div>
-            <div style={{ color: '#9ca3af', fontSize: '0.75rem', marginTop: '0.25rem' }}>{session.user.role}</div>
+            <div style={{ color: '#9ca3af', fontSize: '0.75rem', marginTop: '0.25rem' }}>{ROLE_LABELS[role]}</div>
             <div style={{ color: '#9ca3af', fontSize: '0.75rem' }}>{session.user.email}</div>
           </div>
         )}
+        <Link href="/account" className={`nav-item ${pathname.startsWith('/account') ? 'active' : ''}`} onClick={closeSidebar}>
+          <span className="nav-item-icon">🔑</span>
+          <span>My Account</span>
+        </Link>
         <button
           className="nav-item w-full"
           style={{ border: 'none', cursor: 'pointer', background: 'transparent' }}

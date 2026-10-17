@@ -20,7 +20,6 @@ function csvEscape(val: unknown): string {
 export async function GET(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const guard = await requireRole('staff')
   if ('error' in guard) return guard.error
-  const session = { user: guard.user }
 
   const { id } = await params
   const sp = new URL(req.url).searchParams

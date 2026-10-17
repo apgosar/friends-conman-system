@@ -20,8 +20,8 @@ Confirm the stack actually works before spending any time on Cloudflare/DNS:
 ```bash
 cp docker-compose.override.yml.example docker-compose.override.yml
 docker compose up -d
-docker compose exec web npx prisma db push
-docker compose exec web npx prisma db seed   # starter logins; the default password is in prisma/seed.ts
+docker compose exec web npx prisma migrate deploy
+docker compose exec web npx prisma db seed   # starter logins; set SEED_PASSWORD first, or note the password it prints
 # open http://localhost:8080 in a browser on the host machine
 rm docker-compose.override.yml   # remove before going live — no ports should be published in production
 ```
@@ -76,12 +76,11 @@ docker login ghcr.io -u <your-github-username>
 docker compose pull
 docker compose up -d
 
-# 9) Create the database tables. This project has no migration history, so it
-#    is `db push` (what update.sh uses too), not `migrate deploy` — that finds
-#    nothing to apply and leaves the database empty.
-docker compose exec web npx prisma db push
-#    First install only: create the starter logins, then change their
-#    passwords straight away — the default is in the public repo (prisma/seed.ts).
+# 9) Create the database tables (and apply every later change, in order).
+#    update.sh runs the same command.
+docker compose exec web npx prisma migrate deploy
+#    First install only: create the starter logins. The password comes from
+#    SEED_PASSWORD, or is generated and printed once; there is no default.
 docker compose exec web npx prisma db seed
 ```
 
@@ -116,7 +115,7 @@ The customer double-clicks the `.bat`, types the release tag you gave them (for 
 2. asks for the tag, and refuses a downgrade unless they type `DOWNGRADE`;
 3. **downloads the new image first** — if that fails (wrong tag, registry login, network) nothing running is touched;
 4. backs up the database to `backups/` (gzipped SQL; the last 10 are kept);
-5. applies database changes with `prisma db push`, run from the **new** image, and never with `--accept-data-loss` — if a change could delete data it stops here, before the app is touched;
+5. applies database migrations with `prisma migrate deploy`, run from the **new** image. If a migration cannot be applied (for example two active sales on one unit) it stops here with a plain message, before the app is touched; the first time on an older install it first records the existing database as the starting point (`migrate resolve --applied 0_init`);
 6. switches only the `web` container to the new tag and records it in `.env`;
 7. waits for the health check and **rolls back to the previous tag automatically** if the new version doesn't come up;
 8. runs any **one-time data conversion** the release ships with, once per server (see "One-time data conversions" below);
@@ -127,11 +126,11 @@ Every run writes a log to `update-logs/` that the customer can send you. The app
 **What it deliberately does not do**
 - It doesn't change `docker-compose.yml` or add settings to `.env`. If a release needs either, tell the customer separately (and send a new `update.sh` the same way). A missing required setting makes the new version fail its health check, so the script rolls back rather than leaving a broken app.
 - It doesn't update Postgres, MinIO or `cloudflared`.
-- It uses `db push` because the project has no migration history. If you adopt Prisma migrations, switch step 5 to `migrate deploy` — after baselining existing databases, or the first run on them will fail.
+- Database changes are Prisma migrations (`prisma/migrations`). **Never edit a migration that has shipped**; add a new one (`npx prisma migrate dev --name what_changed`). Anything Prisma cannot express in `schema.prisma` (partial indexes, CHECK constraints) goes in the migration SQL.
 
 **One-time data conversions**
 
-Some releases change what *existing* records mean. v0.0.3, for example, retired the old unit, sale and demand statuses. `prisma db push` changes structure, not values, so such a release carries a small conversion and the updater runs it:
+Some releases change what *existing* records mean. v0.0.3, for example, retired the old unit, sale and demand statuses. A schema migration changes structure, and can fix values with SQL, but a larger conversion is easier as a script, so such a release carries a small conversion and the updater runs it:
 
 - The Dockerfile compiles each conversion into the image as `/app/data-migrations/NNN-name.js` (minified; `scripts/` and `src/` are never shipped). Nothing is copied to the server by hand.
 - Once the new version is healthy, the updater runs every conversion in the image that this server hasn't run yet, in name order, in a throwaway container of the new image.

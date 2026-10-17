@@ -9,7 +9,6 @@ import { createSale, SaleCreateSchema, SaleError, isDuplicateActiveSale } from '
 export async function GET(req: NextRequest) {
   const guard = await requireRole('staff')
   if ('error' in guard) return guard.error
-  const session = { user: guard.user }
   const { searchParams } = new URL(req.url)
   const projectId = searchParams.get('projectId')
   const status = searchParams.get('status')

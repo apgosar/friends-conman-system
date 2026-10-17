@@ -6,7 +6,6 @@ import { softDelete } from '@/lib/soft-delete'
 export async function GET(req: NextRequest, props: { params: Promise<{ id: string }> }) {
   const guard = await requireRole('staff')
   if ('error' in guard) return guard.error
-  const session = { user: guard.user }
   try {
     const { id } = await props.params
     const sale = await prisma.sale.findUnique({

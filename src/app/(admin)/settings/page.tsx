@@ -101,7 +101,7 @@ export default function SettingsPage() {
                 <div><span style={{ color: 'var(--text-muted)' }}># Email (Gmail App Password)</span></div>
                 <div>GMAIL_USER=<span style={{ color: 'var(--color-warning)' }}>neevcms@gmail.com</span></div>
                 <div>GMAIL_APP_PASSWORD=<span style={{ color: 'var(--color-warning)' }}>xxxx-xxxx-xxxx-xxxx</span></div>
-                <div>COMPANY_NAME=<span style={{ color: 'var(--color-warning)' }}>PARADIGM FRIENDS REALTORS LLP</span></div>
+                <div>COMPANY_NAME=<span style={{ color: 'var(--color-warning)' }}>Your Company Name</span></div>
               </div>
 
               <details style={{ marginBottom: 20 }}>
@@ -112,7 +112,7 @@ export default function SettingsPage() {
                   <li>Sign in to <strong>neevcms@gmail.com</strong></li>
                   <li>Go to <strong>Google Account → Security → 2-Step Verification</strong> (enable it first)</li>
                   <li>At the bottom, click <strong>App passwords</strong></li>
-                  <li>Select App: <em>Mail</em>, Device: <em>Other</em> → type "Neev CMS Server"</li>
+                  <li>Select App: <em>Mail</em>, Device: <em>Other</em> → type &quot;Neev CMS Server&quot;</li>
                   <li>Copy the 16-character password and paste it as <code>GMAIL_APP_PASSWORD</code></li>
                 </ol>
               </details>

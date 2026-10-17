@@ -7,7 +7,7 @@
 #
 # Order of operations: check the machine -> choose the release tag -> download the
 # new image (the running app is untouched if this fails) -> back up the database ->
-# apply database structure changes using the NEW image (stops before the switch if
+# apply database migrations (prisma migrate deploy) using the NEW image (stops before the switch if
 # it fails) -> switch the app over -> wait for it to become healthy -> roll back to
 # the previous version if it does not -> run any one-time data conversion the release
 # ships with (once per server; see run_data_migrations below).
@@ -280,16 +280,26 @@ main() {
   ok "Backup saved: $APP_DIR/$BACKUP"
 
   step 5 "Updating the database structure (only if this version needs it)"
-  local push_out
-  push_out="$(mktemp)"; TMPFILES+=("$push_out")
-  IMAGE_TAG="$TAG" docker compose run --rm --no-deps -T -e CHECKPOINT_DISABLE=1 -e PRISMA_HIDE_UPDATE_MESSAGE=1 web npx prisma db push --skip-generate </dev/null 2>&1 | tee "$push_out"
-  if [ "${PIPESTATUS[0]}" -ne 0 ]; then
-    if grep -qiE 'data loss|accept-data-loss' "$push_out"; then
-      fail "This version changes the database in a way that could delete data, so the update was stopped to protect it. Do not retry; contact $SUPPORT. The app was not changed and is still running $OLD_TAG."
+  local mig_out
+  mig_out="$(mktemp)"; TMPFILES+=("$mig_out")
+  # Runs `prisma <args>` from the NEW image against the live database; output is shown and kept in $mig_out.
+  prisma_run() {
+    IMAGE_TAG="$TAG" docker compose run --rm --no-deps -T -e CHECKPOINT_DISABLE=1 -e PRISMA_HIDE_UPDATE_MESSAGE=1 web npx prisma "$@" </dev/null 2>&1 | tee "$mig_out"
+    return "${PIPESTATUS[0]}"
+  }
+  if ! prisma_run migrate deploy; then
+    if grep -q 'P3005' "$mig_out"; then
+      # A database created before migrations existed (by the old `db push` updater): record it as the starting point, then update it.
+      say "  First update since database migrations were introduced: recording the current structure as the starting point."
+      prisma_run migrate resolve --applied 0_init || fail "Could not record the starting point of the database. The app was not changed and is still running $OLD_TAG. Your backup: $APP_DIR/$BACKUP. Contact $SUPPORT."
+      prisma_run migrate deploy || { grep -q 'more than one active sale' "$mig_out" && fail "Some units have more than one active sale: $(grep -o 'more than one active sale: [^.]*' "$mig_out" | head -1). Cancel the extra sales in the app, then run this update again. The app was not changed and is still running $OLD_TAG."; fail "The database update did not complete. The app was not changed and is still running $OLD_TAG. Your backup: $APP_DIR/$BACKUP. Contact $SUPPORT."; }
+    elif grep -q 'more than one active sale' "$mig_out"; then
+      fail "Some units have more than one active sale: $(grep -o 'more than one active sale: [^.]*' "$mig_out" | head -1). Cancel the extra sales in the app, then run this update again. The app was not changed and is still running $OLD_TAG."
+    else
+      fail "The database update did not complete. The app was not changed and is still running $OLD_TAG. Your backup: $APP_DIR/$BACKUP. Contact $SUPPORT."
     fi
-    fail "The database update did not complete. The app was not changed and is still running $OLD_TAG. Your backup: $APP_DIR/$BACKUP. Contact $SUPPORT."
   fi
-  if grep -qi 'already in sync' "$push_out"; then ok "No database changes were needed"; else ok "Database structure updated"; fi
+  if grep -qiE 'No pending migrations|already in sync' "$mig_out"; then ok "No database changes were needed"; else ok "Database structure updated"; fi
 
   step 6 "Switching to $TAG"
   ENV_COPY=".env.before-$STAMP"

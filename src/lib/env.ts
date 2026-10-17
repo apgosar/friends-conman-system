@@ -7,6 +7,7 @@
  */
 
 import { deploymentConfig } from './deployment-config'
+import { getSharedSecret } from './internal-auth'
 
 interface EnvVar {
   key: string
@@ -84,6 +85,11 @@ export function validateEnv(): void {
         warnings.push(`  ⚠ ${key} looks like a placeholder value. Update before going to production.`)
       }
     }
+  }
+
+  // CRON_SECRET guards the scheduler endpoint and lets the app fetch its own documents to attach to emails/WhatsApp
+  if (!getSharedSecret()) {
+    warnings.push('  ⚠ CRON_SECRET is missing, shorter than 16 characters or still a placeholder: scheduled jobs and emailed document attachments will be refused. Generate one with `openssl rand -hex 32`.')
   }
 
   // NEXTAUTH_SECRET strength check

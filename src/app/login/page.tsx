@@ -22,7 +22,9 @@ export default function LoginPage() {
       redirect: false,
     })
     setLoading(false)
-    if (res?.error) {
+    if (res?.code === 'too_many_attempts') {
+      setError('Too many attempts. Please wait a few minutes before trying again.')
+    } else if (res?.error) {
       setError('Invalid email or password.')
     } else {
       router.push('/dashboard')

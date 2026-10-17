@@ -6,7 +6,6 @@ import { prisma } from '@/lib/db'
 export async function GET(_req: NextRequest, { params }: { params: Promise<{ unitId: string }> }) {
   const guard = await requireRole('staff')
   if ('error' in guard) return guard.error
-  const session = { user: guard.user }
 
   const { unitId } = await params
   const inquiries = await prisma.inquiry.findMany({ where: { unitId }, orderBy: { createdAt: 'desc' } })

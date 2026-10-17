@@ -3,6 +3,7 @@
 import { useState, FormEvent } from 'react'
 import { useRouter } from 'next/navigation'
 import TopNav from '@/components/layout/TopNav'
+import PricingFields from '@/components/projects/PricingFields'
 
 export default function NewProjectPage() {
   const router = useRouter()
@@ -94,21 +95,16 @@ export default function NewProjectPage() {
               <div className="grid grid-2 gap-4 mb-4">
                 <div className="form-group">
                   <label className="form-label">Company Name *</label>
-                  <input name="companyName" className="form-input" required placeholder="PARADIGM FRIENDS REALTORS LLP" />
+                  <input name="companyName" className="form-input" required placeholder="Your company's registered name" />
                 </div>
                 <div className="form-group">
                   <label className="form-label">GSTIN</label>
                   <input name="companyGstin" className="form-input" placeholder="27AAAAA0000A1Z5" />
                 </div>
-                <div className="form-group">
-                  <label className="form-label">Stamp Duty %</label>
-                  <input name="stampDutyPercent" type="number" step="0.01" className="form-input" defaultValue="5" />
-                </div>
-                <div className="form-group">
-                  <label className="form-label">Registration Charges %</label>
-                  <input name="regChargesPercent" type="number" step="0.01" className="form-input" defaultValue="1" />
-                </div>
               </div>
+              <h4 style={{ margin: '8px 0 4px' }}>Tax and pricing</h4>
+              <p className="form-hint" style={{ marginBottom: 12 }}>Defaults suit Maharashtra. Change them if this project&apos;s state or year differs; you can edit them later.</p>
+              <PricingFields />
               <div className="form-group mb-6">
                 <label className="form-label">Company Address *</label>
                 <textarea name="companyAddress" className="form-textarea" required placeholder="Office No. 501, XYZ Building..." style={{ minHeight: 80 }} />

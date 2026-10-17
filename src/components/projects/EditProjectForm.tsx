@@ -4,6 +4,7 @@ import { useState } from 'react'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import BackToProject from '@/components/projects/BackToProject'
+import PricingFields from '@/components/projects/PricingFields'
 
 export default function EditProjectForm({ project }: { project: any }) {
   const router = useRouter()
@@ -29,8 +30,13 @@ export default function EditProjectForm({ project }: { project: any }) {
       companyName: form.get('companyName'),
       companyAddress: form.get('companyAddress'),
       companyGstin: form.get('companyGstin') || null,
-      stampDutyPercent: Number(form.get('stampDutyPercent')),
-      regChargesPercent: Number(form.get('regChargesPercent')),
+      gstRatePercent: form.get('gstRatePercent'),
+      stampDutyPercent: form.get('stampDutyPercent'),
+      regChargesPercent: form.get('regChargesPercent'),
+      regChargesCap: form.get('regChargesCap'),
+      regParkingCharges: form.get('regParkingCharges'),
+      tdsRatePercent: form.get('tdsRatePercent'),
+      interestRatePercent: form.get('interestRatePercent'),
       carParkingCharges: Number(form.get('carParkingCharges')),
     }
     const launchDate = form.get('launchDate')
@@ -138,29 +144,23 @@ export default function EditProjectForm({ project }: { project: any }) {
           </div>
 
           <div className="divider" />
-          <h4 style={{ marginBottom: 16 }}>Financial Defaults</h4>
+          <h4 style={{ marginBottom: 4 }}>Tax and pricing</h4>
+          <p className="form-hint" style={{ marginBottom: 16 }}>Used for new sales, demand letters and overdue interest in this project. Sales already created keep the figures they were created with.</p>
+
+          <PricingFields values={project} />
 
           <div className="grid grid-3 gap-4 mb-6">
             <div className="form-group">
-              <label className="form-label">Stamp Duty %</label>
-              <input name="stampDutyPercent" type="number" step="0.01" className="form-input" defaultValue={project.stampDutyPercent} />
-            </div>
-            <div className="form-group">
-              <label className="form-label">Reg. Charges %</label>
-              <input name="regChargesPercent" type="number" step="0.01" className="form-input" defaultValue={project.regChargesPercent} />
-            </div>
-            <div className="form-group">
-              <label className="form-label">Car Parking Charges (₹)</label>
+              <label className="form-label" htmlFor="carParkingCharges">Car Parking Charges (₹)</label>
               <input
+                id="carParkingCharges"
                 name="carParkingCharges"
                 type="number"
                 step="1000"
                 className="form-input"
                 defaultValue={project.carParkingCharges ?? 500000}
               />
-              <span style={{ fontSize: '0.78rem', color: 'var(--text-muted)', marginTop: 4, display: 'block' }}>
-                Used as default when creating a new sale with parking
-              </span>
+              <span className="form-hint">Used as default when creating a new sale with parking</span>
             </div>
           </div>
 

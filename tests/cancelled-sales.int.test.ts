@@ -47,3 +47,19 @@ describeDb('cancelled and deleted sales', () => {
     expect(receivables.map((r) => r.id)).toEqual([live.schedule.id])
   })
 })
+
+describeDb('overdue interest follows the project setting', () => {
+  beforeEach(resetDb)
+  it('a project charging 24% accrues twice what one charging 12% does', async () => {
+    const { runDailyInterestAndStatus } = await import('@/lib/scheduler')
+    const a = await saleWithDemand('BOOKED')
+    const b = await saleWithDemand('BOOKED')
+    await a.prisma.project.update({ where: { id: a.project.id }, data: { interestRatePercent: 12 } })
+    await b.prisma.project.update({ where: { id: b.project.id }, data: { interestRatePercent: 24 } })
+    await runDailyInterestAndStatus()
+    const ia = (await a.prisma.paymentSchedule.findUniqueOrThrow({ where: { id: a.schedule.id } })).interestAmount
+    const ib = (await b.prisma.paymentSchedule.findUniqueOrThrow({ where: { id: b.schedule.id } })).interestAmount
+    expect(ia).toBeGreaterThan(0)
+    expect(ib).toBeCloseTo(ia * 2, 1)
+  })
+})

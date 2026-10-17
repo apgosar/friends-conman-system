@@ -5,6 +5,7 @@ import { generateDocx } from '@/lib/docx'
 import { generatePdf } from '@/lib/pdf'
 import { uploadFile } from '@/lib/storage'
 import { readStoredFile, DOCUMENT_FOLDER } from '@/lib/storage/files'
+import { percentOf } from '@/lib/money'
 import { numberToWords, formatDate } from '@/lib/template-engine'
 import crypto from 'crypto'
 
@@ -17,7 +18,6 @@ const fmtCur = (amount: number | string | null | undefined) => {
 export async function POST(req: NextRequest) {
   const guard = await requireRole('admin')
   if ('error' in guard) return guard.error
-  const session = { user: guard.user }
 
   try {
     const { saleId, type } = await req.json()
@@ -79,6 +79,9 @@ export async function POST(req: NextRequest) {
     const bookingSchedule = sale.paymentSchedules.find(ps => ps.description.toLowerCase().includes('booking')) || sale.paymentSchedules[0]
     const actualBookingAmount = bookingSchedule ? Number(bookingSchedule.principalAmount) : (sale.bookingAmount || 0)
 
+    // TDS the buyer deducts, at this project's configured rate
+    const tds = percentOf(Number(sale.agreementValue), sale.project.tdsRatePercent)
+
     const docxData = {
       companyName: sale.project.companyName,
       companyAddress: sale.project.companyAddress,
@@ -128,8 +131,8 @@ export async function POST(req: NextRequest) {
       bookingAmountWords: numberToWords(actualBookingAmount),
       balanceAmount: fmtCur(sale.agreementValue - actualBookingAmount),
       balanceAmountWords: numberToWords(sale.agreementValue - actualBookingAmount),
-      tdsAmount: fmtCur(sale.agreementValue * 0.01),
-      tdsAmountWords: numberToWords(sale.agreementValue * 0.01),
+      tdsAmount: fmtCur(tds),
+      tdsAmountWords: numberToWords(tds),
       bookingDate: formatDate(sale.bookingDate),
       todayDate: formatDate(new Date()),
       oldFlatNumber: sale.tenant?.oldFlatNumber ?? '',

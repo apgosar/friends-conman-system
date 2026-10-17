@@ -122,7 +122,7 @@ export default function PaymentScheduleTable({ schedules }: { schedules: any[] }
                           {pmt.mode} {pmt.referenceNumber ? `· Ref: ${pmt.referenceNumber}` : ''}
                         </div>
                         {pmt.remark && (
-                          <div style={{ marginTop: 6, fontStyle: 'italic', color: 'var(--text-secondary)' }}>"{pmt.remark}"</div>
+                          <div style={{ marginTop: 6, fontStyle: 'italic', color: 'var(--text-secondary)' }}>&ldquo;{pmt.remark}&rdquo;</div>
                         )}
                       </div>
                     ))}
