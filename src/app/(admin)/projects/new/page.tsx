@@ -4,6 +4,7 @@ import { useState, FormEvent } from 'react'
 import { useRouter } from 'next/navigation'
 import TopNav from '@/components/layout/TopNav'
 import PricingFields from '@/components/projects/PricingFields'
+import { Button, Input, Select, Textarea } from '@/components/ui'
 
 export default function NewProjectPage() {
   const router = useRouter()
@@ -44,50 +45,50 @@ export default function NewProjectPage() {
               <div className="grid grid-2 gap-4 mb-4">
                 <div className="form-group">
                   <label className="form-label">Project Name *</label>
-                  <input name="name" className="form-input" required placeholder="Sunrise Heights" />
+                  <Input name="name" required placeholder="Sunrise Heights" />
                 </div>
                 <div className="form-group">
                   <label className="form-label">Project Type *</label>
-                  <select name="type" className="form-select" required>
+                  <Select name="type" required>
                     <option value="FRESH">Fresh Sale</option>
                     <option value="REDEVELOPMENT">Redevelopment</option>
                     <option value="MIXED">Mixed</option>
-                  </select>
+                  </Select>
                 </div>
                 <div className="form-group">
                   <label className="form-label">RERA Number</label>
-                  <input name="reraNumber" className="form-input" placeholder="P52100012345" />
+                  <Input name="reraNumber" placeholder="P52100012345" />
                 </div>
                 <div className="form-group">
                   <label className="form-label">City *</label>
-                  <input name="city" className="form-input" required placeholder="Mumbai" />
+                  <Input name="city" required placeholder="Mumbai" />
                 </div>
                 <div className="form-group">
                   <label className="form-label">State</label>
-                  <input name="state" className="form-input" defaultValue="Maharashtra" />
+                  <Input name="state" defaultValue="Maharashtra" />
                 </div>
                 <div className="form-group">
                   <label className="form-label">Status</label>
-                  <select name="status" className="form-select">
+                  <Select name="status">
                     <option value="PLANNING">Planning</option>
                     <option value="UNDER_CONSTRUCTION">Under Construction</option>
                     <option value="READY">Ready</option>
                     <option value="COMPLETED">Completed</option>
-                  </select>
+                  </Select>
                 </div>
               </div>
               <div className="form-group mb-4">
                 <label className="form-label">Project Address *</label>
-                <textarea name="address" className="form-textarea" required placeholder="Plot No. 45, Survey No. 123, Andheri East..." style={{ minHeight: 80 }} />
+                <Textarea name="address" required placeholder="Plot No. 45, Survey No. 123, Andheri East..." style={{ minHeight: 80 }} />
               </div>
               <div className="grid grid-2 gap-4 mb-4">
                 <div className="form-group">
                   <label className="form-label">Launch Date</label>
-                  <input name="launchDate" type="date" className="form-input" />
+                  <Input name="launchDate" type="date" />
                 </div>
                 <div className="form-group">
                   <label className="form-label">Expected Completion</label>
-                  <input name="expectedCompletion" type="date" className="form-input" />
+                  <Input name="expectedCompletion" type="date" />
                 </div>
               </div>
               <div className="divider" />
@@ -95,11 +96,11 @@ export default function NewProjectPage() {
               <div className="grid grid-2 gap-4 mb-4">
                 <div className="form-group">
                   <label className="form-label">Company Name *</label>
-                  <input name="companyName" className="form-input" required placeholder="Your company's registered name" />
+                  <Input name="companyName" required placeholder="Your company's registered name" />
                 </div>
                 <div className="form-group">
                   <label className="form-label">GSTIN</label>
-                  <input name="companyGstin" className="form-input" placeholder="27AAAAA0000A1Z5" />
+                  <Input name="companyGstin" placeholder="27AAAAA0000A1Z5" />
                 </div>
               </div>
               <h4 style={{ margin: '8px 0 4px' }}>Tax and pricing</h4>
@@ -107,13 +108,13 @@ export default function NewProjectPage() {
               <PricingFields />
               <div className="form-group mb-6">
                 <label className="form-label">Company Address *</label>
-                <textarea name="companyAddress" className="form-textarea" required placeholder="Office No. 501, XYZ Building..." style={{ minHeight: 80 }} />
+                <Textarea name="companyAddress" required placeholder="Office No. 501, XYZ Building..." style={{ minHeight: 80 }} />
               </div>
               <div className="flex justify-end gap-3">
-                <button type="button" className="btn btn-secondary" onClick={() => router.back()}>Cancel</button>
-                <button type="submit" className="btn btn-primary" disabled={loading} id="create-project-btn">
+                <Button type="button" variant="secondary" onClick={() => router.back()}>Cancel</Button>
+                <Button type="submit" variant="primary" disabled={loading} id="create-project-btn">
                   {loading ? 'Creating...' : 'Create Project'}
-                </button>
+                </Button>
               </div>
             </form>
           </div>

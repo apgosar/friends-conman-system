@@ -5,6 +5,7 @@ import { UNIT_COLOR_LEGEND, unitStatusLabel } from '@/lib/status'
 import { categoryLabel } from '@/lib/building-structure'
 import { STATUS_COLOR, getStatusColor, prefersReducedMotion, type UnitData, type WingData } from './building-model'
 import { TW, computeLayout, drawOverlay, drawScene, hitTest, type Tile } from './building-draw'
+import { Button } from '@/components/ui'
 
 const MIN_SCALE = 0.3
 const MAX_SCALE = 2.5
@@ -321,7 +322,7 @@ export default function BuildingCanvas({ wing, title, filterStatus, filterType, 
             <button type="button" style={zoomBtn} aria-label="Zoom out" title="Zoom out (−)" onClick={() => zoomAt(live.current.zoom / 1.25)}>−</button>
             <span style={{ minWidth: 42, textAlign: 'center', fontSize: '0.75rem', color: 'var(--text-muted)' }}>{Math.round(scale * 100)}%</span>
             <button type="button" style={zoomBtn} aria-label="Zoom in" title="Zoom in (+). Ctrl + scroll also zooms" onClick={() => zoomAt(live.current.zoom * 1.25)}>+</button>
-            <button type="button" className="btn btn-secondary btn-sm" title="Fit to width (0)" onClick={() => { setZoom(1); viewportRef.current?.scrollTo(0, 0) }}>Fit</button>
+            <Button type="button" variant="secondary" size="sm" title="Fit to width (0)" onClick={() => { setZoom(1); viewportRef.current?.scrollTo(0, 0) }}>Fit</Button>
           </div>
         )}
       </div>
@@ -334,7 +335,7 @@ export default function BuildingCanvas({ wing, title, filterStatus, filterType, 
           ) : (
             <>
               <div style={{ fontWeight: 600, marginBottom: 6, color: 'var(--text-secondary)' }}>No units match the current filters</div>
-              <button type="button" className="btn btn-secondary btn-sm" onClick={onClearFilters}>Show all units</button>
+              <Button type="button" variant="secondary" size="sm" onClick={onClearFilters}>Show all units</Button>
             </>
           )}
         </div>

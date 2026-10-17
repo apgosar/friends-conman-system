@@ -1,7 +1,6 @@
 'use client'
 
 import { useEffect, useState } from 'react'
-import Link from 'next/link'
 import { useSession } from 'next-auth/react'
 import { QuoteModal } from './QuoteModal'
 import { EditInquiryModal, ShareQuoteModal, LostInquiryModal, type InquiryData } from './InquiryModals'
@@ -10,6 +9,7 @@ import { wingLabel } from '@/lib/building-structure'
 import { UNIT_COLORS, unitStatusLabel, unitStatusBadge, isSaleable, isUnsold } from '@/lib/status'
 import BuildingCanvas, { BuildingSkeleton } from './BuildingCanvas'
 import { STATUS_COLOR, getStatusColor, statusMatches, type UnitData, type WingData } from './building-model'
+import { Button, ButtonLink } from '@/components/ui'
 
 function floorPlanSrc(unit: { configuration: string; floorPlanUrl?: string | null }) {
   if (unit.floorPlanUrl) return unit.floorPlanUrl
@@ -251,21 +251,21 @@ export default function BuildingViewer({ projectId, view = '3d' }: { projectId: 
             📄 Quote PDF
           </a>
           {inq.status === 'CONVERTED' && inq.convertedSaleId ? (
-            <Link
+            <ButtonLink
               href={`/sales/${inq.convertedSaleId}`}
-              className="btn btn-secondary"
+              variant="secondary"
               style={{ flex: 1, fontSize: '0.75rem', padding: '4px 0', justifyContent: 'center', color: 'var(--color-success)' }}
             >
               ✓ Converted
-            </Link>
+            </ButtonLink>
           ) : inq.status === 'OPEN' && !unit.saleId && isUnsold(unit.status) ? (
-            <Link
+            <ButtonLink
               href={`/sales/new?inquiryId=${inq.id}`}
-              className="btn btn-primary"
+              variant="primary"
               style={{ flex: 1, fontSize: '0.75rem', padding: '4px 0', justifyContent: 'center' }}
             >
               Convert to Sale
-            </Link>
+            </ButtonLink>
           ) : null}
         </div>
         {inq.status !== 'CONVERTED' && (
@@ -615,23 +615,23 @@ export default function BuildingViewer({ projectId, view = '3d' }: { projectId: 
                       </div>
                     )}
                   </div>
-                  <Link
+                  <ButtonLink
                     href={`/sales/${selectedUnit.saleId}`}
-                    className="btn btn-primary"
+                    variant="primary"
                     style={{ width: '100%', marginTop: 12, justifyContent: 'center' }}
                   >
                     View Sale →
-                  </Link>
+                  </ButtonLink>
                 </div>
               ) : isUnsold(selectedUnit.status) ? (
                 <div style={{ marginTop: 4 }}>
-                  <button
-                    className="btn btn-primary"
+                  <Button
+                    variant="primary"
                     style={{ width: '100%', justifyContent: 'center' }}
                     onClick={() => setShowQuoteForm(true)}
                   >
                     + Create Quote
-                  </button>
+                  </Button>
                 </div>
               ) : (
                 <div style={{ marginTop: 4, padding: 12, borderRadius: 'var(--radius-md)', background: 'var(--bg-surface)', fontSize: '0.8125rem', color: 'var(--text-secondary)' }}>

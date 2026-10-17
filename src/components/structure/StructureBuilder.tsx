@@ -8,6 +8,7 @@ import {
 } from '@/lib/building-structure'
 import { MANUAL_UNIT_STATUSES, unitStatusLabel } from '@/lib/status'
 import { UnitTypeRow, WingRow, api, inputStyle, jsonInit, labelStyle, sectionTitle } from './ui'
+import { Button } from '@/components/ui'
 
 const numInput: React.CSSProperties = { ...inputStyle, width: 72, textAlign: 'center' }
 const small: React.CSSProperties = { fontSize: '0.8125rem', color: 'var(--text-secondary)' }
@@ -44,11 +45,11 @@ function PatternRows({ patterns, types, onChange }: { patterns: FloorPattern[]; 
               )}
             </span>
           ))}
-          <button type="button" className="btn btn-ghost btn-sm" onClick={() => setPattern(pi, (x) => ({ ...x, unitTypeIds: [...x.unitTypeIds, x.unitTypeIds[x.unitTypeIds.length - 1] ?? firstType] }))}>+ unit</button>
-          <button type="button" className="btn btn-ghost btn-sm" style={dangerBtn} onClick={() => onChange(patterns.filter((_, i) => i !== pi))}>Remove range</button>
+          <Button type="button" variant="ghost" size="sm" onClick={() => setPattern(pi, (x) => ({ ...x, unitTypeIds: [...x.unitTypeIds, x.unitTypeIds[x.unitTypeIds.length - 1] ?? firstType] }))}>+ unit</Button>
+          <Button type="button" variant="ghost" size="sm" style={dangerBtn} onClick={() => onChange(patterns.filter((_, i) => i !== pi))}>Remove range</Button>
         </div>
       ))}
-      <button type="button" className="btn btn-secondary btn-sm mt-2" onClick={addRange}>+ Add floor range</button>
+      <Button type="button" className="mt-2" variant="secondary" size="sm" onClick={addRange}>+ Add floor range</Button>
     </>
   )
 }
@@ -87,8 +88,8 @@ function ExtraRows({ extras, types, onChange }: { extras: ExtraPattern[]; types:
                   {x.unitTypeIds.length > 1 && <button type="button" aria-label="Remove" onClick={() => set(i, (v) => ({ ...v, unitTypeIds: v.unitTypeIds.filter((_, j) => j !== k) }))} className="cursor-pointer text-muted" style={{ background: 'none', border: 'none' }}>✕</button>}
                 </span>
               ))}
-              <button type="button" className="btn btn-ghost btn-sm" onClick={() => set(i, (v) => ({ ...v, unitTypeIds: [...v.unitTypeIds, ''] }))}>+ another</button>
-              <button type="button" className="btn btn-ghost btn-sm" style={dangerBtn} onClick={() => onChange(extras.filter((_, k) => k !== i))}>Remove</button>
+              <Button type="button" variant="ghost" size="sm" onClick={() => set(i, (v) => ({ ...v, unitTypeIds: [...v.unitTypeIds, ''] }))}>+ another</Button>
+              <Button type="button" variant="ghost" size="sm" style={dangerBtn} onClick={() => onChange(extras.filter((_, k) => k !== i))}>Remove</Button>
             </div>
             {floors.length > 0 && (
               <div className="text-xs text-muted" style={{ marginTop: 6 }}>
@@ -98,9 +99,9 @@ function ExtraRows({ extras, types, onChange }: { extras: ExtraPattern[]; types:
           </div>
         )
       })}
-      <button type="button" className="btn btn-secondary btn-sm" style={{ marginTop: 6 }} onClick={() => onChange([...extras, { from: 7, to: 7, every: 1, unitTypeIds: [types[0]?.id ?? ''] }])}>
+      <Button type="button" variant="secondary" size="sm" style={{ marginTop: 6 }} onClick={() => onChange([...extras, { from: 7, to: 7, every: 1, unitTypeIds: [types[0]?.id ?? ''] }])}>
         + Add common areas
-      </button>
+      </Button>
       <span className="text-xs text-muted" style={{ marginLeft: 10 }}>Example: floors 7 to 35, every 7 floors gives floors 7, 14, 21, 28 and 35.</span>
     </>
   )
@@ -195,8 +196,8 @@ export default function StructureBuilder({ projectId, types, existingWings }: { 
                     <span className="text-xs" style={{ color: 'var(--color-warning, #d97706)', paddingBottom: 10 }}>Wing already exists: only new floors and unit numbers will be added.</span>
                   )}
                   <div className="flex-1" />
-                  <button type="button" className="btn btn-ghost btn-sm" onClick={() => duplicateWing(wi)} title="Copy this wing, e.g. for an identical tower">Duplicate wing</button>
-                  <button type="button" className="btn btn-ghost btn-sm" style={dangerBtn} onClick={() => setWings((ws) => ws.filter((_, i) => i !== wi))}>Remove wing</button>
+                  <Button type="button" variant="ghost" size="sm" onClick={() => duplicateWing(wi)} title="Copy this wing, e.g. for an identical tower">Duplicate wing</Button>
+                  <Button type="button" variant="ghost" size="sm" style={dangerBtn} onClick={() => setWings((ws) => ws.filter((_, i) => i !== wi))}>Remove wing</Button>
                 </div>
                 <div className="mb-2" style={{ ...sectionTitle }}>Floors and the flats on each</div>
                 <PatternRows patterns={wing.patterns} types={flatTypes} onChange={(patterns) => setWing(wi, (w) => ({ ...w, patterns }))} />
@@ -209,7 +210,7 @@ export default function StructureBuilder({ projectId, types, existingWings }: { 
                 )}
               </div>
             ))}
-            <div><button type="button" className="btn btn-secondary" onClick={() => setWings((ws) => [...ws, freshWing(ws.length ? nextWingName(ws[ws.length - 1].name) : suggestName())])}>+ {wings.length ? 'Add another wing' : 'Add a wing'}</button></div>
+            <div><Button type="button" variant="secondary" onClick={() => setWings((ws) => [...ws, freshWing(ws.length ? nextWingName(ws[ws.length - 1].name) : suggestName())])}>+ {wings.length ? 'Add another wing' : 'Add a wing'}</Button></div>
           </div>
         )}
       </div>
@@ -224,12 +225,12 @@ export default function StructureBuilder({ projectId, types, existingWings }: { 
           <p className="text-xs text-muted" style={{ margin: '2px 0 10px' }}>Named {example}.</p>
           {list.length === 0 ? noTypesHint(cat) : (
             patterns.length === 0 ? (
-              <button type="button" className="btn btn-secondary" onClick={() => setPatterns([{ from: 0, to: 0, unitTypeIds: [list[0].id] }])}>+ Add {title.toLowerCase()}</button>
+              <Button type="button" variant="secondary" onClick={() => setPatterns([{ from: 0, to: 0, unitTypeIds: [list[0].id] }])}>+ Add {title.toLowerCase()}</Button>
             ) : (
               <div className="p-4" style={{ border: '1px solid var(--border-color)', borderRadius: 10, background: 'var(--bg-surface)' }}>
                 <div className="mb-2" style={{ ...sectionTitle }}>Floors and the {title.toLowerCase()} on each</div>
                 <PatternRows patterns={patterns} types={list} onChange={setPatterns} />
-                <button type="button" className="btn btn-ghost btn-sm" style={{ ...dangerBtn, marginLeft: 10 }} onClick={() => setPatterns([])}>Remove all {title.toLowerCase()}</button>
+                <Button type="button" variant="ghost" size="sm" style={{ ...dangerBtn, marginLeft: 10 }} onClick={() => setPatterns([])}>Remove all {title.toLowerCase()}</Button>
               </div>
             )
           )}
@@ -268,9 +269,9 @@ export default function StructureBuilder({ projectId, types, existingWings }: { 
         </div>
         {message && <div role="status" className="mt-3 text-base" style={{ color: message.ok ? 'var(--color-success)' : 'var(--color-danger)' }}>{message.text}</div>}
         <div style={{ marginTop: 14 }}>
-          <button className="btn btn-primary" disabled={busy || errors.length > 0 || units.length === 0} onClick={generate}>
+          <Button variant="primary" disabled={busy || errors.length > 0 || units.length === 0} onClick={generate}>
             {busy ? 'Creating…' : units.length ? `Create ${units.length} units` : 'Create units'}
-          </button>
+          </Button>
           <span className="text-xs text-muted ml-3">This only adds. Existing units are never changed or removed.</span>
         </div>
       </div>

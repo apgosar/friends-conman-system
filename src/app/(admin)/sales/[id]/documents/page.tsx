@@ -1,10 +1,10 @@
 'use client'
 
 import { useState, useEffect, use } from 'react'
-import Link from 'next/link'
 import TopNav from '@/components/layout/TopNav'
 import { formatDate } from '@/lib/template-engine'
 import { useRouter } from 'next/navigation'
+import { Button, ButtonLink } from '@/components/ui'
 
 export default function SaleDocumentsPage(props: { params: Promise<{ id: string }> }) {
   const params = use(props.params)
@@ -86,9 +86,9 @@ export default function SaleDocumentsPage(props: { params: Promise<{ id: string 
             <h1 className="page-title">Document Management</h1>
             <p className="page-subtitle">Generate and download agreements, letters, and receipts</p>
           </div>
-          <Link href={`/sales/${params.id}`} className="btn btn-secondary">
+          <ButtonLink href={`/sales/${params.id}`} variant="secondary">
             Back to Sale
-          </Link>
+          </ButtonLink>
         </div>
 
         <div className="grid gap-6" style={{ gridTemplateColumns: '1fr 2fr' }}>
@@ -103,44 +103,44 @@ export default function SaleDocumentsPage(props: { params: Promise<{ id: string 
             </div>
             <div className="flex dir-col gap-3">
               {sale.saleType === 'FRESH' && (
-                <button 
-                  className="btn btn-primary" 
+                <Button 
+                  variant="primary" 
                   onClick={() => handleGenerate('SALE_AGREEMENT')}
                   disabled={generating}
                 >
                   {generating ? '...' : 'Generate Sale Agreement (DOCX)'}
-                </button>
+                </Button>
               )}
               {sale.saleType === 'REDEVELOPMENT' && (
-                <button 
-                  className="btn btn-secondary" 
+                <Button 
+                  variant="secondary" 
                   onClick={() => handleGenerate('PAAA')}
                   disabled={generating}
                 >
                   {generating ? '...' : 'Generate PAAA (DOCX)'}
-                </button>
+                </Button>
               )}
-              <button 
-                className="btn btn-secondary" 
+              <Button 
+                variant="secondary" 
                 onClick={() => handleGenerate('DEMAND_LETTER')}
                 disabled={generating}
               >
                 {generating ? '...' : 'Generate Demand Letter (PDF)'}
-              </button>
-              <button 
-                className="btn btn-secondary" 
+              </Button>
+              <Button 
+                variant="secondary" 
                 onClick={() => handleGenerate('RECEIPT')}
                 disabled={generating}
               >
                 {generating ? '...' : 'Generate Receipt (PDF)'}
-              </button>
-              <button 
-                className="btn btn-primary mt-3" 
+              </Button>
+              <Button 
+                className="mt-3" variant="primary" 
                 onClick={() => handleGenerate('POSSESSION_LETTER')}
                 disabled={generating}
               >
                 {generating ? '...' : 'Generate Possession Letter (DOCX)'}
-              </button>
+              </Button>
             </div>
             <p className="mt-4 text-muted" style={{ fontSize: '0.85rem' }}>
               Make sure you have uploaded the corresponding templates in the Project Templates section before generating.
@@ -186,12 +186,12 @@ export default function SaleDocumentsPage(props: { params: Promise<{ id: string 
                         <td>
                           {doc.pdfUrl && (
                             <div className="flex" style={{ gap: 6 }}>
-                              <button
-                                className="btn btn-primary btn-sm"
+                              <Button
+                                variant="primary" size="sm"
                                 onClick={() => window.open(`/documents/preview?url=${encodeURIComponent(doc.pdfUrl)}`, '_blank')}
                               >
                                 Preview
-                              </button>
+                              </Button>
                               <a href={doc.pdfUrl} download className="btn btn-ghost btn-sm" target="_blank" rel="noreferrer">
                                 Download
                               </a>
@@ -199,13 +199,13 @@ export default function SaleDocumentsPage(props: { params: Promise<{ id: string 
                           )}
                         </td>
                         <td>
-                          <button
-                            className="btn btn-ghost btn-sm"
+                          <Button
+                            variant="ghost" size="sm"
                             style={{ color: 'var(--color-danger, #ef4444)' }}
                             onClick={() => handleDeleteDocument(doc.id)}
                           >
                             Delete
-                          </button>
+                          </Button>
                         </td>
                       </tr>
                     ))}

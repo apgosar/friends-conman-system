@@ -5,6 +5,7 @@ import { signOut, useSession } from 'next-auth/react'
 import TopNav from '@/components/layout/TopNav'
 import { PASSWORD_RULES } from '@/lib/password-rules'
 import { ROLE_LABELS, normalizeRole } from '@/lib/roles'
+import { Button, Input } from '@/components/ui'
 
 export default function AccountPage() {
   const { data: session } = useSession()
@@ -56,18 +57,18 @@ export default function AccountPage() {
               {error && <div className="alert alert-danger">{error}</div>}
               <div className="form-group">
                 <label className="form-label" htmlFor="current-password">Current password</label>
-                <input id="current-password" type="password" autoComplete="current-password" className="form-input" value={currentPassword} onChange={(e) => setCurrentPassword(e.target.value)} required />
+                <Input id="current-password" type="password" autoComplete="current-password" value={currentPassword} onChange={(e) => setCurrentPassword(e.target.value)} required />
               </div>
               <div className="form-group">
                 <label className="form-label" htmlFor="new-password">New password</label>
-                <input id="new-password" type="password" autoComplete="new-password" className="form-input" value={newPassword} onChange={(e) => setNewPassword(e.target.value)} required />
+                <Input id="new-password" type="password" autoComplete="new-password" value={newPassword} onChange={(e) => setNewPassword(e.target.value)} required />
                 <span className="form-hint">{PASSWORD_RULES}</span>
               </div>
               <div className="form-group">
                 <label className="form-label" htmlFor="confirm-password">Confirm new password</label>
-                <input id="confirm-password" type="password" autoComplete="new-password" className="form-input" value={confirmPassword} onChange={(e) => setConfirmPassword(e.target.value)} required />
+                <Input id="confirm-password" type="password" autoComplete="new-password" value={confirmPassword} onChange={(e) => setConfirmPassword(e.target.value)} required />
               </div>
-              <button type="submit" className="btn btn-primary" disabled={busy}>{busy ? 'Saving…' : 'Change password'}</button>
+              <Button type="submit" variant="primary" disabled={busy}>{busy ? 'Saving…' : 'Change password'}</Button>
             </form>
           )}
         </div>

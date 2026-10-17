@@ -1,10 +1,10 @@
 import { prisma } from '@/lib/db'
 import { notFound } from 'next/navigation'
-import Link from 'next/link'
 import TopNav from '@/components/layout/TopNav'
 import { formatCurrency, formatDate } from '@/lib/template-engine'
 import PaymentScheduleRow from '@/components/sales/PaymentScheduleRow'
 import { plain } from '@/lib/plain'
+import { ButtonLink } from '@/components/ui'
 
 export default async function SalePaymentsPage(props: PageProps<'/sales/[id]/payments'>) {
   const { id } = await props.params
@@ -30,9 +30,9 @@ export default async function SalePaymentsPage(props: PageProps<'/sales/[id]/pay
             <h1 className="page-title">Payment Schedule</h1>
             <p className="page-subtitle">Track demands and receipts</p>
           </div>
-          <Link href={`/sales/${id}`} className="btn btn-secondary">
+          <ButtonLink href={`/sales/${id}`} variant="secondary">
             Back to Sale
-          </Link>
+          </ButtonLink>
         </div>
 
         <div className="card">

@@ -2,6 +2,7 @@
 
 import { useState } from 'react'
 import { formatCurrency, formatDate } from '@/lib/template-engine'
+import { Button } from '@/components/ui'
 
 export default function EscalationAlerts({ escalations }: { escalations: any[] }) {
   const [approving, setApproving] = useState<string | null>(null)
@@ -47,14 +48,14 @@ export default function EscalationAlerts({ escalations }: { escalations: any[] }
                 Outstanding: {formatCurrency(Number(esc.principalAmount) + Number(esc.gstAmount) + Number(esc.interestAmount))}
               </div>
             </div>
-            <button
-              className="btn btn-danger btn-sm"
+            <Button
+              variant="danger" size="sm"
               disabled={approving === esc.id}
               onClick={() => approveSternReminder(esc.id)}
               id={`approve-escalation-${esc.id}`}
             >
               {approving === esc.id ? 'Sending…' : '⚠ Send Stern Reminder'}
-            </button>
+            </Button>
           </div>
         ))}
       </div>

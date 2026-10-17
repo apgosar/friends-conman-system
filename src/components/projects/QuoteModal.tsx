@@ -1,5 +1,6 @@
 import React from 'react'
 import { INQUIRY_SOURCES, SOURCE_LABEL } from '@/lib/inquiry-constants'
+import { Button } from '@/components/ui'
 
 export function QuoteModal({
   showQuoteForm,
@@ -159,10 +160,10 @@ export function QuoteModal({
           )}
 
           <div className="flex gap-3 justify-end">
-            <button type="button" className="btn btn-secondary" onClick={() => setShowQuoteForm(false)}>Cancel</button>
-            <button type="submit" className="btn btn-primary" disabled={isSubmittingQuote}>
+            <Button type="button" variant="secondary" onClick={() => setShowQuoteForm(false)}>Cancel</Button>
+            <Button type="submit" variant="primary" disabled={isSubmittingQuote}>
               {isSubmittingQuote ? 'Generating PDF...' : 'Generate Quote'}
-            </button>
+            </Button>
           </div>
         </form>
       </div>

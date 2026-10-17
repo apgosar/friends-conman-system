@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation'
 import { FLOOR_PLAN_ACCEPT, FLOOR_PLAN_LIMITS } from '@/lib/floor-plan'
 import { CATEGORIES, categoryLabel, type UnitCategory } from '@/lib/building-structure'
 import { Modal, UnitTypeRow, api, fmtNum, inputStyle, labelStyle } from './ui'
+import { Button } from '@/components/ui'
 
 const normalize = (s: string) => s.trim().toLowerCase()
 
@@ -120,9 +121,9 @@ function TypeForm({ projectId, category, type, existingNames, onClose }: {
 
         {error && <div role="alert" className="text-danger text-sm mb-3">{error}</div>}
         <div className="flex justify-end wrap" style={{ gap: 10 }}>
-          <button type="button" className="btn btn-secondary" onClick={onClose}>{added.length > 0 ? 'Done' : 'Cancel'}</button>
-          {!type && <button type="button" className="btn btn-secondary" disabled={busy || duplicate} onClick={() => save(true)}>{busy ? 'Saving…' : 'Save & add another'}</button>}
-          <button type="submit" className="btn btn-primary" disabled={busy || duplicate}>{busy ? 'Saving…' : type ? 'Save changes' : 'Save'}</button>
+          <Button type="button" variant="secondary" onClick={onClose}>{added.length > 0 ? 'Done' : 'Cancel'}</Button>
+          {!type && <Button type="button" variant="secondary" disabled={busy || duplicate} onClick={() => save(true)}>{busy ? 'Saving…' : 'Save & add another'}</Button>}
+          <Button type="submit" variant="primary" disabled={busy || duplicate}>{busy ? 'Saving…' : type ? 'Save changes' : 'Save'}</Button>
         </div>
       </form>
     </Modal>
@@ -165,7 +166,7 @@ export default function UnitTypesPanel({ projectId, types }: { projectId: string
           <div key={cat.value} style={{ marginBottom: 18 }}>
             <div className="flex justify-between items-center" style={{ marginBottom: 6 }}>
               <div className="text-sm font-bold">{cat.plural} <span className="text-muted" style={{ fontWeight: 400 }}>({list.length} type{list.length === 1 ? '' : 's'})</span></div>
-              <button className="btn btn-secondary btn-sm" onClick={() => setEditing({ category: cat.value, type: null })}>+ Add {cat.label.toLowerCase()} type</button>
+              <Button variant="secondary" size="sm" onClick={() => setEditing({ category: cat.value, type: null })}>+ Add {cat.label.toLowerCase()} type</Button>
             </div>
             {list.length === 0 ? (
               <div className="text-muted text-sm" style={{ padding: '10px 12px', borderRadius: 8, border: '1px dashed var(--border-color)' }}>
@@ -190,8 +191,8 @@ export default function UnitTypesPanel({ projectId, types }: { projectId: string
                         <td>{t.basePricePerSqft ? `₹${fmtNum(t.basePricePerSqft)}` : '—'}</td>
                         <td>{t.unitCount}</td>
                         <td className="nowrap">
-                          <button className="btn btn-ghost btn-sm" onClick={() => setEditing({ category: cat.value, type: t })}>Edit</button>
-                          <button className="btn btn-ghost btn-sm" style={{ color: 'var(--color-danger, #ef4444)' }} disabled={t.unitCount > 0} title={t.unitCount > 0 ? 'Units use this type' : undefined} onClick={() => remove(t)}>Delete</button>
+                          <Button variant="ghost" size="sm" onClick={() => setEditing({ category: cat.value, type: t })}>Edit</Button>
+                          <Button variant="ghost" size="sm" style={{ color: 'var(--color-danger, #ef4444)' }} disabled={t.unitCount > 0} title={t.unitCount > 0 ? 'Units use this type' : undefined} onClick={() => remove(t)}>Delete</Button>
                         </td>
                       </tr>
                     ))}

@@ -4,6 +4,7 @@ import { useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { formatDate } from '@/lib/template-engine'
 import { useSession } from 'next-auth/react'
+import { Button } from '@/components/ui'
 
 export default function MilestoneRow({ m }: { m: any }) {
   const router = useRouter()
@@ -92,12 +93,12 @@ export default function MilestoneRow({ m }: { m: any }) {
           )}
           
           {m.status !== 'COMPLETED' && (
-            <button 
-              className="btn btn-secondary btn-sm"
+            <Button 
+              variant="secondary" size="sm"
               onClick={() => setShowModal(true)}
             >
               Mark Complete
-            </button>
+            </Button>
           )}
 
           {isSuperAdmin && (
@@ -146,9 +147,9 @@ export default function MilestoneRow({ m }: { m: any }) {
                   <button type="button" className="btn text-primary" style={{ background: 'var(--bg-surface)', border: '1px solid var(--border-color)', borderRadius: '8px' }} onClick={() => setShowModal(false)}>
                     Cancel
                   </button>
-                  <button type="submit" className="btn btn-primary" style={{ borderRadius: '8px' }} disabled={loading || !certificateFile}>
+                  <Button type="submit" variant="primary" style={{ borderRadius: '8px' }} disabled={loading || !certificateFile}>
                     {loading ? 'Uploading...' : 'Submit & Complete'}
-                  </button>
+                  </Button>
                 </div>
               </form>
             </div>

@@ -40,6 +40,7 @@ const emptyBuyer = (): Buyer => ({ fullName: '', panNumber: '', aadhaarNumber: '
 
 // ─── Step indicator ──────────────────────────────────────────
 import { StepBar } from '@/components/ui/StepBar'
+import { Button, Input, Select, Textarea } from '@/components/ui'
 
 // ─── Main Wizard ─────────────────────────────────────────────
 type Prefill = { inquiryId: string; projectId: string; unitId: string; agreementValue: number; carParking: boolean; buyerName: string; mobileNumber: string } | null
@@ -337,7 +338,7 @@ export default function NewSaleWizard({ projects, prefill = null }: { projects: 
           <div className="grid grid-2 gap-4 mb-4">
             <div className="form-group">
               <label className="form-label">Project *</label>
-              <select className="form-select" value={projectId} required onChange={e => {
+              <Select value={projectId} required onChange={e => {
                 setProjectId(e.target.value)
                 setUnitId('')
                 const proj = projects.find(p => p.id === e.target.value)
@@ -346,23 +347,23 @@ export default function NewSaleWizard({ projects, prefill = null }: { projects: 
               }}>
                 <option value="">-- Select Project --</option>
                 {projects.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
-              </select>
+              </Select>
             </div>
             <div className="form-group">
               <label className="form-label">Sale Type *</label>
-              <select className="form-select" value={saleType} onChange={e => setSaleType(e.target.value)} disabled={!selectedProject || selectedProject.type !== 'MIXED'}>
+              <Select value={saleType} onChange={e => setSaleType(e.target.value)} disabled={!selectedProject || selectedProject.type !== 'MIXED'}>
                 <option value="FRESH">Fresh Sale</option>
                 <option value="REDEVELOPMENT">Redevelopment (PAAA)</option>
-              </select>
+              </Select>
             </div>
             <div className="form-group">
               <label className="form-label">Unit *</label>
-              <select className="form-select" value={unitId} required disabled={!selectedProject} onChange={e => setUnitId(e.target.value)}>
+              <Select value={unitId} required disabled={!selectedProject} onChange={e => setUnitId(e.target.value)}>
                 <option value="">-- Select Unit --</option>
                 {selectedProject?.units.map((u: any) => (
                   <option key={u.id} value={u.id}>{u.wingName} - {u.unitNumber} ({u.configuration})</option>
                 ))}
-              </select>
+              </Select>
               {unitId && (() => {
                 const selectedUnit = selectedProject?.units.find((u: any) => u.id === unitId)
                 return selectedUnit ? (
@@ -376,12 +377,12 @@ export default function NewSaleWizard({ projects, prefill = null }: { projects: 
             {saleType === 'REDEVELOPMENT' && (
               <div className="form-group">
                 <label className="form-label">Link Tenant *</label>
-                <select className="form-select" value={tenantId} onChange={e => setTenantId(e.target.value)} required>
+                <Select value={tenantId} onChange={e => setTenantId(e.target.value)} required>
                   <option value="">-- Select Tenant --</option>
                   {selectedProject?.tenants.map((t: any) => (
                     <option key={t.id} value={t.id}>{t.name} (Old: {t.oldFlatNumber})</option>
                   ))}
-                </select>
+                </Select>
               </div>
             )}
           </div>
@@ -391,7 +392,7 @@ export default function NewSaleWizard({ projects, prefill = null }: { projects: 
           {/* Buyers */}
           <div className="flex justify-between items-center mb-3">
             <h4 className="m-0">Buyer Details</h4>
-            <button type="button" className="btn btn-ghost btn-sm" onClick={addBuyer}>+ Add Co-owner</button>
+            <Button type="button" variant="ghost" size="sm" onClick={addBuyer}>+ Add Co-owner</Button>
           </div>
           {buyers.map((buyer, idx) => (
             <div key={idx} className="mb-4 relative" style={{ border: '1px solid var(--border-color)', borderRadius: 10, padding: '16px 20px' }}>
@@ -400,9 +401,9 @@ export default function NewSaleWizard({ projects, prefill = null }: { projects: 
                   {idx === 0 ? '👤 Primary Buyer' : `👤 Co-owner ${idx + 1}`}
                 </span>
                 {idx > 0 && (
-                  <button type="button" className="btn btn-ghost btn-sm text-danger" onClick={() => removeBuyer(idx)}>
+                  <Button type="button" className="text-danger" variant="ghost" size="sm" onClick={() => removeBuyer(idx)}>
                     Remove
-                  </button>
+                  </Button>
                 )}
               </div>
 
@@ -438,12 +439,11 @@ export default function NewSaleWizard({ projects, prefill = null }: { projects: 
               <div className="grid grid-2 gap-4 mb-3">
                 <div className="form-group">
                   <label className="form-label">Full Name *</label>
-                  <input className="form-input" value={buyer.fullName} required onChange={e => updateBuyer(idx, 'fullName', e.target.value)} placeholder="John Doe" />
+                  <Input value={buyer.fullName} required onChange={e => updateBuyer(idx, 'fullName', e.target.value)} placeholder="John Doe" />
                 </div>
                 <div className="form-group">
                   <label className="form-label">PAN Number *</label>
-                  <input
-                    className="form-input"
+                  <Input
                     value={buyer.panNumber}
                     required
                     onChange={e => updateBuyer(idx, 'panNumber', e.target.value.toUpperCase().replace(/[^A-Z0-9]/g, ''))}
@@ -457,8 +457,7 @@ export default function NewSaleWizard({ projects, prefill = null }: { projects: 
                 </div>
                 <div className="form-group">
                   <label className="form-label">Aadhaar Number</label>
-                  <input
-                    className="form-input"
+                  <Input
                     value={buyer.aadhaarNumber}
                     onChange={e => updateBuyer(idx, 'aadhaarNumber', formatAadhaar(e.target.value))}
                     placeholder="XXXX XXXX XXXX"
@@ -472,8 +471,7 @@ export default function NewSaleWizard({ projects, prefill = null }: { projects: 
                 </div>
                 <div className="form-group">
                   <label className="form-label">Email ID</label>
-                  <input
-                    className="form-input"
+                  <Input
                     type="email"
                     value={buyer.email}
                     onChange={e => updateBuyer(idx, 'email', e.target.value)}
@@ -486,12 +484,12 @@ export default function NewSaleWizard({ projects, prefill = null }: { projects: 
                 </div>
                 <div className="form-group">
                   <label className="form-label">WhatsApp</label>
-                  <input className="form-input" value={buyer.whatsappNumber} onChange={e => updateBuyer(idx, 'whatsappNumber', e.target.value)} placeholder="+91 98765 43210" />
+                  <Input value={buyer.whatsappNumber} onChange={e => updateBuyer(idx, 'whatsappNumber', e.target.value)} placeholder="+91 98765 43210" />
                 </div>
               </div>
               <div className="form-group">
                 <label className="form-label">Address</label>
-                <textarea className="form-textarea" rows={2} value={buyer.address} onChange={e => updateBuyer(idx, 'address', e.target.value)} />
+                <Textarea rows={2} value={buyer.address} onChange={e => updateBuyer(idx, 'address', e.target.value)} />
               </div>
             </div>
           ))}
@@ -503,15 +501,15 @@ export default function NewSaleWizard({ projects, prefill = null }: { projects: 
           <div className="grid grid-2 gap-4 mb-4">
             <div className="form-group">
               <label className="form-label">Agreement Value (₹) *</label>
-              <input type="number" className="form-input" min={100000} step={1000} value={agreementValue} onChange={e => setAgreementValue(Number(e.target.value))} />
+              <Input type="number" min={100000} step={1000} value={agreementValue} onChange={e => setAgreementValue(Number(e.target.value))} />
             </div>
             <div className="form-group">
               <label className="form-label">Booking Amount (₹)</label>
-              <input type="number" className="form-input" placeholder="Leave blank to use default %" value={bookingAmount} onChange={e => setBookingAmount(e.target.value ? Number(e.target.value) : '')} />
+              <Input type="number" placeholder="Leave blank to use default %" value={bookingAmount} onChange={e => setBookingAmount(e.target.value ? Number(e.target.value) : '')} />
             </div>
             <div className="form-group">
               <label className="form-label">Booking Date *</label>
-              <input type="date" className="form-input" value={bookingDate} onChange={e => setBookingDate(e.target.value)} />
+              <Input type="date" value={bookingDate} onChange={e => setBookingDate(e.target.value)} />
             </div>
           </div>
 
@@ -534,15 +532,15 @@ export default function NewSaleWizard({ projects, prefill = null }: { projects: 
                 <div className="grid grid-3 gap-4">
                   <div className="form-group">
                     <label className="form-label">Podium Floor Level</label>
-                    <input className="form-input" value={parkingPodiumLevel} onChange={e => setParkingPodiumLevel(e.target.value)} placeholder="e.g. Podium 1" />
+                    <Input value={parkingPodiumLevel} onChange={e => setParkingPodiumLevel(e.target.value)} placeholder="e.g. Podium 1" />
                   </div>
                   <div className="form-group">
                     <label className="form-label">Floor</label>
-                    <input className="form-input" value={parkingFloor} onChange={e => setParkingFloor(e.target.value)} placeholder="e.g. Ground" />
+                    <Input value={parkingFloor} onChange={e => setParkingFloor(e.target.value)} placeholder="e.g. Ground" />
                   </div>
                   <div className="form-group">
                     <label className="form-label">Parking No.</label>
-                    <input className="form-input" value={parkingNumber} onChange={e => setParkingNumber(e.target.value)} placeholder="e.g. P-45" />
+                    <Input value={parkingNumber} onChange={e => setParkingNumber(e.target.value)} placeholder="e.g. P-45" />
                   </div>
                 </div>
               </div>
@@ -571,9 +569,9 @@ export default function NewSaleWizard({ projects, prefill = null }: { projects: 
           </div>
 
           <div className="flex justify-end">
-            <button type="button" className="btn btn-primary" onClick={goToStep2} disabled={!selectedProject}>
+            <Button type="button" variant="primary" onClick={goToStep2} disabled={!selectedProject}>
               Next: Review Payment Plan →
-            </button>
+            </Button>
           </div>
         </div>
       )}
@@ -583,7 +581,7 @@ export default function NewSaleWizard({ projects, prefill = null }: { projects: 
         <div className="card">
           <div className="card-header">
             <span className="card-title">Payment Plan</span>
-            <button className="btn btn-ghost btn-sm" onClick={() => setStep(1)}>← Back</button>
+            <Button variant="ghost" size="sm" onClick={() => setStep(1)}>← Back</Button>
           </div>
           {error && <div className="alert alert-danger mb-4">{error}</div>}
           <p className="text-base text-muted mb-5">
@@ -617,9 +615,9 @@ export default function NewSaleWizard({ projects, prefill = null }: { projects: 
                       <td className="text-right">
                         {row.percentOfAV !== undefined ? (
                           <div className="flex items-center justify-end gap-1">
-                            <input
+                            <Input
                               type="number"
-                              className="form-input text-right text-base"
+                              className="text-right text-base"
                               style={{ width: 70, padding: '4px 8px' }}
                               value={row.percentOfAV}
                               onChange={e => updateSchedulePercent(idx, Number(e.target.value) || 0)}
@@ -631,9 +629,9 @@ export default function NewSaleWizard({ projects, prefill = null }: { projects: 
                         )}
                       </td>
                       <td className="text-right">
-                        <input
+                        <Input
                           type="number"
-                          className="form-input text-right text-base"
+                          className="text-right text-base"
                           style={{ width: 130, padding: '4px 8px' }}
                           value={row.principalAmount}
                           onChange={e => updateScheduleAmount(idx, Number(e.target.value) || 0)}
@@ -669,10 +667,10 @@ export default function NewSaleWizard({ projects, prefill = null }: { projects: 
           )}
 
           <div className="flex justify-end gap-3">
-            <button type="button" className="btn btn-secondary" onClick={() => setStep(1)}>← Back</button>
-            <button type="button" className="btn btn-primary" onClick={goToStep3} disabled={generating || !isValidPlan}>
+            <Button type="button" variant="secondary" onClick={() => setStep(1)}>← Back</Button>
+            <Button type="button" variant="primary" onClick={goToStep3} disabled={generating || !isValidPlan}>
               {generating ? 'Creating Sale...' : `Confirm & Continue →`}
-            </button>
+            </Button>
           </div>
         </div>
       )}
@@ -692,19 +690,19 @@ export default function NewSaleWizard({ projects, prefill = null }: { projects: 
               <p className="text-muted mb-8">
                 The sale has been recorded with all {schedules.length} payment milestones. Now generate the agreement document.
               </p>
-              <button
+              <Button
                 type="button"
-                className="btn btn-primary text-md"
+                className="text-md" variant="primary"
                 style={{ padding: '14px 32px' }}
                 onClick={generateAgreement}
                 disabled={generating}
               >
                 {generating ? 'Generating...' : saleType === 'FRESH' ? '📄 Generate Sale Agreement (DOCX)' : '📄 Generate PAAA (DOCX)'}
-              </button>
+              </Button>
               <div className="mt-4">
-                <button type="button" className="btn btn-ghost" onClick={() => router.push(`/sales/${createdSaleId}`)}>
+                <Button type="button" variant="ghost" onClick={() => router.push(`/sales/${createdSaleId}`)}>
                   Skip — Go to Sale →
-                </button>
+                </Button>
               </div>
             </div>
           ) : (
@@ -717,14 +715,14 @@ export default function NewSaleWizard({ projects, prefill = null }: { projects: 
 
               <div className="flex gap-4 justify-center wrap">
                 {/* Preview in browser — opens the file URL in our docx-preview page */}
-                <button
+                <Button
                   type="button"
                   onClick={() => window.open(`/documents/preview?url=${encodeURIComponent(generatedDoc.pdfUrl)}`, '_blank')}
-                  className="btn btn-secondary"
+                  variant="secondary"
                   style={{ fontSize: '0.95rem', padding: '12px 28px' }}
                 >
                   👁 Preview in Browser
-                </button>
+                </Button>
 
                 {/* Download */}
                 <a
@@ -738,12 +736,12 @@ export default function NewSaleWizard({ projects, prefill = null }: { projects: 
               </div>
 
               <div className="mt-6 flex gap-3 justify-center">
-                <button type="button" className="btn btn-ghost" onClick={() => router.push(`/sales/${createdSaleId}`)}>
+                <Button type="button" variant="ghost" onClick={() => router.push(`/sales/${createdSaleId}`)}>
                   Go to Sale Details →
-                </button>
-                <button type="button" className="btn btn-ghost" onClick={() => router.push(`/sales/${createdSaleId}/documents`)}>
+                </Button>
+                <Button type="button" variant="ghost" onClick={() => router.push(`/sales/${createdSaleId}/documents`)}>
                   Go to Documents →
-                </button>
+                </Button>
               </div>
             </div>
           )}

@@ -1,6 +1,6 @@
-import Link from 'next/link'
 import { TEMPLATE_TYPES, LETTERHEAD_TYPES } from '@/lib/template-constants'
 import { requiredTemplateTypes } from '@/lib/template-tags'
+import { ButtonLink } from '@/components/ui'
 
 interface Props {
   projectId: string
@@ -34,7 +34,7 @@ export default function TemplateCoverage({ projectId, projectType, templates, va
               : 'Documents of this type can’t be generated until a template is uploaded.'}
           </div>
         </div>
-        <Link href={`/projects/${projectId}/templates`} className="btn btn-secondary btn-sm">Add templates</Link>
+        <ButtonLink href={`/projects/${projectId}/templates`} variant="secondary" size="sm">Add templates</ButtonLink>
       </div>
     )
   }

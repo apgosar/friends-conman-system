@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useCallback } from 'react'
 import TopNav from '@/components/layout/TopNav'
+import { Button } from '@/components/ui'
 
 const CHANNELS = ['ALL', 'EMAIL', 'WHATSAPP']
 const STATUSES = ['ALL', 'PENDING', 'SENT', 'SIMULATED', 'DELIVERED', 'FAILED']
@@ -101,13 +102,13 @@ export default function CommunicationsPage() {
             <h1 className="page-title">Communications</h1>
             <p className="page-subtitle">{total.toLocaleString('en-IN')} messages total</p>
           </div>
-          <button
-            className="btn btn-primary"
+          <Button
+            variant="primary"
             onClick={handleDispatch}
             disabled={dispatching}
           >
             {dispatching ? '⏳ Dispatching...' : '🚀 Dispatch Pending'}
-          </button>
+          </Button>
         </div>
 
         {/* Dispatch result banner */}
@@ -221,13 +222,13 @@ export default function CommunicationsPage() {
                     </td>
                     <td onClick={(e) => e.stopPropagation()}>
                       {log.status === 'FAILED' && (
-                        <button
-                          className="btn btn-ghost btn-sm"
+                        <Button
+                          variant="ghost" size="sm"
                           disabled={retrying === log.id}
                           onClick={() => handleRetry(log.id)}
                         >
                           {retrying === log.id ? '⏳' : '🔄 Retry'}
-                        </button>
+                        </Button>
                       )}
                     </td>
                   </tr>
@@ -239,9 +240,9 @@ export default function CommunicationsPage() {
           {/* Pagination */}
           {pages > 1 && (
             <div className="flex gap-2 justify-end" style={{ padding: '12px 20px', borderTop: '1px solid var(--border-color)' }}>
-              <button className="btn btn-secondary btn-sm" disabled={page <= 1} onClick={() => setPage(p => p - 1)}>← Prev</button>
+              <Button variant="secondary" size="sm" disabled={page <= 1} onClick={() => setPage(p => p - 1)}>← Prev</Button>
               <span className="text-sm text-muted" style={{ padding: '5px 12px' }}>Page {page} of {pages}</span>
-              <button className="btn btn-secondary btn-sm" disabled={page >= pages} onClick={() => setPage(p => p + 1)}>Next →</button>
+              <Button variant="secondary" size="sm" disabled={page >= pages} onClick={() => setPage(p => p + 1)}>Next →</Button>
             </div>
           )}
         </div>
@@ -293,9 +294,9 @@ export default function CommunicationsPage() {
               </div>
               {selectedLog.status === 'FAILED' && (
                 <div className="mt-4">
-                  <button className="btn btn-primary" disabled={retrying === selectedLog.id} onClick={() => { handleRetry(selectedLog.id); setSelectedLog(null) }}>
+                  <Button variant="primary" disabled={retrying === selectedLog.id} onClick={() => { handleRetry(selectedLog.id); setSelectedLog(null) }}>
                     {retrying === selectedLog.id ? '⏳ Retrying…' : '🔄 Retry This Message'}
-                  </button>
+                  </Button>
                 </div>
               )}
             </div>

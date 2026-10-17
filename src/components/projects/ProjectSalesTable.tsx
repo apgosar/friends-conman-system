@@ -1,9 +1,9 @@
 'use client'
 
 import { useState } from 'react'
-import Link from 'next/link'
 import { formatCurrency } from '@/lib/template-engine'
 import { saleStatusBadge, saleStatusLabel } from '@/lib/status'
+import { ButtonLink } from '@/components/ui'
 
 export interface ProjectSaleRow {
   id: string
@@ -56,7 +56,7 @@ export default function ProjectSalesTable({ sales }: { sales: ProjectSaleRow[] }
                   <td>{sale.buyerName ?? '—'}</td>
                   <td className="font-semibold">{formatCurrency(sale.agreementValue)}</td>
                   <td><span className={`badge ${saleStatusBadge(sale.status)}`}>{saleStatusLabel(sale.status)}</span></td>
-                  <td><Link href={`/sales/${sale.id}`} className="btn btn-ghost btn-sm">View →</Link></td>
+                  <td><ButtonLink href={`/sales/${sale.id}`} variant="ghost" size="sm">View →</ButtonLink></td>
                 </tr>
               ))}
             </tbody>

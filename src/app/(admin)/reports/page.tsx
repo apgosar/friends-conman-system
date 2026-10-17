@@ -7,6 +7,7 @@ import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
   PieChart, Pie, Cell, LineChart, Line, Legend, AreaChart, Area,
 } from 'recharts'
+import { Button } from '@/components/ui'
 
 // ─── Colour palette ────────────────────────────────────────────────────────────
 const COLORS = ['#6366f1', '#10b981', '#f59e0b', '#ef4444', '#3b82f6', '#ec4899', '#8b5cf6']
@@ -126,15 +127,15 @@ export default function ReportsPage() {
           </div>
           {/* Export buttons */}
           <div className="flex gap-2">
-            <button onClick={() => handleExport('sales')} disabled={!!exportLoading} className="btn btn-secondary text-sm">
+            <Button onClick={() => handleExport('sales')} disabled={!!exportLoading} className="text-sm" variant="secondary">
               {exportLoading === 'sales' ? 'Downloading…' : '⬇ Sales Book'}
-            </button>
-            <button onClick={() => handleExport('payments')} disabled={!!exportLoading} className="btn btn-secondary text-sm">
+            </Button>
+            <Button onClick={() => handleExport('payments')} disabled={!!exportLoading} className="text-sm" variant="secondary">
               {exportLoading === 'payments' ? 'Downloading…' : '⬇ Payment Ledger'}
-            </button>
-            <button onClick={() => handleExport('inventory')} disabled={!!exportLoading} className="btn btn-secondary text-sm">
+            </Button>
+            <Button onClick={() => handleExport('inventory')} disabled={!!exportLoading} className="text-sm" variant="secondary">
               {exportLoading === 'inventory' ? 'Downloading…' : '⬇ Inventory List'}
-            </button>
+            </Button>
           </div>
         </div>
 

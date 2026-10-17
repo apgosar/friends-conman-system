@@ -2,7 +2,7 @@
 
 import { useState } from 'react'
 import TopNav from '@/components/layout/TopNav'
-import Link from 'next/link'
+import { Button, ButtonLink, Input } from '@/components/ui'
 
 type TestStatus = 'idle' | 'loading' | 'success' | 'error'
 
@@ -120,18 +120,17 @@ export default function SettingsPage() {
               <form onSubmit={handleTestEmail} className="flex gap-3 items-end">
                 <div className="flex-1">
                   <label className="form-label">Send test email to</label>
-                  <input
+                  <Input
                     type="email"
-                    className="form-input"
                     placeholder="your@email.com"
                     value={testEmailTo}
                     onChange={(e) => setTestEmailTo(e.target.value)}
                     required
                   />
                 </div>
-                <button type="submit" className="btn btn-primary" disabled={emailStatus === 'loading'}>
+                <Button type="submit" variant="primary" disabled={emailStatus === 'loading'}>
                   {emailStatus === 'loading' ? '⏳ Sending…' : '📧 Send Test Email'}
-                </button>
+                </Button>
               </form>
               {emailMsg && (
                 <div className={`alert ${emailStatus === 'success' ? 'alert-success' : 'alert-danger'} mt-4 mt-3`}>
@@ -178,18 +177,17 @@ export default function SettingsPage() {
               <form onSubmit={handleTestWhatsApp} className="flex gap-3 items-end">
                 <div className="flex-1">
                   <label className="form-label">Send test WhatsApp to (with country code)</label>
-                  <input
+                  <Input
                     type="tel"
-                    className="form-input"
                     placeholder="919876543210"
                     value={testWaTo}
                     onChange={(e) => setTestWaTo(e.target.value)}
                     required
                   />
                 </div>
-                <button type="submit" className="btn btn-primary" disabled={waStatus === 'loading'}>
+                <Button type="submit" variant="primary" disabled={waStatus === 'loading'}>
                   {waStatus === 'loading' ? '⏳ Sending…' : '💬 Send Test WhatsApp'}
-                </button>
+                </Button>
               </form>
               {waMsg && (
                 <div className={`alert ${waStatus === 'success' ? 'alert-success' : 'alert-danger'} mt-4 mt-3`}>
@@ -217,9 +215,9 @@ export default function SettingsPage() {
                 <div>TDS_THRESHOLD=<span className="text-warning">5000000</span></div>
               </div>
               <div className="mt-4 flex gap-3">
-                <Link href="/communications" className="btn btn-secondary btn-sm">
+                <ButtonLink href="/communications" variant="secondary" size="sm">
                   💬 View Communications Inbox
-                </Link>
+                </ButtonLink>
               </div>
             </div>
           </div>

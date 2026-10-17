@@ -1,19 +1,20 @@
 'use client'
 
 import { useState } from 'react'
+import { Button } from '@/components/ui'
 
 export default function TemplateHtmlPreview({ html }: { html: string }) {
   const [showModal, setShowModal] = useState(false)
 
   return (
     <>
-      <button 
+      <Button 
         type="button" 
-        className="btn btn-ghost btn-sm"
+        variant="ghost" size="sm"
         onClick={() => setShowModal(true)}
       >
         View HTML
-      </button>
+      </Button>
 
       {showModal && (
         <div className="flex items-center justify-center" style={{ position: 'fixed', inset: 0, zIndex: 1000 }}>
@@ -30,9 +31,9 @@ export default function TemplateHtmlPreview({ html }: { html: string }) {
             </div>
 
             <div className="flex justify-end" style={{ padding: '20px 24px', borderTop: '1px solid var(--border-color)', background: 'var(--bg-surface)' }}>
-              <button type="button" className="btn btn-primary" style={{ borderRadius: '8px', padding: '8px 24px' }} onClick={() => setShowModal(false)}>
+              <Button type="button" variant="primary" style={{ borderRadius: '8px', padding: '8px 24px' }} onClick={() => setShowModal(false)}>
                 Close
-              </button>
+              </Button>
             </div>
           </div>
         </div>

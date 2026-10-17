@@ -2,9 +2,9 @@
 
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
-import Link from 'next/link'
 import BackToProject from '@/components/projects/BackToProject'
 import PricingFields from '@/components/projects/PricingFields'
+import { Button, ButtonLink, Input, Select, Textarea } from '@/components/ui'
 
 export default function EditProjectForm({ project }: { project: any }) {
   const router = useRouter()
@@ -77,52 +77,52 @@ export default function EditProjectForm({ project }: { project: any }) {
           <div className="grid grid-2 gap-4 mb-4">
             <div className="form-group">
               <label className="form-label">Project Name *</label>
-              <input name="name" className="form-input" required defaultValue={project.name} />
+              <Input name="name" required defaultValue={project.name} />
             </div>
             <div className="form-group">
               <label className="form-label">Project Type *</label>
-              <select name="type" className="form-select" defaultValue={project.type}>
+              <Select name="type" defaultValue={project.type}>
                 <option value="FRESH">Fresh Sale</option>
                 <option value="REDEVELOPMENT">Redevelopment</option>
                 <option value="MIXED">Mixed</option>
-              </select>
+              </Select>
             </div>
             <div className="form-group">
               <label className="form-label">RERA Number</label>
-              <input name="reraNumber" className="form-input" defaultValue={project.reraNumber ?? ''} placeholder="P52100012345" />
+              <Input name="reraNumber" defaultValue={project.reraNumber ?? ''} placeholder="P52100012345" />
             </div>
             <div className="form-group">
               <label className="form-label">Status</label>
-              <select name="status" className="form-select" defaultValue={project.status}>
+              <Select name="status" defaultValue={project.status}>
                 <option value="PLANNING">Planning</option>
                 <option value="UNDER_CONSTRUCTION">Under Construction</option>
                 <option value="READY">Ready</option>
                 <option value="COMPLETED">Completed</option>
-              </select>
+              </Select>
             </div>
             <div className="form-group">
               <label className="form-label">City *</label>
-              <input name="city" className="form-input" required defaultValue={project.city} />
+              <Input name="city" required defaultValue={project.city} />
             </div>
             <div className="form-group">
               <label className="form-label">State</label>
-              <input name="state" className="form-input" defaultValue={project.state} />
+              <Input name="state" defaultValue={project.state} />
             </div>
             <div className="form-group">
               <label className="form-label">Launch Date</label>
-              <input name="launchDate" type="date" className="form-input"
+              <Input name="launchDate" type="date"
                 defaultValue={project.launchDate ? new Date(project.launchDate).toISOString().split('T')[0] : ''} />
             </div>
             <div className="form-group">
               <label className="form-label">Expected Completion</label>
-              <input name="expectedCompletion" type="date" className="form-input"
+              <Input name="expectedCompletion" type="date"
                 defaultValue={project.expectedCompletion ? new Date(project.expectedCompletion).toISOString().split('T')[0] : ''} />
             </div>
           </div>
 
           <div className="form-group mb-4">
             <label className="form-label">Project Address *</label>
-            <textarea name="address" className="form-textarea" required rows={2} defaultValue={project.address} />
+            <Textarea name="address" required rows={2} defaultValue={project.address} />
           </div>
 
           <div className="divider" />
@@ -131,16 +131,16 @@ export default function EditProjectForm({ project }: { project: any }) {
           <div className="grid grid-2 gap-4 mb-4">
             <div className="form-group">
               <label className="form-label">Company Name *</label>
-              <input name="companyName" className="form-input" required defaultValue={project.companyName} />
+              <Input name="companyName" required defaultValue={project.companyName} />
             </div>
             <div className="form-group">
               <label className="form-label">GSTIN</label>
-              <input name="companyGstin" className="form-input" defaultValue={project.companyGstin ?? ''} placeholder="27AAAAA0000A1Z5" />
+              <Input name="companyGstin" defaultValue={project.companyGstin ?? ''} placeholder="27AAAAA0000A1Z5" />
             </div>
           </div>
           <div className="form-group mb-4">
             <label className="form-label">Company Address *</label>
-            <textarea name="companyAddress" className="form-textarea" required rows={2} defaultValue={project.companyAddress} />
+            <Textarea name="companyAddress" required rows={2} defaultValue={project.companyAddress} />
           </div>
 
           <div className="divider" />
@@ -152,12 +152,11 @@ export default function EditProjectForm({ project }: { project: any }) {
           <div className="grid grid-3 gap-4 mb-6">
             <div className="form-group">
               <label className="form-label" htmlFor="carParkingCharges">Car Parking Charges (₹)</label>
-              <input
+              <Input
                 id="carParkingCharges"
                 name="carParkingCharges"
                 type="number"
                 step="1000"
-                className="form-input"
                 defaultValue={project.carParkingCharges ?? 500000}
               />
               <span className="form-hint">Used as default when creating a new sale with parking</span>
@@ -165,10 +164,10 @@ export default function EditProjectForm({ project }: { project: any }) {
           </div>
 
           <div className="flex justify-end gap-3">
-            <Link href={`/projects/${project.id}`} className="btn btn-secondary">Cancel</Link>
-            <button type="submit" className="btn btn-primary" disabled={loading}>
+            <ButtonLink href={`/projects/${project.id}`} variant="secondary">Cancel</ButtonLink>
+            <Button type="submit" variant="primary" disabled={loading}>
               {loading ? 'Saving...' : 'Save Changes'}
-            </button>
+            </Button>
           </div>
         </form>
       </div>

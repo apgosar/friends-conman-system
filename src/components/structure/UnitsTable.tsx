@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation'
 import { MANUAL_UNIT_STATUSES, unitStatusBadge, unitStatusLabel } from '@/lib/status'
 import { CATEGORIES, COMMON_AREA_SUGGESTIONS, categoryLabel, wingLabel } from '@/lib/building-structure'
 import { BookerFields, Modal, StructureUnit, UnitTypeRow, WingRow, api, fmtNum, inputStyle, jsonInit, labelStyle } from './ui'
+import { Button } from '@/components/ui'
 
 const PAGE = 100
 const OTHER = '__other__'
@@ -139,8 +140,8 @@ function EditUnit({ unit, types, onClose }: { unit: StructureUnit; types: UnitTy
         )}
         {error && <div role="alert" className="text-danger text-sm mb-3">{error}</div>}
         <div className="flex justify-end" style={{ gap: 10 }}>
-          <button type="button" className="btn btn-secondary" onClick={onClose}>Cancel</button>
-          <button type="submit" className="btn btn-primary" disabled={busy}>{busy ? 'Saving…' : 'Save'}</button>
+          <Button type="button" variant="secondary" onClick={onClose}>Cancel</Button>
+          <Button type="submit" variant="primary" disabled={busy}>{busy ? 'Saving…' : 'Save'}</Button>
         </div>
       </form>
     </Modal>
@@ -195,8 +196,8 @@ function KindModal({ projectId, kind, unitIds, onClose, onDone }: {
         </p>
         {error && <div role="alert" className="text-danger text-sm mb-3">{error}</div>}
         <div className="flex justify-end" style={{ gap: 10 }}>
-          <button type="button" className="btn btn-secondary" onClick={onClose}>Cancel</button>
-          <button type="submit" className="btn btn-primary" disabled={busy || !text.trim()}>{busy ? 'Saving…' : 'Apply'}</button>
+          <Button type="button" variant="secondary" onClick={onClose}>Cancel</Button>
+          <Button type="submit" variant="primary" disabled={busy || !text.trim()}>{busy ? 'Saving…' : 'Apply'}</Button>
         </div>
       </form>
     </Modal>
@@ -257,7 +258,7 @@ export default function UnitsTable({ projectId, units, wings, types }: { project
           {wings.map((w) => (
             <div key={w.id} className="text-sm flex items-center" style={{ padding: '8px 12px', borderRadius: 8, border: '1px solid var(--border-color)', gap: 10 }}>
               <span><b>{wingLabel(w.name)}</b> · {w.floors} floor{w.floors === 1 ? '' : 's'} · {w.units} units</span>
-              <button className="btn btn-ghost btn-sm" style={{ color: 'var(--color-danger, #ef4444)', padding: '0 6px' }} onClick={() => deleteWing(w)}>Delete</button>
+              <Button variant="ghost" size="sm" style={{ color: 'var(--color-danger, #ef4444)', padding: '0 6px' }} onClick={() => deleteWing(w)}>Delete</Button>
             </div>
           ))}
         </div>
@@ -296,12 +297,12 @@ export default function UnitsTable({ projectId, units, wings, types }: { project
                   <input aria-label="Mobile (optional)" placeholder="Mobile (optional)" inputMode="numeric" maxLength={14} value={bulkMobile} onChange={(e) => setBulkMobile(e.target.value)} style={{ ...inputStyle, width: 150 }} />
                 </>
               )}
-              <button className="btn btn-primary btn-sm" disabled={bulkStatus === 'BOOKED' && !bulkName.trim()} onClick={applyBulk}>Apply</button>
+              <Button variant="primary" size="sm" disabled={bulkStatus === 'BOOKED' && !bulkName.trim()} onClick={applyBulk}>Apply</Button>
               <span style={{ width: 1, alignSelf: 'stretch', background: 'var(--border-color)' }} />
               <span className="text-sm text-secondary">or mark as</span>
-              <button className="btn btn-secondary btn-sm" onClick={() => setKindModal('COMMON')} title="Refuge area, society office, gym... (not for sale)">Common area…</button>
-              <button className="btn btn-secondary btn-sm" onClick={() => setKindModal('FLAT')} title="Turn selected common areas back into flats">Flats…</button>
-              <button className="btn btn-ghost btn-sm" onClick={() => setSelected(new Set())}>Clear</button>
+              <Button variant="secondary" size="sm" onClick={() => setKindModal('COMMON')} title="Refuge area, society office, gym... (not for sale)">Common area…</Button>
+              <Button variant="secondary" size="sm" onClick={() => setKindModal('FLAT')} title="Turn selected common areas back into flats">Flats…</Button>
+              <Button variant="ghost" size="sm" onClick={() => setSelected(new Set())}>Clear</Button>
             </div>
           )}
           {bulkMessage && selected.size === 0 && <div role="status" className="text-sm text-success" style={{ marginBottom: 10 }}>{bulkMessage}</div>}
@@ -328,8 +329,8 @@ export default function UnitsTable({ projectId, units, wings, types }: { project
                         {u.statusManual && <span title="Set by hand: this unit has no sale record" className="text-muted" style={{ marginLeft: 6, fontSize: '0.7rem' }}>manual</span>}
                       </td>
                       <td className="nowrap">
-                        <button className="btn btn-ghost btn-sm" disabled={locked} title={locked ? 'Locked: this unit has a sale' : undefined} onClick={() => setEditing(u)}>Edit</button>
-                        <button className="btn btn-ghost btn-sm" style={{ color: 'var(--color-danger, #ef4444)' }} disabled={locked || u.inquiryCount > 0} title={locked ? 'This unit has a sale' : u.inquiryCount > 0 ? 'This unit has inquiries' : undefined} onClick={() => deleteUnit(u)}>Delete</button>
+                        <Button variant="ghost" size="sm" disabled={locked} title={locked ? 'Locked: this unit has a sale' : undefined} onClick={() => setEditing(u)}>Edit</Button>
+                        <Button variant="ghost" size="sm" style={{ color: 'var(--color-danger, #ef4444)' }} disabled={locked || u.inquiryCount > 0} title={locked ? 'This unit has a sale' : u.inquiryCount > 0 ? 'This unit has inquiries' : undefined} onClick={() => deleteUnit(u)}>Delete</Button>
                       </td>
                     </tr>
                   )
@@ -339,7 +340,7 @@ export default function UnitsTable({ projectId, units, wings, types }: { project
           </div>
           {!query && rows.length > PAGE && (
             <div className="text-center" style={{ marginTop: 10 }}>
-              <button className="btn btn-ghost btn-sm" onClick={() => setShowAll((v) => !v)}>{showAll ? 'Show fewer' : `Show all ${rows.length}`}</button>
+              <Button variant="ghost" size="sm" onClick={() => setShowAll((v) => !v)}>{showAll ? 'Show fewer' : `Show all ${rows.length}`}</Button>
             </div>
           )}
         </>

@@ -5,6 +5,7 @@ import TopNav from '@/components/layout/TopNav'
 import { Modal } from '@/components/structure/ui'
 import { ROLES, ROLE_DESCRIPTIONS, ROLE_LABELS, type Role } from '@/lib/roles'
 import { PASSWORD_RULES } from '@/lib/password-rules'
+import { Button, Input } from '@/components/ui'
 
 export default function UsersPage() {
   const [users, setUsers] = useState<any[]>([])
@@ -100,9 +101,9 @@ export default function UsersPage() {
             <h1 className="page-title">Users</h1>
             <p className="page-subtitle">{users.length} team members</p>
           </div>
-          <button className="btn btn-primary" onClick={() => setShowModal(true)}>
+          <Button variant="primary" onClick={() => setShowModal(true)}>
             + Add User
-          </button>
+          </Button>
         </div>
 
         {pageError && <div className="alert alert-danger mb-4">{pageError}</div>}
@@ -154,9 +155,9 @@ export default function UsersPage() {
                       >
                         {user.isActive ? 'Suspend' : 'Activate'}
                       </button>
-                      <button className="btn btn-sm btn-ghost" style={{ marginLeft: 6 }} onClick={() => { setResetFor({ id: user.id, name: user.name }); setNewPassword(''); setResetError('') }}>
+                      <Button variant="ghost" size="sm" style={{ marginLeft: 6 }} onClick={() => { setResetFor({ id: user.id, name: user.name }); setNewPassword(''); setResetError('') }}>
                         Reset password
-                      </button>
+                      </Button>
                     </td>
                   </tr>
                 ))}
@@ -178,11 +179,11 @@ export default function UsersPage() {
               {errorMsg && <div className="alert alert-danger">{errorMsg}</div>}
               <div>
                 <label className="form-label">Full Name</label>
-                <input type="text" className="form-input" value={name} onChange={e => setName(e.target.value)} required />
+                <Input type="text" value={name} onChange={e => setName(e.target.value)} required />
               </div>
               <div>
                 <label className="form-label">Email Address</label>
-                <input type="email" className="form-input" value={email} onChange={e => setEmail(e.target.value)} required />
+                <Input type="email" value={email} onChange={e => setEmail(e.target.value)} required />
               </div>
               <div>
                 <label className="form-label">Role</label>
@@ -193,14 +194,14 @@ export default function UsersPage() {
               </div>
               <div>
                 <label className="form-label">Temporary Password</label>
-                <input type="password" autoComplete="new-password" className="form-input" value={password} onChange={e => setPassword(e.target.value)} required />
+                <Input type="password" autoComplete="new-password" value={password} onChange={e => setPassword(e.target.value)} required />
                 <div className="form-hint mt-1">{PASSWORD_RULES}</div>
               </div>
               <div className="mt-2 flex gap-3">
-                <button type="button" className="btn btn-secondary flex-1" onClick={() => setShowModal(false)}>Cancel</button>
-                <button type="submit" className="btn btn-primary flex-1" disabled={submitting}>
+                <Button type="button" className="flex-1" variant="secondary" onClick={() => setShowModal(false)}>Cancel</Button>
+                <Button type="submit" className="flex-1" variant="primary" disabled={submitting}>
                   {submitting ? 'Saving...' : 'Create User'}
-                </button>
+                </Button>
               </div>
             </form>
           </div>
@@ -213,12 +214,12 @@ export default function UsersPage() {
             {resetError && <div className="alert alert-danger">{resetError}</div>}
             <div>
               <label className="form-label" htmlFor="reset-password">New password</label>
-              <input id="reset-password" type="password" autoComplete="new-password" className="form-input" value={newPassword} onChange={(e) => setNewPassword(e.target.value)} required autoFocus />
+              <Input id="reset-password" type="password" autoComplete="new-password" value={newPassword} onChange={(e) => setNewPassword(e.target.value)} required autoFocus />
               <div className="form-hint mt-1">{PASSWORD_RULES}</div>
             </div>
             <div className="flex gap-3">
-              <button type="button" className="btn btn-secondary flex-1" onClick={() => setResetFor(null)}>Cancel</button>
-              <button type="submit" className="btn btn-primary flex-1" disabled={resetBusy}>{resetBusy ? 'Saving…' : 'Set password'}</button>
+              <Button type="button" className="flex-1" variant="secondary" onClick={() => setResetFor(null)}>Cancel</Button>
+              <Button type="submit" className="flex-1" variant="primary" disabled={resetBusy}>{resetBusy ? 'Saving…' : 'Set password'}</Button>
             </div>
           </form>
         </Modal>

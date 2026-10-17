@@ -3,6 +3,7 @@
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { formatDate } from '@/lib/template-engine'
+import { Button } from '@/components/ui'
 
 export default function KycDocumentRow({ doc }: { doc: any }) {
   const router = useRouter()
@@ -36,13 +37,13 @@ export default function KycDocumentRow({ doc }: { doc: any }) {
             View
           </a>
           {doc.status !== 'VERIFIED' && (
-            <button 
-              className="btn btn-secondary btn-sm" 
+            <Button 
+              variant="secondary" size="sm" 
               onClick={handleVerify}
               disabled={loading}
             >
               {loading ? '...' : 'Verify'}
-            </button>
+            </Button>
           )}
         </div>
       </td>

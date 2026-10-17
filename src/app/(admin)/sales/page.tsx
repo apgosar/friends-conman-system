@@ -1,9 +1,9 @@
 import { prisma } from '@/lib/db'
-import Link from 'next/link'
 import TopNav from '@/components/layout/TopNav'
 import { formatCurrency, formatDate } from '@/lib/template-engine'
 import ClickableRow from '@/components/sales/ClickableRow'
 import { saleStatusBadge, saleStatusLabel } from '@/lib/status'
+import { ButtonLink } from '@/components/ui'
 
 async function getSales() {
   return prisma.sale.findMany({
@@ -30,7 +30,7 @@ export default async function SalesPage() {
             <h1 className="page-title">All Sales</h1>
             <p className="page-subtitle">{sales.length} sale{sales.length !== 1 ? 's' : ''}</p>
           </div>
-          <Link href="/sales/new" className="btn btn-primary" id="new-sale-btn">+ New Sale</Link>
+          <ButtonLink href="/sales/new" variant="primary" id="new-sale-btn">+ New Sale</ButtonLink>
         </div>
         <div className="table-wrapper">
           <table>

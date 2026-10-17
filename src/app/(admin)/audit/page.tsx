@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useCallback } from 'react'
 import TopNav from '@/components/layout/TopNav'
+import { Button } from '@/components/ui'
 
 const ENTITY_TYPES = ['ALL', 'sale', 'payment', 'unit', 'project', 'buyer', 'communication_log']
 const ACTIONS = ['ALL', 'created', 'updated', 'deleted', 'sent', 'verified']
@@ -121,9 +122,9 @@ export default function AuditLogsPage() {
           {/* Pagination */}
           {pages > 1 && (
             <div className="flex gap-2 justify-end" style={{ padding: '12px 20px', borderTop: '1px solid var(--border-color)' }}>
-              <button className="btn btn-secondary btn-sm" disabled={page <= 1} onClick={() => setPage(p => p - 1)}>← Prev</button>
+              <Button variant="secondary" size="sm" disabled={page <= 1} onClick={() => setPage(p => p - 1)}>← Prev</Button>
               <span className="text-sm text-muted" style={{ padding: '5px 12px' }}>Page {page} of {pages}</span>
-              <button className="btn btn-secondary btn-sm" disabled={page >= pages} onClick={() => setPage(p => p + 1)}>Next →</button>
+              <Button variant="secondary" size="sm" disabled={page >= pages} onClick={() => setPage(p => p + 1)}>Next →</Button>
             </div>
           )}
         </div>

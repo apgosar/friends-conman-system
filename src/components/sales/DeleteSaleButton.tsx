@@ -2,6 +2,7 @@
 
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
+import { Button } from '@/components/ui'
 
 export default function DeleteSaleButton({ saleId }: { saleId: string }) {
   const [loading, setLoading] = useState(false)
@@ -23,14 +24,14 @@ export default function DeleteSaleButton({ saleId }: { saleId: string }) {
   }
 
   return (
-    <button
+    <Button
       type="button"
-      className="btn btn-secondary"
+      variant="secondary"
       style={{ color: 'var(--color-danger, #ef4444)', borderColor: 'var(--color-danger, #ef4444)' }}
       disabled={loading}
       onClick={handleDelete}
     >
       {loading ? 'Deleting...' : '🗑 Delete Sale'}
-    </button>
+    </Button>
   )
 }

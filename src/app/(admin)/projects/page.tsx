@@ -3,6 +3,7 @@ import Link from 'next/link'
 import TopNav from '@/components/layout/TopNav'
 import { formatDate } from '@/lib/template-engine'
 import { activeSale } from '@/lib/soft-delete'
+import { ButtonLink } from '@/components/ui'
 
 async function getProjects() {
   return prisma.project.findMany({
@@ -39,9 +40,9 @@ export default async function ProjectsPage() {
             <h1 className="page-title">All Projects</h1>
             <p className="page-subtitle">{projects.length} project{projects.length !== 1 ? 's' : ''} total</p>
           </div>
-          <Link href="/projects/new" className="btn btn-primary" id="new-project-btn">
+          <ButtonLink href="/projects/new" variant="primary" id="new-project-btn">
             + New Project
-          </Link>
+          </ButtonLink>
         </div>
 
         {projects.length === 0 ? (
@@ -49,7 +50,7 @@ export default async function ProjectsPage() {
             <div className="mb-4" style={{ fontSize: '3rem' }}>🏗️</div>
             <h3 className="mb-2">No projects yet</h3>
             <p className="mb-6">Create your first project to get started</p>
-            <Link href="/projects/new" className="btn btn-primary">Create Project</Link>
+            <ButtonLink href="/projects/new" variant="primary">Create Project</ButtonLink>
           </div>
         ) : (
           <div className="grid grid-3 gap-4">

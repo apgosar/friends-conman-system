@@ -4,6 +4,7 @@ import { useState, FormEvent } from 'react'
 import { signIn } from 'next-auth/react'
 import { useRouter } from 'next/navigation'
 import { buildTitle, versionLabel } from '@/lib/version'
+import { Button, Input } from '@/components/ui'
 
 export default function LoginPage() {
   const router = useRouter()
@@ -54,10 +55,9 @@ export default function LoginPage() {
 
           <div className="form-group">
             <label htmlFor="email" className="form-label">Email address</label>
-            <input
+            <Input
               id="email"
               type="email"
-              className="form-input"
               value={email}
               onChange={(e) => setEmail(e.target.value)}
               placeholder="admin@example.com"
@@ -68,10 +68,9 @@ export default function LoginPage() {
 
           <div className="form-group">
             <label htmlFor="password" className="form-label">Password</label>
-            <input
+            <Input
               id="password"
               type="password"
-              className="form-input"
               value={password}
               onChange={(e) => setPassword(e.target.value)}
               placeholder="••••••••"
@@ -79,9 +78,9 @@ export default function LoginPage() {
             />
           </div>
 
-          <button
+          <Button
             type="submit"
-            className="btn btn-primary w-full btn-lg"
+            variant="primary" size="lg" block
             disabled={loading}
             id="login-submit-btn"
           >
@@ -91,7 +90,7 @@ export default function LoginPage() {
                 Signing in…
               </>
             ) : 'Sign In'}
-          </button>
+          </Button>
         </form>
         <div title={buildTitle()} className="mt-5 text-center text-xs text-muted">{versionLabel()}</div>
       </div>

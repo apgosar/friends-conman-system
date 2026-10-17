@@ -1,6 +1,5 @@
 import { prisma } from '@/lib/db'
 import { notFound } from 'next/navigation'
-import Link from 'next/link'
 import TopNav from '@/components/layout/TopNav'
 import { formatDate, formatCurrency } from '@/lib/template-engine'
 import { auth } from '@/lib/auth'
@@ -11,6 +10,7 @@ import CommunicationLogTable from '@/components/sales/CommunicationLogTable'
 import SaleLifecycleCard from '@/components/sales/SaleLifecycleCard'
 import { saleStatusBadge, saleStatusLabel, DOCUMENT_STATUS } from '@/lib/status'
 import { plain } from '@/lib/plain'
+import { ButtonLink } from '@/components/ui'
 
 async function getSale(id: string) {
   return prisma.sale.findUnique({
@@ -72,9 +72,9 @@ export default async function SaleDetailPage(props: PageProps<'/sales/[id]'>) {
             </p>
           </div>
           <div className="flex gap-2">
-            <Link href={`/sales/${id}/kyc`} className="btn btn-secondary">KYC</Link>
-            <Link href={`/sales/${id}/documents`} className="btn btn-secondary">Documents</Link>
-            <Link href={`/sales/${id}/payments`} className="btn btn-primary">Payments</Link>
+            <ButtonLink href={`/sales/${id}/kyc`} variant="secondary">KYC</ButtonLink>
+            <ButtonLink href={`/sales/${id}/documents`} variant="secondary">Documents</ButtonLink>
+            <ButtonLink href={`/sales/${id}/payments`} variant="primary">Payments</ButtonLink>
             {isSuperAdmin && <DeleteSaleButton saleId={id} />}
           </div>
         </div>
@@ -199,7 +199,7 @@ export default async function SaleDetailPage(props: PageProps<'/sales/[id]'>) {
           <div className="card mb-6">
             <div className="card-header">
               <span className="card-title">Documents ({sale.documents.length})</span>
-              <Link href={`/sales/${id}/documents`} className="btn btn-ghost btn-sm">Manage</Link>
+              <ButtonLink href={`/sales/${id}/documents`} variant="ghost" size="sm">Manage</ButtonLink>
             </div>
             <div className="flex dir-col gap-2">
               {sale.documents.map((doc) => (

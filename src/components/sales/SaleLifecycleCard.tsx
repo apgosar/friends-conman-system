@@ -4,6 +4,7 @@ import { useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { SALE_LIFECYCLE, SALE_STATUS } from '@/lib/status'
 import { formatDate } from '@/lib/template-engine'
+import { Button } from '@/components/ui'
 
 const todayStr = () => new Date().toISOString().split('T')[0]
 const toInput = (d: string | null) => (d ? d.split('T')[0] : todayStr())
@@ -80,10 +81,10 @@ export default function SaleLifecycleCard({ saleId, status, agreementDate, posse
                 <div className="flex gap-2 items-center wrap">
                   <input type="date" value={date} max={todayStr()} onChange={(e) => setDate(e.target.value)}
                     className="text-primary" style={{ padding: '6px 10px', borderRadius: 6, border: '1px solid var(--border-color)', background: 'var(--bg-surface)' }} />
-                  <button className="btn btn-primary btn-sm" disabled={saving || !date}
+                  <Button variant="primary" size="sm" disabled={saving || !date}
                     onClick={() => save({ [key === 'agreement' ? 'agreementDate' : 'possessionDate']: new Date(date).toISOString() })}>
                     {saving ? 'Saving…' : 'Save'}
-                  </button>
+                  </Button>
                   <button style={linkBtn} onClick={() => setEditing(null)}>Cancel</button>
                 </div>
               ) : (

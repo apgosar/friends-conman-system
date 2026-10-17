@@ -2,6 +2,7 @@
 
 import { useTransition } from 'react'
 import { activateTemplate } from './actions'
+import { Button } from '@/components/ui'
 
 export default function ActivateButton({ projectId, templateId, type, isActive }: { projectId: string, templateId: string, type: string, isActive: boolean }) {
   const [isPending, startTransition] = useTransition()
@@ -15,9 +16,9 @@ export default function ActivateButton({ projectId, templateId, type, isActive }
   }
 
   return (
-    <button 
+    <Button 
       type="button"
-      className="btn btn-ghost btn-sm text-brand"
+      className="text-brand" variant="ghost" size="sm"
       disabled={isPending}
       onClick={() => {
         startTransition(() => {
@@ -26,6 +27,6 @@ export default function ActivateButton({ projectId, templateId, type, isActive }
       }}
     >
       {isPending ? 'Activating...' : 'Activate'}
-    </button>
+    </Button>
   )
 }

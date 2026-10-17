@@ -3,9 +3,9 @@
 import { useState, use } from 'react'
 import { useRouter } from 'next/navigation'
 import TopNav from '@/components/layout/TopNav'
-import Link from 'next/link'
 import { TEMPLATE_TYPES, TEMPLATE_LIMITS, LETTERHEAD_TYPES, formatBytes } from '@/lib/template-constants'
 import TemplateTagReference from '@/components/projects/TemplateTagReference'
+import { Button, ButtonLink } from '@/components/ui'
 
 export default function NewTemplatePage(props: { params: Promise<{ id: string }> }) {
   const params = use(props.params)
@@ -67,7 +67,7 @@ export default function NewTemplatePage(props: { params: Promise<{ id: string }>
       <div className="admin-content flex justify-center pt-10 pb-10">
         <div className="w-full" style={{ maxWidth: 600 }}>
         <div className="flex justify-end mb-4">
-          <Link href={`/projects/${params.id}/templates`} className="btn btn-secondary">← Back to Templates</Link>
+          <ButtonLink href={`/projects/${params.id}/templates`} variant="secondary">← Back to Templates</ButtonLink>
         </div>
         <div className="w-full overflow-hidden" style={{ background: 'var(--bg-card)', maxWidth: 600, borderRadius: '12px', boxShadow: 'var(--shadow-xl)', border: '1px solid var(--border-color)' }}>
           
@@ -86,7 +86,7 @@ export default function NewTemplatePage(props: { params: Promise<{ id: string }>
                 If a tag is wrong, fix the file and upload it again; the new upload becomes the next version and the old one stays available.
               </p>
               <div className="flex justify-end">
-                <button type="button" className="btn btn-primary" onClick={() => { router.push(`/projects/${params.id}/templates`); router.refresh() }}>Go to Templates</button>
+                <Button type="button" variant="primary" onClick={() => { router.push(`/projects/${params.id}/templates`); router.refresh() }}>Go to Templates</Button>
               </div>
             </div>
           ) : (
@@ -143,9 +143,9 @@ export default function NewTemplatePage(props: { params: Promise<{ id: string }>
 
             <div className="mt-3 flex justify-end gap-3">
               <button type="button" onClick={() => router.back()} className="btn text-primary" style={{ background: 'var(--bg-surface)', border: '1px solid var(--border-color)', borderRadius: '8px' }}>Cancel</button>
-              <button type="submit" className="btn btn-primary" style={{ borderRadius: '8px' }} disabled={loading}>
+              <Button type="submit" variant="primary" style={{ borderRadius: '8px' }} disabled={loading}>
                 {loading ? 'Saving...' : 'Save Template'}
-              </button>
+              </Button>
             </div>
           </form>
           )}

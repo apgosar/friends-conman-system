@@ -1,5 +1,4 @@
 import { notFound } from 'next/navigation'
-import Link from 'next/link'
 import { prisma } from '@/lib/db'
 import { auth } from '@/lib/auth'
 import TopNav from '@/components/layout/TopNav'
@@ -10,6 +9,7 @@ import ExcelImport from '@/components/structure/ExcelImport'
 import UnitsTable from '@/components/structure/UnitsTable'
 import type { StructureUnit, UnitTypeRow, WingRow } from '@/components/structure/ui'
 import { activeSale } from '@/lib/soft-delete'
+import { ButtonLink } from '@/components/ui'
 
 export default async function ProjectStructurePage(props: PageProps<'/projects/[id]/structure'>) {
   const { id } = await props.params
@@ -72,7 +72,7 @@ export default async function ProjectStructurePage(props: PageProps<'/projects/[
         {isNew && (
           <div className="alert alert-success mb-6 flex justify-between items-center gap-3 wrap">
             <span><strong>Project created.</strong> Next, describe the building so units can be quoted and sold. You can also do this later.</span>
-            <Link href={`/projects/${id}`} className="btn btn-secondary btn-sm">Skip for now</Link>
+            <ButtonLink href={`/projects/${id}`} variant="secondary" size="sm">Skip for now</ButtonLink>
           </div>
         )}
 

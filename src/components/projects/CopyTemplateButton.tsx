@@ -2,6 +2,7 @@
 
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
+import { Button } from '@/components/ui'
 
 export default function CopyTemplateButton({ projectId, templateId, projects }: {
   projectId: string
@@ -37,9 +38,9 @@ export default function CopyTemplateButton({ projectId, templateId, projects }: 
 
   return (
     <>
-      <button type="button" className="btn btn-ghost btn-sm" disabled={projects.length === 0} title={projects.length === 0 ? 'No other projects to copy to' : 'Copy to another project'} onClick={() => setOpen(true)}>
+      <Button type="button" variant="ghost" size="sm" disabled={projects.length === 0} title={projects.length === 0 ? 'No other projects to copy to' : 'Copy to another project'} onClick={() => setOpen(true)}>
         Copy
-      </button>
+      </Button>
 
       {open && (
         <div className="flex items-center justify-center" style={{ position: 'fixed', inset: 0, zIndex: 1000 }}>
@@ -68,8 +69,8 @@ export default function CopyTemplateButton({ projectId, templateId, projects }: 
                 </>
               )}
               <div className="flex justify-end" style={{ gap: 10, marginTop: 18 }}>
-                <button type="button" className="btn btn-secondary" onClick={close}>{done ? 'Close' : 'Cancel'}</button>
-                {!done && <button type="button" className="btn btn-primary" disabled={!target || busy} onClick={copy}>{busy ? 'Copying…' : 'Copy'}</button>}
+                <Button type="button" variant="secondary" onClick={close}>{done ? 'Close' : 'Cancel'}</Button>
+                {!done && <Button type="button" variant="primary" disabled={!target || busy} onClick={copy}>{busy ? 'Copying…' : 'Copy'}</Button>}
               </div>
             </div>
           </div>

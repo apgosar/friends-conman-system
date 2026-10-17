@@ -1,7 +1,6 @@
 import { prisma } from '@/lib/db'
 import TopNav from '@/components/layout/TopNav'
 import BackToProject from '@/components/projects/BackToProject'
-import Link from 'next/link'
 import { notFound } from 'next/navigation'
 import { formatDate } from '@/lib/template-engine'
 import ActivateButton from './ActivateButton'
@@ -10,6 +9,7 @@ import TemplateHtmlPreview from '@/components/projects/TemplateHtmlPreview'
 import CopyTemplateButton from '@/components/projects/CopyTemplateButton'
 import TemplateCoverage from '@/components/projects/TemplateCoverage'
 import { TEMPLATE_TYPES } from '@/lib/template-constants'
+import { ButtonLink } from '@/components/ui'
 
 export default async function TemplatesPage(props: PageProps<'/projects/[id]/templates'>) {
   const { id } = await props.params
@@ -45,9 +45,9 @@ export default async function TemplatesPage(props: PageProps<'/projects/[id]/tem
           </div>
           <div className="flex gap-2">
             <BackToProject projectId={id} />
-            <Link href={`/projects/${id}/templates/new`} className="btn btn-primary">
+            <ButtonLink href={`/projects/${id}/templates/new`} variant="primary">
               + New Template
-            </Link>
+            </ButtonLink>
           </div>
         </div>
 

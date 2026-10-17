@@ -1,6 +1,5 @@
 import { prisma } from '@/lib/db'
 import { notFound } from 'next/navigation'
-import Link from 'next/link'
 import TopNav from '@/components/layout/TopNav'
 import { formatDate, formatCurrency } from '@/lib/template-engine'
 import UnitsView from '@/components/projects/UnitsView'
@@ -8,6 +7,7 @@ import ProjectSalesTable from '@/components/projects/ProjectSalesTable'
 import TemplateCoverage from '@/components/projects/TemplateCoverage'
 import { isSaleable, isUnsold, saleStatusBadge, saleStatusLabel } from '@/lib/status'
 import { activeSale } from '@/lib/soft-delete'
+import { ButtonLink } from '@/components/ui'
 
 async function getProject(id: string) {
   return prisma.project.findUnique({
@@ -73,13 +73,13 @@ export default async function ProjectDetailPage(props: PageProps<'/projects/[id]
             <p className="page-subtitle">{project.address}</p>
           </div>
           <div className="flex gap-2">
-            <Link href={`/projects/${id}/edit`} className="btn btn-primary">Edit Project</Link>
-            <Link href={`/projects/${id}/structure`} className="btn btn-secondary">Building Setup</Link>
-            <Link href={`/projects/${id}/payment-plan`} className="btn btn-secondary">Payment Plan</Link>
-            <Link href={`/projects/${id}/milestones`} className="btn btn-secondary">Milestones</Link>
-            <Link href={`/projects/${id}/templates`} className="btn btn-secondary">Templates</Link>
+            <ButtonLink href={`/projects/${id}/edit`} variant="primary">Edit Project</ButtonLink>
+            <ButtonLink href={`/projects/${id}/structure`} variant="secondary">Building Setup</ButtonLink>
+            <ButtonLink href={`/projects/${id}/payment-plan`} variant="secondary">Payment Plan</ButtonLink>
+            <ButtonLink href={`/projects/${id}/milestones`} variant="secondary">Milestones</ButtonLink>
+            <ButtonLink href={`/projects/${id}/templates`} variant="secondary">Templates</ButtonLink>
             {(project.type === 'REDEVELOPMENT' || project.type === 'MIXED') && (
-              <Link href={`/projects/${id}/tenants`} className="btn btn-secondary">Tenants</Link>
+              <ButtonLink href={`/projects/${id}/tenants`} variant="secondary">Tenants</ButtonLink>
             )}
           </div>
         </div>
@@ -122,7 +122,7 @@ export default async function ProjectDetailPage(props: PageProps<'/projects/[id]
             <p className="text-muted" style={{ margin: '0 0 16px' }}>
               Add the wings, floors and units to start quoting and selling. It takes a few minutes: define your unit types once, then describe each wing floor by floor.
             </p>
-            <Link href={`/projects/${id}/structure`} className="btn btn-primary">Set up the building</Link>
+            <ButtonLink href={`/projects/${id}/structure`} variant="primary">Set up the building</ButtonLink>
           </div>
         )}
 
@@ -131,7 +131,7 @@ export default async function ProjectDetailPage(props: PageProps<'/projects/[id]
           <div className="card mb-6">
             <div className="card-header">
               <span className="card-title">Construction Milestones</span>
-              <Link href={`/projects/${id}/milestones`} className="btn btn-ghost btn-sm">Manage</Link>
+              <ButtonLink href={`/projects/${id}/milestones`} variant="ghost" size="sm">Manage</ButtonLink>
             </div>
             <div className="flex dir-col" style={{ gap: 10 }}>
               {project.milestones.map((m) => (

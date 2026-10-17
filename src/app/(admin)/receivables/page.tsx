@@ -3,9 +3,9 @@ import { prisma } from '@/lib/db'
 import { OUTSTANDING_SCHEDULE_STATUSES } from '@/lib/status'
 import { formatCurrency, formatDate } from '@/lib/template-engine'
 import TopNav from '@/components/layout/TopNav'
-import Link from 'next/link'
 import { redirect } from 'next/navigation'
 import { activeSale } from '@/lib/soft-delete'
+import { ButtonLink } from '@/components/ui'
 
 export default async function ReceivablesPage({ searchParams }: { searchParams: { bucket?: string } }) {
   const session = await auth()
@@ -57,7 +57,7 @@ export default async function ReceivablesPage({ searchParams }: { searchParams: 
       <TopNav title={pageTitle} subtitle={`${filtered.length} pending demands`} />
       <div className="admin-content">
         <div className="mb-4">
-          <Link href="/dashboard" className="btn btn-ghost btn-sm">← Back to Dashboard</Link>
+          <ButtonLink href="/dashboard" variant="ghost" size="sm">← Back to Dashboard</ButtonLink>
         </div>
         
         <div className="card p-0">
@@ -108,7 +108,7 @@ export default async function ReceivablesPage({ searchParams }: { searchParams: 
                         </td>
                         <td className="text-right font-semibold">{formatCurrency(amt)}</td>
                         <td className="text-right">
-                           <Link href={`/sales/${s.saleId}`} className="btn btn-primary btn-sm">View Sale</Link>
+                           <ButtonLink href={`/sales/${s.saleId}`} variant="primary" size="sm">View Sale</ButtonLink>
                         </td>
                       </tr>
                     )

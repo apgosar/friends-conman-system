@@ -3,6 +3,7 @@
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { api, inputStyle } from './ui'
+import { Button } from '@/components/ui'
 
 export default function ExcelImport({ projectId }: { projectId: string }) {
   const router = useRouter()
@@ -41,7 +42,7 @@ export default function ExcelImport({ projectId }: { projectId: string }) {
       </div>
       <div className="flex gap-3 items-center wrap">
         <input type="file" accept=".xlsx,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" onChange={(e) => { setFile(e.target.files?.[0] ?? null); setResult(null) }} style={{ ...inputStyle, maxWidth: 380 }} />
-        <button className="btn btn-primary" disabled={!file || busy} onClick={upload}>{busy ? 'Importing…' : 'Import'}</button>
+        <Button variant="primary" disabled={!file || busy} onClick={upload}>{busy ? 'Importing…' : 'Import'}</Button>
       </div>
       {result && (
         <div role={result.ok ? 'status' : 'alert'} className="mt-3 text-base" style={{ color: result.ok ? 'var(--color-success)' : 'var(--color-danger)' }}>

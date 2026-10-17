@@ -2,6 +2,7 @@
 
 import { useState } from 'react'
 import { INQUIRY_SOURCES, LOST_REASONS, SOURCE_LABEL, LOST_REASON_LABEL } from '@/lib/inquiry-constants'
+import { Button } from '@/components/ui'
 
 export interface InquiryData {
   id: string
@@ -128,8 +129,8 @@ export function EditInquiryModal({ unitId, unitNumber, inq, onClose, onDone }: {
         </div>
         {error && <div className="text-danger text-sm mb-3">{error}</div>}
         <div className="flex justify-end" style={{ gap: 10 }}>
-          <button type="button" className="btn btn-secondary" onClick={onClose}>Cancel</button>
-          <button type="submit" className="btn btn-primary" disabled={saving}>{saving ? 'Saving…' : 'Save Changes'}</button>
+          <Button type="button" variant="secondary" onClick={onClose}>Cancel</Button>
+          <Button type="submit" variant="primary" disabled={saving}>{saving ? 'Saving…' : 'Save Changes'}</Button>
         </div>
       </form>
     </Shell>
@@ -194,8 +195,8 @@ export function ShareQuoteModal({ unitId, unitNumber, inq, onClose, onDone }: {
         </div>
       )}
       <div className="flex justify-end" style={{ gap: 10 }}>
-        <button type="button" className="btn btn-secondary" onClick={results ? onDone : onClose}>{results ? 'Close' : 'Cancel'}</button>
-        {!results && <button type="button" className="btn btn-primary" disabled={sending} onClick={send}>{sending ? 'Sending…' : 'Send Quote'}</button>}
+        <Button type="button" variant="secondary" onClick={results ? onDone : onClose}>{results ? 'Close' : 'Cancel'}</Button>
+        {!results && <Button type="button" variant="primary" disabled={sending} onClick={send}>{sending ? 'Sending…' : 'Send Quote'}</Button>}
       </div>
     </Shell>
   )
@@ -241,8 +242,8 @@ export function LostInquiryModal({ unitId, inq, onClose, onDone }: {
         </div>
         {error && <div className="text-danger text-sm mb-3">{error}</div>}
         <div className="flex justify-end" style={{ gap: 10 }}>
-          <button type="button" className="btn btn-secondary" onClick={onClose}>Cancel</button>
-          <button type="submit" className="btn btn-primary" disabled={saving}>{saving ? 'Saving…' : 'Mark Lost'}</button>
+          <Button type="button" variant="secondary" onClick={onClose}>Cancel</Button>
+          <Button type="submit" variant="primary" disabled={saving}>{saving ? 'Saving…' : 'Mark Lost'}</Button>
         </div>
       </form>
     </Shell>

@@ -3,6 +3,7 @@
 import { useMemo, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { formatCurrency } from '@/lib/template-engine'
+import { Button } from '@/components/ui'
 
 const round2 = (n: number) => Math.round(n * 100) / 100
 
@@ -108,9 +109,9 @@ export default function RecordPaymentModal({ schedules, saleId }: { schedules: a
 
   return (
     <>
-      <button className="btn btn-primary btn-sm" onClick={openModal} disabled={outstanding.length === 0}>
+      <Button variant="primary" size="sm" onClick={openModal} disabled={outstanding.length === 0}>
         Record Payment
-      </button>
+      </Button>
 
       {open && (
         <div className="flex items-center justify-center" style={{ position: 'fixed', inset: 0, zIndex: 1000 }}>
@@ -195,9 +196,9 @@ export default function RecordPaymentModal({ schedules, saleId }: { schedules: a
                 <button type="button" className="btn text-primary" style={{ background: 'var(--bg-surface)', border: '1px solid var(--border-color)', borderRadius: 8 }} onClick={() => setOpen(false)}>
                   Cancel
                 </button>
-                <button type="submit" className="btn btn-primary" style={{ borderRadius: 8 }} disabled={loading || !selected}>
+                <Button type="submit" variant="primary" style={{ borderRadius: 8 }} disabled={loading || !selected}>
                   {loading ? 'Saving...' : 'Save Payment'}
-                </button>
+                </Button>
               </div>
             </form>
           </div>

@@ -2,6 +2,7 @@
 
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
+import { Button, Input } from '@/components/ui'
 
 const DEFAULT_PLAN = [
   { name: 'Token',                           percentOfAV: 10 },
@@ -80,9 +81,9 @@ export default function PaymentPlanEditor({ projectId, milestones }: { projectId
       <div className="card mb-4">
         <div className="card-header">
           <span className="card-title">Milestone Payment Schedule</span>
-          <button className="btn btn-ghost btn-sm" onClick={resetToDefault} type="button">
+          <Button variant="ghost" size="sm" onClick={resetToDefault} type="button">
             Reset to Defaults
-          </button>
+          </Button>
         </div>
 
         <div className="table-wrapper" style={{ border: 'none' }}>
@@ -100,8 +101,8 @@ export default function PaymentPlanEditor({ projectId, milestones }: { projectId
                 <tr key={idx}>
                   <td className="text-muted font-semibold">{idx + 1}</td>
                   <td>
-                    <input
-                      className="form-input text-base"
+                    <Input
+                      className="text-base"
                       style={{ padding: '6px 10px' }}
                       value={row.name}
                       onChange={e => updateRow(idx, 'name', e.target.value)}
@@ -110,12 +111,12 @@ export default function PaymentPlanEditor({ projectId, milestones }: { projectId
                   </td>
                   <td>
                     <div className="flex items-center gap-1 justify-end">
-                      <input
+                      <Input
                         type="number"
                         min={0}
                         max={100}
                         step={0.5}
-                        className="form-input text-base text-right"
+                        className="text-base text-right"
                         style={{ padding: '6px 10px', width: 80 }}
                         value={row.percentOfAV}
                         onChange={e => updateRow(idx, 'percentOfAV', parseFloat(e.target.value) || 0)}
@@ -150,9 +151,9 @@ export default function PaymentPlanEditor({ projectId, milestones }: { projectId
         </div>
 
         <div style={{ padding: '8px 0 4px 0' }}>
-          <button type="button" className="btn btn-ghost btn-sm" onClick={addRow}>
+          <Button type="button" variant="ghost" size="sm" onClick={addRow}>
             + Add Milestone Row
-          </button>
+          </Button>
         </div>
       </div>
 
@@ -171,17 +172,17 @@ export default function PaymentPlanEditor({ projectId, milestones }: { projectId
       )}
 
       <div className="flex justify-end gap-3">
-        <button type="button" className="btn btn-secondary" onClick={resetToDefault}>
+        <Button type="button" variant="secondary" onClick={resetToDefault}>
           Reset to Defaults
-        </button>
-        <button
+        </Button>
+        <Button
           type="button"
-          className="btn btn-primary"
+          variant="primary"
           onClick={handleSave}
           disabled={saving || !isValid}
         >
           {saving ? 'Saving...' : 'Save Payment Plan'}
-        </button>
+        </Button>
       </div>
     </div>
   )

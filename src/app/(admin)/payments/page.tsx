@@ -1,8 +1,8 @@
 import { prisma } from '@/lib/db'
 import TopNav from '@/components/layout/TopNav'
 import { formatCurrency, formatDate } from '@/lib/template-engine'
-import Link from 'next/link'
 import { activeSale } from '@/lib/soft-delete'
+import { ButtonLink } from '@/components/ui'
 
 const MODE_LABELS: Record<string, string> = {
   CHEQUE: 'Cheque', RTGS_NEFT: 'RTGS/NEFT', UPI: 'UPI',
@@ -77,7 +77,7 @@ export default async function PaymentsPage() {
                     {p.receiptPdfUrl ? (
                       <a href={p.receiptPdfUrl} target="_blank" rel="noreferrer" className="btn btn-ghost btn-sm">📄</a>
                     ) : (
-                      <Link href={`/sales/${p.saleId}/payments`} className="btn btn-ghost btn-sm">View</Link>
+                      <ButtonLink href={`/sales/${p.saleId}/payments`} variant="ghost" size="sm">View</ButtonLink>
                     )}
                   </td>
                 </tr>

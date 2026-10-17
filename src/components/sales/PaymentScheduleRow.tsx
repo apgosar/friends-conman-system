@@ -3,6 +3,7 @@
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { formatCurrency, formatDate } from '@/lib/template-engine'
+import { Button } from '@/components/ui'
 
 export default function PaymentScheduleRow({ schedule, saleId }: { schedule: any, saleId: string }) {
   const router = useRouter()
@@ -72,15 +73,15 @@ export default function PaymentScheduleRow({ schedule, saleId }: { schedule: any
         <td>
           <div className="flex gap-2">
             {schedule.status !== 'PAID' && (
-              <button 
-                className="btn btn-primary btn-sm"
+              <Button 
+                variant="primary" size="sm"
                 onClick={(e) => {
                   e.stopPropagation()
                   setShowPayModal(true)
                 }}
               >
                 Pay Full
-              </button>
+              </Button>
             )}
           </div>
         </td>
@@ -138,9 +139,9 @@ export default function PaymentScheduleRow({ schedule, saleId }: { schedule: any
                   <button type="button" className="btn text-primary" style={{ background: 'var(--bg-surface)', border: '1px solid var(--border-color)', borderRadius: '8px' }} onClick={() => setShowPayModal(false)}>
                     Cancel
                   </button>
-                  <button type="submit" className="btn btn-primary" style={{ borderRadius: '8px' }} disabled={loading}>
+                  <Button type="submit" variant="primary" style={{ borderRadius: '8px' }} disabled={loading}>
                     {loading ? 'Saving...' : 'Save Payment'}
-                  </button>
+                  </Button>
                 </div>
               </form>
             </div>

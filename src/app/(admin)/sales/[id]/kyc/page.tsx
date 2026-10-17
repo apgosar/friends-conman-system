@@ -1,10 +1,10 @@
 import { prisma } from '@/lib/db'
 import { notFound } from 'next/navigation'
-import Link from 'next/link'
 import TopNav from '@/components/layout/TopNav'
 import { formatDate } from '@/lib/template-engine'
 import KycDocumentRow from '@/components/sales/KycDocumentRow'
 import { plain } from '@/lib/plain'
+import { ButtonLink } from '@/components/ui'
 
 export default async function SaleKycPage(props: PageProps<'/sales/[id]/kyc'>) {
   const { id } = await props.params
@@ -29,9 +29,9 @@ export default async function SaleKycPage(props: PageProps<'/sales/[id]/kyc'>) {
             <h1 className="page-title">KYC Documents</h1>
             <p className="page-subtitle">Manage identity and address proofs for all buyers</p>
           </div>
-          <Link href={`/sales/${id}`} className="btn btn-secondary">
+          <ButtonLink href={`/sales/${id}`} variant="secondary">
             Back to Sale
-          </Link>
+          </ButtonLink>
         </div>
 
         {sale.buyers.map(buyer => (

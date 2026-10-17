@@ -1,4 +1,5 @@
 import { DEFAULT_PRICING } from '@/lib/pricing'
+import { Input } from '@/components/ui'
 
 interface Values {
   gstRatePercent?: number | null
@@ -25,36 +26,36 @@ export default function PricingFields({ values = {} }: { values?: Values }) {
       <div className="grid grid-3 gap-4 mb-4">
         <div className="form-group">
           <label className="form-label" htmlFor="gstRatePercent">GST on demands %</label>
-          <input id="gstRatePercent" name="gstRatePercent" type="number" min="0" max="100" step="0.01" className="form-input" defaultValue={v(values.gstRatePercent, DEFAULT_PRICING.gstRatePercent)} />
+          <Input id="gstRatePercent" name="gstRatePercent" type="number" min="0" max="100" step="0.01" defaultValue={v(values.gstRatePercent, DEFAULT_PRICING.gstRatePercent)} />
         </div>
         <div className="form-group">
           <label className="form-label" htmlFor="stampDutyPercent">Stamp duty %</label>
-          <input id="stampDutyPercent" name="stampDutyPercent" type="number" min="0" max="100" step="0.01" className="form-input" defaultValue={v(values.stampDutyPercent, DEFAULT_PRICING.stampDutyPercent)} />
+          <Input id="stampDutyPercent" name="stampDutyPercent" type="number" min="0" max="100" step="0.01" defaultValue={v(values.stampDutyPercent, DEFAULT_PRICING.stampDutyPercent)} />
         </div>
         <div className="form-group">
           <label className="form-label" htmlFor="tdsRatePercent">TDS %</label>
-          <input id="tdsRatePercent" name="tdsRatePercent" type="number" min="0" max="100" step="0.01" className="form-input" defaultValue={v(values.tdsRatePercent, DEFAULT_TDS)} />
+          <Input id="tdsRatePercent" name="tdsRatePercent" type="number" min="0" max="100" step="0.01" defaultValue={v(values.tdsRatePercent, DEFAULT_TDS)} />
         </div>
       </div>
       <div className="grid grid-3 gap-4 mb-4">
         <div className="form-group">
           <label className="form-label" htmlFor="regChargesPercent">Registration charges %</label>
-          <input id="regChargesPercent" name="regChargesPercent" type="number" min="0" max="100" step="0.01" className="form-input" defaultValue={v(values.regChargesPercent, DEFAULT_PRICING.regChargesPercent)} />
+          <Input id="regChargesPercent" name="regChargesPercent" type="number" min="0" max="100" step="0.01" defaultValue={v(values.regChargesPercent, DEFAULT_PRICING.regChargesPercent)} />
         </div>
         <div className="form-group">
           <label className="form-label" htmlFor="regChargesCap">Registration cap (₹)</label>
-          <input id="regChargesCap" name="regChargesCap" type="number" min="0" step="1" className="form-input" placeholder="No cap" defaultValue={hasCap ? v(values.regChargesCap, DEFAULT_PRICING.regChargesCap ?? 0) : ''} />
+          <Input id="regChargesCap" name="regChargesCap" type="number" min="0" step="1" placeholder="No cap" defaultValue={hasCap ? v(values.regChargesCap, DEFAULT_PRICING.regChargesCap ?? 0) : ''} />
           <span className="form-hint">Leave empty for no cap</span>
         </div>
         <div className="form-group">
           <label className="form-label" htmlFor="regParkingCharges">Extra registration with parking (₹)</label>
-          <input id="regParkingCharges" name="regParkingCharges" type="number" min="0" step="1" className="form-input" defaultValue={v(values.regParkingCharges, DEFAULT_PRICING.regParkingCharges)} />
+          <Input id="regParkingCharges" name="regParkingCharges" type="number" min="0" step="1" defaultValue={v(values.regParkingCharges, DEFAULT_PRICING.regParkingCharges)} />
         </div>
       </div>
       <div className="grid grid-3 gap-4 mb-4">
         <div className="form-group">
           <label className="form-label" htmlFor="interestRatePercent">Interest on overdue % p.a.</label>
-          <input id="interestRatePercent" name="interestRatePercent" type="number" min="0" max="100" step="0.01" className="form-input" defaultValue={v(values.interestRatePercent, DEFAULT_INTEREST)} />
+          <Input id="interestRatePercent" name="interestRatePercent" type="number" min="0" max="100" step="0.01" defaultValue={v(values.interestRatePercent, DEFAULT_INTEREST)} />
         </div>
       </div>
     </>
