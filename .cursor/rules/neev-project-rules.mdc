@@ -1,0 +1,8 @@
+---
+description: Neev CMS design rules: one implementation of every UI piece, error message, format and policy
+alwaysApply: true
+---
+
+Read `AGENTS.md` (the rules) and `docs/DESIGN_PRINCIPLES.md` (the reasons and the file map) before changing code, and follow them.
+
+Most important: use the kit in `src/components/ui` and classes in `src/styles` (no fixed inline styles, no hex colours); errors via `src/lib/errors.ts` / `apiError`; API calls from screens via `fetchJson`; formatting via `src/lib/format.ts`; statuses via `src/lib/status.ts`; routes via `route()`; permissions via `can()`; money via `src/lib/money.ts` / `src/lib/pricing.ts`; transactions via `transaction()` in `src/lib/db.ts`. Run `npx tsc --noEmit`, `npm run lint:ci` and `npm test` before finishing.
