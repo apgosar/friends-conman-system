@@ -14,6 +14,9 @@ export interface PricingConfig {
   regParkingCharges: number
 }
 
+/** GST rates the sale form offers. */
+export const GST_RATE_OPTIONS = [0, 5, 12] as const
+
 export const DEFAULT_PRICING: PricingConfig = {
   gstRatePercent: 5,
   stampDutyPercent: 6,

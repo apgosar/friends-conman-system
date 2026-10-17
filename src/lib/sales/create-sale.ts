@@ -3,8 +3,9 @@ import { transaction } from '@/lib/db'
 import { z } from '@/lib/validate'
 import { nextSaleNumber } from '@/lib/numbering'
 import { buildCommContent, sanitizeInline } from '@/lib/comms-content'
-import { computeCharges, pricingFromProject } from '@/lib/pricing'
+import { GST_RATE_OPTIONS, computeCharges, pricingFromProject } from '@/lib/pricing'
 import { sumRupees } from '@/lib/money'
+import { PHONE_ERROR, normalizePhone } from '@/lib/phone'
 import { activeSale } from '@/lib/soft-delete'
 import { NOT_FOR_SALE_STATUS, UNSOLD_UNIT_STATUSES, unitStatusLabel } from '@/lib/status'
 import { redact } from '@/lib/redact'
@@ -20,7 +21,11 @@ const zMoney = z
 const SaleBuyerSchema = z.object({
   fullName: z.string().trim().min(1, 'Buyer full name is required').max(200),
   email: z.string().trim().email('Invalid email').optional().nullable().or(z.literal('')),
-  whatsappNumber: z.string().optional().nullable(),
+  whatsappNumber: z.string().optional().nullable().transform((v, ctx) => {
+    const phone = normalizePhone(v)
+    if (!phone.ok) { ctx.addIssue({ code: 'custom', message: PHONE_ERROR }); return z.NEVER }
+    return phone.value
+  }),
   panNumber: z.string().optional().nullable(),
   aadhaarNumber: z.string().optional().nullable(),
   address: z.string().optional().nullable(),
@@ -44,7 +49,9 @@ export const SaleCreateSchema = z.object({
   gstAmount: zMoney.optional().nullable(),
   stampDuty: zMoney.optional().nullable(),
   registrationCharges: zMoney.optional().nullable(),
+  gstRatePercent: z.number().refine((v) => (GST_RATE_OPTIONS as readonly number[]).includes(v), 'Choose a GST rate from the list').optional(),
   carParking: z.boolean().or(z.string().transform((v) => v === 'true')).optional(),
+  carParkingCount: z.number().int().min(0).max(20).optional(),
   carParkingCharges: zMoney.optional().nullable(),
   parkingPodiumLevel: z.string().optional().nullable(),
   parkingFloor: z.string().optional().nullable(),
@@ -93,12 +100,17 @@ export async function createSale(input: SaleCreateInput, actorId: string) {
 
     // 2. Money. Charges not supplied are computed from the project's own tax settings; values supplied are accepted
     // (a negotiated figure is legitimate) but must be sane, and any difference from the standard is audited.
-    const carParking = input.carParking === true
-    const standard = computeCharges(pricingFromProject(project), input.agreementValue, carParking)
+    const carParkingCount = input.carParkingCount ?? (input.carParking === true ? 1 : 0)
+    const carParking = carParkingCount > 0
+    // Whether parking is inside the agreement value is a project setting, not a per-sale choice
+    const parkingIncluded = carParking && project.carParkingIncluded
+    const pricing = { ...pricingFromProject(project), ...(input.gstRatePercent !== undefined ? { gstRatePercent: input.gstRatePercent } : {}) }
+    // Parking inside the agreement value carries no separate parking charge, and no extra registration fee
+    const standard = computeCharges(pricing, input.agreementValue, carParking && !parkingIncluded)
     const gstAmount = input.gstAmount ?? standard.gst
     const stampDuty = input.stampDuty ?? standard.stampDuty
     const registrationCharges = input.registrationCharges ?? standard.registration
-    const parkingCharge = carParking ? (input.carParkingCharges ?? project.carParkingCharges) : 0
+    const parkingCharge = carParking && !parkingIncluded ? (input.carParkingCharges ?? project.carParkingCharges * carParkingCount) : 0
     if (stampDuty > input.agreementValue || registrationCharges > input.agreementValue) {
       throw new SaleError('Stamp duty and registration charges cannot be more than the agreement value', 400)
     }
@@ -125,8 +137,8 @@ export async function createSale(input: SaleCreateInput, actorId: string) {
         agreementValue: input.agreementValue, gstAmount,
         stampDuty: stampDuty || null,
         registrationCharges: registrationCharges || null,
-        carParking,
-        carParkingCharges: carParking && parkingCharge ? parkingCharge : null,
+        carParking, carParkingCount, carParkingIncluded: parkingIncluded,
+        carParkingCharges: parkingCharge ? parkingCharge : null,
         parkingPodiumLevel: input.parkingPodiumLevel || null,
         parkingFloor: input.parkingFloor || null,
         parkingNumber: input.parkingNumber || null,

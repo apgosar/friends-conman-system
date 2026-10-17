@@ -5,6 +5,7 @@ import { prisma } from '@/lib/db'
 import { parseBody, z } from '@/lib/validate'
 import { sendEmail } from '@/lib/email'
 import { sendWhatsApp } from '@/lib/whatsapp'
+import { whatsappDigits } from '@/lib/phone'
 import { generateAndSaveQuotePdf } from '@/lib/pdf-generator'
 import { downloadFile } from '@/lib/storage'
 import { QUOTE_FOLDER, isNotFoundError, publishPublicCopy } from '@/lib/storage/files'
@@ -88,9 +89,9 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ uni
       // Meta must be able to fetch the PDF without a login, so publish an unguessable copy
       const docUrl = await publishPublicCopy(pdf, 'pdf', 'application/pdf')
 
-      const mobile = inquiry.mobileNumber.replace(/\D/g, '')
+      const mobile = whatsappDigits(inquiry.mobileNumber)
       const result = await sendWhatsApp({
-        to: mobile.length === 10 ? `91${mobile}` : mobile,
+        to: mobile,
         message: `Quotation for ${project.name} — ${unitLabel}. Total ${formatCurrency(inquiry.totalCost)}. Valid until ${validText}.`,
         templateName: 'demands_and_receipts',
         templateLanguage: 'en',

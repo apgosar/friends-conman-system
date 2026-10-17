@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { requireRole } from '@/lib/guard'
 import { prisma } from '@/lib/db'
+import { normalizePhone } from '@/lib/phone'
 
 // GET ?mobile=9876543210 — earlier inquiries from this number in the project (repeat-customer warning in the quote form)
 export async function GET(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
@@ -9,10 +10,11 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ id: 
 
   const { id } = await params
   const mobile = new URL(req.url).searchParams.get('mobile') ?? ''
-  if (!/^\d{10}$/.test(mobile)) return NextResponse.json({ matches: [] })
+  const phone = normalizePhone(mobile)
+  if (!phone.ok || !phone.value) return NextResponse.json({ matches: [] })
 
   const rows = await prisma.inquiry.findMany({
-    where: { mobileNumber: mobile, unit: { floor: { wing: { projectId: id } } } },
+    where: { mobileNumber: phone.value, unit: { floor: { wing: { projectId: id } } } },
     orderBy: { createdAt: 'desc' },
     take: 20,
     include: { unit: { select: { unitNumber: true } } },

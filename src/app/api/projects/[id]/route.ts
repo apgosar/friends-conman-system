@@ -36,7 +36,7 @@ export async function PATCH(req: NextRequest, props: { params: Promise<{ id: str
   const {
     name, reraNumber, address, city, state, type, status,
     companyName, companyAddress, companyGstin,
-    carParkingCharges,
+    carParkingCharges, carParkingIncluded,
     launchDate, expectedCompletion,
   } = body
 
@@ -59,6 +59,7 @@ export async function PATCH(req: NextRequest, props: { params: Promise<{ id: str
         companyGstin: companyGstin ?? null,
         ...pricing.data,
         ...(carParkingCharges !== undefined && { carParkingCharges: parseFloat(carParkingCharges) }),
+        ...(typeof carParkingIncluded === 'boolean' && { carParkingIncluded }),
         ...(launchDate && { launchDate: new Date(launchDate) }),
         ...(expectedCompletion && { expectedCompletion: new Date(expectedCompletion) }),
       },

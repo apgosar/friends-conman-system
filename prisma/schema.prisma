@@ -87,6 +87,7 @@ model Project {
   tdsRatePercent      Float         @default(1)
   interestRatePercent Float         @default(12) // simple interest per annum on overdue demands
   carParkingCharges   Decimal @db.Decimal(15, 2)         @default(500000)  // Default car parking price from project template
+  carParkingIncluded  Boolean                            @default(false)   // parking is part of the agreement value: new sales carry no parking charge
   createdAt           DateTime        @default(now())
   updatedAt           DateTime        @updatedAt
 
@@ -228,6 +229,8 @@ model Sale {
   stampDuty             Decimal? @db.Decimal(15, 2)    
   registrationCharges   Decimal? @db.Decimal(15, 2)    
   carParking            Boolean     @default(false)
+  carParkingCount       Int         @default(0)      // how many car parks were sold
+  carParkingIncluded    Boolean     @default(false)  // parking is part of the agreement value: no separate charge or demand
   carParkingCharges     Decimal? @db.Decimal(15, 2)      // Actual car parking amount charged
   parkingPodiumLevel    String?
   parkingFloor          String?

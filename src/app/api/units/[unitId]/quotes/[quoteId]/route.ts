@@ -6,11 +6,12 @@ import { parseBody, z } from '@/lib/validate'
 import { generateAndSaveQuotePdf } from '@/lib/pdf-generator'
 import { deleteFile } from '@/lib/storage'
 import { QUOTE_FOLDER } from '@/lib/storage/files'
+import { PHONE_ERROR, normalizePhone } from '@/lib/phone'
 import { INQUIRY_SOURCES, LOST_REASONS, computeQuoteCosts, syncUnitInquiryStatus } from '@/lib/inquiry'
 
 const PatchSchema = z.object({
   customerName: z.string().trim().min(1).max(120).optional(),
-  mobileNumber: z.string().regex(/^\d{10}$/, 'Mobile must be 10 digits').optional(),
+  mobileNumber: z.string().refine((v) => { const p = normalizePhone(v); return p.ok && p.value !== null }, PHONE_ERROR).optional(),
   email: z.string().email().or(z.literal('')).nullable().optional(),
   agreementValue: z.number().positive().optional(),
   parkingIncluded: z.boolean().optional(),
@@ -52,7 +53,7 @@ export async function PATCH(req: NextRequest, { params }: Ctx) {
 
   const update: Record<string, unknown> = {}
   if (data.customerName !== undefined) update.customerName = data.customerName
-  if (data.mobileNumber !== undefined) update.mobileNumber = data.mobileNumber
+  if (data.mobileNumber !== undefined) update.mobileNumber = (normalizePhone(data.mobileNumber) as { value: string }).value
   if (data.email !== undefined) update.email = data.email || null
   if (data.source !== undefined) update.source = data.source
   if (data.sourceDetail !== undefined) update.sourceDetail = data.sourceDetail || null

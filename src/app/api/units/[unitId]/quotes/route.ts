@@ -2,6 +2,7 @@ import { apiError, apiServerError } from '@/lib/api-error'
 import { NextRequest, NextResponse } from 'next/server'
 import { requireRole } from '@/lib/guard'
 import { prisma } from '@/lib/db'
+import { PHONE_ERROR, normalizePhone } from '@/lib/phone'
 import { generateAndSaveQuotePdf } from '@/lib/pdf-generator'
 import { INQUIRY_SOURCES, DEFAULT_QUOTE_VALIDITY_DAYS, addDays, computeQuoteCosts } from '@/lib/inquiry'
 
@@ -28,6 +29,8 @@ export async function POST(
     if (!customerName || !mobileNumber || !agreementValue) {
       return apiError('invalid', 'Missing required fields')
     }
+    const phone = normalizePhone(mobileNumber)
+    if (!phone.ok || !phone.value) return apiError('invalid', PHONE_ERROR)
 
     // Check current unit status and get project parking charge
     const unit = await prisma.unit.findUnique({ 
@@ -57,7 +60,7 @@ export async function POST(
       data: {
         unitId,
         customerName,
-        mobileNumber,
+        mobileNumber: phone.value,
         agreementValue,
         parkingIncluded,
         stampDuty,

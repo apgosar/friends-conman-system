@@ -2,6 +2,7 @@ import { apiError, apiServerError } from '@/lib/api-error'
 import { NextRequest } from 'next/server'
 import { requireRole } from '@/lib/guard'
 import { sendWhatsApp } from '@/lib/whatsapp'
+import { PHONE_ERROR, normalizePhone, whatsappDigits } from '@/lib/phone'
 
 // POST /api/settings/test-whatsapp
 export async function POST(req: NextRequest) {
@@ -12,7 +13,9 @@ export async function POST(req: NextRequest) {
     const { to } = await req.json()
     if (!to) return apiError('invalid', 'Phone number is required')
 
-    const phone = to.replace(/\D/g, '') // strip non-digits
+    const parsed = normalizePhone(String(to))
+    if (!parsed.ok || !parsed.value) return apiError('invalid', PHONE_ERROR)
+    const phone = whatsappDigits(parsed.value)
 
     const result = await sendWhatsApp({
       to: phone,
