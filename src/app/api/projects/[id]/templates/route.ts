@@ -2,7 +2,7 @@ import { logger } from '@/lib/logger'
 import { apiError, apiServerError } from '@/lib/api-error'
 import { NextRequest, NextResponse } from 'next/server'
 import crypto from 'crypto'
-import { prisma } from '@/lib/db'
+import { prisma, transaction } from '@/lib/db'
 import { auth } from '@/lib/auth'
 import { requireRole } from '@/lib/guard'
 import { uploadFile } from '@/lib/storage'
@@ -57,7 +57,7 @@ export async function POST(req: NextRequest, props: { params: Promise<{ id: stri
     }
 
     // Each upload of a document type is the next version; older versions stay available for rollback
-    const template = await prisma.$transaction(async (tx) => {
+    const template = await transaction(async (tx) => {
       const latest = await tx.template.aggregate({ where: { projectId, type }, _max: { version: true } })
       await tx.template.updateMany({ where: { projectId, type, isActive: true }, data: { isActive: false } })
       return tx.template.create({

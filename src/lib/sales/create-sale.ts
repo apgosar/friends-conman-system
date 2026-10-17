@@ -1,5 +1,5 @@
 import { Prisma } from '@prisma/client'
-import { prisma } from '@/lib/db'
+import { transaction } from '@/lib/db'
 import { z } from '@/lib/validate'
 import { nextSaleNumber } from '@/lib/numbering'
 import { buildCommContent, sanitizeInline } from '@/lib/comms-content'
@@ -74,7 +74,7 @@ const PLAN_TOLERANCE_RATIO = 0.01
  * The database also enforces it with a unique index on active sales per unit, as a last line of defence.
  */
 export async function createSale(input: SaleCreateInput, actorId: string) {
-  const sale = await prisma.$transaction(async (tx) => {
+  const sale = await transaction(async (tx) => {
     // 1. Lock the unit row for the rest of this transaction
     await tx.$queryRaw`SELECT id FROM units WHERE id = ${input.unitId} FOR UPDATE`
 

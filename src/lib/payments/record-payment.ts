@@ -1,5 +1,5 @@
 import { Prisma } from '@prisma/client'
-import { prisma } from '@/lib/db'
+import { transaction } from '@/lib/db'
 import { nextReceiptNumber } from '@/lib/numbering'
 import { buildCommContent, sanitizeInline } from '@/lib/comms-content'
 import { fromPaise, toPaise } from '@/lib/money'
@@ -34,7 +34,7 @@ const rupees = (paise: number) => formatMoney(fromPaise(paise))
  * demand and the sale, queue the receipt, and write the audit entry. All arithmetic is in integer paise.
  */
 export async function recordPayment(input: RecordPaymentInput, actorId: string) {
-  return prisma.$transaction(async (tx) => {
+  return transaction(async (tx) => {
     const sale = await tx.sale.findFirst({ where: { id: input.saleId, ...activeSale }, include: { project: { select: { name: true } } } })
     if (!sale) throw new PaymentError('Sale not found, or it has been cancelled', 404)
 

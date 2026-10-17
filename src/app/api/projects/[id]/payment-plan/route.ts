@@ -1,6 +1,6 @@
 import { apiError, apiServerError } from '@/lib/api-error'
 import { NextRequest } from 'next/server'
-import { prisma } from '@/lib/db'
+import { prisma, transaction } from '@/lib/db'
 import { auth } from '@/lib/auth'
 import { requireRole } from '@/lib/guard'
 
@@ -37,7 +37,7 @@ export async function PUT(req: NextRequest, props: { params: Promise<{ id: strin
   }
 
   try {
-    await prisma.$transaction(async (tx) => {
+    await transaction(async (tx) => {
       // Get existing milestone IDs
       const existing = await tx.constructionMilestone.findMany({
         where: { projectId: id },

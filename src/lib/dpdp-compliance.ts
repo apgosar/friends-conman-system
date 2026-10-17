@@ -1,6 +1,6 @@
 import crypto from 'crypto'
 import { Prisma } from '@prisma/client'
-import { prisma } from '@/lib/db'
+import { prisma, transaction } from '@/lib/db'
 import { deleteFile } from '@/lib/storage'
 import { keyFromFileUrl } from '@/lib/storage/files'
 import { fail } from '@/lib/errors'
@@ -26,7 +26,7 @@ export async function anonymizeBuyer(buyerId: string, performedByUserId: string,
   // A short code that identifies the record on screen without identifying the person
   const code = crypto.createHash('sha256').update(buyerId + (process.env.NEXTAUTH_SECRET ?? '')).digest('hex').substring(0, 12)
 
-  const kycFileUrls = await prisma.$transaction(async (tx) => {
+  const kycFileUrls = await transaction(async (tx) => {
     await tx.buyer.update({
       where: { id: buyerId },
       data: { fullName: `${ANONYMIZED_PREFIX}${code}`, email: null, whatsappNumber: null, panNumber: null, aadhaarNumber: null, address: 'ANONYMIZED', receiveComms: false },

@@ -1,6 +1,6 @@
 import { apiError } from '@/lib/api-error'
 import { NextRequest, NextResponse } from 'next/server'
-import { prisma } from '@/lib/db'
+import { prisma, transaction } from '@/lib/db'
 import { requireRole } from '@/lib/guard'
 import { createAuditLog } from '@/lib/audit'
 import { parseBody, z } from '@/lib/validate'
@@ -29,7 +29,7 @@ export async function POST(req: NextRequest, props: { params: Promise<{ id: stri
   if (!source) return apiError('notFound', 'Template not found')
   if (!target) return apiError('notFound', 'Target project not found')
 
-  const copy = await prisma.$transaction(async (tx) => {
+  const copy = await transaction(async (tx) => {
     const [latest, active] = await Promise.all([
       tx.template.aggregate({ where: { projectId: target.id, type: source.type }, _max: { version: true } }),
       tx.template.findFirst({ where: { projectId: target.id, type: source.type, isActive: true }, select: { id: true } }),

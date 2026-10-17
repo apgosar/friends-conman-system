@@ -9,17 +9,20 @@ import { describeDb } from './helpers/db'
  */
 const base = process.env.TEST_DATABASE_URL ?? ''
 const withDb = (name: string) => base.replace(/\/([^/?]+)(\?|$)/, `/${name}$2`)
+// psql does not understand Prisma's connection options (connection_limit, schema...), so they are dropped for it
+const forPsql = (url: string) =>
+  url.replace(/([?&])(connection_limit|pool_timeout|schema|pgbouncer)=[^&]*&?/g, '$1').replace(/[?&]$/, '')
 const sh = (cmd: string, env: Record<string, string> = {}) =>
   execSync(cmd, { env: { ...process.env, CHECKPOINT_DISABLE: '1', PRISMA_HIDE_UPDATE_MESSAGE: '1', ...env }, stdio: 'pipe', encoding: 'utf8' })
-const psql = (db: string, sql: string) => sh(`psql "${withDb(db)}" -v ON_ERROR_STOP=1 -At -c "${sql.replace(/"/g, '\\"')}"`).trim()
-const admin = (sql: string) => sh(`psql "${base}" -v ON_ERROR_STOP=1 -At -c "${sql}"`)
+const psql = (db: string, sql: string) => sh(`psql "${forPsql(withDb(db))}" -v ON_ERROR_STOP=1 -At -c "${sql.replace(/"/g, '\\"')}"`).trim()
+const admin = (sql: string) => sh(`psql "${forPsql(base)}" -v ON_ERROR_STOP=1 -At -c "${sql}"`)
 
 const created: string[] = []
 function freshLegacyDatabase(name: string) {
   admin(`DROP DATABASE IF EXISTS ${name}`)
   admin(`CREATE DATABASE ${name}`)
   created.push(name)
-  sh(`psql "${withDb(name)}" -v ON_ERROR_STOP=1 -q -f prisma/migrations/0_init/migration.sql`) // what db push built
+  sh(`psql "${forPsql(withDb(name))}" -v ON_ERROR_STOP=1 -q -f prisma/migrations/0_init/migration.sql`) // what db push built
 }
 function seedLegacyRows(db: string) {
   psql(db, `INSERT INTO users (id, name, email, password, role, "updatedAt") VALUES ('u1','Old Accounts','acc@example.com','x','ACCOUNTS',now()), ('u2','Boss','boss@example.com','x','SUPER_ADMIN',now())`)

@@ -1,6 +1,6 @@
 import { apiError, apiServerError } from '@/lib/api-error'
 import { NextResponse } from 'next/server'
-import { prisma } from '@/lib/db'
+import { prisma, transaction } from '@/lib/db'
 import { requireRole } from '@/lib/guard'
 
 export async function DELETE(
@@ -44,7 +44,7 @@ export async function DELETE(
     }
 
     // 3. Deletion Transaction
-    await prisma.$transaction(async (tx) => {
+    await transaction(async (tx) => {
       // Delete all pending payment schedules for this milestone
       await tx.paymentSchedule.deleteMany({
         where: { milestoneId: id }

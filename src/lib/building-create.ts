@@ -1,5 +1,5 @@
 import type { Prisma } from '@prisma/client'
-import { prisma } from '@/lib/db'
+import { transaction } from '@/lib/db'
 
 export interface UnitRow {
   category?: 'FLAT' | 'SHOP' | 'OFFICE' | 'COMMON'
@@ -29,7 +29,7 @@ export interface CreateResult {
  * again or to extend a building later.
  */
 export async function createUnits(projectId: string, rows: UnitRow[]): Promise<CreateResult> {
-  return prisma.$transaction(async (tx) => {
+  return transaction(async (tx) => {
     const existing = await tx.unit.findMany({ where: { floor: { wing: { projectId } } }, select: { unitNumber: true } })
     const taken = new Set(existing.map((u) => u.unitNumber.toLowerCase()))
 
