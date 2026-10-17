@@ -255,6 +255,13 @@ try {
         $envMap["NEXTAUTH_SECRET"] = [Convert]::ToBase64String($bytes)
     }
 
+    # PII_ENCRYPTION_KEY protects buyers' PAN and Aadhaar numbers. It must be the SAME on every deploy, so it is never
+    # generated here: a new random key on each deploy would make the stored numbers unreadable.
+    if (-not $envMap.ContainsKey("PII_ENCRYPTION_KEY") -or [string]::IsNullOrWhiteSpace([string]$envMap["PII_ENCRYPTION_KEY"])) {
+        Write-Error "PII_ENCRYPTION_KEY is missing from your env file. Create one once with: openssl rand -base64 32 , add it to the file, and keep a copy apart from the database. Then, if the database already has buyers, run: npm run db:encrypt-pii"
+        exit 1
+    }
+
     # Default temporary URLs if not present (will be updated after first deploy)
     if (-not $envMap.ContainsKey("NEXTAUTH_URL")) {
         $envMap["NEXTAUTH_URL"] = "https://$ServiceName-$Region.a.run.app"
