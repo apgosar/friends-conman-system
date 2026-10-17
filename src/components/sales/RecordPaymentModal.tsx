@@ -7,6 +7,7 @@ import { errorMessage, fetchJson, jsonRequest } from '@/lib/client/api'
 import { formatCurrency } from '@/lib/format'
 import { fromPaise, round2, toPaise } from '@/lib/money'
 import { MODES_NEEDING_BANK, PAYMENT_MODES } from '@/lib/status'
+import { highlightField } from '@/lib/client/forms'
 
 /** What is still owed on a demand (live payments only), never below zero. */
 export function outstandingOf(schedule: any) {
@@ -58,10 +59,13 @@ export function RecordPaymentDialog({ schedules, saleId, initialScheduleId, onCl
   const submit = async (e: React.FormEvent) => {
     e.preventDefault()
     if (!selected) return
-    if (principalNum < 0 || gstNum < 0) return setError('Amounts cannot be negative')
-    if (principalNum + gstNum <= 0) return setError('Enter a principal and/or GST amount')
-    if (toPaise(principalNum) > toPaise(selected.principal)) return setError(`Principal cannot exceed ${formatCurrency(selected.principal)}`)
-    if (toPaise(gstNum) > toPaise(selected.gst)) return setError(`GST cannot exceed ${formatCurrency(selected.gst)}`)
+    // Each problem marks the wrong amount red and scrolls to it (the message stays in the alert)
+    const wrong = (id: string, message: string) => { highlightField(id); setError(message) }
+    if (principalNum < 0) return wrong('payment-principal', 'Amounts cannot be negative')
+    if (gstNum < 0) return wrong('payment-gst', 'Amounts cannot be negative')
+    if (principalNum + gstNum <= 0) return wrong('payment-principal', 'Enter a principal and/or GST amount')
+    if (toPaise(principalNum) > toPaise(selected.principal)) return wrong('payment-principal', `Principal cannot exceed ${formatCurrency(selected.principal)}`)
+    if (toPaise(gstNum) > toPaise(selected.gst)) return wrong('payment-gst', `GST cannot exceed ${formatCurrency(selected.gst)}`)
 
     setLoading(true)
     setError('')
@@ -110,8 +114,8 @@ export function RecordPaymentDialog({ schedules, saleId, initialScheduleId, onCl
         </SelectField>
 
         <div className="form-grid">
-          <TextField label="Principal Amount (₹)" type="number" min="0" step="0.01" value={principal} onChange={(e) => setPrincipal(e.target.value)} />
-          <TextField label="GST Amount (₹)" type="number" min="0" step="0.01" value={gst} onChange={(e) => setGst(e.target.value)} />
+          <TextField id="payment-principal" label="Principal Amount (₹)" type="number" min="0" step="0.01" value={principal} onChange={(e) => setPrincipal(e.target.value)} />
+          <TextField id="payment-gst" label="GST Amount (₹)" type="number" min="0" step="0.01" value={gst} onChange={(e) => setGst(e.target.value)} />
         </div>
         <div className="kv-row card-flat py-2">
           <span className="text-secondary">Total being recorded</span>

@@ -39,6 +39,7 @@ export default function EditProjectForm({ project }: { project: any }) {
       tdsRatePercent: form.get('tdsRatePercent'),
       interestRatePercent: form.get('interestRatePercent'),
       carParkingCharges: Number(form.get('carParkingCharges')),
+      carParkingIncluded: form.get('carParkingIncluded') === 'INCLUDED',
     }
     const launchDate = form.get('launchDate')
     const expectedCompletion = form.get('expectedCompletion')
@@ -107,8 +108,12 @@ export default function EditProjectForm({ project }: { project: any }) {
                 step="1000"
                 defaultValue={project.carParkingCharges ?? 500000}
               />
-              <span className="form-hint">Used as default when creating a new sale with parking</span>
+              <span className="form-hint">Per car park. Used when a new sale has parking charged separately</span>
             </div>
+            <SelectField label="Car parking pricing" name="carParkingIncluded" defaultValue={project.carParkingIncluded ? 'INCLUDED' : 'SEPARATE'} hint="Included means new sales carry no parking amount">
+              <option value="SEPARATE">Charged separately</option>
+              <option value="INCLUDED">Included in the agreement value</option>
+            </SelectField>
           </div>
 
           <div className="flex justify-end gap-3">

@@ -8,6 +8,7 @@ import TemplateTagReference from '@/components/projects/TemplateTagReference'
 import { Alert, Button, ButtonLink, Card, CardHeader, SelectField, TextField, TextareaField } from '@/components/ui'
 import { errorMessage, fetchJson } from '@/lib/client/api'
 import { formatNumber } from '@/lib/format'
+import { highlightField } from '@/lib/client/forms'
 
 export default function NewTemplatePage(props: { params: Promise<{ id: string }> }) {
   const params = use(props.params)
@@ -39,7 +40,7 @@ export default function NewTemplatePage(props: { params: Promise<{ id: string }>
       formData.delete('templateHtml')
     } else {
       const html = String(formData.get('templateHtml') ?? '')
-      if (!html.trim()) return setError('HTML content is required')
+      if (!html.trim()) { highlightField('templateHtml'); return setError('HTML content is required') }
       if (html.length > TEMPLATE_LIMITS.htmlMaxChars) return setError(`HTML is too long. Maximum is ${formatNumber(TEMPLATE_LIMITS.htmlMaxChars)} characters`)
       formData.delete('file')
     }

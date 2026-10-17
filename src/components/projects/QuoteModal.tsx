@@ -1,7 +1,8 @@
 'use client'
 
 import { INQUIRY_SOURCES, SOURCE_LABEL } from '@/lib/inquiry-constants'
-import { Alert, Button, CheckboxField, Modal, SelectField, TextField } from '@/components/ui'
+import { Alert, Button, CheckboxField, Modal, PhoneField, SelectField, TextField } from '@/components/ui'
+import { PHONE_ERROR, normalizePhone } from '@/lib/phone'
 import { formatDate, formatRupees } from '@/lib/format'
 
 const NEEDS_DETAIL = ['REFERRAL', 'BROKER']
@@ -24,8 +25,9 @@ export function QuoteModal({
   const agreement = Number(quoteData.agreementValue)
 
   // Repeat-customer check: same mobile number already has an inquiry in this project
-  const repeats = quoteData.mobileNumber?.length === 10
-    ? existingInquiries.filter((q: any) => q.mobileNumber === quoteData.mobileNumber)
+  const quotePhone = normalizePhone(quoteData.mobileNumber)
+  const repeats = quotePhone.ok && quotePhone.value
+    ? existingInquiries.filter((q: any) => q.mobileNumber === quotePhone.value)
     : []
 
   const registration = quoteData.parkingIncluded ? 50000 : 30000
@@ -54,17 +56,13 @@ export function QuoteModal({
       <form id="quote-form" onSubmit={handleGenerateQuote} className="flex dir-col gap-4">
         <div className="grid grid-2 gap-4">
           <TextField label="Customer name" required value={quoteData.customerName} onChange={(e) => set({ customerName: e.target.value })} />
-          <TextField
+          <PhoneField
+            id="quote-mobile"
             label="Mobile number"
             required
-            type="tel"
-            inputMode="numeric"
-            pattern="[0-9]{10}"
-            title="Enter a 10-digit mobile number"
-            maxLength={10}
             value={quoteData.mobileNumber}
-            error={quoteData.mobileNumber && quoteData.mobileNumber.length !== 10 ? 'Enter exactly 10 digits' : undefined}
-            onChange={(e) => set({ mobileNumber: e.target.value.replace(/\D/g, '') })}
+            error={quotePhone.ok ? undefined : PHONE_ERROR}
+            onValueChange={(v) => set({ mobileNumber: v })}
           />
         </div>
 

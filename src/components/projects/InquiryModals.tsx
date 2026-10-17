@@ -2,7 +2,9 @@
 
 import { useState } from 'react'
 import { INQUIRY_SOURCES, LOST_REASONS, SOURCE_LABEL, LOST_REASON_LABEL } from '@/lib/inquiry-constants'
-import { Alert, Button, CheckboxField, Modal, SelectField, TextField, TextareaField } from '@/components/ui'
+import { Alert, Button, CheckboxField, Modal, PhoneField, SelectField, TextField, TextareaField } from '@/components/ui'
+import { highlightField } from '@/lib/client/forms'
+import { PHONE_ERROR, formatPhone, normalizePhone } from '@/lib/phone'
 import { ApiError, errorMessage, fetchJson, jsonRequest } from '@/lib/client/api'
 import { formatDateTime } from '@/lib/format'
 
@@ -58,12 +60,14 @@ export function EditInquiryModal({ unitId, unitNumber, inq, onClose, onDone }: {
 
   const submit = async (e: React.FormEvent) => {
     e.preventDefault()
+    const phone = normalizePhone(f.mobileNumber)
+    if (!phone.ok || !phone.value) { highlightField('edit-inquiry-mobile'); return }
     setSaving(true)
     setError('')
     try {
       await fetchJson(`/api/units/${unitId}/quotes/${inq.id}`, jsonRequest('PATCH', {
         customerName: f.customerName,
-        mobileNumber: f.mobileNumber,
+        mobileNumber: phone.value,
         email: f.email,
         agreementValue: Number(f.agreementValue),
         parkingIncluded: f.parkingIncluded,
@@ -95,7 +99,7 @@ export function EditInquiryModal({ unitId, unitNumber, inq, onClose, onDone }: {
       <form id="edit-inquiry-form" onSubmit={submit} className="flex dir-col gap-4">
         <div className="grid grid-2 gap-4">
           <TextField label="Customer name" required value={f.customerName} onChange={(e) => set('customerName', e.target.value)} />
-          <TextField label="Mobile" required type="tel" inputMode="numeric" maxLength={10} pattern="[0-9]{10}" title="Enter a 10-digit mobile number" value={f.mobileNumber} onChange={(e) => set('mobileNumber', e.target.value.replace(/\D/g, ''))} />
+          <PhoneField id="edit-inquiry-mobile" label="Mobile" required value={f.mobileNumber} error={normalizePhone(f.mobileNumber).ok ? undefined : PHONE_ERROR} onValueChange={(v) => set('mobileNumber', v)} />
         </div>
         <TextField label="Email" type="email" value={f.email} onChange={(e) => set('email', e.target.value)} />
         <div className="grid grid-2 gap-4">
@@ -133,7 +137,7 @@ export function ShareQuoteModal({ unitId, unitNumber, inq, onClose, onDone }: {
   const send = async () => {
     const channels = [viaEmail && 'EMAIL', viaWhatsApp && 'WHATSAPP'].filter(Boolean) as string[]
     if (channels.length === 0) return setError('Choose at least one channel')
-    if (viaEmail && !email) return setError('Enter an email address')
+    if (viaEmail && !email) { highlightField('share-email'); return setError('Enter an email address') }
     setSending(true)
     setError('')
     try {
@@ -165,9 +169,9 @@ export function ShareQuoteModal({ unitId, unitNumber, inq, onClose, onDone }: {
       }
     >
       <div className="flex dir-col gap-3">
-        <CheckboxField label="WhatsApp" hint={`+91 ${inq.mobileNumber}`} checked={viaWhatsApp} onChange={(e) => setViaWhatsApp(e.target.checked)} />
+        <CheckboxField label="WhatsApp" hint={formatPhone(inq.mobileNumber)} checked={viaWhatsApp} onChange={(e) => setViaWhatsApp(e.target.checked)} />
         <CheckboxField label="Email" checked={viaEmail} onChange={(e) => setViaEmail(e.target.checked)} />
-        {viaEmail && <TextField label="Email address" type="email" placeholder="customer@example.com" value={email} onChange={(e) => setEmail(e.target.value)} />}
+        {viaEmail && <TextField id="share-email" label="Email address" type="email" placeholder="customer@example.com" value={email} onChange={(e) => setEmail(e.target.value)} />}
         {inq.lastSharedAt && (
           <p className="text-xs text-muted m-0">Last shared {formatDateTime(inq.lastSharedAt)} via {inq.lastSharedVia?.replace('+', ' + ')}</p>
         )}
@@ -209,7 +213,7 @@ export function LostInquiryModal({ unitId, inq, onClose, onDone }: {
   return (
     <Modal
       title="Mark as lost"
-      subtitle={`${inq.customerName} · ${inq.mobileNumber}`}
+      subtitle={`${inq.customerName} · ${formatPhone(inq.mobileNumber)}`}
       dismissible={!saving}
       onClose={onClose}
       footer={

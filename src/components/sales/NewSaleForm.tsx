@@ -2,7 +2,11 @@
 
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
-import { DEFAULT_PRICING, computeCharges, gstOn, type PricingConfig } from '@/lib/pricing'
+import { DEFAULT_PRICING, GST_RATE_OPTIONS, computeCharges, gstOn, type PricingConfig } from '@/lib/pricing'
+import { percentOf, round2 } from '@/lib/money'
+import { PHONE_ERROR, normalizePhone } from '@/lib/phone'
+import { wingLabel } from '@/lib/building-structure'
+import { scrollToFirstInvalid } from '@/lib/client/forms'
 
 // Tax and pricing rules come from the selected project's settings (see lib/pricing.ts)
 
@@ -16,22 +20,26 @@ const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
 
 function validatePan(pan: string) {
   if (!pan) return ''
-  return PAN_REGEX.test(pan.toUpperCase()) ? '' : 'PAN must be 5 letters + 4 numbers + 1 letter (e.g. ABCDE1234F)'
+  return PAN_REGEX.test(pan.toUpperCase()) ? '' : 'Please enter valid PAN number'
 }
 function validateAadhaar(aadhaar: string) {
   const digits = aadhaar.replace(/\s/g, '')
   if (!digits) return ''
-  return digits.length === 12 && /^\d{12}$/.test(digits) ? '' : 'Aadhaar must be exactly 12 digits'
+  return digits.length === 12 && /^\d{12}$/.test(digits) ? '' : 'Please enter valid Aadhar number'
 }
 function validateEmail(email: string) {
   if (!email) return ''
-  return EMAIL_REGEX.test(email) ? '' : 'Enter a valid email address'
+  return EMAIL_REGEX.test(email) ? '' : 'Please enter a valid email address'
+}
+function validatePhone(phone: string) {
+  return normalizePhone(phone).ok ? '' : PHONE_ERROR
 }
 function formatAadhaar(value: string) {
   const digits = value.replace(/\D/g, '').slice(0, 12)
   return digits.replace(/(\d{4})(?=\d)/g, '$1 ').trim()
 }
 
+type ParkingSlot = { podium: string; floor: string; number: string }
 type Buyer = { fullName: string; panNumber: string; aadhaarNumber: string; address: string; email: string; whatsappNumber: string }
 // principalAmount already includes stamp duty + registration for the plinth row
 type ScheduleRow = { milestoneId: string; description: string; principalAmount: number; gstAmount: number; isPlinth?: boolean; sequence: number; percentOfAV?: number }
@@ -39,38 +47,72 @@ type ScheduleRow = { milestoneId: string; description: string; principalAmount: 
 const emptyBuyer = (): Buyer => ({ fullName: '', panNumber: '', aadhaarNumber: '', address: '', email: '', whatsappNumber: '' })
 
 // ─── Step indicator ──────────────────────────────────────────
-import { Alert, Button, Input, Select, SelectField, StepBar, Table, TextField, TextareaField, cn } from '@/components/ui'
+import { Alert, Button, Input, PhoneField, SelectField, StepBar, Stepper, Table, TextField, TextareaField } from '@/components/ui'
 import { errorMessage, fetchJson, jsonRequest } from '@/lib/client/api'
 import { formatCurrency } from '@/lib/format'
 
 // ─── Main Wizard ─────────────────────────────────────────────
+// The project's units grouped by wing (A, B ... then the commercial block), each wing's units in natural order
+const unitsGroupedByWing = (units: any[]): [string, any[]][] => {
+  const byWing = new Map<string, any[]>()
+  for (const u of units) byWing.set(u.wingName, [...(byWing.get(u.wingName) ?? []), u])
+  const natural = (a: string, b: string) => a.localeCompare(b, undefined, { numeric: true, sensitivity: 'base' })
+  return [...byWing.entries()]
+    .sort(([a], [b]) => natural(a, b))
+    .map(([wing, list]) => [wing, [...list].sort((x, y) => natural(x.unitNumber, y.unitNumber))])
+}
+
+// One value per parking space, written once each: "P-45, P-46"
+const joinSlots = (slots: ParkingSlot[], field: keyof ParkingSlot) => Array.from(new Set(slots.map(p => p[field].trim()).filter(Boolean))).join(', ') || undefined
+
 type Prefill = { inquiryId: string; projectId: string; unitId: string; agreementValue: number; carParking: boolean; buyerName: string; mobileNumber: string } | null
 
 export default function NewSaleWizard({ projects, prefill = null }: { projects: any[]; prefill?: Prefill }) {
   const router = useRouter()
   const [step, setStep] = useState(1)
   const [error, setError] = useState('')
+  // Field-level errors from the Review step, keyed by field (project, unit, tenant, buyer-0-name ...). Each clears when its field is edited.
+  const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({})
+  const clearFieldError = (key: string) => setFieldErrors(prev => (key in prev ? Object.fromEntries(Object.entries(prev).filter(([k]) => k !== key)) : prev))
 
   // Step 1 state
   const [projectId, setProjectId] = useState(prefill?.projectId ?? '')
   const selectedProject = projects.find(p => p.id === projectId)
+  const unitsByWing = unitsGroupedByWing(selectedProject?.units ?? [])
   const prefillProjectType = projects.find(p => p.id === prefill?.projectId)?.type
   const [saleType, setSaleType] = useState(prefillProjectType && prefillProjectType !== 'MIXED' ? prefillProjectType : 'FRESH')
   const [unitId, setUnitId] = useState(prefill?.unitId ?? '')
   const [tenantId, setTenantId] = useState('')
   const [agreementValue, setAgreementValue] = useState(prefill?.agreementValue ?? 10000000)
   const [bookingAmount, setBookingAmount] = useState<number | ''>('')
-  const [carParking, setCarParking] = useState(prefill?.carParking ?? false)
-  const [parkingPodiumLevel, setParkingPodiumLevel] = useState('')
-  const [parkingFloor, setParkingFloor] = useState('')
-  const [parkingNumber, setParkingNumber] = useState('')
+  // Car parking: how many, whether it is inside the agreement value, and where each one is
+  const emptySlot = (): ParkingSlot => ({ podium: '', floor: '', number: '' })
+  const [parkingSlots, setParkingSlots] = useState<ParkingSlot[]>(prefill?.carParking ? [emptySlot()] : [])
+  const carParkingCount = parkingSlots.length
+  const parkingIncluded: boolean = selectedProject?.carParkingIncluded ?? false // a project setting
+  const carParking = carParkingCount > 0
+  const setParkingCount = (n: number) => setParkingSlots(prev => (n <= prev.length ? prev.slice(0, n) : [...prev, ...Array.from({ length: n - prev.length }, emptySlot)]))
+  const updateSlot = (i: number, field: keyof ParkingSlot, value: string) => setParkingSlots(prev => prev.map((p, k) => (k === i ? { ...p, [field]: value } : p)))
   const [bookingDate, setBookingDate] = useState(new Date().toISOString().split('T')[0])
   const [buyers, setBuyers] = useState<Buyer[]>([prefill ? { ...emptyBuyer(), fullName: prefill.buyerName, whatsappNumber: prefill.mobileNumber } : emptyBuyer()])
 
-  // Derived financials
-  const pricing: PricingConfig = selectedProject?.pricing ?? DEFAULT_PRICING
-  const { gst, stampDuty, registration: regCharges } = computeCharges(pricing, agreementValue, carParking)
-  const parkingCost = selectedProject?.carParkingCharges ?? 0
+  // Derived financials. GST is chosen here (0 / 5 / 12) and starts at the project's rate; stamp duty starts at the project's %
+  // but can be typed as a rupee amount (then the % is worked out) or as a %
+  const projectPricing: PricingConfig = selectedProject?.pricing ?? DEFAULT_PRICING
+  const defaultGstRate = (GST_RATE_OPTIONS as readonly number[]).includes(projectPricing.gstRatePercent) ? projectPricing.gstRatePercent : 5
+  const [gstRateChoice, setGstRateChoice] = useState<number | null>(null)
+  const gstRate = gstRateChoice ?? defaultGstRate
+  const [stampPctInput, setStampPctInput] = useState<number | '' | null>(null) // null = the project's %
+  const [stampAmtInput, setStampAmtInput] = useState<number | '' | null>(null) // set when a rupee amount was typed
+  const pricing: PricingConfig = { ...projectPricing, gstRatePercent: gstRate }
+  // Parking inside the agreement value adds no parking charge and no extra registration fee
+  const separateParking = carParking && !parkingIncluded
+  const { gst, registration: regCharges } = computeCharges(pricing, agreementValue, separateParking)
+  const stampPct = stampAmtInput !== null
+    ? (agreementValue > 0 ? round2(((Number(stampAmtInput) || 0) / agreementValue) * 100) : 0)
+    : stampPctInput !== null ? Number(stampPctInput) || 0 : pricing.stampDutyPercent
+  const stampDuty = stampAmtInput !== null ? Number(stampAmtInput) || 0 : percentOf(agreementValue, stampPct)
+  const parkingCost = separateParking ? (selectedProject?.carParkingCharges ?? 0) * carParkingCount : 0
 
   // Step 2 state — editable payment schedule
   const [schedules, setSchedules] = useState<ScheduleRow[]>([])
@@ -113,17 +155,30 @@ export default function NewSaleWizard({ projects, prefill = null }: { projects: 
     }
   }
 
-  const updateBuyer = (idx: number, field: keyof Buyer, val: string) =>
+  const updateBuyer = (idx: number, field: keyof Buyer, val: string) => {
+    clearFieldError(`buyer-${idx}-${field}`)
     setBuyers(prev => prev.map((b, i) => i === idx ? { ...b, [field]: val } : b))
+  }
   const addBuyer = () => setBuyers(prev => [...prev, emptyBuyer()])
   const removeBuyer = (idx: number) => setBuyers(prev => prev.filter((_, i) => i !== idx))
 
   // ── Step 1 → 2: Build payment schedule from project milestones ──
   const goToStep2 = () => {
     setError('')
-    if (!projectId || !unitId) { setError('Please select a project and unit.'); return }
-    if (buyers.some(b => !b.fullName || !b.panNumber)) { setError('Each buyer must have a name and PAN.'); return }
-    if (saleType === 'REDEVELOPMENT' && !tenantId) { setError('Please link a tenant for redevelopment sales.'); return }
+    // Check everything at once, mark each wrong field red under its own message, and scroll to the first one
+    const errs: Record<string, string> = {}
+    if (!projectId) errs.project = 'Please select a project'
+    if (!unitId) errs.unit = 'Please select a unit'
+    if (saleType === 'REDEVELOPMENT' && !tenantId) errs.tenant = 'Please link a tenant'
+    buyers.forEach((b, i) => {
+      if (!b.fullName.trim()) errs[`buyer-${i}-fullName`] = 'Please enter full name'
+      if (validatePan(b.panNumber) || !b.panNumber) errs[`buyer-${i}-panNumber`] = 'Please enter valid PAN number'
+      if (validateAadhaar(b.aadhaarNumber)) errs[`buyer-${i}-aadhaarNumber`] = 'Please enter valid Aadhar number'
+      if (validateEmail(b.email)) errs[`buyer-${i}-email`] = 'Please enter a valid email address'
+      if (validatePhone(b.whatsappNumber)) errs[`buyer-${i}-whatsappNumber`] = PHONE_ERROR
+    })
+    setFieldErrors(errs)
+    if (Object.keys(errs).length > 0) { scrollToFirstInvalid(); return }
 
     const milestones = selectedProject?.milestones ?? []
 
@@ -207,11 +262,11 @@ export default function NewSaleWizard({ projects, prefill = null }: { projects: 
       }
     })
 
-    // Add car parking as a separate row if selected — NO GST on parking
-    if (carParking && parkingCost > 0) {
+    // Add car parking as a separate row if it is charged separately — NO GST on parking
+    if (separateParking && parkingCost > 0) {
       rows.push({
         milestoneId: possessionMilestone?.id || '',
-        description: 'Car Parking',
+        description: carParkingCount > 1 ? `Car Parking (${carParkingCount} spaces)` : 'Car Parking',
         principalAmount: parkingCost,
         gstAmount: 0,
         sequence: 999,
@@ -252,18 +307,20 @@ export default function NewSaleWizard({ projects, prefill = null }: { projects: 
         tenantId: saleType === 'REDEVELOPMENT' ? tenantId : undefined,
         saleType,
         agreementValue,
+        gstRatePercent: gstRate,
         gstAmount: gst,
         stampDuty,
         registrationCharges: regCharges,
         carParking,
-        carParkingCharges: carParking ? parkingCost : 0,
-        parkingPodiumLevel: carParking ? parkingPodiumLevel : undefined,
-        parkingFloor: carParking ? parkingFloor : undefined,
-        parkingNumber: carParking ? parkingNumber : undefined,
+        carParkingCount,
+        carParkingCharges: parkingCost,
+        parkingPodiumLevel: joinSlots(parkingSlots, 'podium'),
+        parkingFloor: joinSlots(parkingSlots, 'floor'),
+        parkingNumber: joinSlots(parkingSlots, 'number'),
         bookingAmount: bookingAmount !== '' ? Number(bookingAmount) : undefined,
         bookingDate,
         inquiryId: prefill?.inquiryId,
-        buyers: buyers.map((b, i) => ({ ...b, isPrimary: i === 0, sequence: i + 1 })),
+        buyers: buyers.map((b, i) => ({ ...b, whatsappNumber: normalizePhone(b.whatsappNumber).ok ? (normalizePhone(b.whatsappNumber) as { value: string | null }).value ?? '' : '', isPrimary: i === 0, sequence: i + 1 })),
         paymentSchedules: schedules.filter(s => s.principalAmount > 0).map(s => ({
           milestoneId: s.milestoneId || undefined,
           description: s.description,
@@ -307,36 +364,39 @@ export default function NewSaleWizard({ projects, prefill = null }: { projects: 
 
   // ── Render ────────────────────────────────────────────────
   return (
-    <div className="max-w-xl mx-auto">
+    <div className="max-w-xl mx-auto form-floating">
       <StepBar step={step} steps={['Sale Details', 'Payment Plan', 'Agreement']} />
 
       {/* ══════════════ STEP 1 ══════════════ */}
       {step === 1 && (
         <div className="card">
-          <div className="card-header">
-            <span className="card-title">Sale Details</span>
-          </div>
           {error && <Alert variant="danger" className="mb-4">{error}</Alert>}
 
-          {/* Project & Unit */}
-          <h4 className="mb-3">Project & Unit</h4>
+          {/* Unit Details */}
+          <h4 className="mb-5">Unit Details</h4>
           <div className="grid grid-2 gap-4 mb-4">
-            <SelectField label="Project" value={projectId} required onChange={e => {
+            <SelectField label="Project" value={projectId} required error={fieldErrors.project} onChange={e => {
+ clearFieldError('project')
  setProjectId(e.target.value)
  setUnitId('')
  const proj = projects.find(p => p.id === e.target.value)
  if (proj) setSaleType(proj.type === 'MIXED' ? 'FRESH' : proj.type)
- setCarParking(false)
- }}><option value="">-- Select Project --</option>{projects.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}</SelectField>
-            <SelectField label="Sale Type *" value={saleType} onChange={e => setSaleType(e.target.value)} disabled={!selectedProject || selectedProject.type !== 'MIXED'}><option value="FRESH">Fresh Sale</option><option value="REDEVELOPMENT">Redevelopment (PAAA)</option></SelectField>
+ setParkingSlots([])
+ setGstRateChoice(null)
+ setStampPctInput(null)
+ setStampAmtInput(null)
+ }}><option value="">Select project</option>{projects.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}</SelectField>
+            <SelectField label="Sale Type" required hint={selectedProject ? undefined : 'Select project first'} value={saleType} onChange={e => setSaleType(e.target.value)} disabled={!selectedProject || selectedProject.type !== 'MIXED'}><option value="FRESH">Fresh Sale</option><option value="REDEVELOPMENT">Redevelopment (PAAA)</option></SelectField>
             <div className="form-group">
-              <label className="form-label">Unit *</label>
-              <Select value={unitId} required disabled={!selectedProject} onChange={e => setUnitId(e.target.value)}>
-                <option value="">-- Select Unit --</option>
-                {selectedProject?.units.map((u: any) => (
-                  <option key={u.id} value={u.id}>{u.wingName} - {u.unitNumber} ({u.configuration})</option>
+              <SelectField label="Unit" value={unitId} required hint={selectedProject ? undefined : 'Select project first'} error={fieldErrors.unit} disabled={!selectedProject} onChange={e => { clearFieldError('unit'); setUnitId(e.target.value) }}>
+                <option value="">Select unit</option>
+                {/* Grouped by wing (the unit number already says which wing), in natural order: B-601, B-602 ... B-1001 */}
+                {unitsByWing.map(([wingName, wingUnits]) => (
+                  <optgroup key={wingName} label={wingLabel(wingName)}>
+                    {wingUnits.map((u: any) => <option key={u.id} value={u.id}>{u.unitNumber} ({u.configuration})</option>)}
+                  </optgroup>
                 ))}
-              </Select>
+              </SelectField>
               {unitId && (() => {
                 const selectedUnit = selectedProject?.units.find((u: any) => u.id === unitId)
                 return selectedUnit ? (
@@ -348,7 +408,7 @@ export default function NewSaleWizard({ projects, prefill = null }: { projects: 
               })()}
             </div>
             {saleType === 'REDEVELOPMENT' && (
-              <SelectField label="Link Tenant" value={tenantId} onChange={e => setTenantId(e.target.value)} required><option value="">-- Select Tenant --</option>{selectedProject?.tenants.map((t: any) => (
+              <SelectField label="Link Tenant" value={tenantId} error={fieldErrors.tenant} onChange={e => { clearFieldError('tenant'); setTenantId(e.target.value) }} required><option value="">Select tenant</option>{selectedProject?.tenants.map((t: any) => (
  <option key={t.id} value={t.id}>{t.name} (Old: {t.oldFlatNumber})</option>
  ))}</SelectField>
             )}
@@ -404,7 +464,7 @@ export default function NewSaleWizard({ projects, prefill = null }: { projects: 
               </div>
 
               <div className="grid grid-2 gap-4 mb-3">
-                <TextField label="Full Name" value={buyer.fullName} required onChange={e => updateBuyer(idx, 'fullName', e.target.value)} placeholder="John Doe" />
+                <TextField label="Full Name" value={buyer.fullName} required error={fieldErrors[`buyer-${idx}-fullName`]} onChange={e => updateBuyer(idx, 'fullName', e.target.value)} placeholder="John Doe" />
                 <TextField
                   label="PAN number"
                   required
@@ -413,7 +473,7 @@ export default function NewSaleWizard({ projects, prefill = null }: { projects: 
                   placeholder="ABCDE1234F"
                   maxLength={10}
                   autoCapitalize="characters"
-                  error={buyer.panNumber ? validatePan(buyer.panNumber) || undefined : undefined}
+                  error={fieldErrors[`buyer-${idx}-panNumber`] ?? (buyer.panNumber ? validatePan(buyer.panNumber) || undefined : undefined)}
                 />
                 <TextField
                   label="Aadhaar number"
@@ -422,7 +482,7 @@ export default function NewSaleWizard({ projects, prefill = null }: { projects: 
                   placeholder="XXXX XXXX XXXX"
                   maxLength={14}
                   inputMode="numeric"
-                  error={buyer.aadhaarNumber ? validateAadhaar(buyer.aadhaarNumber) || undefined : undefined}
+                  error={fieldErrors[`buyer-${idx}-aadhaarNumber`] ?? (buyer.aadhaarNumber ? validateAadhaar(buyer.aadhaarNumber) || undefined : undefined)}
                 />
                 <TextField
                   label="Email"
@@ -430,9 +490,9 @@ export default function NewSaleWizard({ projects, prefill = null }: { projects: 
                   value={buyer.email}
                   onChange={e => updateBuyer(idx, 'email', e.target.value)}
                   placeholder="john@example.com"
-                  error={buyer.email ? validateEmail(buyer.email) || undefined : undefined}
+                  error={fieldErrors[`buyer-${idx}-email`] ?? (buyer.email ? validateEmail(buyer.email) || undefined : undefined)}
                 />
-                <TextField label="WhatsApp" value={buyer.whatsappNumber} onChange={e => updateBuyer(idx, 'whatsappNumber', e.target.value)} placeholder="+91 98765 43210" />
+                <PhoneField label="WhatsApp" value={buyer.whatsappNumber} onValueChange={v => updateBuyer(idx, 'whatsappNumber', v)} error={fieldErrors[`buyer-${idx}-whatsappNumber`] ?? (validatePhone(buyer.whatsappNumber) || undefined)} />
               </div>
               <TextareaField label="Address" rows={2} value={buyer.address} onChange={e => updateBuyer(idx, 'address', e.target.value)} />
             </div>
@@ -441,47 +501,64 @@ export default function NewSaleWizard({ projects, prefill = null }: { projects: 
           <div className="divider" />
 
           {/* Financials */}
-          <h4 className="mb-3">Financials</h4>
+          <h4 className="mb-5">Financials</h4>
           <div className="grid grid-2 gap-4 mb-4">
-            <TextField label="Agreement Value (₹) *" type="number" min={100000} step={1000} value={agreementValue} onChange={e => setAgreementValue(Number(e.target.value))} />
+            <TextField label="Agreement Value (₹)" required type="number" min={100000} step={1000} value={agreementValue} onChange={e => setAgreementValue(Number(e.target.value))} />
+            <SelectField label="GST" value={String(gstRate)} onChange={e => setGstRateChoice(Number(e.target.value))}>
+              {GST_RATE_OPTIONS.map(r => <option key={r} value={r}>{r}%</option>)}
+            </SelectField>
+            <TextField
+              label="Stamp Duty (₹)"
+              type="number"
+              min={0}
+              value={stampAmtInput !== null ? stampAmtInput : stampDuty}
+              onChange={e => setStampAmtInput(e.target.value === '' ? '' : Number(e.target.value))}
+            />
+            <TextField
+              label="Stamp Duty (%)"
+              type="number"
+              min={0}
+              step={0.01}
+              value={stampAmtInput !== null ? stampPct : (stampPctInput !== null ? stampPctInput : stampPct)}
+              onChange={e => { setStampAmtInput(null); setStampPctInput(e.target.value === '' ? '' : Number(e.target.value)) }}
+            />
             <TextField label="Booking Amount (₹)" type="number" placeholder="Leave blank to use default %" value={bookingAmount} onChange={e => setBookingAmount(e.target.value ? Number(e.target.value) : '')} />
-            <TextField label="Booking Date *" type="date" value={bookingDate} onChange={e => setBookingDate(e.target.value)} />
+            <TextField label="Booking Date" required type="date" value={bookingDate} onChange={e => setBookingDate(e.target.value)} />
           </div>
+          <p className="text-sm text-muted mb-5">Stamp duty starts at the project rate. Type an amount and the % updates, or type a %.</p>
 
-          {/* Car Parking */}
-          <div className="form-group mb-5">
-            <label className="form-label">Car Parking</label>
-            <div className="flex gap-3 mt-2" role="radiogroup" aria-label="Car parking">
-              {(['Yes', 'No'] as const).map(opt => (
-                <label key={opt} className={cn('radio-card', (opt === 'Yes') === carParking && 'is-selected')}>
-                  <input type="radio" name="car-parking" checked={(opt === 'Yes') === carParking} onChange={() => setCarParking(opt === 'Yes')} />
-                  {opt}
-                </label>
+          {/* Car parking */}
+          <h4 className="mb-5">Car Parking</h4>
+          <div className="mb-4">
+            <Stepper label="Number of car parkings" value={carParkingCount} onChange={setParkingCount} max={10} disabled={!selectedProject} hint={selectedProject ? undefined : 'Select project first'} />
+          </div>
+          {carParking && (
+            <div className="mb-5">
+              {separateParking && selectedProject && (
+                <p className="mb-3 text-base text-muted">
+                  {carParkingCount} × <strong>{fmt(selectedProject.carParkingCharges)}</strong> = <strong>{fmt(parkingCost)}</strong>, plus extra registration <strong>{fmt(pricing.regParkingCharges)}</strong>
+                </p>
+              )}
+              {parkingIncluded && <p className="mb-3 text-base text-muted">Parking is included in the agreement value for this project, so no parking amount is added to this sale.</p>}
+              {parkingSlots.map((slot, i) => (
+                <div key={i} className="grid grid-3 gap-4 mb-4">
+                  <TextField label={carParkingCount > 1 ? `Parking ${i + 1}: podium level` : 'Podium Floor Level'} value={slot.podium} onChange={e => updateSlot(i, 'podium', e.target.value)} placeholder="e.g. Podium 1" />
+                  <TextField label="Floor" value={slot.floor} onChange={e => updateSlot(i, 'floor', e.target.value)} placeholder="e.g. Ground" />
+                  <TextField label="Parking No." value={slot.number} onChange={e => updateSlot(i, 'number', e.target.value)} placeholder="e.g. P-45" />
+                </div>
               ))}
             </div>
-            {carParking && selectedProject && (
-              <div className="mt-3">
-                <p className="mb-3 text-base text-muted">
-                  Car parking: <strong>{fmt(parkingCost)}</strong> + Registration: <strong>{fmt(pricing.regParkingCharges)}</strong>
-                </p>
-                <div className="grid grid-3 gap-4">
-                  <TextField label="Podium Floor Level" value={parkingPodiumLevel} onChange={e => setParkingPodiumLevel(e.target.value)} placeholder="e.g. Podium 1" />
-                  <TextField label="Floor" value={parkingFloor} onChange={e => setParkingFloor(e.target.value)} placeholder="e.g. Ground" />
-                  <TextField label="Parking No." value={parkingNumber} onChange={e => setParkingNumber(e.target.value)} placeholder="e.g. P-45" />
-                </div>
-              </div>
-            )}
-          </div>
+          )}
 
           {/* Cost summary */}
           <div className="panel mb-6">
             <div className="font-semibold text-base mb-3">Estimated Costs</div>
             {[
               ['Agreement Value', agreementValue],
-              [`GST (${pricing.gstRatePercent}%)`, gst],
-              [`Stamp Duty (${pricing.stampDutyPercent}%)`, stampDuty],
-              [`Registration${carParking ? ' (incl. parking)' : ''}`, regCharges],
-              ...(carParking ? [['Car Parking', parkingCost]] : []),
+              [`GST (${gstRate}%)`, gst],
+              [`Stamp Duty (${stampPct}%)`, stampDuty],
+              [`Registration${separateParking ? ' (incl. parking)' : ''}`, regCharges],
+              ...(separateParking ? [[`Car Parking (${carParkingCount})`, parkingCost]] : []),
             ].map(([label, amount]) => (
               <div key={String(label)} className="flex justify-between text-base mb-1">
                 <span className="text-secondary">{label}</span>
@@ -490,13 +567,13 @@ export default function NewSaleWizard({ projects, prefill = null }: { projects: 
             ))}
             <div className="pt-2 mt-2 flex justify-between font-bold border-top">
               <span>Total Payable</span>
-              <span className="text-brand">{fmt(agreementValue + gst + stampDuty + regCharges + (carParking ? parkingCost : 0))}</span>
+              <span className="text-brand">{fmt(agreementValue + gst + stampDuty + regCharges + parkingCost)}</span>
             </div>
           </div>
 
           <div className="flex justify-end">
             <Button type="button" variant="primary" onClick={goToStep2} disabled={!selectedProject}>
-              Next: Review Payment Plan →
+              Review Payment Plan →
             </Button>
           </div>
         </div>
@@ -506,7 +583,7 @@ export default function NewSaleWizard({ projects, prefill = null }: { projects: 
       {step === 2 && (
         <div className="card">
           <div className="card-header">
-            <span className="card-title">Payment Plan</span>
+            <span className="card-title card-title-lg">Payment Plan</span>
             <Button variant="ghost" size="sm" onClick={() => setStep(1)}>← Back</Button>
           </div>
           {error && <Alert variant="danger" className="mb-4">{error}</Alert>}
@@ -606,7 +683,7 @@ export default function NewSaleWizard({ projects, prefill = null }: { projects: 
       {step === 3 && (
         <div className="card">
           <div className="card-header">
-            <span className="card-title">Generate Agreement</span>
+            <span className="card-title card-title-lg">Generate Agreement</span>
           </div>
           {error && <Alert variant="danger" className="mb-4">{error}</Alert>}
 

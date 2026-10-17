@@ -50,6 +50,7 @@ export default async function NewSalePage(props: PageProps<'/sales/new'>) {
       name: p.name,
       type: p.type,
       carParkingCharges: p.carParkingCharges,
+      carParkingIncluded: p.carParkingIncluded,
       pricing: pricingFromProject(p),
       units,
       tenants: p.tenants.map(t => ({ id: t.id, name: t.name, oldFlatNumber: t.oldFlatNumber })),

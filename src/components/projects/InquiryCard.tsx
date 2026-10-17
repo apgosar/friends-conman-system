@@ -3,6 +3,7 @@
 import { ButtonLink } from '@/components/ui'
 import { LOST_REASON_LABEL, SOURCE_LABEL } from '@/lib/inquiry-constants'
 import { isUnsold } from '@/lib/status'
+import { formatPhone } from '@/lib/phone'
 import { cn } from '@/components/ui'
 import { formatDate, formatDateShort, formatRupees } from '@/lib/format'
 import type { InquiryData } from './InquiryModals'
@@ -34,7 +35,7 @@ export default function InquiryCard({ unit, inquiry: inq, repeatCount, canDelete
         <span className="text-sm font-semibold">{inq.customerName}</span>
         <span className="text-2xs text-muted">{formatDate(inq.createdAt)}</span>
       </div>
-      <div className="text-xs text-secondary mb-2">{inq.mobileNumber} · {formatRupees(inq.totalCost)}</div>
+      <div className="text-xs text-secondary mb-2">{formatPhone(inq.mobileNumber)} · {formatRupees(inq.totalCost)}</div>
       <div className="bv-inquiry-tags">
         {repeatCount > 1 && <Tag tone="warn">Repeat customer · {repeatCount} inquiries</Tag>}
         {inq.source && <Tag tone="neutral">{SOURCE_LABEL[inq.source] ?? inq.source}</Tag>}

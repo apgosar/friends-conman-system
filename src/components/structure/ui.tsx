@@ -1,6 +1,7 @@
 'use client'
 
-import { Input } from '@/components/ui'
+import { Input, PhoneField } from '@/components/ui'
+import { PHONE_ERROR, normalizePhone } from '@/lib/phone'
 import { formatNumber } from '@/lib/format'
 
 export interface UnitTypeRow {
@@ -49,10 +50,7 @@ export function BookerFields({ name, mobile, onName, onMobile }: { name: string;
         <label className="form-label" htmlFor="booker-name">Booked by (name)<span className="form-required" aria-hidden="true">*</span></label>
         <Input id="booker-name" required maxLength={100} value={name} onChange={(e) => onName(e.target.value)} />
       </div>
-      <div className="form-group">
-        <label className="form-label" htmlFor="booker-mobile">Mobile (optional)</label>
-        <Input id="booker-mobile" type="tel" inputMode="numeric" maxLength={14} placeholder="10 digits" value={mobile} onChange={(e) => onMobile(e.target.value)} />
-      </div>
+      <PhoneField id="booker-mobile" label="Mobile (optional)" value={mobile} error={normalizePhone(mobile).ok ? undefined : PHONE_ERROR} onValueChange={onMobile} />
     </div>
   )
 }

@@ -2,7 +2,7 @@
 
 import { useState } from 'react'
 import TopNav from '@/components/layout/TopNav'
-import { Alert, Badge, Button, ButtonLink, Card, CardHeader, PageHeader, TextField } from '@/components/ui'
+import { Alert, Badge, Button, ButtonLink, Card, CardHeader, PageHeader, PhoneField, TextField } from '@/components/ui'
 import { errorMessage, fetchJson, jsonRequest } from '@/lib/client/api'
 
 interface TestResult { ok: boolean; text: string }
@@ -94,7 +94,7 @@ export default function SettingsPage() {
             </details>
 
             <form onSubmit={whatsapp.submit} className="flex gap-3 items-end wrap">
-              <TextField wrapperClassName="flex-1" label="Send test WhatsApp to (with country code)" type="tel" inputMode="tel" placeholder="919876543210" value={whatsapp.to} onChange={(e) => whatsapp.setTo(e.target.value)} required />
+              <PhoneField wrapperClassName="flex-1" label="Send test WhatsApp to" value={whatsapp.to} onValueChange={whatsapp.setTo} required />
               <Button type="submit" variant="primary" loading={whatsapp.sending}>💬 Send Test WhatsApp</Button>
             </form>
             {whatsapp.result && <Alert variant={whatsapp.result.ok ? 'success' : 'danger'} className="mt-4">{whatsapp.result.text}</Alert>}

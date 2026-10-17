@@ -5,7 +5,8 @@ import { useRouter } from 'next/navigation'
 import { MANUAL_UNIT_STATUSES, unitStatusLabel } from '@/lib/status'
 import { CATEGORIES, COMMON_AREA_SUGGESTIONS, categoryLabel, wingLabel } from '@/lib/building-structure'
 import { BookerFields, fmtNum, type StructureUnit, type UnitTypeRow, type WingRow } from './ui'
-import { Alert, Button, Input, Modal, Select, SelectField, StatusBadge, Table, TextField, useConfirm } from '@/components/ui'
+import { Alert, Button, Input, Modal, PhoneInput, Select, SelectField, StatusBadge, Table, TextField, useConfirm } from '@/components/ui'
+import { normalizePhone } from '@/lib/phone'
 import { errorMessage, fetchJson, jsonRequest } from '@/lib/client/api'
 import { formatRupees } from '@/lib/format'
 import { plural } from '@/lib/errors'
@@ -248,7 +249,7 @@ export default function UnitsTable({ projectId, units, wings, types }: { project
   const toggleOne = (id: string) => setSelected((s) => { const n = new Set(s); if (n.has(id)) n.delete(id); else n.add(id); return n })
   const applyBulk = () =>
     act(async () => {
-      const res = await fetchJson(`/api/projects/${projectId}/units/status`, jsonRequest('POST', { unitIds: [...selected], status: bulkStatus, ...(bulkStatus === 'BOOKED' ? { bookedByName: bulkName, bookedByMobile: bulkMobile || null } : {}) }))
+      const res = await fetchJson(`/api/projects/${projectId}/units/status`, jsonRequest('POST', { unitIds: [...selected], status: bulkStatus, ...(bulkStatus === 'BOOKED' ? { bookedByName: bulkName, bookedByMobile: normalizePhone(bulkMobile).ok ? (normalizePhone(bulkMobile) as { value: string | null }).value : null } : {}) }))
       setBulkMessage(`Set ${plural(res.updated, 'unit')} to ${unitStatusLabel(bulkStatus)}.${res.skippedWithSale ? ` ${res.skippedWithSale} skipped because they have a sale.` : ''}`)
       setSelected(new Set())
       setBulkName('')
@@ -306,10 +307,10 @@ export default function UnitsTable({ projectId, units, wings, types }: { project
               {bulkStatus === 'BOOKED' && (
                 <>
                   <Input aria-label="Booked by (name)" placeholder="Booked by (name) *" maxLength={100} value={bulkName} onChange={(e) => setBulkName(e.target.value)} className="w-auto" style={{ width: 190 }} />
-                  <Input aria-label="Mobile (optional)" placeholder="Mobile (optional)" inputMode="numeric" maxLength={14} value={bulkMobile} onChange={(e) => setBulkMobile(e.target.value)} className="w-auto" style={{ width: 150 }} />
+                  <PhoneInput aria-label="Mobile (optional)" value={bulkMobile} onValueChange={setBulkMobile} invalid={!normalizePhone(bulkMobile).ok} className="w-auto" style={{ width: 170 }} />
                 </>
               )}
-              <Button variant="primary" size="sm" disabled={bulkStatus === 'BOOKED' && !bulkName.trim()} onClick={applyBulk}>Apply</Button>
+              <Button variant="primary" size="sm" disabled={bulkStatus === 'BOOKED' && (!bulkName.trim() || !normalizePhone(bulkMobile).ok)} onClick={applyBulk}>Apply</Button>
               <span className="text-sm text-secondary">or mark as</span>
               <Button size="sm" onClick={() => setKindModal('COMMON')} title="Refuge area, society office, gym... (not for sale)">Common area…</Button>
               <Button size="sm" onClick={() => setKindModal('FLAT')} title="Turn selected common areas back into flats">Flats…</Button>

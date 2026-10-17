@@ -7,6 +7,8 @@ import { wingLabel } from '@/lib/building-structure'
 import { isSaleable } from '@/lib/status'
 import { can } from '@/lib/authz'
 import { errorMessage, fetchJson, jsonRequest } from '@/lib/client/api'
+import { highlightField } from '@/lib/client/forms'
+import { normalizePhone } from '@/lib/phone'
 import { QuoteModal } from './QuoteModal'
 import { EditInquiryModal, ShareQuoteModal, LostInquiryModal, type InquiryData } from './InquiryModals'
 import BuildingCanvas, { BuildingSkeleton } from './BuildingCanvas'
@@ -92,8 +94,9 @@ export default function BuildingViewer({ projectId, view = '3d' }: { projectId: 
 
   // Repeat-customer warning in the quote form: look the number up once it is complete
   useEffect(() => {
-    if (!showQuoteForm || quoteData.mobileNumber.length !== 10) return
-    const mobile = quoteData.mobileNumber
+    const phone = normalizePhone(quoteData.mobileNumber)
+    if (!showQuoteForm || !phone.ok || !phone.value) return
+    const mobile = phone.value
     const t = setTimeout(async () => {
       try {
         const json = await fetchJson(`/api/projects/${projectId}/inquiries/lookup?mobile=${mobile}`)
@@ -104,7 +107,8 @@ export default function BuildingViewer({ projectId, view = '3d' }: { projectId: 
     }, 250)
     return () => clearTimeout(t)
   }, [showQuoteForm, quoteData.mobileNumber, projectId])
-  const repeatMatches = showQuoteForm && matchState.mobile === quoteData.mobileNumber ? matchState.items : []
+  const quotePhone = normalizePhone(quoteData.mobileNumber)
+  const repeatMatches = showQuoteForm && quotePhone.ok && matchState.mobile === quotePhone.value ? matchState.items : []
 
   // On a phone or tablet the panel sits below the building: bring it into view when a unit is picked
   const panelRef = useRef<HTMLDivElement>(null)
@@ -159,9 +163,11 @@ export default function BuildingViewer({ projectId, view = '3d' }: { projectId: 
   async function handleGenerateQuote(e: React.FormEvent) {
     e.preventDefault()
     if (!selectedUnit) return
+    const phone = normalizePhone(quoteData.mobileNumber)
+    if (!phone.ok || !phone.value) { highlightField('quote-mobile'); return }
     setIsSubmittingQuote(true)
     try {
-      await fetchJson(`/api/units/${selectedUnit.id}/quotes`, jsonRequest('POST', { ...quoteData, agreementValue: Number(quoteData.agreementValue) }))
+      await fetchJson(`/api/units/${selectedUnit.id}/quotes`, jsonRequest('POST', { ...quoteData, mobileNumber: phone.value, agreementValue: Number(quoteData.agreementValue) }))
       await reloadBuilding() // shows the new status and inquiry
       setShowQuoteForm(false)
       toast.success('Quote generated')

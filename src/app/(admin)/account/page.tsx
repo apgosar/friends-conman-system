@@ -7,6 +7,7 @@ import { PASSWORD_RULES } from '@/lib/password-rules'
 import { ROLE_LABELS, normalizeRole } from '@/lib/roles'
 import { Alert, Button, Card, TextField } from '@/components/ui'
 import { errorMessage, fetchJson, jsonRequest } from '@/lib/client/api'
+import { highlightField } from '@/lib/client/forms'
 
 export default function AccountPage() {
   const { data: session } = useSession()
@@ -20,7 +21,7 @@ export default function AccountPage() {
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
     setError('')
-    if (newPassword !== confirmPassword) return setError('The two new passwords do not match')
+    if (newPassword !== confirmPassword) { highlightField('confirm-password'); return setError('The two new passwords do not match') }
     setBusy(true)
     try {
       await fetchJson('/api/account/password', jsonRequest('POST', { currentPassword, newPassword }))
@@ -54,7 +55,7 @@ export default function AccountPage() {
               {error && <Alert variant="danger">{error}</Alert>}
               <TextField label="Current password" type="password" autoComplete="current-password" value={currentPassword} onChange={(e) => setCurrentPassword(e.target.value)} required />
               <TextField label="New password" type="password" autoComplete="new-password" value={newPassword} onChange={(e) => setNewPassword(e.target.value)} hint={PASSWORD_RULES} required />
-              <TextField label="Confirm new password" type="password" autoComplete="new-password" value={confirmPassword} onChange={(e) => setConfirmPassword(e.target.value)} required />
+              <TextField id="confirm-password" label="Confirm new password" type="password" autoComplete="new-password" value={confirmPassword} onChange={(e) => setConfirmPassword(e.target.value)} required />
               <Button type="submit" variant="primary" loading={busy}>Change password</Button>
             </form>
           )}
