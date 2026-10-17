@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation'
 import TopNav from '@/components/layout/TopNav'
 import PricingFields from '@/components/projects/PricingFields'
 import { Alert, Button, SelectField, TextField, TextareaField } from '@/components/ui'
+import { errorMessage, fetchJson, jsonRequest } from '@/lib/client/api'
 
 export default function NewProjectPage() {
   const router = useRouter()
@@ -17,17 +18,12 @@ export default function NewProjectPage() {
     setError('')
     const form = new FormData(e.currentTarget)
     const data = Object.fromEntries(form.entries())
-    const res = await fetch('/api/projects', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(data),
-    })
-    const json = await res.json()
-    setLoading(false)
-    if (!res.ok) {
-      setError(json.error ?? 'Failed to create project')
-    } else {
+    try {
+      const json = await fetchJson('/api/projects', jsonRequest('POST', data))
       router.push(`/projects/${json.data.id}/structure?new=1`) // next step: describe the building
+    } catch (err) {
+      setError(errorMessage(err))
+      setLoading(false)
     }
   }
 

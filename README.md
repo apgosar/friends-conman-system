@@ -84,6 +84,10 @@ A comprehensive Real Estate Construction & Sales Management platform built for m
    ```
    Open [http://localhost:3000](http://localhost:3000) in your browser. The demo seed creates `admin@friends.com` and prints a generated password once (set `SEED_PASSWORD` to choose it); there is no default password.
 
+## 📐 How the code is organised
+
+Read [`docs/DESIGN_PRINCIPLES.md`](docs/DESIGN_PRINCIPLES.md) before changing anything: it lists the shared UI kit, stylesheet layers, error wording, formatting, permissions and data rules, and where each lives. [`AGENTS.md`](AGENTS.md) holds the short, enforced version for AI coding tools (Claude Code reads it automatically; Copilot and Cursor are pointed to it).
+
 ## 🎨 UI / UX Philosophy
 
 The application features a sleek, premium, dark-mode optimized aesthetic. Key design choices include:

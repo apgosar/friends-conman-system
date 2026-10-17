@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation'
 import BackToProject from '@/components/projects/BackToProject'
 import PricingFields from '@/components/projects/PricingFields'
 import { Alert, Button, ButtonLink, Input, SelectField, TextField, TextareaField } from '@/components/ui'
+import { errorMessage, fetchJson, jsonRequest } from '@/lib/client/api'
 
 export default function EditProjectForm({ project }: { project: any }) {
   const router = useRouter()
@@ -45,17 +46,11 @@ export default function EditProjectForm({ project }: { project: any }) {
     if (expectedCompletion) data.expectedCompletion = expectedCompletion
 
     try {
-      const res = await fetch(`/api/projects/${project.id}`, {
-        method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(data),
-      })
-      const json = await res.json()
-      if (!json.success) throw new Error(json.error || 'Failed to update project')
-      setSuccess('Project updated successfully!')
+      await fetchJson(`/api/projects/${project.id}`, jsonRequest('PATCH', data))
+      setSuccess('Project updated')
       setTimeout(() => router.push(`/projects/${project.id}`), 1200)
-    } catch (err: any) {
-      setError(err.message)
+    } catch (err) {
+      setError(errorMessage(err))
     } finally {
       setLoading(false)
     }

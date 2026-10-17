@@ -40,6 +40,7 @@ const emptyBuyer = (): Buyer => ({ fullName: '', panNumber: '', aadhaarNumber: '
 
 // ─── Step indicator ──────────────────────────────────────────
 import { Alert, Button, Input, Select, SelectField, StepBar, Table, TextField, TextareaField, cn } from '@/components/ui'
+import { errorMessage, fetchJson, jsonRequest } from '@/lib/client/api'
 import { formatCurrency } from '@/lib/format'
 
 // ─── Main Wizard ─────────────────────────────────────────────
@@ -91,10 +92,7 @@ export default function NewSaleWizard({ projects, prefill = null }: { projects: 
       const formData = new FormData()
       formData.append('file', file)
       formData.append('docType', docType)
-      const res = await fetch('/api/extract-kyc', { method: 'POST', body: formData })
-      const json = await res.json()
-      if (!json.success) throw new Error(json.error || 'Extraction failed')
-      
+      const json = await fetchJson('/api/extract-kyc', { method: 'POST', body: formData })
       const { fullName, panNumber, aadhaarNumber, address } = json.data
       setBuyers(prev => prev.map((b, i) => {
         if (i !== idx) return b
@@ -107,8 +105,8 @@ export default function NewSaleWizard({ projects, prefill = null }: { projects: 
         }
       }))
       setKycMessage({ type: 'success', text: `Successfully extracted ${docType} details!`, idx })
-    } catch (err: any) {
-      setKycMessage({ type: 'error', text: err.message, idx })
+    } catch (err) {
+      setKycMessage({ type: 'error', text: errorMessage(err), idx })
     } finally {
       setExtractingKyc(null)
       setTimeout(() => setKycMessage(null), 6000)
@@ -273,13 +271,11 @@ export default function NewSaleWizard({ projects, prefill = null }: { projects: 
           gstAmount: s.gstAmount,
         }))
       }
-      const res = await fetch('/api/sales', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) })
-      const data = await res.json()
-      if (!data.success) throw new Error(data.error || 'Failed to create sale')
+      const data = await fetchJson('/api/sales', jsonRequest('POST', payload))
       setCreatedSaleId(data.data.id)
       setStep(3)
-    } catch (err: any) {
-      setError(err.message)
+    } catch (err) {
+      setError(errorMessage(err))
     } finally {
       setGenerating(false)
     }
@@ -291,16 +287,10 @@ export default function NewSaleWizard({ projects, prefill = null }: { projects: 
     setError('')
     try {
       const docType = saleType === 'FRESH' ? 'SALE_AGREEMENT' : 'PAAA'
-      const res = await fetch('/api/documents/generate', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ saleId: createdSaleId, type: docType })
-      })
-      const data = await res.json()
-      if (!data.success) throw new Error(data.error || 'Document generation failed')
+      const data = await fetchJson('/api/documents/generate', jsonRequest('POST', { saleId: createdSaleId, type: docType }))
       setGeneratedDoc(data.data)
-    } catch (err: any) {
-      setError(err.message)
+    } catch (err) {
+      setError(errorMessage(err))
     } finally {
       setGenerating(false)
     }
