@@ -1,4 +1,5 @@
 import { forwardRef, useId, type InputHTMLAttributes, type ReactNode, type SelectHTMLAttributes, type TextareaHTMLAttributes } from 'react'
+import { joinPhone, sanitizeCountryCode, sanitizePhoneInput, splitPhone } from '@/lib/phone'
 import { cn } from './cn'
 
 /**
@@ -64,6 +65,40 @@ export const TextField = forwardRef<HTMLInputElement, InputHTMLAttributes<HTMLIn
     </FieldShell>
   )
 })
+
+/**
+ * A mobile / WhatsApp number. Shows "+91 " when empty so an Indian number is just typed in; the prefix can be edited for a
+ * number from another country. `value` is what the form holds (empty, a bare 10-digit number, or whatever was typed): check it
+ * with normalizePhone() from lib/phone.ts before saving.
+ */
+type PhoneBoxProps = Omit<InputHTMLAttributes<HTMLInputElement>, 'value' | 'onChange' | 'type'> & { value: string; onValueChange: (value: string) => void; invalid?: boolean; small?: boolean }
+
+/** The two boxes: country code (editable, "+91" to start) and number. */
+const PhoneBoxes = forwardRef<HTMLInputElement, PhoneBoxProps>(function PhoneBoxes({ value, onValueChange, invalid, small, className, ...rest }, ref) {
+  const { code, number } = splitPhone(value)
+  return (
+    <div className="phone-row">
+      <Input className="phone-code" small={small} invalid={invalid} aria-label="Country code" inputMode="tel" maxLength={5} value={code} onChange={(e) => onValueChange(joinPhone(sanitizeCountryCode(e.target.value), number))} />
+      <Input ref={ref} className={className} small={small} invalid={invalid} type="tel" inputMode="tel" autoComplete="tel-national" value={number} onChange={(e) => onValueChange(joinPhone(code, sanitizePhoneInput(e.target.value)))} {...rest} />
+    </div>
+  )
+})
+
+export const PhoneField = forwardRef<HTMLInputElement, Omit<PhoneBoxProps, 'invalid' | 'small'> & FieldChrome>(function PhoneField(
+  { label, hint, error, required, wrapperClassName, id, className, ...rest },
+  ref,
+) {
+  const auto = useId()
+  const fieldId = id ?? auto
+  return (
+    <FieldShell id={fieldId} label={label} hint={hint} error={error} required={required} wrapperClassName={wrapperClassName}>
+      <PhoneBoxes ref={ref} id={fieldId} className={className} required={required} invalid={!!error} aria-describedby={describedBy(fieldId, hint, error)} {...rest} />
+    </FieldShell>
+  )
+})
+
+/** The bare version of PhoneField, for toolbars and tables (no label, hint or error). */
+export const PhoneInput = PhoneBoxes
 
 export const SelectField = forwardRef<HTMLSelectElement, SelectHTMLAttributes<HTMLSelectElement> & FieldChrome>(function SelectField(
   { label, hint, error, required, wrapperClassName, id, className, children, ...rest },

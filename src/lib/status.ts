@@ -7,6 +7,8 @@
  * The sale status is derived (see lib/sale-lifecycle.ts) and mirrored onto the unit.
  */
 
+import { PHONE_ERROR, normalizePhone } from '@/lib/phone'
+
 export interface StatusStyle {
   label: string
   badge: string
@@ -83,14 +85,14 @@ export function parseManualUnitStatus(text: string): (typeof MANUAL_UNIT_STATUSE
   return (MANUAL_UNIT_STATUSES as readonly string[]).includes(key) ? (key as (typeof MANUAL_UNIT_STATUSES)[number]) : null
 }
 
-/** Who booked a unit that was marked Booked by hand: the name is required, the mobile number is optional (10 digits). */
+/** Who booked a unit that was marked Booked by hand: the name is required, the mobile number is optional (any country).  */
 export function parseBooker(name: unknown, mobile: unknown): { ok: true; name: string; mobile: string | null } | { ok: false; error: string } {
   const n = typeof name === 'string' ? name.trim() : ''
   if (!n) return { ok: false, error: 'Enter the name of the person who booked it' }
   if (n.length > 100) return { ok: false, error: 'The name is too long (maximum 100 characters)' }
-  const m = typeof mobile === 'string' ? mobile.replace(/[\s-]/g, '').replace(/^(\+91|91|0)(?=\d{10}$)/, '') : ''
-  if (m && !/^[6-9]\d{9}$/.test(m)) return { ok: false, error: 'The mobile number must be 10 digits' }
-  return { ok: true, name: n, mobile: m || null }
+  const phone = normalizePhone(typeof mobile === 'string' ? mobile : '')
+  if (!phone.ok) return { ok: false, error: PHONE_ERROR }
+  return { ok: true, name: n, mobile: phone.value }
 }
 
 /** Units still for sale (no sale record). */

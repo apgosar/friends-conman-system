@@ -45,6 +45,10 @@ The cost of breaking this is paid later and in bulk: a hand-styled button here, 
 | Lay out a page | `PageHeader`, `Card`, `CardHeader`, `StatCard` | `src/components/ui/` |
 | Show a table (stacks into cards on a phone) | `Table`, `Td label="…"`, `EmptyRow` | `src/components/ui/Table.tsx`, `EmptyState.tsx` |
 | Filter chips / pagination / tabs / steps | `FilterChips`, `Pagination`, `Tabs`, `StepBar` | `src/components/ui/` |
+| A mobile / WhatsApp number (starts with +91, any country allowed) | `PhoneField` (bare: `PhoneInput`); check with `normalizePhone`, show with `formatPhone` | `src/components/ui/Field.tsx`, `src/lib/phone.ts` |
+| Show a validation error where the user is looking | pass `error` to the field, then `scrollToFirstInvalid()`; for a one-off check `highlightField(id)`. A danger `Alert` and the browser's own validation scroll and highlight by themselves | `src/lib/client/forms.ts`, `FormEffects.tsx` |
+| A − / + counter for a small whole number (car parks...) | `Stepper` | `src/components/ui/Stepper.tsx` |
+| Show field labels as the placeholder / on the border (like the new-sale form) | wrap the form in `.form-floating`; the fields themselves are unchanged | `src/styles/components.css` |
 | Show "page failed" / "not found" | `ErrorState` | `src/components/ui/ErrorState.tsx` |
 | Call our own API from a screen | `fetchJson`, `jsonRequest`, `errorMessage` | `src/lib/client/api.ts` |
 | Write a new API route | `route(permission, handler)` | `src/lib/route.ts` |
@@ -97,6 +101,7 @@ If the thing you need is not in this table, search `src/lib` and `src/components
 | `StatCard` | Headline number | `grid grid-stats` keeps them two across on a phone |
 | `Table`, `Td`, `EmptyRow`, `EmptyState` | Tables | `Table stack` + `Td label="Column"` turns rows into cards on a phone; `label=""` for action cells |
 | `Tabs`, `FilterChips`, `Pagination`, `StepBar` | Navigation inside a page | |
+| `Stepper` | A − / + counter. Not the progress bar (`StepBar`) | |
 | `ErrorState`, `Spinner` | "Failed / not found" panel, loading indicator | |
 | `cn` | Joins class names | |
 

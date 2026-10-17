@@ -5,7 +5,7 @@ import { usePathname } from 'next/navigation'
 import { SessionProvider } from 'next-auth/react'
 import type { Session } from 'next-auth'
 import Sidebar from '@/components/layout/Sidebar'
-import { FeedbackProvider } from '@/components/ui'
+import { FeedbackProvider, FormEffects } from '@/components/ui'
 
 interface NavState { open: boolean; toggle: () => void; close: () => void }
 const NavContext = createContext<NavState | null>(null)
@@ -38,6 +38,7 @@ export default function AppShell({ session, children }: { session: Session; chil
     <SessionProvider session={session}>
       <NavContext.Provider value={value}>
         <FeedbackProvider>
+          <FormEffects />
           <div className="admin-layout">
             <Sidebar />
             <div className="admin-main">{children}</div>
