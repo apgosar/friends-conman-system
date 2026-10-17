@@ -44,7 +44,7 @@ export default function AccountPage() {
           {session?.user && (
             <div style={{ marginBottom: 20 }}>
               <div style={{ fontWeight: 600 }}>{session.user.name}</div>
-              <div className="text-muted text-sm">{session.user.email} · {ROLE_LABELS[normalizeRole(session.user.role)]}</div>
+              <div className="text-muted text-base">{session.user.email} · {ROLE_LABELS[normalizeRole(session.user.role)]}</div>
             </div>
           )}
 

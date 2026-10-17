@@ -8,6 +8,12 @@
 .flex { display: flex; }
 .inline-flex { display: inline-flex; }
 .flex-col { display: flex; flex-direction: column; }
+.dir-col { flex-direction: column; }
+.dir-row { flex-direction: row; }
+.items-stretch { align-items: stretch; }
+.justify-start { justify-content: flex-start; }
+.overflow-x-auto { overflow-x: auto; }
+.pointer-events-none { pointer-events: none; }
 .grid { display: grid; }
 .block { display: block; }
 .hidden { display: none; }

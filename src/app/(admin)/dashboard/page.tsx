@@ -233,7 +233,7 @@ function AgingBucketCard({ label, amount, color, critical, bucket }: {
     >
       <div className="flex items-center gap-2 mb-2">
         <div className="status-dot" style={{ background: color }} />
-        <span className="text-sm text-secondary">{label}</span>
+        <span className="text-base text-secondary">{label}</span>
         {critical && amount > 0 && (
           <span className="badge badge-danger" style={{ marginLeft: 'auto' }}>Action Needed</span>
         )}

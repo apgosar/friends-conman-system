@@ -131,11 +131,11 @@ export default async function SaleDetailPage(props: PageProps<'/sales/[id]'>) {
             <div className="card-header"><span className="card-title">Payment Summary</span></div>
             <div style={{ marginBottom: 16 }}>
               <div className="flex justify-between mb-2">
-                <span className="text-sm">Total Collected</span>
+                <span className="text-base">Total Collected</span>
                 <span style={{ fontWeight: 700, color: 'var(--color-success)' }}>{formatCurrency(totalPaid)}</span>
               </div>
               <div className="flex justify-between mb-2">
-                <span className="text-sm">Total Due</span>
+                <span className="text-base">Total Due</span>
                 <span style={{ fontWeight: 500 }}>{formatCurrency(totalDue)}</span>
               </div>
               <div className="flex justify-between mb-2" style={{ fontSize: '0.8125rem', color: 'var(--text-muted)' }}>
@@ -143,7 +143,7 @@ export default async function SaleDetailPage(props: PageProps<'/sales/[id]'>) {
                 <span>GST: {formatCurrency(gstReceived)} / {formatCurrency(gstDue)}</span>
               </div>
               <div className="flex justify-between mb-3">
-                <span className="text-sm">Outstanding</span>
+                <span className="text-base">Outstanding</span>
                 <span style={{ fontWeight: 700, color: totalDue - totalPaid > 0 ? 'var(--color-danger)' : 'var(--color-success)' }}>
                   {formatCurrency(Math.max(0, totalDue - totalPaid))}
                 </span>

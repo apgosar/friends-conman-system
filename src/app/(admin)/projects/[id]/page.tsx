@@ -105,8 +105,8 @@ export default async function ProjectDetailPage(props: PageProps<'/projects/[id]
         {/* Progress Bar */}
         <div className="card mb-6">
           <div className="flex justify-between mb-2">
-            <span className="text-sm font-medium">Sales Progress</span>
-            <span className="text-sm text-muted">{soldPct}% sold</span>
+            <span className="text-base font-medium">Sales Progress</span>
+            <span className="text-base text-muted">{soldPct}% sold</span>
           </div>
           <div className="progress-bar">
             <div className="progress-fill" style={{ width: `${soldPct}%` }} />
