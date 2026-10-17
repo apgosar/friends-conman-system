@@ -172,7 +172,20 @@ export default async function DashboardPage() {
         </div>
 
         <div className="mt-6">
-          <RecentPayments payments={recentPayments} />
+          {/* Plain values only: database rows hold Decimal objects, which can't be passed to a client component */}
+          <RecentPayments
+            payments={recentPayments.map((p) => ({
+              id: p.id,
+              saleId: p.saleId,
+              receiptNumber: p.receiptNumber,
+              mode: p.mode,
+              paymentDate: p.paymentDate,
+              amount: Number(p.amount),
+              unitNumber: p.sale?.unit?.unitNumber ?? null,
+              buyerName: p.sale?.buyers?.[0]?.fullName ?? null,
+              description: p.schedule?.description ?? null,
+            }))}
+          />
         </div>
       </div>
     </>

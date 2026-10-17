@@ -5,7 +5,19 @@ import { Badge, Card, CardHeader, EmptyState, Table, Td } from '@/components/ui'
 import { formatCurrency, formatDate } from '@/lib/format'
 import { paymentModeLabel } from '@/lib/status'
 
-export default function RecentPayments({ payments }: { payments: any[] }) {
+export interface RecentPayment {
+  id: string
+  saleId: string
+  receiptNumber: string | null
+  mode: string
+  paymentDate: Date
+  amount: number
+  unitNumber: string | null
+  buyerName: string | null
+  description: string | null
+}
+
+export default function RecentPayments({ payments }: { payments: RecentPayment[] }) {
   const router = useRouter()
 
   return (
@@ -22,12 +34,12 @@ export default function RecentPayments({ payments }: { payments: any[] }) {
             {payments.map((p) => (
               <tr key={p.id} onClick={() => router.push(`/sales/${p.saleId}`)} className="row-link">
                 <Td label="Receipt #"><Badge variant="primary">{p.receiptNumber}</Badge></Td>
-                <Td label="Unit">{p.sale?.unit?.unitNumber ?? '-'}</Td>
-                <Td label="Buyer">{p.sale?.buyers?.[0]?.fullName ?? '-'}</Td>
-                <Td label="Description" className="text-secondary">{p.schedule?.description}</Td>
+                <Td label="Unit">{p.unitNumber ?? '-'}</Td>
+                <Td label="Buyer">{p.buyerName ?? '-'}</Td>
+                <Td label="Description" className="text-secondary">{p.description}</Td>
                 <Td label="Mode"><Badge>{paymentModeLabel(p.mode)}</Badge></Td>
                 <Td label="Date" className="text-muted">{formatDate(p.paymentDate)}</Td>
-                <Td label="Amount" className="text-right font-semibold text-success">{formatCurrency(Number(p.amount))}</Td>
+                <Td label="Amount" className="text-right font-semibold text-success">{formatCurrency(p.amount)}</Td>
               </tr>
             ))}
           </tbody>
