@@ -33,9 +33,12 @@ export function Modal({ title, subtitle, onClose, size = 'md', footer, dismissib
   const dialogRef = useRef<HTMLDivElement>(null)
   const titleId = useId()
   const onCloseRef = useRef(onClose)
-  onCloseRef.current = onClose
   const dismissibleRef = useRef(dismissible)
-  dismissibleRef.current = dismissible
+  // keep the latest callbacks without re-running the focus/scroll-lock effect on every render
+  useEffect(() => {
+    onCloseRef.current = onClose
+    dismissibleRef.current = dismissible
+  })
 
   useEffect(() => setMounted(true), [])
 
