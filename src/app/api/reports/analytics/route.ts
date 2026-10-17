@@ -146,10 +146,10 @@ export async function GET(req: NextRequest) {
       inventoryStatus: Object.entries(inventoryStatus).filter(([, value]) => value > 0).map(([name, value]) => ({ name, value })),
       paymentByMode: Object.entries(paymentByMode).map(([name, value]) => ({ name, value })),
       aging: [
-        { label: '0–30 days', amount: aging['0-30'], color: '#f59e0b' },
-        { label: '31–60 days', amount: aging['31-60'], color: '#f97316' },
-        { label: '61–90 days', amount: aging['61-90'], color: '#ef4444' },
-        { label: '90+ days', amount: aging['90+'], color: '#991b1b' },
+        { label: '0–30 days', amount: aging['0-30'], tone: 'warn' },
+        { label: '31–60 days', amount: aging['31-60'], tone: 'orange' },
+        { label: '61–90 days', amount: aging['61-90'], tone: 'danger' },
+        { label: '90+ days', amount: aging['90+'], tone: 'severe' },
       ],
       upcomingReceivables: upcoming.map(u => ({
         dueDate: u.dueDate,

@@ -2,7 +2,8 @@ import { prisma } from '@/lib/db'
 import { notFound } from 'next/navigation'
 import TopNav from '@/components/layout/TopNav'
 import BackToProject from '@/components/projects/BackToProject'
-import { formatDate } from '@/lib/format'
+import { Card, EmptyState, PageHeader, Table } from '@/components/ui'
+import { plain } from '@/lib/plain'
 import MilestoneRow from '@/components/projects/MilestoneRow'
 
 export default async function ProjectMilestonesPage(props: PageProps<'/projects/[id]/milestones'>) {
@@ -20,41 +21,22 @@ export default async function ProjectMilestonesPage(props: PageProps<'/projects/
     <>
       <TopNav title="Milestones" subtitle={`Construction stages for ${project.name}`} />
       <div className="admin-content">
-        <div className="page-header">
-          <div>
-            <h1 className="page-title">Construction Milestones</h1>
-            <p className="page-subtitle">{project.milestones.length} milestones defined</p>
-          </div>
-          <BackToProject projectId={id} />
-        </div>
+        <PageHeader title="Construction Milestones" subtitle={`${project.milestones.length} milestones defined`} actions={<BackToProject projectId={id} />} />
 
-        <div className="card">
+        <Card flush>
           {project.milestones.length === 0 ? (
-            <div className="text-center p-10 text-muted">
-              No milestones defined for this project.
-            </div>
+            <EmptyState title="No milestones yet">This project has no construction milestones defined.</EmptyState>
           ) : (
-            <div className="table-wrapper" style={{ border: 'none' }}>
-              <table>
-                <thead>
-                  <tr>
-                    <th style={{ width: 60 }}>Seq</th>
-                    <th>Name</th>
-                    <th>Status</th>
-                    <th>Planned Date</th>
-                    <th>Actual Date</th>
-                    <th>Architect Cert</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {project.milestones.map((m) => (
-                    <MilestoneRow key={m.id} m={m} />
-                  ))}
-                </tbody>
-              </table>
-            </div>
+            <Table flush stack>
+              <thead>
+                <tr><th className="col-xs">Seq</th><th>Name</th><th>Status</th><th>Planned Date</th><th>Actual Date</th><th>Certificate</th></tr>
+              </thead>
+              <tbody>
+                {project.milestones.map((m) => <MilestoneRow key={m.id} m={plain(m)} />)}
+              </tbody>
+            </Table>
           )}
-        </div>
+        </Card>
       </div>
     </>
   )

@@ -1,7 +1,7 @@
 'use client'
 
 import { useState } from 'react'
-import { Button, StatusBadge } from '@/components/ui'
+import { Button, StatusBadge, Td } from '@/components/ui'
 import { formatCurrency, formatDate } from '@/lib/format'
 import PaymentDetailsModal from './PaymentDetailsModal'
 import { RecordPaymentDialog } from './RecordPaymentModal'
@@ -17,18 +17,18 @@ export default function PaymentScheduleRow({ schedule, saleId }: { schedule: any
 
   return (
     <>
-      <tr onClick={() => setShowDetails(true)} className="cursor-pointer">
-        <td className="font-medium">{schedule.description}</td>
-        <td><StatusBadge kind="schedule" status={schedule.status} /></td>
-        <td className="text-muted">{schedule.dueDate ? formatDate(schedule.dueDate) : '—'}</td>
-        <td>{formatCurrency(Number(schedule.principalAmount))}</td>
-        <td>{formatCurrency(Number(schedule.gstAmount ?? 0))}</td>
-        <td className={received >= totalDue ? 'text-success font-semibold' : received > 0 ? 'font-semibold' : undefined}>{formatCurrency(received)}</td>
-        <td>
+      <tr onClick={() => setShowDetails(true)} className="row-link">
+        <Td label="Description" className="font-medium">{schedule.description}</Td>
+        <Td label="Status"><StatusBadge kind="schedule" status={schedule.status} /></Td>
+        <Td label="Due date" className="text-muted">{schedule.dueDate ? formatDate(schedule.dueDate) : '—'}</Td>
+        <Td label="Principal due">{formatCurrency(Number(schedule.principalAmount))}</Td>
+        <Td label="GST due">{formatCurrency(Number(schedule.gstAmount ?? 0))}</Td>
+        <Td label="Received" className={received >= totalDue ? 'text-success font-semibold' : received > 0 ? 'font-semibold' : undefined}>{formatCurrency(received)}</Td>
+        <Td label="">
           {schedule.status !== 'PAID' && (
             <Button variant="primary" size="sm" onClick={(e) => { e.stopPropagation(); setShowPay(true) }}>Record Payment</Button>
           )}
-        </td>
+        </Td>
       </tr>
 
       {showPay && <RecordPaymentDialog schedules={[schedule]} saleId={saleId} initialScheduleId={schedule.id} onClose={() => setShowPay(false)} />}

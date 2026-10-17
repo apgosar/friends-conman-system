@@ -155,6 +155,35 @@ export const DOCUMENT_STATUS: Record<string, StatusStyle> = {
   SENT:      { label: 'Sent',      badge: 'badge-success' },
 }
 
+// ── Construction milestones & KYC ──────────────────────────────────────────────
+
+export const MILESTONE_STATUS: Record<string, StatusStyle> = {
+  PENDING:     { label: 'Pending',     badge: 'badge-muted' },
+  IN_PROGRESS: { label: 'In progress', badge: 'badge-warning' },
+  COMPLETED:   { label: 'Completed',   badge: 'badge-success' },
+}
+
+export const KYC_STATUS: Record<string, StatusStyle> = {
+  UPLOADED: { label: 'Uploaded', badge: 'badge-warning' },
+  VERIFIED: { label: 'Verified', badge: 'badge-success' },
+  REJECTED: { label: 'Rejected', badge: 'badge-danger' },
+}
+
+// ── Projects ───────────────────────────────────────────────────────────────────
+
+export const PROJECT_STATUS: Record<string, StatusStyle> = {
+  PLANNING:           { label: 'Planning',           badge: 'badge-muted' },
+  UNDER_CONSTRUCTION: { label: 'Under construction', badge: 'badge-warning' },
+  READY:              { label: 'Ready',              badge: 'badge-info' },
+  COMPLETED:          { label: 'Completed',          badge: 'badge-success' },
+}
+
+export const PROJECT_TYPE: Record<string, StatusStyle> = {
+  FRESH:         { label: 'Fresh',         badge: 'badge-primary' },
+  REDEVELOPMENT: { label: 'Redevelopment', badge: 'badge-orange' },
+  MIXED:         { label: 'Mixed',         badge: 'badge-info' },
+}
+
 // ── Helpers ────────────────────────────────────────────────────────────────────
 
 const humanize = (s: string) => s.replace(/_/g, ' ').toLowerCase().replace(/\b\w/g, (c) => c.toUpperCase())

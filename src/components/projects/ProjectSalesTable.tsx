@@ -2,8 +2,7 @@
 
 import { useState } from 'react'
 import { formatCurrency } from '@/lib/format'
-import { saleStatusBadge, saleStatusLabel } from '@/lib/status'
-import { ButtonLink } from '@/components/ui'
+import { Badge, ButtonLink, Card, CardHeader, EmptyState, Input, StatusBadge, Table, Td } from '@/components/ui'
 
 export interface ProjectSaleRow {
   id: string
@@ -29,49 +28,49 @@ export default function ProjectSalesTable({ sales }: { sales: ProjectSaleRow[] }
   const rows = q || showAll ? matches : matches.slice(0, PREVIEW_COUNT)
 
   return (
-    <div className="card">
-      <div className="card-header wrap gap-3">
-        <span className="card-title">Sales in this Project</span>
-        <input
-          type="search"
-          placeholder="Search customer name or unit number"
-          aria-label="Search sales by customer name or unit number"
-          value={query}
-          onChange={(e) => setQuery(e.target.value)}
-          className="text-primary text-base" style={{ flex: '0 1 300px', padding: '8px 12px', borderRadius: 8, border: '1px solid var(--border-color)', background: 'var(--bg-surface)' }}
-        />
-      </div>
+    <Card>
+      <CardHeader
+        title="Sales in this Project"
+        actions={
+          <Input
+            type="search"
+            className="search-input"
+            placeholder="Search customer name or unit number"
+            aria-label="Search sales by customer name or unit number"
+            value={query}
+            onChange={(e) => setQuery(e.target.value)}
+          />
+        }
+      />
 
       {rows.length === 0 ? (
-        <div className="text-center p-8 text-muted">No sales match “{query}”.</div>
+        <EmptyState>No sales match “{query}”.</EmptyState>
       ) : (
-        <div className="table-wrapper" style={{ border: 'none' }}>
-          <table>
-            <thead><tr><th>Sale #</th><th>Unit</th><th>Buyer</th><th>Agreement Value</th><th>Status</th><th></th></tr></thead>
-            <tbody>
-              {rows.map((sale) => (
-                <tr key={sale.id}>
-                  <td><span className="badge badge-muted">{sale.saleNumber}</span></td>
-                  <td>{sale.unitNumber}</td>
-                  <td>{sale.buyerName ?? '—'}</td>
-                  <td className="font-semibold">{formatCurrency(sale.agreementValue)}</td>
-                  <td><span className={`badge ${saleStatusBadge(sale.status)}`}>{saleStatusLabel(sale.status)}</span></td>
-                  <td><ButtonLink href={`/sales/${sale.id}`} variant="ghost" size="sm">View →</ButtonLink></td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
+        <Table flush stack>
+          <thead><tr><th>Sale #</th><th>Unit</th><th>Buyer</th><th>Agreement Value</th><th>Status</th><th></th></tr></thead>
+          <tbody>
+            {rows.map((sale) => (
+              <tr key={sale.id}>
+                <Td label="Sale #"><Badge>{sale.saleNumber}</Badge></Td>
+                <Td label="Unit">{sale.unitNumber}</Td>
+                <Td label="Buyer">{sale.buyerName ?? '—'}</Td>
+                <Td label="Agreement value" className="font-semibold">{formatCurrency(sale.agreementValue)}</Td>
+                <Td label="Status"><StatusBadge kind="sale" status={sale.status} /></Td>
+                <Td label=""><ButtonLink href={`/sales/${sale.id}`} variant="ghost" size="sm">View →</ButtonLink></Td>
+              </tr>
+            ))}
+          </tbody>
+        </Table>
       )}
 
-      <div className="flex justify-between items-center text-sm text-muted" style={{ padding: '10px 4px 0' }}>
+      <div className="flex justify-between items-center text-sm text-muted pt-3">
         <span>{q ? `${matches.length} of ${sales.length} sales` : `Showing ${rows.length} of ${sales.length} sales`}</span>
         {!q && sales.length > PREVIEW_COUNT && (
-          <button type="button" onClick={() => setShowAll((v) => !v)} className="text-brand font-semibold cursor-pointer" style={{ background: 'none', border: 'none' }}>
+          <button type="button" onClick={() => setShowAll((v) => !v)} className="link-btn">
             {showAll ? 'Show fewer' : `Show all ${sales.length}`}
           </button>
         )}
       </div>
-    </div>
+    </Card>
   )
 }

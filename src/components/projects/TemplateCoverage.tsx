@@ -1,6 +1,6 @@
 import { TEMPLATE_TYPES, LETTERHEAD_TYPES } from '@/lib/template-constants'
 import { requiredTemplateTypes } from '@/lib/template-tags'
-import { ButtonLink } from '@/components/ui'
+import { Alert, ButtonLink, Card, cn } from '@/components/ui'
 
 interface Props {
   projectId: string
@@ -25,40 +25,37 @@ export default function TemplateCoverage({ projectId, projectType, templates, va
     if (missing.length === 0) return null
     const automatic = missing.filter((t) => LETTERHEAD_TYPES.includes(t))
     return (
-      <div className="alert alert-warning mb-6 flex justify-between items-center gap-3 wrap" role="alert">
-        <div>
-          <strong>Missing active template{missing.length > 1 ? 's' : ''}: {missing.map(labelOf).join(', ')}.</strong>
-          <div className="text-sm" style={{ marginTop: 2 }}>
+      <Alert variant="warning" className="mb-6" title={`Missing active template${missing.length > 1 ? 's' : ''}: ${missing.map(labelOf).join(', ')}`}>
+        <div className="flex justify-between items-center gap-3 wrap">
+          <div className="text-sm">
             {automatic.length > 0
               ? `${automatic.map(labelOf).join(' and ')} ${automatic.length > 1 ? 'are' : 'is'} generated automatically for buyers, so ${automatic.length > 1 ? 'they' : 'it'} will fail until a template is uploaded.`
               : 'Documents of this type can’t be generated until a template is uploaded.'}
           </div>
+          <ButtonLink href={`/projects/${projectId}/templates`} variant="secondary" size="sm">Add templates</ButtonLink>
         </div>
-        <ButtonLink href={`/projects/${projectId}/templates`} variant="secondary" size="sm">Add templates</ButtonLink>
-      </div>
+      </Alert>
     )
   }
 
   const optional = TEMPLATE_TYPES.map((t) => t.value as string).filter((t) => !required.includes(t))
   return (
-    <div className="card mb-6 p-4">
-      <div className="text-xs font-bold text-muted" style={{ textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: 10 }}>
-        Active templates
-      </div>
-      <div className="flex wrap" style={{ gap: 10 }}>
+    <Card className="mb-6 p-4">
+      <div className="label-caps mb-3">Active templates</div>
+      <div className="flex wrap gap-3">
         {[...required, ...optional].map((type) => {
           const t = active.get(type)
           const isRequired = required.includes(type)
           return (
-            <div key={type} className="text-sm" style={{ padding: '8px 12px', borderRadius: 8, border: `1px solid ${t ? 'var(--border-color)' : isRequired ? 'var(--color-danger, #ef4444)' : 'var(--border-color)'}`, background: 'var(--bg-surface)' }}>
+            <div key={type} className={cn('detail-tile text-sm', !t && isRequired && 'detail-tile-danger')}>
               <div className="font-semibold">{labelOf(type)}</div>
-              <div style={{ color: t ? 'var(--color-success)' : isRequired ? 'var(--color-danger, #ef4444)' : 'var(--text-muted)' }}>
+              <div className={t ? 'text-success' : isRequired ? 'text-danger' : 'text-muted'}>
                 {t ? `v${t.version} · ${t.fileUrl ? 'DOCX' : 'HTML'}` : isRequired ? 'Missing' : 'Not set (optional)'}
               </div>
             </div>
           )
         })}
       </div>
-    </div>
+    </Card>
   )
 }

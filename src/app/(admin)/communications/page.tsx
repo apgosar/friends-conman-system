@@ -103,7 +103,7 @@ export default function CommunicationsPage() {
 
         {loadError && <Alert variant="danger" className="mb-4">{loadError}</Alert>}
 
-        <div className="grid grid-4 gap-4 mb-6">
+        <div className="grid grid-stats gap-4 mb-6">
           <StatCard label="Total Messages" value={stats.total} />
           <StatCard label="Pending Dispatch" value={stats.pending} accent="var(--color-warning)" />
           <StatCard label="Successfully Sent" value={stats.sent} accent="var(--color-success)" />

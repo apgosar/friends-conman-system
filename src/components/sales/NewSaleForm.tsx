@@ -39,8 +39,7 @@ type ScheduleRow = { milestoneId: string; description: string; principalAmount: 
 const emptyBuyer = (): Buyer => ({ fullName: '', panNumber: '', aadhaarNumber: '', address: '', email: '', whatsappNumber: '' })
 
 // ─── Step indicator ──────────────────────────────────────────
-import { StepBar } from '@/components/ui/StepBar'
-import { Button, Input, Select, SelectField, TextField, Textarea, TextareaField } from '@/components/ui'
+import { Alert, Button, Input, Select, SelectField, StepBar, Table, TextField, TextareaField, cn } from '@/components/ui'
 import { formatCurrency } from '@/lib/format'
 
 // ─── Main Wizard ─────────────────────────────────────────────
@@ -323,8 +322,8 @@ export default function NewSaleWizard({ projects, prefill = null }: { projects: 
 
   // ── Render ────────────────────────────────────────────────
   return (
-    <div style={{ maxWidth: 860, margin: '0 auto' }}>
-        <StepBar step={step} steps={['Sale Details', 'Payment Plan', 'Agreement']} />
+    <div className="max-w-xl mx-auto">
+      <StepBar step={step} steps={['Sale Details', 'Payment Plan', 'Agreement']} />
 
       {/* ══════════════ STEP 1 ══════════════ */}
       {step === 1 && (
@@ -332,7 +331,7 @@ export default function NewSaleWizard({ projects, prefill = null }: { projects: 
           <div className="card-header">
             <span className="card-title">Sale Details</span>
           </div>
-          {error && <div className="alert alert-danger mb-4">{error}</div>}
+          {error && <Alert variant="danger" className="mb-4">{error}</Alert>}
 
           {/* Project & Unit */}
           <h4 className="mb-3">Project & Unit</h4>
@@ -356,7 +355,7 @@ export default function NewSaleWizard({ projects, prefill = null }: { projects: 
               {unitId && (() => {
                 const selectedUnit = selectedProject?.units.find((u: any) => u.id === unitId)
                 return selectedUnit ? (
-                  <div className="text-muted flex gap-3" style={{ marginTop: 6, fontSize: '0.8rem' }}>
+                  <div className="text-muted flex gap-3 text-sm mt-2">
                     <span>📐 Carpet Area: <strong>{selectedUnit.carpetAreaSqft} sqft</strong></span>
                     <span>(<strong>{(selectedUnit.carpetAreaSqft * 0.092903).toFixed(2)} sqm</strong>)</span>
                   </div>
@@ -378,25 +377,25 @@ export default function NewSaleWizard({ projects, prefill = null }: { projects: 
             <Button type="button" variant="ghost" size="sm" onClick={addBuyer}>+ Add Co-owner</Button>
           </div>
           {buyers.map((buyer, idx) => (
-            <div key={idx} className="mb-4 relative" style={{ border: '1px solid var(--border-color)', borderRadius: 10, padding: '16px 20px' }}>
+            <div key={idx} className="panel mb-4 relative">
               <div className="flex justify-between items-center mb-3">
                 <span className="font-semibold text-base text-secondary">
                   {idx === 0 ? '👤 Primary Buyer' : `👤 Co-owner ${idx + 1}`}
                 </span>
                 {idx > 0 && (
-                  <Button type="button" className="text-danger" variant="ghost" size="sm" onClick={() => removeBuyer(idx)}>
+                  <Button variant="danger" size="sm" onClick={() => removeBuyer(idx)}>
                     Remove
                   </Button>
                 )}
               </div>
 
               {/* KYC Auto-fill Section */}
-              <div className="flex gap-3 mb-4 p-3 items-center wrap" style={{ background: 'var(--bg-muted, #f1f5f9)', borderRadius: 8 }}>
-                <span className="text-base font-medium text-secondary flex items-center" style={{ gap: 6 }}>
+              <div className="flex gap-3 mb-4 p-3 items-center wrap card-flat">
+                <span className="text-base font-medium text-secondary flex items-center gap-2">
                   ✨ Auto-fill via KYC
                   {extractingKyc?.startsWith(`${idx}-`) && <span className="text-brand"> (Extracting...)</span>}
                 </span>
-                <label className="btn btn-ghost btn-sm cursor-pointer" style={{ border: '1px solid var(--border-color)', background: 'var(--bg-card)' }}>
+                <label className="btn btn-ghost btn-sm file-btn">
                   Upload PAN
                   <input type="file" hidden accept="image/*" onChange={(e) => {
                     const file = e.target.files?.[0]
@@ -404,7 +403,7 @@ export default function NewSaleWizard({ projects, prefill = null }: { projects: 
                     e.target.value = '' // reset
                   }} />
                 </label>
-                <label className="btn btn-ghost btn-sm cursor-pointer" style={{ border: '1px solid var(--border-color)', background: 'var(--bg-card)' }}>
+                <label className="btn btn-ghost btn-sm file-btn">
                   Upload Aadhaar
                   <input type="file" hidden accept="image/*" onChange={(e) => {
                     const file = e.target.files?.[0]
@@ -413,7 +412,7 @@ export default function NewSaleWizard({ projects, prefill = null }: { projects: 
                   }} />
                 </label>
                 {kycMessage?.idx === idx && (
-                  <div className="w-full mt-1" style={{ fontSize: '0.85rem', color: kycMessage.type === 'success' ? 'var(--color-success, #16a34a)' : 'var(--color-danger, #dc2626)' }}>
+                  <div className={`w-full mt-1 text-sm ${kycMessage.type === 'success' ? 'text-success' : 'text-danger'}`} role={kycMessage.type === 'success' ? 'status' : 'alert'}>
                     {kycMessage.type === 'success' ? '✅ ' : '❌ '} {kycMessage.text}
                   </div>
                 )}
@@ -421,47 +420,33 @@ export default function NewSaleWizard({ projects, prefill = null }: { projects: 
 
               <div className="grid grid-2 gap-4 mb-3">
                 <TextField label="Full Name" value={buyer.fullName} required onChange={e => updateBuyer(idx, 'fullName', e.target.value)} placeholder="John Doe" />
-                <div className="form-group">
-                  <label className="form-label">PAN Number *</label>
-                  <Input
-                    value={buyer.panNumber}
-                    required
-                    onChange={e => updateBuyer(idx, 'panNumber', e.target.value.toUpperCase().replace(/[^A-Z0-9]/g, ''))}
-                    placeholder="ABCDE1234F"
-                    maxLength={10}
-                    style={buyer.panNumber && validatePan(buyer.panNumber) ? { borderColor: 'var(--color-warning, #f59e0b)' } : {}}
-                  />
-                  {buyer.panNumber && validatePan(buyer.panNumber) && (
-                    <div className="text-xs mt-1" style={{ color: 'var(--color-warning, #f59e0b)' }}>⚠ {validatePan(buyer.panNumber)}</div>
-                  )}
-                </div>
-                <div className="form-group">
-                  <label className="form-label">Aadhaar Number</label>
-                  <Input
-                    value={buyer.aadhaarNumber}
-                    onChange={e => updateBuyer(idx, 'aadhaarNumber', formatAadhaar(e.target.value))}
-                    placeholder="XXXX XXXX XXXX"
-                    maxLength={14}
-                    inputMode="numeric"
-                    style={buyer.aadhaarNumber && validateAadhaar(buyer.aadhaarNumber) ? { borderColor: 'var(--color-warning, #f59e0b)' } : {}}
-                  />
-                  {buyer.aadhaarNumber && validateAadhaar(buyer.aadhaarNumber) && (
-                    <div className="text-xs mt-1" style={{ color: 'var(--color-warning, #f59e0b)' }}>⚠ {validateAadhaar(buyer.aadhaarNumber)}</div>
-                  )}
-                </div>
-                <div className="form-group">
-                  <label className="form-label">Email ID</label>
-                  <Input
-                    type="email"
-                    value={buyer.email}
-                    onChange={e => updateBuyer(idx, 'email', e.target.value)}
-                    placeholder="john@example.com"
-                    style={buyer.email && validateEmail(buyer.email) ? { borderColor: 'var(--color-warning, #f59e0b)' } : {}}
-                  />
-                  {buyer.email && validateEmail(buyer.email) && (
-                    <div className="text-xs mt-1" style={{ color: 'var(--color-warning, #f59e0b)' }}>⚠ {validateEmail(buyer.email)}</div>
-                  )}
-                </div>
+                <TextField
+                  label="PAN number"
+                  required
+                  value={buyer.panNumber}
+                  onChange={e => updateBuyer(idx, 'panNumber', e.target.value.toUpperCase().replace(/[^A-Z0-9]/g, ''))}
+                  placeholder="ABCDE1234F"
+                  maxLength={10}
+                  autoCapitalize="characters"
+                  error={buyer.panNumber ? validatePan(buyer.panNumber) || undefined : undefined}
+                />
+                <TextField
+                  label="Aadhaar number"
+                  value={buyer.aadhaarNumber}
+                  onChange={e => updateBuyer(idx, 'aadhaarNumber', formatAadhaar(e.target.value))}
+                  placeholder="XXXX XXXX XXXX"
+                  maxLength={14}
+                  inputMode="numeric"
+                  error={buyer.aadhaarNumber ? validateAadhaar(buyer.aadhaarNumber) || undefined : undefined}
+                />
+                <TextField
+                  label="Email"
+                  type="email"
+                  value={buyer.email}
+                  onChange={e => updateBuyer(idx, 'email', e.target.value)}
+                  placeholder="john@example.com"
+                  error={buyer.email ? validateEmail(buyer.email) || undefined : undefined}
+                />
                 <TextField label="WhatsApp" value={buyer.whatsappNumber} onChange={e => updateBuyer(idx, 'whatsappNumber', e.target.value)} placeholder="+91 98765 43210" />
               </div>
               <TextareaField label="Address" rows={2} value={buyer.address} onChange={e => updateBuyer(idx, 'address', e.target.value)} />
@@ -481,10 +466,10 @@ export default function NewSaleWizard({ projects, prefill = null }: { projects: 
           {/* Car Parking */}
           <div className="form-group mb-5">
             <label className="form-label">Car Parking</label>
-            <div className="flex gap-3" style={{ marginTop: 6 }}>
+            <div className="flex gap-3 mt-2" role="radiogroup" aria-label="Car parking">
               {(['Yes', 'No'] as const).map(opt => (
-                <label key={opt} className="flex items-center gap-2 cursor-pointer" style={{ padding: '10px 20px', borderRadius: 8, border: `2px solid ${(opt === 'Yes') === carParking ? 'var(--color-primary)' : 'var(--border-color)'}`, background: (opt === 'Yes') === carParking ? 'var(--color-primary-light, #ede9fe)' : 'transparent', fontWeight: (opt === 'Yes') === carParking ? 600 : 400 }}>
-                  <input type="radio" checked={(opt === 'Yes') === carParking} onChange={() => setCarParking(opt === 'Yes')} style={{ accentColor: 'var(--color-primary)' }} />
+                <label key={opt} className={cn('radio-card', (opt === 'Yes') === carParking && 'is-selected')}>
+                  <input type="radio" name="car-parking" checked={(opt === 'Yes') === carParking} onChange={() => setCarParking(opt === 'Yes')} />
                   {opt}
                 </label>
               ))}
@@ -504,8 +489,8 @@ export default function NewSaleWizard({ projects, prefill = null }: { projects: 
           </div>
 
           {/* Cost summary */}
-          <div className="mb-6" style={{ background: 'var(--bg-muted, #f8f9fa)', borderRadius: 10, padding: '16px 20px', border: '1px solid var(--border-color)' }}>
-            <div className="font-semibold text-base" style={{ marginBottom: 10 }}>Estimated Costs</div>
+          <div className="panel mb-6">
+            <div className="font-semibold text-base mb-3">Estimated Costs</div>
             {[
               ['Agreement Value', agreementValue],
               [`GST (${pricing.gstRatePercent}%)`, gst],
@@ -518,7 +503,7 @@ export default function NewSaleWizard({ projects, prefill = null }: { projects: 
                 <span className="font-medium">{fmt(Number(amount))}</span>
               </div>
             ))}
-            <div className="pt-2 flex justify-between font-bold" style={{ borderTop: '1px solid var(--border-color)', marginTop: 6 }}>
+            <div className="pt-2 mt-2 flex justify-between font-bold border-top">
               <span>Total Payable</span>
               <span className="text-brand">{fmt(agreementValue + gst + stampDuty + regCharges + (carParking ? parkingCost : 0))}</span>
             </div>
@@ -539,13 +524,12 @@ export default function NewSaleWizard({ projects, prefill = null }: { projects: 
             <span className="card-title">Payment Plan</span>
             <Button variant="ghost" size="sm" onClick={() => setStep(1)}>← Back</Button>
           </div>
-          {error && <div className="alert alert-danger mb-4">{error}</div>}
+          {error && <Alert variant="danger" className="mb-4">{error}</Alert>}
           <p className="text-base text-muted mb-5">
             Review the milestone-based payment schedule below. Amounts are pre-calculated from the project&apos;s payment plan and your Agreement Value. You may adjust them before confirming.
           </p>
 
-          <div className="table-wrapper mb-4" style={{ border: 'none' }}>
-            <table>
+          <div className="mb-4"><Table flush>
               <thead>
                 <tr>
                   <th>#</th>
@@ -561,20 +545,22 @@ export default function NewSaleWizard({ projects, prefill = null }: { projects: 
                   const rowTotal = row.principalAmount + row.gstAmount
                   return (
                     <tr key={idx}>
-                      <td className="text-muted" style={{ fontSize: '0.8rem' }}>{idx + 1}</td>
+                      <td className="text-muted text-sm">{idx + 1}</td>
                       <td>
                         <div className="font-medium">{row.description}</div>
                         {row.percentOfAV === undefined && (
-                          <div className="text-xs text-muted" style={{ marginTop: 2 }}>Excluded from milestone %</div>
+                          <div className="text-xs text-muted">Excluded from milestone %</div>
                         )}
                       </td>
                       <td className="text-right">
                         {row.percentOfAV !== undefined ? (
                           <div className="flex items-center justify-end gap-1">
                             <Input
+                              small
                               type="number"
-                              className="text-right text-base"
-                              style={{ width: 70, padding: '4px 8px' }}
+                              inputMode="decimal"
+                              aria-label={`Milestone ${idx + 1} percentage`}
+                              className="num-input text-right"
                               value={row.percentOfAV}
                               onChange={e => updateSchedulePercent(idx, Number(e.target.value) || 0)}
                             />
@@ -586,15 +572,17 @@ export default function NewSaleWizard({ projects, prefill = null }: { projects: 
                       </td>
                       <td className="text-right">
                         <Input
+                          small
                           type="number"
-                          className="text-right text-base"
-                          style={{ width: 130, padding: '4px 8px' }}
+                          inputMode="decimal"
+                          aria-label={`Milestone ${idx + 1} amount`}
+                          className="amount-input text-right"
                           value={row.principalAmount}
                           onChange={e => updateScheduleAmount(idx, Number(e.target.value) || 0)}
                         />
                       </td>
                       <td className="text-right text-muted">
-                        {row.gstAmount > 0 ? fmt(row.gstAmount) : <span className="text-muted" style={{ fontSize: '0.8rem' }}>—</span>}
+                        {row.gstAmount > 0 ? fmt(row.gstAmount) : <span className="text-muted text-sm">—</span>}
                       </td>
                       <td className="text-right font-semibold">{fmt(rowTotal)}</td>
                     </tr>
@@ -602,24 +590,22 @@ export default function NewSaleWizard({ projects, prefill = null }: { projects: 
                 })}
               </tbody>
               <tfoot>
-                <tr className="font-bold" style={{ borderTop: '2px solid var(--border-color)' }}>
+                <tr className="font-bold">
                   <td colSpan={3} className="text-right pt-3">TOTALS</td>
                   <td className="text-right pt-3">{fmt(totalPrincipal)}</td>
                   <td className="text-right pt-3">{fmt(totalGst)}</td>
                   <td className="text-right pt-3 text-brand text-md">{fmt(grandTotal)}</td>
                 </tr>
               </tfoot>
-            </table>
-          </div>
+          </Table></div>
 
           {!isValidPlan && (
-            <div className="mb-4 text-base" style={{ background: '#fef2f2', border: '1px solid #fca5a5', color: '#b91c1c', padding: '12px 16px', borderRadius: 8 }}>
-              <strong>Warning:</strong> The milestone payment plan does not match the Agreement Value ({fmt(agreementValue)}).
+            <Alert variant="danger" className="mb-4" title={`The milestone payment plan does not match the agreement value (${fmt(agreementValue)})`}>
               <ul className="mt-2 pl-5 mb-0">
-                {totalPercent !== 100 && <li>Total percentage is {totalPercent}%, but must equal exactly 100%.</li>}
-                {totalMilestoneAmount !== agreementValue && <li>Total milestone amount is {fmt(totalMilestoneAmount)}, but must equal exactly {fmt(agreementValue)}.</li>}
+                {totalPercent !== 100 && <li>The percentages total {totalPercent}%. They must total exactly 100%.</li>}
+                {totalMilestoneAmount !== agreementValue && <li>The milestone amounts total {fmt(totalMilestoneAmount)}. They must total exactly {fmt(agreementValue)}.</li>}
               </ul>
-            </div>
+            </Alert>
           )}
 
           <div className="flex justify-end gap-3">
@@ -637,21 +623,20 @@ export default function NewSaleWizard({ projects, prefill = null }: { projects: 
           <div className="card-header">
             <span className="card-title">Generate Agreement</span>
           </div>
-          {error && <div className="alert alert-danger mb-4">{error}</div>}
+          {error && <Alert variant="danger" className="mb-4">{error}</Alert>}
 
           {!generatedDoc ? (
-            <div className="text-center" style={{ padding: '40px 24px' }}>
-              <div className="mb-4" style={{ fontSize: 64 }}>🎉</div>
+            <div className="centered-panel">
+              <div className="big-emoji mb-4" aria-hidden="true">🎉</div>
               <h2 className="mb-2">Sale Created Successfully!</h2>
               <p className="text-muted mb-8">
                 The sale has been recorded with all {schedules.length} payment milestones. Now generate the agreement document.
               </p>
               <Button
                 type="button"
-                className="text-md" variant="primary"
-                style={{ padding: '14px 32px' }}
+                size="lg" variant="primary"
                 onClick={generateAgreement}
-                disabled={generating}
+                loading={generating}
               >
                 {generating ? 'Generating...' : saleType === 'FRESH' ? '📄 Generate Sale Agreement (DOCX)' : '📄 Generate PAAA (DOCX)'}
               </Button>
@@ -662,8 +647,8 @@ export default function NewSaleWizard({ projects, prefill = null }: { projects: 
               </div>
             </div>
           ) : (
-            <div className="text-center" style={{ padding: '40px 24px' }}>
-              <div className="mb-4" style={{ fontSize: 64 }}>✅</div>
+            <div className="centered-panel">
+              <div className="big-emoji mb-4" aria-hidden="true">✅</div>
               <h2 className="mb-2">Agreement Generated!</h2>
               <p className="text-muted mb-8">
                 Your {saleType === 'FRESH' ? 'Sale Agreement' : 'PAAA'} has been generated and saved.
@@ -675,7 +660,7 @@ export default function NewSaleWizard({ projects, prefill = null }: { projects: 
                   type="button"
                   onClick={() => window.open(`/documents/preview?url=${encodeURIComponent(generatedDoc.pdfUrl)}`, '_blank')}
                   variant="secondary"
-                  style={{ fontSize: '0.95rem', padding: '12px 28px' }}
+                  size="lg"
                 >
                   👁 Preview in Browser
                 </Button>
@@ -684,8 +669,7 @@ export default function NewSaleWizard({ projects, prefill = null }: { projects: 
                 <a
                   href={generatedDoc.pdfUrl}
                   download
-                  className="btn btn-primary"
-                  style={{ fontSize: '0.95rem', padding: '12px 28px' }}
+                  className="btn btn-primary btn-lg"
                 >
                   ⬇ Download Word File
                 </a>

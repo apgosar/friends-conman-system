@@ -2,7 +2,8 @@
 
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
-import { Button } from '@/components/ui'
+import { Alert, Button, Modal, SelectField } from '@/components/ui'
+import { errorMessage, fetchJson, jsonRequest } from '@/lib/client/api'
 
 export default function CopyTemplateButton({ projectId, templateId, projects }: {
   projectId: string
@@ -22,15 +23,11 @@ export default function CopyTemplateButton({ projectId, templateId, projects }: 
     setBusy(true)
     setError('')
     try {
-      const res = await fetch(`/api/projects/${projectId}/templates/${templateId}/copy`, {
-        method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ targetProjectId: target }),
-      })
-      const json = await res.json().catch(() => ({}))
-      if (!res.ok) throw new Error(json.error || 'Could not copy template')
+      const json = await fetchJson(`/api/projects/${projectId}/templates/${templateId}/copy`, jsonRequest('POST', { targetProjectId: target }))
       setDone({ project: json.targetProjectName, activated: json.activated })
       router.refresh()
-    } catch (err: any) {
-      setError(err.message)
+    } catch (err) {
+      setError(errorMessage(err))
     } finally {
       setBusy(false)
     }
@@ -38,43 +35,40 @@ export default function CopyTemplateButton({ projectId, templateId, projects }: 
 
   return (
     <>
-      <Button type="button" variant="ghost" size="sm" disabled={projects.length === 0} title={projects.length === 0 ? 'No other projects to copy to' : 'Copy to another project'} onClick={() => setOpen(true)}>
+      <Button variant="ghost" size="sm" disabled={projects.length === 0} title={projects.length === 0 ? 'No other projects to copy to' : 'Copy to another project'} onClick={() => setOpen(true)}>
         Copy
       </Button>
 
       {open && (
-        <div className="flex items-center justify-center" style={{ position: 'fixed', inset: 0, zIndex: 1000 }}>
-          <div style={{ position: 'absolute', inset: 0, background: 'rgba(0,0,0,0.5)', backdropFilter: 'blur(2px)' }} onClick={close} />
-          <div className="relative w-full overflow-hidden" style={{ background: 'var(--bg-card)', maxWidth: 440, borderRadius: 12, border: '1px solid var(--border-color)', boxShadow: 'var(--shadow-xl)' }}>
-            <div className="font-semibold" style={{ padding: '16px 20px', borderBottom: '1px solid var(--border-color)', background: 'var(--bg-surface)' }}>Copy template to another project</div>
-            <div className="p-5">
-              {done ? (
-                <p className="m-0" style={{ fontSize: '0.9rem' }}>
-                  Copied to <b>{done.project}</b>.{' '}
-                  {done.activated
-                    ? 'It had no template of this type, so the copy is now its active template.'
-                    : 'That project already has an active template of this type, so the copy was added as an inactive version. Activate it there when you are ready.'}
-                </p>
-              ) : (
-                <>
-                  <label className="block text-sm font-medium text-secondary" style={{ marginBottom: 6 }}>Target project</label>
-                  <select value={target} onChange={(e) => setTarget(e.target.value)} className="w-full text-primary" style={{ padding: '10px 14px', borderRadius: 8, border: '1px solid var(--border-color)', background: 'var(--bg-surface)' }}>
-                    <option value="">— Select a project —</option>
-                    {projects.map((p) => <option key={p.id} value={p.id}>{p.name}</option>)}
-                  </select>
-                  <p className="text-xs text-muted" style={{ margin: '10px 0 0' }}>
-                    The copy becomes active only if that project has no template of this type yet. It never replaces a live one.
-                  </p>
-                  {error && <div role="alert" className="text-danger text-sm" style={{ marginTop: 10 }}>{error}</div>}
-                </>
-              )}
-              <div className="flex justify-end" style={{ gap: 10, marginTop: 18 }}>
-                <Button type="button" variant="secondary" onClick={close}>{done ? 'Close' : 'Cancel'}</Button>
-                {!done && <Button type="button" variant="primary" disabled={!target || busy} onClick={copy}>{busy ? 'Copying…' : 'Copy'}</Button>}
-              </div>
+        <Modal
+          title="Copy template to another project"
+          size="sm"
+          dismissible={!busy}
+          onClose={close}
+          footer={
+            <>
+              <Button onClick={close}>{done ? 'Close' : 'Cancel'}</Button>
+              {!done && <Button variant="primary" loading={busy} disabled={!target} onClick={copy}>Copy</Button>}
+            </>
+          }
+        >
+          {done ? (
+            <p className="m-0">
+              Copied to <b>{done.project}</b>.{' '}
+              {done.activated
+                ? 'It had no template of this type, so the copy is now its active template.'
+                : 'That project already has an active template of this type, so the copy was added as an inactive version. Activate it there when you are ready.'}
+            </p>
+          ) : (
+            <div className="flex dir-col gap-3">
+              <SelectField label="Target project" value={target} onChange={(e) => setTarget(e.target.value)} hint="The copy becomes active only if that project has no template of this type yet. It never replaces a live one.">
+                <option value="">Select a project…</option>
+                {projects.map((p) => <option key={p.id} value={p.id}>{p.name}</option>)}
+              </SelectField>
+              {error && <Alert variant="danger">{error}</Alert>}
             </div>
-          </div>
-        </div>
+          )}
+        </Modal>
       )}
     </>
   )

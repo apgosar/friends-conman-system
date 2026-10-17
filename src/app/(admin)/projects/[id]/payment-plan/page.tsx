@@ -3,6 +3,8 @@ import { notFound } from 'next/navigation'
 import TopNav from '@/components/layout/TopNav'
 import BackToProject from '@/components/projects/BackToProject'
 import PaymentPlanEditor from '@/components/projects/PaymentPlanEditor'
+import { PageHeader } from '@/components/ui'
+import { plain } from '@/lib/plain'
 
 export default async function ProjectPaymentPlanPage(props: PageProps<'/projects/[id]/payment-plan'>) {
   const { id } = await props.params
@@ -19,16 +21,8 @@ export default async function ProjectPaymentPlanPage(props: PageProps<'/projects
     <>
       <TopNav title="Payment Plan" subtitle={project.name} />
       <div className="admin-content">
-        <div className="page-header">
-          <div>
-            <h1 className="page-title">Payment Plan</h1>
-            <p className="page-subtitle">
-              Define the percentage of Agreement Value due at each construction milestone
-            </p>
-          </div>
-          <BackToProject projectId={id} />
-        </div>
-        <PaymentPlanEditor projectId={id} milestones={project.milestones} />
+        <PageHeader title="Payment Plan" subtitle="Define the percentage of Agreement Value due at each construction milestone" actions={<BackToProject projectId={id} />} />
+        <PaymentPlanEditor projectId={id} milestones={plain(project.milestones)} />
       </div>
     </>
   )

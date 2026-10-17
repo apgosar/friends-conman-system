@@ -30,6 +30,12 @@
 .shrink-0 { flex-shrink: 0; }
 .min-w-0 { min-width: 0; }
 .w-full { width: 100%; }
+.justify-self-start { justify-self: start; }
+/* fixed column widths for table headers */
+.col-xs { width: 3rem; }
+.col-sm { width: 5rem; }
+.col-md { width: 8rem; }
+.col-lg { width: 11rem; }
 .h-full { height: 100%; }
 .relative { position: relative; }
 .overflow-hidden { overflow: hidden; }
@@ -40,6 +46,8 @@
 .grid-2 { grid-template-columns: repeat(2, minmax(0, 1fr)); }
 .grid-3 { grid-template-columns: repeat(3, minmax(0, 1fr)); }
 .grid-4 { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+.grid-stats { grid-template-columns: repeat(4, minmax(0, 1fr)); } /* headline numbers: two across on a tablet or phone, never a single long column */
+.grid-side { grid-template-columns: minmax(0, 1fr) minmax(0, 2fr); } /* narrow actions column + wide content column */
 .grid-auto { grid-template-columns: repeat(auto-fill, minmax(240px, 1fr)); }
 .stack { display: flex; flex-direction: column; gap: var(--space-4); }
 .stack-sm { display: flex; flex-direction: column; gap: var(--space-2); }
@@ -183,3 +191,8 @@
 
 /* ── Misc ── */
 .divider { height: 1px; background: var(--border-color); margin: var(--space-4) 0; }
+
+.border-top { border-top: 1px solid var(--border-color); }
+
+/* Grid children may shrink below their content, so wide content (code, tables) scrolls inside its card instead of stretching the page */
+.grid > * { min-width: 0; }

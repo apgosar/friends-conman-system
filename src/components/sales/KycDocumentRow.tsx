@@ -3,20 +3,22 @@
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { formatDate } from '@/lib/format'
-import { Button } from '@/components/ui'
+import { Button, StatusBadge, Td, useToast } from '@/components/ui'
+import { errorMessage, fetchJson } from '@/lib/client/api'
 
 export default function KycDocumentRow({ doc }: { doc: any }) {
   const router = useRouter()
+  const toast = useToast()
   const [loading, setLoading] = useState(false)
 
   const handleVerify = async () => {
     setLoading(true)
     try {
-      const res = await fetch(`/api/kyc/${doc.id}/verify`, { method: 'POST' })
-      if (!res.ok) throw new Error('Failed to verify')
+      await fetchJson(`/api/kyc/${doc.id}/verify`, { method: 'POST' })
+      toast.success('Document verified')
       router.refresh()
     } catch (err) {
-      alert(err)
+      toast.error(errorMessage(err))
     } finally {
       setLoading(false)
     }
@@ -24,29 +26,15 @@ export default function KycDocumentRow({ doc }: { doc: any }) {
 
   return (
     <tr>
-      <td className="font-medium">{doc.docType.replace(/_/g, ' ')}</td>
-      <td>
-        <span className={`badge ${doc.status === 'VERIFIED' ? 'badge-success' : doc.status === 'REJECTED' ? 'badge-danger' : 'badge-warning'}`}>
-          {doc.status}
-        </span>
-      </td>
-      <td className="text-muted">{formatDate(doc.createdAt)}</td>
-      <td>
+      <Td label="Document" className="font-medium">{doc.docType.replace(/_/g, ' ')}</Td>
+      <Td label="Status"><StatusBadge kind="kyc" status={doc.status} /></Td>
+      <Td label="Uploaded" className="text-muted">{formatDate(doc.createdAt)}</Td>
+      <Td label="">
         <div className="flex gap-2">
-          <a href={doc.fileUrl} target="_blank" rel="noreferrer" className="btn btn-ghost btn-sm">
-            View
-          </a>
-          {doc.status !== 'VERIFIED' && (
-            <Button 
-              variant="secondary" size="sm" 
-              onClick={handleVerify}
-              disabled={loading}
-            >
-              {loading ? '...' : 'Verify'}
-            </Button>
-          )}
+          <a href={doc.fileUrl} target="_blank" rel="noreferrer" className="btn btn-ghost btn-sm">View</a>
+          {doc.status !== 'VERIFIED' && <Button size="sm" loading={loading} onClick={handleVerify}>Verify</Button>}
         </div>
-      </td>
+      </Td>
     </tr>
   )
 }

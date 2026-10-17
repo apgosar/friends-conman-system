@@ -4,7 +4,7 @@ import { useState, FormEvent } from 'react'
 import { useRouter } from 'next/navigation'
 import TopNav from '@/components/layout/TopNav'
 import PricingFields from '@/components/projects/PricingFields'
-import { Button, Input, Select, SelectField, TextField, Textarea, TextareaField } from '@/components/ui'
+import { Alert, Button, SelectField, TextField, TextareaField } from '@/components/ui'
 
 export default function NewProjectPage() {
   const router = useRouter()
@@ -35,12 +35,12 @@ export default function NewProjectPage() {
     <>
       <TopNav title="New Project" subtitle="Set up a new property project" />
       <div className="admin-content">
-        <div style={{ maxWidth: 720, margin: '0 auto' }}>
+        <div className="max-w-md mx-auto">
           <div className="card">
             <div className="card-header">
               <span className="card-title">Project Details</span>
             </div>
-            {error && <div className="alert alert-danger mb-4">{error}</div>}
+            {error && <Alert variant="danger" className="mb-4">{error}</Alert>}
             <form onSubmit={handleSubmit}>
               <div className="grid grid-2 gap-4 mb-4">
                 <TextField label="Project Name" name="name" required placeholder="Sunrise Heights" />
@@ -50,7 +50,7 @@ export default function NewProjectPage() {
                 <TextField label="State" name="state" defaultValue="Maharashtra" />
                 <SelectField label="Status" name="status"><option value="PLANNING">Planning</option><option value="UNDER_CONSTRUCTION">Under Construction</option><option value="READY">Ready</option><option value="COMPLETED">Completed</option></SelectField>
               </div>
-              <TextareaField label="Project Address" wrapperClassName="mb-4" name="address" required placeholder="Plot No. 45, Survey No. 123, Andheri East..." style={{ minHeight: 80 }} />
+              <TextareaField label="Project Address" wrapperClassName="mb-4" name="address" required placeholder="Plot No. 45, Survey No. 123, Andheri East..." rows={3} />
               <div className="grid grid-2 gap-4 mb-4">
                 <TextField label="Launch Date" name="launchDate" type="date" />
                 <TextField label="Expected Completion" name="expectedCompletion" type="date" />
@@ -61,10 +61,10 @@ export default function NewProjectPage() {
                 <TextField label="Company Name" name="companyName" required placeholder="Your company's registered name" />
                 <TextField label="GSTIN" name="companyGstin" placeholder="27AAAAA0000A1Z5" />
               </div>
-              <h4 style={{ margin: '8px 0 4px' }}>Tax and pricing</h4>
+              <h4 className="mt-2 mb-1">Tax and pricing</h4>
               <p className="form-hint mb-3">Defaults suit Maharashtra. Change them if this project&apos;s state or year differs; you can edit them later.</p>
               <PricingFields />
-              <TextareaField label="Company Address" wrapperClassName="mb-6" name="companyAddress" required placeholder="Office No. 501, XYZ Building..." style={{ minHeight: 80 }} />
+              <TextareaField label="Company Address" wrapperClassName="mb-6" name="companyAddress" required placeholder="Office No. 501, XYZ Building..." rows={3} />
               <div className="flex justify-end gap-3">
                 <Button type="button" variant="secondary" onClick={() => router.back()}>Cancel</Button>
                 <Button type="submit" variant="primary" disabled={loading} id="create-project-btn">

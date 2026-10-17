@@ -5,7 +5,8 @@ import { signOut, useSession } from 'next-auth/react'
 import TopNav from '@/components/layout/TopNav'
 import { PASSWORD_RULES } from '@/lib/password-rules'
 import { ROLE_LABELS, normalizeRole } from '@/lib/roles'
-import { Button, Input } from '@/components/ui'
+import { Alert, Button, Card, TextField } from '@/components/ui'
+import { errorMessage, fetchJson, jsonRequest } from '@/lib/client/api'
 
 export default function AccountPage() {
   const { data: session } = useSession()
@@ -22,16 +23,12 @@ export default function AccountPage() {
     if (newPassword !== confirmPassword) return setError('The two new passwords do not match')
     setBusy(true)
     try {
-      const res = await fetch('/api/account/password', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ currentPassword, newPassword }),
-      })
-      const json = await res.json().catch(() => ({}))
-      if (!res.ok) return setError(json.error || 'Could not change the password')
+      await fetchJson('/api/account/password', jsonRequest('POST', { currentPassword, newPassword }))
       setDone(true)
       // Every session ends when the password changes; go to the sign-in page rather than wait for a failed request
       setTimeout(() => signOut({ callbackUrl: '/login' }), 2500)
+    } catch (err) {
+      setError(errorMessage(err))
     } finally {
       setBusy(false)
     }
@@ -41,7 +38,7 @@ export default function AccountPage() {
     <>
       <TopNav title="My Account" subtitle="Your sign-in details" />
       <div className="admin-content">
-        <div className="card" style={{ maxWidth: 480 }}>
+        <Card className="max-w-md">
           {session?.user && (
             <div className="mb-5">
               <div className="font-semibold">{session.user.name}</div>
@@ -51,27 +48,17 @@ export default function AccountPage() {
 
           <h2 className="card-title mb-3">Change password</h2>
           {done ? (
-            <div className="alert alert-success">Password changed. You are being signed out so you can sign in with the new one…</div>
+            <Alert variant="success">Password changed. You are being signed out so you can sign in with the new one…</Alert>
           ) : (
             <form onSubmit={handleSubmit} className="flex dir-col gap-4">
-              {error && <div className="alert alert-danger">{error}</div>}
-              <div className="form-group">
-                <label className="form-label" htmlFor="current-password">Current password</label>
-                <Input id="current-password" type="password" autoComplete="current-password" value={currentPassword} onChange={(e) => setCurrentPassword(e.target.value)} required />
-              </div>
-              <div className="form-group">
-                <label className="form-label" htmlFor="new-password">New password</label>
-                <Input id="new-password" type="password" autoComplete="new-password" value={newPassword} onChange={(e) => setNewPassword(e.target.value)} required />
-                <span className="form-hint">{PASSWORD_RULES}</span>
-              </div>
-              <div className="form-group">
-                <label className="form-label" htmlFor="confirm-password">Confirm new password</label>
-                <Input id="confirm-password" type="password" autoComplete="new-password" value={confirmPassword} onChange={(e) => setConfirmPassword(e.target.value)} required />
-              </div>
-              <Button type="submit" variant="primary" disabled={busy}>{busy ? 'Saving…' : 'Change password'}</Button>
+              {error && <Alert variant="danger">{error}</Alert>}
+              <TextField label="Current password" type="password" autoComplete="current-password" value={currentPassword} onChange={(e) => setCurrentPassword(e.target.value)} required />
+              <TextField label="New password" type="password" autoComplete="new-password" value={newPassword} onChange={(e) => setNewPassword(e.target.value)} hint={PASSWORD_RULES} required />
+              <TextField label="Confirm new password" type="password" autoComplete="new-password" value={confirmPassword} onChange={(e) => setConfirmPassword(e.target.value)} required />
+              <Button type="submit" variant="primary" loading={busy}>Change password</Button>
             </form>
           )}
-        </div>
+        </Card>
       </div>
     </>
   )

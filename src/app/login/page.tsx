@@ -4,7 +4,8 @@ import { useState, FormEvent } from 'react'
 import { signIn } from 'next-auth/react'
 import { useRouter } from 'next/navigation'
 import { buildTitle, versionLabel } from '@/lib/version'
-import { Button, Input } from '@/components/ui'
+import { ERROR_KINDS } from '@/lib/errors'
+import { Alert, Button, TextField } from '@/components/ui'
 
 export default function LoginPage() {
   const router = useRouter()
@@ -17,162 +18,43 @@ export default function LoginPage() {
     e.preventDefault()
     setError('')
     setLoading(true)
-    const res = await signIn('credentials', {
-      email,
-      password,
-      redirect: false,
-    })
+    const res = await signIn('credentials', { email, password, redirect: false })
     setLoading(false)
     if (res?.code === 'too_many_attempts') {
-      setError('Too many attempts. Please wait a few minutes before trying again.')
+      setError(ERROR_KINDS.tooManyRequests.message)
     } else if (res?.error) {
-      setError('Invalid email or password.')
+      setError('Invalid email or password')
     } else {
       router.push('/dashboard')
     }
   }
 
   return (
-    <div className="login-page">
-      <div className="login-card">
-        <div className="login-logo">
-          <div className="login-logo-icon">NC</div>
+    <div className="auth-page">
+      <div className="auth-card">
+        <div className="auth-logo">
+          <div className="auth-logo-icon">NC</div>
           <div>
-            <div className="login-logo-name">Neev CMS</div>
-            <div className="login-logo-sub">Property Management System</div>
+            <div className="auth-logo-name">Neev CMS</div>
+            <div className="auth-logo-sub">Property Management System</div>
           </div>
         </div>
 
-        <h1 className="login-title">Welcome back</h1>
-        <p className="login-subtitle">Sign in to your account to continue</p>
+        <h1 className="auth-title">Welcome back</h1>
+        <p className="auth-subtitle">Sign in to your account to continue</p>
 
-        <form onSubmit={handleSubmit} className="login-form">
-          {error && (
-            <div className="alert alert-danger mb-4">
-              <span>⚠</span> {error}
-            </div>
-          )}
+        <form onSubmit={handleSubmit} className="flex dir-col gap-5">
+          {error && <Alert variant="danger">{error}</Alert>}
 
-          <div className="form-group">
-            <label htmlFor="email" className="form-label">Email address</label>
-            <Input
-              id="email"
-              type="email"
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              placeholder="admin@example.com"
-              required
-              autoFocus
-            />
-          </div>
+          <TextField id="email" label="Email address" type="email" autoComplete="username" inputMode="email" value={email} onChange={(e) => setEmail(e.target.value)} placeholder="admin@example.com" required autoFocus />
+          <TextField id="password" label="Password" type="password" autoComplete="current-password" value={password} onChange={(e) => setPassword(e.target.value)} placeholder="••••••••" required />
 
-          <div className="form-group">
-            <label htmlFor="password" className="form-label">Password</label>
-            <Input
-              id="password"
-              type="password"
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              placeholder="••••••••"
-              required
-            />
-          </div>
-
-          <Button
-            type="submit"
-            variant="primary" size="lg" block
-            disabled={loading}
-            id="login-submit-btn"
-          >
-            {loading ? (
-              <>
-                <span className="spinner" />
-                Signing in…
-              </>
-            ) : 'Sign In'}
+          <Button type="submit" variant="primary" size="lg" block loading={loading} id="login-submit-btn">
+            {loading ? 'Signing in…' : 'Sign In'}
           </Button>
         </form>
         <div title={buildTitle()} className="mt-5 text-center text-xs text-muted">{versionLabel()}</div>
       </div>
-
-      <style jsx>{`
-        .login-page {
-          min-height: 100vh;
-          display: flex;
-          align-items: center;
-          justify-content: center;
-          background: var(--bg-app);
-          background-image:
-            radial-gradient(ellipse at 20% 50%, rgba(99,102,241,0.08) 0%, transparent 50%),
-            radial-gradient(ellipse at 80% 20%, rgba(139,92,246,0.08) 0%, transparent 50%);
-          padding: 24px;
-        }
-        .login-card {
-          background: var(--bg-card);
-          border: 1px solid var(--border-color);
-          border-radius: var(--radius-xl);
-          padding: 40px;
-          width: 100%;
-          max-width: 420px;
-          box-shadow: var(--shadow-lg);
-          animation: slideUp var(--transition-base) ease;
-        }
-        .login-logo {
-          display: flex;
-          align-items: center;
-          gap: 12px;
-          margin-bottom: 32px;
-        }
-        .login-logo-icon {
-          width: 44px;
-          height: 44px;
-          background: linear-gradient(135deg, var(--color-primary), var(--color-secondary));
-          border-radius: var(--radius-lg);
-          display: flex;
-          align-items: center;
-          justify-content: center;
-          font-family: var(--font-display);
-          font-weight: 800;
-          font-size: 1rem;
-          color: #fff;
-          flex-shrink: 0;
-        }
-        .login-logo-name {
-          font-family: var(--font-display);
-          font-weight: 700;
-          font-size: 1rem;
-          color: var(--text-primary);
-        }
-        .login-logo-sub {
-          font-size: 0.75rem;
-          color: var(--text-muted);
-        }
-        .login-title {
-          font-size: 1.625rem;
-          font-family: var(--font-display);
-          font-weight: 700;
-          margin-bottom: 4px;
-        }
-        .login-subtitle {
-          color: var(--text-muted);
-          font-size: 0.875rem;
-          margin-bottom: 28px;
-        }
-        .login-form {
-          display: flex;
-          flex-direction: column;
-          gap: 20px;
-        }
-        .spinner {
-          width: 16px;
-          height: 16px;
-          border: 2px solid rgba(255,255,255,0.3);
-          border-top-color: #fff;
-          border-radius: 50%;
-          animation: spin 0.7s linear infinite;
-          display: inline-block;
-        }
-      `}</style>
     </div>
   )
 }

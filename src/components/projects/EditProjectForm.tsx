@@ -4,7 +4,7 @@ import { useState } from 'react'
 import { useRouter } from 'next/navigation'
 import BackToProject from '@/components/projects/BackToProject'
 import PricingFields from '@/components/projects/PricingFields'
-import { Button, ButtonLink, Input, Select, SelectField, TextField, Textarea, TextareaField } from '@/components/ui'
+import { Alert, Button, ButtonLink, Input, SelectField, TextField, TextareaField } from '@/components/ui'
 
 export default function EditProjectForm({ project }: { project: any }) {
   const router = useRouter()
@@ -62,15 +62,15 @@ export default function EditProjectForm({ project }: { project: any }) {
   }
 
   return (
-    <div style={{ maxWidth: 760, margin: '0 auto' }}>
+    <div className="max-w-lg mx-auto">
       <div className="card">
         <div className="card-header">
           <span className="card-title">Edit Project</span>
           <BackToProject projectId={project.id} />
         </div>
 
-        {error && <div className="alert alert-danger mb-4">{error}</div>}
-        {success && <div className="alert alert-success mb-4">{success}</div>}
+        {error && <Alert variant="danger" className="mb-4">{error}</Alert>}
+        {success && <Alert variant="success" className="mb-4">{success}</Alert>}
 
         <form onSubmit={handleSubmit}>
           {/* ── Basic Info ── */}

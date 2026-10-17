@@ -9,6 +9,7 @@ import RecentPayments from '@/components/dashboard/RecentPayments'
 import UpcomingDues from '@/components/dashboard/UpcomingDues'
 import EscalationAlerts from '@/components/dashboard/EscalationAlerts'
 import { activeSale } from '@/lib/soft-delete'
+import { Badge, Card, StatCard, cn } from '@/components/ui'
 
 async function getDashboardData() {
   const now = new Date()
@@ -136,10 +137,10 @@ export default async function DashboardPage() {
   const { stats, recentPayments, escalations, upcomingDues } = await getDashboardData()
 
   const agingData = [
-    { label: 'Current', amount: stats.current, count: 0, color: '#10b981' },
-    { label: '8–15 Days', amount: stats.overdue15, count: 0, color: '#f59e0b' },
-    { label: '16–30 Days', amount: stats.overdue30, count: 0, color: '#f97316' },
-    { label: '30+ Days', amount: stats.overdue30Plus, count: 0, color: '#ef4444' },
+    { label: 'Current', amount: stats.current, tone: 'ok' as const },
+    { label: '8–15 Days', amount: stats.overdue15, tone: 'warn' as const },
+    { label: '16–30 Days', amount: stats.overdue30, tone: 'orange' as const },
+    { label: '30+ Days', amount: stats.overdue30Plus, tone: 'danger' as const },
   ]
 
   return (
@@ -147,40 +148,14 @@ export default async function DashboardPage() {
       <TopNav title="Dashboard" subtitle="Financial overview & receivables" />
       <div className="admin-content">
 
-        {/* KPI Cards */}
-        <div className="grid grid-4 gap-4 mb-6">
-          <StatCard
-            label="Total Outstanding"
-            value={formatCurrency(stats.totalOutstanding)}
-            sub="All unpaid demands"
-            icon="₹"
-            gradient="linear-gradient(90deg, #6366f1, #8b5cf6)"
-          />
-          <StatCard
-            label="Collected This Month"
-            value={formatCurrency(stats.collectedThisMonth)}
-            sub={`${stats.collectionEfficiency}% efficiency`}
-            icon="✓"
-            gradient="linear-gradient(90deg, #10b981, #059669)"
-          />
-          <StatCard
-            label="Interest Accrued"
-            value={formatCurrency(stats.interestAccrued)}
-            sub="On 30+ day overdues"
-            icon="%"
-            gradient="linear-gradient(90deg, #f59e0b, #d97706)"
-          />
-          <StatCard
-            label="TDS Pending"
-            value={String(stats.tdsPending)}
-            sub="Certificates not received"
-            icon="📄"
-            gradient="linear-gradient(90deg, #06b6d4, #0891b2)"
-          />
+        <div className="grid grid-stats gap-4 mb-6">
+          <StatCard label="Total Outstanding" value={formatCurrency(stats.totalOutstanding)} note="All unpaid demands" icon="₹" accent="linear-gradient(90deg, var(--color-primary), var(--color-secondary))" />
+          <StatCard label="Collected This Month" value={formatCurrency(stats.collectedThisMonth)} note={`${stats.collectionEfficiency}% efficiency`} icon="✓" accent="var(--color-success)" />
+          <StatCard label="Interest Accrued" value={formatCurrency(stats.interestAccrued)} note="On 30+ day overdues" icon="%" accent="var(--color-warning)" />
+          <StatCard label="TDS Pending" value={String(stats.tdsPending)} note="Certificates not received" icon="📄" accent="var(--color-accent)" />
         </div>
 
-        {/* Aging Buckets */}
-        <div className="grid grid-4 gap-4 mb-6">
+        <div className="grid grid-stats gap-4 mb-6">
           <AgingBucketCard label="Current Due" amount={stats.current} color="var(--color-success)" bucket="current" />
           <AgingBucketCard label="Overdue 8–15 Days" amount={stats.overdue15} color="var(--color-warning)" bucket="8-15" />
           <AgingBucketCard label="Overdue 16–30 Days" amount={stats.overdue30} color="var(--color-orange)" bucket="16-30" />
@@ -193,7 +168,7 @@ export default async function DashboardPage() {
           </div>
         )}
 
-        <div className="grid gap-6" style={{ gridTemplateColumns: '1fr 1fr' }}>
+        <div className="grid grid-2 gap-6">
           <AgingChart data={agingData} />
           <UpcomingDues dues={upcomingDues} />
         </div>
@@ -206,44 +181,20 @@ export default async function DashboardPage() {
   )
 }
 
-function StatCard({ label, value, sub, icon, gradient }: {
-  label: string; value: string; sub: string; icon: string; gradient: string
-}) {
-  return (
-    <div className="stat-card" style={{ '--accent-gradient': gradient } as React.CSSProperties}>
-      <div className="stat-label">{label}</div>
-      <div className="stat-value">{value}</div>
-      <div className="stat-sub">{sub}</div>
-      <div className="stat-icon">{icon}</div>
-    </div>
-  )
-}
-
 function AgingBucketCard({ label, amount, color, critical, bucket }: {
-  label: string; amount: number; color: string; critical?: boolean; bucket?: string
+  label: string; amount: number; color: string; critical?: boolean; bucket: string
 }) {
-  const content = (
-    <div
-      className="card hoverable-card cursor-pointer"
-      style={{ borderColor: critical && amount > 0 ? 'rgba(239,68,68,0.3)' : undefined, background: critical && amount > 0 ? 'rgba(239,68,68,0.05)' : undefined }}
-    >
-      <div className="flex items-center gap-2 mb-2">
-        <div className="status-dot" style={{ background: color }} />
-        <span className="text-base text-secondary">{label}</span>
-        {critical && amount > 0 && (
-          <span className="badge badge-danger" style={{ marginLeft: 'auto' }}>Action Needed</span>
-        )}
-      </div>
-      <div
-        className="font-bold" style={{ fontSize: '1.375rem', fontFamily: 'var(--font-display)', color: amount > 0 ? color : 'var(--text-muted)' }}
-      >
-        {formatCurrency(amount)}
-      </div>
-    </div>
+  const alarming = critical && amount > 0
+  return (
+    <Link href={`/receivables?bucket=${bucket}`} className="card-link">
+      <Card className={cn('hoverable-card', alarming && 'card-danger-soft')}>
+        <div className="flex items-center gap-2 mb-2">
+          <div className="status-dot" style={{ background: color }} />
+          <span className="text-base text-secondary">{label}</span>
+          {alarming && <Badge variant="danger" className="ml-auto">Action Needed</Badge>}
+        </div>
+        <div className="bucket-amount" style={{ color: amount > 0 ? color : 'var(--text-muted)' }}>{formatCurrency(amount)}</div>
+      </Card>
+    </Link>
   )
-
-  if (bucket) {
-    return <Link href={`/receivables?bucket=${bucket}`} style={{ textDecoration: 'none' }}>{content}</Link>
-  }
-  return content
 }
