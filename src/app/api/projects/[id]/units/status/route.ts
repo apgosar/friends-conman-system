@@ -1,8 +1,9 @@
+import { requireRole } from '@/lib/guard'
+import { apiError } from '@/lib/api-error'
 import { NextRequest } from 'next/server'
 import { prisma } from '@/lib/db'
 import { z, parseBody } from '@/lib/validate'
 import { createAuditLog } from '@/lib/audit'
-import { requireAdmin } from '@/lib/building-create'
 import { MANUAL_UNIT_STATUSES, parseBooker } from '@/lib/status'
 import { activeSale } from '@/lib/soft-delete'
 
@@ -16,7 +17,7 @@ const Schema = z.object({
 // POST — set the status of many units at once (units sold before the system was used).
 // Units that have a sale are skipped: their status always follows the sale.
 export async function POST(req: NextRequest, props: { params: Promise<{ id: string }> }) {
-  const guard = await requireAdmin()
+  const guard = await requireRole('admin')
   if ('error' in guard) return guard.error
   const { id: projectId } = await props.params
 
@@ -24,7 +25,7 @@ export async function POST(req: NextRequest, props: { params: Promise<{ id: stri
   if (error) return error
 
   const booker = data.status === 'BOOKED' ? parseBooker(data.bookedByName, data.bookedByMobile) : null
-  if (booker && !booker.ok) return Response.json({ error: booker.error }, { status: 400 })
+  if (booker && !booker.ok) return apiError('invalid', booker.error)
 
   const units = await prisma.unit.findMany({
     where: { id: { in: data.unitIds }, floor: { wing: { projectId } } },

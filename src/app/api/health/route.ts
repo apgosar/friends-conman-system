@@ -1,3 +1,4 @@
+import { logger } from '@/lib/logger'
 import { prisma } from '@/lib/db'
 import { NextResponse } from 'next/server'
 import { APP_VERSION, BUILD_SHA } from '@/lib/version'
@@ -16,7 +17,7 @@ export async function GET() {
       { status: 200 }
     )
   } catch (err) {
-    console.error('[Health] DB connectivity check failed:', err)
+    logger.error({ err: err }, '[Health] DB connectivity check failed:')
     return NextResponse.json(
       { status: 'error', message: 'Database unavailable' },
       { status: 503 }

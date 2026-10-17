@@ -1,16 +1,17 @@
+import { requireRole } from '@/lib/guard'
+import { apiError } from '@/lib/api-error'
 import { NextRequest } from 'next/server'
 import ExcelJS from 'exceljs'
 import { prisma } from '@/lib/db'
-import { requireAdmin } from '@/lib/building-create'
 
 // GET — a ready-to-fill Excel file for adding units in bulk (see structure/import)
 export async function GET(_req: NextRequest, props: { params: Promise<{ id: string }> }) {
-  const guard = await requireAdmin()
+  const guard = await requireRole('admin')
   if ('error' in guard) return guard.error
   const { id: projectId } = await props.params
 
   const project = await prisma.project.findUnique({ where: { id: projectId }, select: { name: true, unitTypes: { orderBy: { name: 'asc' } } } })
-  if (!project) return Response.json({ error: 'Project not found' }, { status: 404 })
+  if (!project) return apiError('notFound', 'Project not found')
 
   const wb = new ExcelJS.Workbook()
   const ws = wb.addWorksheet('Units')

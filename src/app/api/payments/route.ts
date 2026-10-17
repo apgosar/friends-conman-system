@@ -1,3 +1,5 @@
+import { kindForStatus } from '@/lib/errors'
+import { apiError } from '@/lib/api-error'
 import { NextRequest } from 'next/server'
 import { requireRole } from '@/lib/guard'
 import { parseBody, z } from '@/lib/validate'
@@ -36,8 +38,8 @@ export async function POST(req: NextRequest) {
     dispatchAllPending().catch((err) => logger.error({ err }, 'Dispatch after payment failed'))
     return Response.json({ success: true, data: payment }, { status: 201 })
   } catch (err) {
-    if (err instanceof PaymentError) return Response.json({ error: err.message }, { status: err.status })
+    if (err instanceof PaymentError) return apiError(kindForStatus(err.status), err.message)
     logger.error({ err }, 'Payment recording failed')
-    return Response.json({ error: 'Could not record the payment' }, { status: 500 })
+    return apiError('server', 'Could not record the payment')
   }
 }

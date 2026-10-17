@@ -129,11 +129,6 @@ export default function NewSaleWizard({ projects, prefill = null }: { projects: 
 
     const milestones = selectedProject?.milestones ?? []
 
-    // Find the plinth milestone by name only
-    const plinthMilestone = milestones.find((m: any) =>
-      m.name.toLowerCase().includes('plinth') && m.percentOfAV > 0
-    )
-
     // Find the possession milestone for car parking
     const possessionMilestone = milestones.find((m: any) =>
       m.name.toLowerCase().includes('possession')

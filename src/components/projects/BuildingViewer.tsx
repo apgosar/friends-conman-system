@@ -5,6 +5,7 @@ import { useSession } from 'next-auth/react'
 import { Alert, EmptyState, Modal, useConfirm, useToast } from '@/components/ui'
 import { wingLabel } from '@/lib/building-structure'
 import { isSaleable } from '@/lib/status'
+import { can } from '@/lib/authz'
 import { errorMessage, fetchJson, jsonRequest } from '@/lib/client/api'
 import { QuoteModal } from './QuoteModal'
 import { EditInquiryModal, ShareQuoteModal, LostInquiryModal, type InquiryData } from './InquiryModals'
@@ -27,7 +28,7 @@ export default function BuildingViewer({ projectId, view = '3d' }: { projectId: 
   const toast = useToast()
   const confirm = useConfirm()
   const { data: session } = useSession()
-  const canDelete = ['SUPER_ADMIN', 'ADMIN'].includes(session?.user?.role as string)
+  const canDelete = can(session?.user?.role, 'admin')
 
   const [wings, setWings] = useState<WingData[]>([])
   const [projectParkingCharge, setProjectParkingCharge] = useState(0)

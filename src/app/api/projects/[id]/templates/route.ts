@@ -1,3 +1,5 @@
+import { logger } from '@/lib/logger'
+import { apiError, apiServerError } from '@/lib/api-error'
 import { NextRequest, NextResponse } from 'next/server'
 import crypto from 'crypto'
 import { prisma } from '@/lib/db'
@@ -10,7 +12,7 @@ import { createAuditLog } from '@/lib/audit'
 
 export async function GET(req: NextRequest, props: { params: Promise<{ id: string }> }) {
   const session = await auth()
-  if (!session?.user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+  if (!session?.user) return apiError('unauthorized')
 
   try {
     const { id: projectId } = await props.params
@@ -19,8 +21,8 @@ export async function GET(req: NextRequest, props: { params: Promise<{ id: strin
       orderBy: { createdAt: 'desc' }
     })
     return NextResponse.json({ success: true, data: templates })
-  } catch (error: any) {
-    return NextResponse.json({ success: false, error: 'Internal server error' }, { status: 500 })
+  } catch (err) {
+    return apiServerError(err, 'projects/[id]/templates')
   }
 }
 
@@ -34,7 +36,7 @@ export async function POST(req: NextRequest, props: { params: Promise<{ id: stri
   try {
     const { id: projectId } = await props.params
     const project = await prisma.project.findUnique({ where: { id: projectId }, select: { id: true } })
-    if (!project) return NextResponse.json({ error: 'Project not found' }, { status: 404 })
+    if (!project) return apiError('notFound', 'Project not found')
 
     const form = await req.formData()
     const { name, type } = validateTemplateMeta(form.get('name'), form.get('type'))
@@ -71,9 +73,9 @@ export async function POST(req: NextRequest, props: { params: Promise<{ id: stri
     return NextResponse.json({ success: true, data: template, warnings })
   } catch (error: any) {
     if (error instanceof TemplateValidationError) {
-      return NextResponse.json({ success: false, error: error.message }, { status: 400 })
+      return apiError('invalid', error.message)
     }
-    console.error('[templates POST]', error)
-    return NextResponse.json({ success: false, error: 'Internal server error' }, { status: 500 })
+    logger.error({ err: error }, '[templates POST]')
+    return apiError('server')
   }
 }

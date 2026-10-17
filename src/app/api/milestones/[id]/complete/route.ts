@@ -1,3 +1,4 @@
+import { apiError, apiServerError } from '@/lib/api-error'
 import { NextRequest } from 'next/server'
 import { prisma } from '@/lib/db'
 import { requireRole } from '@/lib/guard'
@@ -18,7 +19,7 @@ export async function POST(req: NextRequest, props: { params: Promise<{ id: stri
     const { architectCertificateUrl } = body
 
     if (!architectCertificateUrl) {
-      return Response.json({ error: 'Architect Certificate URL is required' }, { status: 400 })
+      return apiError('invalid', 'Architect Certificate URL is required')
     }
 
     const actualDate = new Date()
@@ -95,7 +96,7 @@ export async function POST(req: NextRequest, props: { params: Promise<{ id: stri
     }
     
     return Response.json({ success: true, data: milestone })
-  } catch (err: any) {
-    return Response.json({ error: 'Internal Server Error' }, { status: 500 })
+  } catch (err) {
+    return apiServerError(err, 'milestones/[id]/complete')
   }
 }

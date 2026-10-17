@@ -268,7 +268,7 @@ export default function UnitsTable({ projectId, units, wings, types }: { project
       {wings.length > 0 && (
         <div className="flex wrap gap-3 mb-4">
           {wings.map((w) => (
-            <div key={w.id} className="card-flat text-sm flex items-center gap-3" style={{ padding: '8px 12px' }}>
+            <div key={w.id} className="card-flat text-sm flex items-center gap-3 px-3 py-2">
               <span><b>{wingLabel(w.name)}</b> · {plural(w.floors, 'floor')} · {plural(w.units, 'unit')}</span>
               <Button variant="ghost" size="xs" className="text-danger" onClick={() => deleteWing(w)}>Delete</Button>
             </div>

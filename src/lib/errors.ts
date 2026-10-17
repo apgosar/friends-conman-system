@@ -15,9 +15,16 @@ export const ERROR_KINDS = {
   conflict: { status: 409, message: 'This conflicts with the current state. Refresh and try again' },
   tooManyRequests: { status: 429, message: 'Too many requests. Please try again in a few minutes' },
   server: { status: 500, message: 'Something went wrong on our side. Please try again' },
+  unavailable: { status: 503, message: 'This is not available right now. Please try again later' },
 } as const
 
 export type ErrorKind = keyof typeof ERROR_KINDS
+
+/** The kind for an HTTP status, for code that carries its own status (a domain error class). Unknown statuses count as a server error. */
+export function kindForStatus(status: number): ErrorKind {
+  const found = (Object.entries(ERROR_KINDS) as [ErrorKind, { status: number }][]).find(([, k]) => k.status === status)
+  return found ? found[0] : status >= 400 && status < 500 ? 'invalid' : 'server'
+}
 
 /** "Sale not found" */
 export const notFoundMessage = (what: string) => `${what} not found`
@@ -27,3 +34,12 @@ export const failedMessage = (action: string) => `Could not ${action}. Please tr
 
 /** "1 unit" / "3 units": no more "unit(s)" */
 export const plural = (n: number, singular: string, pluralForm = `${singular}s`) => `${n} ${n === 1 ? singular : pluralForm}`
+
+/** Throw from route code to answer with that error: `throw fail('notFound', 'Sale not found')`. Handled by route() in lib/route.ts. */
+export class HttpError extends Error {
+  constructor(public kind: ErrorKind, message?: string) {
+    super(message ?? ERROR_KINDS[kind].message)
+    this.name = 'HttpError'
+  }
+}
+export const fail = (kind: ErrorKind, message?: string) => new HttpError(kind, message)

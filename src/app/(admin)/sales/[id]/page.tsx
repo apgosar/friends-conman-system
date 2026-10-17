@@ -3,6 +3,7 @@ import { notFound } from 'next/navigation'
 import TopNav from '@/components/layout/TopNav'
 import { formatDate, formatCurrency, formatNumber } from '@/lib/format'
 import { auth } from '@/lib/auth'
+import { can } from '@/lib/authz'
 import DeleteSaleButton from '@/components/sales/DeleteSaleButton'
 import PaymentScheduleTable from '@/components/sales/PaymentScheduleTable'
 import RecordPaymentModal from '@/components/sales/RecordPaymentModal'
@@ -41,7 +42,7 @@ export default async function SaleDetailPage(props: PageProps<'/sales/[id]'>) {
   if (!sale) notFound()
 
   const session = await auth()
-  const isSuperAdmin = session?.user?.role === 'SUPER_ADMIN'
+  const isSuperAdmin = can(session?.user?.role, 'superadmin')
 
   const livePayments = sale.paymentSchedules.flatMap((s) => s.payments.filter((p) => !p.deletedAt))
   const principalPaid = livePayments.reduce((a, p) => a + Number(p.amount), 0)
@@ -148,7 +149,7 @@ export default async function SaleDetailPage(props: PageProps<'/sales/[id]'>) {
           status={sale.status}
           agreementDate={sale.agreementDate ? sale.agreementDate.toISOString() : null}
           possessionDate={sale.possessionDate ? sale.possessionDate.toISOString() : null}
-          canEdit={['SUPER_ADMIN', 'ADMIN'].includes(session?.user?.role as string)}
+          canEdit={can(session?.user?.role, 'admin')}
         />
 
         {sale.tenant && (

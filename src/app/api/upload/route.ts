@@ -1,3 +1,5 @@
+import { logger } from '@/lib/logger'
+import { apiError } from '@/lib/api-error'
 import { NextRequest, NextResponse } from 'next/server'
 import crypto from 'crypto'
 import { uploadFile } from '@/lib/storage'
@@ -29,23 +31,23 @@ export async function POST(req: NextRequest) {
     const file = formData.get('file') as File
 
     if (!file) {
-      return NextResponse.json({ error: 'No file uploaded' }, { status: 400 })
+      return apiError('invalid', 'No file uploaded')
     }
 
     // 3. Validate size
     if (file.size > MAX_SIZE_BYTES) {
-      return NextResponse.json({ error: 'File too large. Maximum 10 MB allowed.' }, { status: 400 })
+      return apiError('invalid', 'File too large. Maximum 10 MB allowed')
     }
 
     // 4. Validate MIME type
     if (!ALLOWED_TYPES.has(file.type)) {
-      return NextResponse.json({ error: 'File type not allowed.' }, { status: 400 })
+      return apiError('invalid', 'File type not allowed')
     }
 
     // 5. Validate and sanitize extension (prevents path traversal)
     const rawExt = (file.name.split('.').pop() ?? '').toLowerCase()
     if (!ALLOWED_EXTENSIONS.has(rawExt)) {
-      return NextResponse.json({ error: 'File extension not allowed.' }, { status: 400 })
+      return apiError('invalid', 'File extension not allowed')
     }
 
     const buffer = Buffer.from(await file.arrayBuffer())
@@ -59,7 +61,7 @@ export async function POST(req: NextRequest) {
 
     return NextResponse.json({ success: true, url })
   } catch (err) {
-    console.error('[Upload] Error:', err)
-    return NextResponse.json({ error: 'Upload failed' }, { status: 500 })
+    logger.error({ err: err }, '[Upload] Error:')
+    return apiError('server', 'Upload failed')
   }
 }

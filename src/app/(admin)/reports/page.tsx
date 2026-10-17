@@ -5,7 +5,7 @@ import TopNav from '@/components/layout/TopNav'
 import { UNIT_COLORS, unitStatusLabel } from '@/lib/status'
 import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
-  PieChart, Pie, Cell, LineChart, Line, Legend, AreaChart, Area,
+  PieChart, Pie, Cell, Legend, AreaChart, Area,
 } from 'recharts'
 import { Alert, Button, Card, EmptyRow, PageHeader, Spinner, StatCard, Table, Tabs, useToast } from '@/components/ui'
 import { formatDate } from '@/lib/format'
@@ -52,6 +52,7 @@ export default function ReportsPage() {
   const [exportLoading, setExportLoading] = useState<string | null>(null)
 
   const toast = useToast()
+  const [now] = useState(() => Date.now()) // fixed per visit, so rendering stays pure
   const [loadError, setLoadError] = useState('')
 
   useEffect(() => {
@@ -274,7 +275,7 @@ export default function ReportsPage() {
                   {!upcomingReceivables?.length ? (
                     <EmptyRow colSpan={3}>No upcoming receivables in the next 90 days</EmptyRow>
                   ) : upcomingReceivables.map((u: any, i: number) => {
-                    const days = Math.ceil((new Date(u.dueDate).getTime() - Date.now()) / 86400000)
+                    const days = Math.ceil((new Date(u.dueDate).getTime() - now) / 86400000)
                     return (
                       <tr key={i}>
                         <td className="nowrap">

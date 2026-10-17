@@ -1,3 +1,4 @@
+import { apiError, apiServerError } from '@/lib/api-error'
 import { NextRequest } from 'next/server'
 import { requireRole } from '@/lib/guard'
 import { prisma } from '@/lib/db'
@@ -5,7 +6,7 @@ import { OUTSTANDING_SCHEDULE_STATUSES, UNIT_STATUS_ORDER, isSaleable, isUnsold 
 import { activeSale } from '@/lib/soft-delete'
 import { formatMonthYear } from '@/lib/format'
 
-export async function GET(req: NextRequest) {
+export async function GET() {
   const guard = await requireRole('admin')
   if ('error' in guard) return guard.error
 
@@ -157,7 +158,7 @@ export async function GET(req: NextRequest) {
         amount: (u.principalAmount ?? 0) + (u.gstAmount ?? 0),
       })),
     })
-  } catch (err: any) {
-    return Response.json({ error: 'Internal server error' }, { status: 500 })
+  } catch (err) {
+    return apiServerError(err, 'reports/analytics')
   }
 }

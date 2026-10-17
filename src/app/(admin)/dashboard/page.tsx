@@ -1,4 +1,3 @@
-import { auth } from '@/lib/auth'
 import Link from 'next/link'
 import { prisma } from '@/lib/db'
 import { OUTSTANDING_SCHEDULE_STATUSES } from '@/lib/status'
@@ -133,7 +132,6 @@ async function getDashboardData() {
 }
 
 export default async function DashboardPage() {
-  const session = await auth()
   const { stats, recentPayments, escalations, upcomingDues } = await getDashboardData()
 
   const agingData = [

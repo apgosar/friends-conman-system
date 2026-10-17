@@ -1,3 +1,4 @@
+import { apiError } from '@/lib/api-error'
 import { NextRequest, NextResponse } from 'next/server'
 import { requireRole } from '@/lib/guard'
 import { prisma } from '@/lib/db'
@@ -41,12 +42,12 @@ export async function PATCH(req: NextRequest, { params }: Ctx) {
   if (error) return error
 
   const inquiry = await loadInquiry(unitId, quoteId)
-  if (!inquiry) return NextResponse.json({ error: 'Inquiry not found' }, { status: 404 })
+  if (!inquiry) return apiError('notFound', 'Inquiry not found')
   if (inquiry.status === 'CONVERTED') {
-    return NextResponse.json({ error: 'This inquiry has already been converted to a sale and cannot be changed' }, { status: 409 })
+    return apiError('conflict', 'This inquiry has already been converted to a sale and cannot be changed')
   }
   if (data.status === 'LOST' && !data.lostReason) {
-    return NextResponse.json({ error: 'A reason is required to mark an inquiry as lost' }, { status: 400 })
+    return apiError('invalid', 'A reason is required to mark an inquiry as lost')
   }
 
   const update: Record<string, unknown> = {}
@@ -90,9 +91,9 @@ export async function DELETE(_req: NextRequest, { params }: Ctx) {
 
   const { unitId, quoteId } = await params
   const inquiry = await prisma.inquiry.findFirst({ where: { id: quoteId, unitId } })
-  if (!inquiry) return NextResponse.json({ error: 'Inquiry not found' }, { status: 404 })
+  if (!inquiry) return apiError('notFound', 'Inquiry not found')
   if (inquiry.status === 'CONVERTED') {
-    return NextResponse.json({ error: 'A converted inquiry is linked to a sale and cannot be deleted' }, { status: 409 })
+    return apiError('conflict', 'A converted inquiry is linked to a sale and cannot be deleted')
   }
 
   await prisma.inquiry.delete({ where: { id: quoteId } })

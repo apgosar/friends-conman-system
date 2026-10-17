@@ -71,7 +71,7 @@ export default function MessageDetailsModal({ logs, onClose, onRetry, retrying }
         <div className="text-base" style={{ whiteSpace: 'pre-wrap', lineHeight: 1.6 }}>{body || 'No content'}</div>
 
         {attachments.length > 0 && (
-          <div className="mt-5 pt-4" style={{ borderTop: '1px solid var(--border-color)' }}>
+          <div className="mt-5 pt-4 border-top">
             <div className="section-label mb-3">Attachments</div>
             <div className="row">
               {attachments.map((a, i) => (

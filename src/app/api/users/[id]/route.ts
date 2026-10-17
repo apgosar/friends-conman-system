@@ -1,3 +1,4 @@
+import { apiError } from '@/lib/api-error'
 import { NextRequest } from 'next/server'
 import { prisma } from '@/lib/db'
 import { requireRole } from '@/lib/guard'
@@ -22,20 +23,20 @@ export async function PATCH(req: NextRequest, props: { params: Promise<{ id: str
   if (error) return error
 
   const target = await prisma.user.findUnique({ where: { id }, select: { id: true, name: true, role: true, isActive: true } })
-  if (!target) return Response.json({ error: 'User not found' }, { status: 404 })
+  if (!target) return apiError('notFound', 'User not found')
 
   const roleChanges = data.role !== undefined && data.role !== target.role
   const deactivates = data.isActive === false && target.isActive
 
   if (id === guard.user.id && (roleChanges || deactivates)) {
-    return Response.json({ error: 'You cannot change your own role or suspend your own account' }, { status: 409 })
+    return apiError('conflict', 'You cannot change your own role or suspend your own account')
   }
 
   // The system must always keep at least one active Super Admin, or nobody could manage users again
   const losesSuperAdmin = target.role === 'SUPER_ADMIN' && target.isActive && ((roleChanges && data.role !== 'SUPER_ADMIN') || deactivates)
   if (losesSuperAdmin) {
     const others = await prisma.user.count({ where: { role: 'SUPER_ADMIN', isActive: true, id: { not: id } } })
-    if (others === 0) return Response.json({ error: 'This is the only active Super Admin. Make someone else a Super Admin first' }, { status: 409 })
+    if (others === 0) return apiError('conflict', 'This is the only active Super Admin. Make someone else a Super Admin first')
   }
 
   try {
@@ -58,6 +59,6 @@ export async function PATCH(req: NextRequest, props: { params: Promise<{ id: str
     return Response.json({ success: true, data: user })
   } catch (err) {
     logger.error({ err, id }, 'User update failed')
-    return Response.json({ error: 'Could not update the user' }, { status: 500 })
+    return apiError('server', 'Could not update the user')
   }
 }

@@ -1,3 +1,4 @@
+import { apiError, apiServerError } from '@/lib/api-error'
 import { NextRequest } from 'next/server'
 import { prisma } from '@/lib/db'
 import { auth } from '@/lib/auth'
@@ -8,7 +9,7 @@ import { activeSale } from '@/lib/soft-delete'
 
 export async function GET(req: NextRequest, props: { params: Promise<{ id: string }> }) {
   const session = await auth()
-  if (!session) return Response.json({ error: 'Unauthorized' }, { status: 401 })
+  if (!session) return apiError('unauthorized')
 
   const { id } = await props.params
   const project = await prisma.project.findUnique({
@@ -20,7 +21,7 @@ export async function GET(req: NextRequest, props: { params: Promise<{ id: strin
       _count: { select: { sales: { where: activeSale } } },
     },
   })
-  if (!project) return Response.json({ error: 'Not found' }, { status: 404 })
+  if (!project) return apiError('notFound')
   return Response.json({ success: true, data: project })
 }
 
@@ -40,7 +41,7 @@ export async function PATCH(req: NextRequest, props: { params: Promise<{ id: str
   } = body
 
   const pricing = parsePricingSettings(body)
-  if (pricing.error) return Response.json({ error: pricing.error }, { status: 400 })
+  if (pricing.error) return apiError('invalid', pricing.error)
 
   try {
     const updated = await prisma.project.update({
@@ -73,7 +74,7 @@ export async function PATCH(req: NextRequest, props: { params: Promise<{ id: str
     })
 
     return Response.json({ success: true, data: updated })
-  } catch (err: any) {
-    return Response.json({ error: 'Internal server error' }, { status: 500 })
+  } catch (err) {
+    return apiServerError(err, 'projects/[id]')
   }
 }

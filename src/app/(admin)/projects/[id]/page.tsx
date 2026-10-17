@@ -1,7 +1,7 @@
 import { prisma } from '@/lib/db'
 import { notFound } from 'next/navigation'
 import TopNav from '@/components/layout/TopNav'
-import { formatDate, formatCurrency } from '@/lib/format'
+import { formatDate } from '@/lib/format'
 import UnitsView from '@/components/projects/UnitsView'
 import ProjectSalesTable from '@/components/projects/ProjectSalesTable'
 import TemplateCoverage from '@/components/projects/TemplateCoverage'

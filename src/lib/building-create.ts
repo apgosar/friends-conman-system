@@ -1,9 +1,5 @@
 import type { Prisma } from '@prisma/client'
 import { prisma } from '@/lib/db'
-import { requireRole } from '@/lib/guard'
-
-/** Admin-only guard for the Building Setup APIs. Returns the user, or a ready-made error response. */
-export const requireAdmin = () => requireRole('admin')
 
 export interface UnitRow {
   category?: 'FLAT' | 'SHOP' | 'OFFICE' | 'COMMON'

@@ -1,3 +1,4 @@
+import { apiError } from '@/lib/api-error'
 import { NextRequest, NextResponse } from 'next/server'
 import { requireRole } from '@/lib/guard'
 import { prisma } from '@/lib/db'
@@ -29,12 +30,12 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ uni
     where: { id: quoteId, unitId },
     include: { unit: { include: { floor: { include: { wing: { include: { project: true } } } } } } },
   })
-  if (!inquiry) return NextResponse.json({ error: 'Inquiry not found' }, { status: 404 })
+  if (!inquiry) return apiError('notFound', 'Inquiry not found')
   if (inquiry.status !== 'OPEN') {
-    return NextResponse.json({ error: `This inquiry is ${inquiry.status.toLowerCase()} — only open quotes can be shared` }, { status: 409 })
+    return apiError('conflict', `This inquiry is ${inquiry.status.toLowerCase()} — only open quotes can be shared`)
   }
   if (inquiry.validUntil && inquiry.validUntil < new Date()) {
-    return NextResponse.json({ error: 'This quote has expired. Edit the inquiry to extend its validity before sharing.' }, { status: 409 })
+    return apiError('conflict', 'This quote has expired. Edit the inquiry to extend its validity before sharing')
   }
 
   const project = inquiry.unit.floor.wing.project
@@ -47,7 +48,7 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ uni
     pdf = await downloadFile(pdfKey)
   } catch (err) {
     if (!isNotFoundError(err)) throw err
-    if (!(await generateAndSaveQuotePdf(quoteId))) return NextResponse.json({ error: 'Could not generate the quote PDF' }, { status: 500 })
+    if (!(await generateAndSaveQuotePdf(quoteId))) return apiError('server', 'Could not generate the quote PDF')
     pdf = await downloadFile(pdfKey)
   }
   const filename = `Quote_${inquiry.unit.unitNumber}.pdf`

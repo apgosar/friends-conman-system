@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeEach, vi } from 'vitest'
+import { it, expect, beforeEach, vi } from 'vitest'
 import { NextRequest } from 'next/server'
 import { describeDb, resetDb, getPrisma, seedUser } from './helpers/db'
 

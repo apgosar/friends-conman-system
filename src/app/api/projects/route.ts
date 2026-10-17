@@ -1,3 +1,4 @@
+import { apiError } from '@/lib/api-error'
 import { NextRequest } from 'next/server'
 import { prisma } from '@/lib/db'
 import { auth } from '@/lib/auth'
@@ -8,7 +9,7 @@ import { activeSale } from '@/lib/soft-delete'
 
 export async function GET() {
   const session = await auth()
-  if (!session?.user) return Response.json({ error: 'Unauthorized' }, { status: 401 })
+  if (!session?.user) return apiError('unauthorized')
 
   const projects = await prisma.project.findMany({
     include: { wings: true, _count: { select: { sales: { where: activeSale } } } },
@@ -24,10 +25,10 @@ export async function POST(req: NextRequest) {
   const body = await req.json()
   const { name, reraNumber, address, city, state, type, status, companyName, companyAddress, companyGstin, launchDate, expectedCompletion } = body
   if (!name || !address || !city || !companyName || !companyAddress) {
-    return Response.json({ error: 'Name, address, city, company name and company address are required' }, { status: 400 })
+    return apiError('invalid', 'Name, address, city, company name and company address are required')
   }
   const pricing = parsePricingSettings(body)
-  if (pricing.error) return Response.json({ error: pricing.error }, { status: 400 })
+  if (pricing.error) return apiError('invalid', pricing.error)
   const project = await prisma.project.create({
     data: {
       name, address, city, state: state || 'Maharashtra', type: type || 'FRESH', status: status || 'PLANNING',

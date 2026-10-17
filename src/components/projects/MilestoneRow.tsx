@@ -6,12 +6,13 @@ import { useSession } from 'next-auth/react'
 import { Alert, Button, Modal, StatusBadge, Td, useToast } from '@/components/ui'
 import { errorMessage, fetchJson, jsonRequest } from '@/lib/client/api'
 import { formatDate } from '@/lib/format'
+import { can } from '@/lib/authz'
 
 export default function MilestoneRow({ m }: { m: any }) {
   const router = useRouter()
   const toast = useToast()
   const { data: session } = useSession()
-  const isSuperAdmin = session?.user?.role === 'SUPER_ADMIN'
+  const isSuperAdmin = can(session?.user?.role, 'superadmin')
 
   const [loading, setLoading] = useState(false)
   const [showComplete, setShowComplete] = useState(false)

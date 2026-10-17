@@ -36,7 +36,8 @@ function run(cmd: string, args: string[], timeoutMs: number): Promise<void> {
     })
     child.on('close', (code) => {
       clearTimeout(timer)
-      code === 0 ? resolve() : reject(new Error(`LibreOffice exited with code ${code}: ${stderr.slice(0, 300)}`))
+      if (code === 0) resolve()
+      else reject(new Error(`LibreOffice exited with code ${code}: ${stderr.slice(0, 300)}`))
     })
   })
 }

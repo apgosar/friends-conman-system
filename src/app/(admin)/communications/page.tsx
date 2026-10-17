@@ -4,7 +4,6 @@ import { useState, useEffect, useCallback } from 'react'
 import TopNav from '@/components/layout/TopNav'
 import MessageDetailsModal from '@/components/comms/MessageDetailsModal'
 import { Alert, Button, Card, EmptyRow, FilterChips, PageHeader, Pagination, StatCard, StatusBadge, Table, useToast } from '@/components/ui'
-import { commStatusBadge } from '@/lib/status'
 import { errorMessage, fetchJson } from '@/lib/client/api'
 import { formatDateTime, formatNumber } from '@/lib/format'
 

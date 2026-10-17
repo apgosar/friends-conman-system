@@ -1,3 +1,4 @@
+import { apiError } from '@/lib/api-error'
 import { NextRequest } from 'next/server'
 import { prisma } from '@/lib/db'
 import { requireRole } from '@/lib/guard'
@@ -34,10 +35,10 @@ export async function POST(req: NextRequest) {
   if (error) return error
 
   const weak = validatePassword(data.password, data)
-  if (weak) return Response.json({ error: weak }, { status: 400 })
+  if (weak) return apiError('invalid', weak)
 
   const existing = await prisma.user.findFirst({ where: { email: { equals: data.email, mode: 'insensitive' } }, select: { id: true } })
-  if (existing) return Response.json({ error: 'A user with this email already exists' }, { status: 409 })
+  if (existing) return apiError('conflict', 'A user with this email already exists')
 
   try {
     const user = await prisma.user.create({
@@ -48,6 +49,6 @@ export async function POST(req: NextRequest) {
     return Response.json({ success: true, data: user }, { status: 201 })
   } catch (err) {
     logger.error({ err }, 'User creation failed')
-    return Response.json({ error: 'Could not create the user' }, { status: 500 })
+    return apiError('server', 'Could not create the user')
   }
 }

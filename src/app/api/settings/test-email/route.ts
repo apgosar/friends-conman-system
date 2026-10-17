@@ -1,7 +1,7 @@
+import { apiError, apiServerError } from '@/lib/api-error'
 import { NextRequest } from 'next/server'
 import { requireRole } from '@/lib/guard'
 import { sendEmail } from '@/lib/email'
-import { sendWhatsApp } from '@/lib/whatsapp'
 import { formatDateTime } from '@/lib/format'
 
 // POST /api/settings/test-email
@@ -11,7 +11,7 @@ export async function POST(req: NextRequest) {
 
   try {
     const { to } = await req.json()
-    if (!to) return Response.json({ error: 'Recipient email is required' }, { status: 400 })
+    if (!to) return apiError('invalid', 'Recipient email is required')
 
     const result = await sendEmail({
       to,
@@ -38,6 +38,6 @@ export async function POST(req: NextRequest) {
 
     return Response.json({ success: true, messageId: result.messageId })
   } catch (err: any) {
-    return Response.json({ success: false, error: err.message }, { status: 500 })
+    return apiServerError(err, 'settings/test-email')
   }
 }

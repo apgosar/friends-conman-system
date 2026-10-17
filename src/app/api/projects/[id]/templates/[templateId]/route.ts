@@ -1,3 +1,5 @@
+import { logger } from '@/lib/logger'
+import { apiError } from '@/lib/api-error'
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/db'
 import { requireRole } from '@/lib/guard'
@@ -12,14 +14,11 @@ export async function DELETE(req: NextRequest, props: { params: Promise<{ id: st
 
   try {
     const template = await prisma.template.findFirst({ where: { id: templateId, projectId } })
-    if (!template) return NextResponse.json({ error: 'Template not found' }, { status: 404 })
+    if (!template) return apiError('notFound', 'Template not found')
 
     // The active template is what new documents are generated from, so it can't be removed
     if (template.isActive) {
-      return NextResponse.json(
-        { error: 'This template is active. Activate another version of this document type first, then delete this one.' },
-        { status: 409 },
-      )
+      return apiError('conflict', 'This template is active. Activate another version of this document type first, then delete this one')
     }
 
     await prisma.template.delete({ where: { id: templateId } })
@@ -29,7 +28,7 @@ export async function DELETE(req: NextRequest, props: { params: Promise<{ id: st
     })
     return NextResponse.json({ success: true })
   } catch (err: any) {
-    console.error('[templates DELETE]', err)
-    return NextResponse.json({ error: 'Failed to delete template' }, { status: 500 })
+    logger.error({ err: err }, '[templates DELETE]')
+    return apiError('server', 'Could not delete template. Please try again')
   }
 }

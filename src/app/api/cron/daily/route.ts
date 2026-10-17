@@ -1,17 +1,18 @@
+import { apiError } from '@/lib/api-error'
 import { runDailyInterestAndStatus } from '@/lib/scheduler'
 import { isCronRequest } from '@/lib/internal-auth'
 import { logger } from '@/lib/logger'
 
 async function run(req: Request) {
   if (!isCronRequest(req)) {
-    return Response.json({ error: 'Unauthorized' }, { status: 401 })
+    return apiError('unauthorized')
   }
   try {
     await runDailyInterestAndStatus()
     return Response.json({ success: true, message: 'Daily job complete' })
   } catch (err) {
     logger.error({ err }, 'Daily cron failed')
-    return Response.json({ error: 'Internal server error' }, { status: 500 })
+    return apiError('server')
   }
 }
 

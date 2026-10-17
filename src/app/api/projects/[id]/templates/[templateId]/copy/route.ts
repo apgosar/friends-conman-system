@@ -1,3 +1,4 @@
+import { apiError } from '@/lib/api-error'
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/db'
 import { requireRole } from '@/lib/guard'
@@ -18,15 +19,15 @@ export async function POST(req: NextRequest, props: { params: Promise<{ id: stri
   const { data, error } = await parseBody(req, CopySchema)
   if (error) return error
   if (data.targetProjectId === projectId) {
-    return NextResponse.json({ error: 'Choose a different project to copy to' }, { status: 400 })
+    return apiError('invalid', 'Choose a different project to copy to')
   }
 
   const [source, target] = await Promise.all([
     prisma.template.findFirst({ where: { id: templateId, projectId } }),
     prisma.project.findUnique({ where: { id: data.targetProjectId }, select: { id: true, name: true } }),
   ])
-  if (!source) return NextResponse.json({ error: 'Template not found' }, { status: 404 })
-  if (!target) return NextResponse.json({ error: 'Target project not found' }, { status: 404 })
+  if (!source) return apiError('notFound', 'Template not found')
+  if (!target) return apiError('notFound', 'Target project not found')
 
   const copy = await prisma.$transaction(async (tx) => {
     const [latest, active] = await Promise.all([

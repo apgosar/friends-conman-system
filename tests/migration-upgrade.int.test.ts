@@ -1,4 +1,4 @@
-import { describe, it, expect, afterAll } from 'vitest'
+import { it, expect, afterAll } from 'vitest'
 import { execSync } from 'node:child_process'
 import { describeDb } from './helpers/db'
 

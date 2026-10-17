@@ -50,7 +50,7 @@ export default function ExcelImport({ projectId }: { projectId: string }) {
       {result && (
         <Alert variant={result.ok ? 'success' : 'danger'} className="mt-3">
           {result.text}
-          {result.details && <ul className="mt-2 mb-0" style={{ paddingLeft: 18 }}>{result.details.map((d) => <li key={d}>{d}</li>)}</ul>}
+          {result.details && <ul className="mt-2 mb-0 pl-5">{result.details.map((d) => <li key={d}>{d}</li>)}</ul>}
         </Alert>
       )}
     </div>

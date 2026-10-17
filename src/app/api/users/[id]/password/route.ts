@@ -1,3 +1,4 @@
+import { apiError } from '@/lib/api-error'
 import { NextRequest } from 'next/server'
 import { prisma } from '@/lib/db'
 import { requireRole } from '@/lib/guard'
@@ -21,10 +22,10 @@ export async function POST(req: NextRequest, props: { params: Promise<{ id: stri
   if (error) return error
 
   const target = await prisma.user.findUnique({ where: { id }, select: { id: true, name: true, email: true } })
-  if (!target) return Response.json({ error: 'User not found' }, { status: 404 })
+  if (!target) return apiError('notFound', 'User not found')
 
   const weak = validatePassword(data.newPassword, target)
-  if (weak) return Response.json({ error: weak }, { status: 400 })
+  if (weak) return apiError('invalid', weak)
 
   await prisma.user.update({
     where: { id },

@@ -1,8 +1,9 @@
+import { requireRole } from '@/lib/guard'
+import { apiError } from '@/lib/api-error'
 import { NextRequest } from 'next/server'
 import { prisma } from '@/lib/db'
 import { z, parseBody } from '@/lib/validate'
 import { createAuditLog } from '@/lib/audit'
-import { requireAdmin } from '@/lib/building-create'
 import { MANUAL_UNIT_STATUSES, parseBooker } from '@/lib/status'
 import { syncUnitInquiryStatus } from '@/lib/inquiry'
 import { NOT_FOR_SALE_STATUS } from '@/lib/status'
@@ -30,41 +31,41 @@ const projectOf = (unitId: string) =>
 // PATCH — correct a single unit. Once a unit has a sale, its number, type and areas are locked
 // because they are printed on agreements and receipts.
 export async function PATCH(req: NextRequest, props: { params: Promise<{ unitId: string }> }) {
-  const guard = await requireAdmin()
+  const guard = await requireRole('admin')
   if ('error' in guard) return guard.error
   const { unitId } = await props.params
   const { data, error } = await parseBody(req, PatchSchema)
   if (error) return error
 
   const unit = await projectOf(unitId)
-  if (!unit) return Response.json({ error: 'Unit not found' }, { status: 404 })
+  if (!unit) return apiError('notFound', 'Unit not found')
   const projectId = unit.floor.wing.projectId
 
   if (unit._count.sales > 0) {
-    return Response.json({ error: 'This unit has a sale, so its details are locked. Cancel or delete the sale first.' }, { status: 409 })
+    return apiError('conflict', 'This unit has a sale, so its details are locked. Cancel or delete the sale first')
   }
 
   if (data.unitNumber && data.unitNumber.toLowerCase() !== unit.unitNumber.toLowerCase()) {
     const clash = await prisma.unit.findFirst({
       where: { id: { not: unitId }, unitNumber: { equals: data.unitNumber, mode: 'insensitive' }, floor: { wing: { projectId } } },
     })
-    if (clash) return Response.json({ error: `Unit number "${data.unitNumber}" is already used in this project` }, { status: 409 })
+    if (clash) return apiError('conflict', `Unit number "${data.unitNumber}" is already used in this project`)
   }
 
   // Flat <-> common area. A common area is never for sale and has no inquiries.
   if (data.kind === 'COMMON' || data.kind === 'FLAT') {
     if (unit._count.inquiries > 0) {
-      return Response.json({ error: 'This unit has inquiries. Delete them first, then change its kind.' }, { status: 409 })
+      return apiError('conflict', 'This unit has inquiries. Delete them first, then change its kind')
     }
     if (data.kind === 'COMMON' && !(data.configuration ?? '').trim()) {
-      return Response.json({ error: 'Enter what this area is, for example Refuge Area' }, { status: 400 })
+      return apiError('invalid', 'Enter what this area is, for example Refuge Area')
     }
     if (data.kind === 'FLAT' && !(data.configuration ?? '').trim()) {
-      return Response.json({ error: 'Enter the configuration this flat should have, for example 2BHK' }, { status: 400 })
+      return apiError('invalid', 'Enter the configuration this flat should have, for example 2BHK')
     }
   }
   if (unit.category === 'COMMON' && data.kind !== 'FLAT' && data.status) {
-    return Response.json({ error: 'A common area is not for sale, so it has no sale status.' }, { status: 400 })
+    return apiError('invalid', 'A common area is not for sale, so it has no sale status')
   }
 
   const { kind, bookedByName, bookedByMobile, ...fields } = data
@@ -76,18 +77,18 @@ export async function PATCH(req: NextRequest, props: { params: Promise<{ unitId:
   if (kind !== undefined || (data.status !== undefined && data.status !== 'BOOKED')) Object.assign(update, { bookedByName: null, bookedByMobile: null })
   if (data.status === 'BOOKED' && kind === undefined) {
     const booker = parseBooker(bookedByName, bookedByMobile)
-    if (!booker.ok) return Response.json({ error: booker.error }, { status: 400 })
+    if (!booker.ok) return apiError('invalid', booker.error)
     Object.assign(update, { bookedByName: booker.name, bookedByMobile: booker.mobile })
   } else if (data.status === undefined && kind === undefined && bookedByName !== undefined && unit.status === 'BOOKED') {
     // editing who booked it, without changing the status
     const booker = parseBooker(bookedByName, bookedByMobile)
-    if (!booker.ok) return Response.json({ error: booker.error }, { status: 400 })
+    if (!booker.ok) return apiError('invalid', booker.error)
     Object.assign(update, { bookedByName: booker.name, bookedByMobile: booker.mobile })
   }
   // Picking a unit type copies its details onto the unit (they can still be adjusted afterwards)
   if (data.unitTypeId) {
     const type = await prisma.unitType.findFirst({ where: { id: data.unitTypeId, projectId } })
-    if (!type) return Response.json({ error: 'Unit type not found in this project' }, { status: 400 })
+    if (!type) return apiError('invalid', 'Unit type not found in this project')
     update.category = type.category
     update.configuration = data.configuration ?? type.configuration
     update.carpetAreaSqft = data.carpetAreaSqft ?? type.carpetAreaSqft
@@ -103,16 +104,16 @@ export async function PATCH(req: NextRequest, props: { params: Promise<{ unitId:
 
 // DELETE — only a unit with no sale and no inquiries
 export async function DELETE(_req: NextRequest, props: { params: Promise<{ unitId: string }> }) {
-  const guard = await requireAdmin()
+  const guard = await requireRole('admin')
   if ('error' in guard) return guard.error
   const { unitId } = await props.params
 
   const unit = await projectOf(unitId)
-  if (!unit) return Response.json({ error: 'Unit not found' }, { status: 404 })
-  if (unit._count.sales > 0) return Response.json({ error: 'This unit has a sale and cannot be deleted.' }, { status: 409 })
+  if (!unit) return apiError('notFound', 'Unit not found')
+  if (unit._count.sales > 0) return apiError('conflict', 'This unit has a sale and cannot be deleted')
   // A cancelled sale stays on the books and still points at the unit, so the unit cannot be removed either
-  if ((await prisma.sale.count({ where: { unitId } })) > 0) return Response.json({ error: 'This unit has a cancelled sale on record, so it cannot be deleted.' }, { status: 409 })
-  if (unit._count.inquiries > 0) return Response.json({ error: `This unit has ${unit._count.inquiries} inquiry(ies). Delete those first.` }, { status: 409 })
+  if ((await prisma.sale.count({ where: { unitId } })) > 0) return apiError('conflict', 'This unit has a cancelled sale on record, so it cannot be deleted')
+  if (unit._count.inquiries > 0) return apiError('conflict', `This unit has ${unit._count.inquiries} inquiry(ies). Delete those first`)
 
   await prisma.unit.delete({ where: { id: unitId } })
 

@@ -1,3 +1,4 @@
+import { apiError, apiServerError } from '@/lib/api-error'
 import { NextResponse } from 'next/server'
 import { prisma } from '@/lib/db'
 import { requireRole } from '@/lib/guard'
@@ -14,7 +15,7 @@ export async function DELETE(
     // Verify user actually exists in the DB (prevents FK errors if DB was reset but session cookie remained)
     const userExists = await prisma.user.findUnique({ where: { id: session.user.id } })
     if (!userExists) {
-      return NextResponse.json({ success: false, error: 'Invalid session. Please log out and log in again.' }, { status: 401 })
+      return apiError('unauthorized', 'Invalid session. Please log out and log in again')
     }
 
     const resolvedParams = await context.params
@@ -33,16 +34,13 @@ export async function DELETE(
     })
 
     if (!milestone) {
-      return NextResponse.json({ success: false, error: 'Milestone not found' }, { status: 404 })
+      return apiError('notFound', 'Milestone not found')
     }
 
     // 2. Validation check: Are there any payments recorded against these schedules?
     const schedulesWithPayments = milestone.paymentSchedules.filter(s => s.payments.length > 0)
     if (schedulesWithPayments.length > 0) {
-      return NextResponse.json({ 
-        success: false, 
-        error: 'Cannot delete milestone because payments have already been recorded against it.' 
-      }, { status: 400 })
+      return apiError('invalid', 'Cannot delete milestone because payments have already been recorded against it')
     }
 
     // 3. Deletion Transaction
@@ -76,7 +74,6 @@ export async function DELETE(
 
     return NextResponse.json({ success: true })
   } catch (error: any) {
-    console.error('Failed to delete milestone:', error)
-    return NextResponse.json({ success: false, error: error.message }, { status: 500 })
+    return apiServerError(error, 'milestones/[id]')
   }
 }

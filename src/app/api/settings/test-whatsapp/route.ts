@@ -1,3 +1,4 @@
+import { apiError, apiServerError } from '@/lib/api-error'
 import { NextRequest } from 'next/server'
 import { requireRole } from '@/lib/guard'
 import { sendWhatsApp } from '@/lib/whatsapp'
@@ -9,7 +10,7 @@ export async function POST(req: NextRequest) {
 
   try {
     const { to } = await req.json()
-    if (!to) return Response.json({ error: 'Phone number is required' }, { status: 400 })
+    if (!to) return apiError('invalid', 'Phone number is required')
 
     const phone = to.replace(/\D/g, '') // strip non-digits
 
@@ -34,6 +35,6 @@ export async function POST(req: NextRequest) {
 
     return Response.json({ success: true, messageId: result.messageId, status: result.status })
   } catch (err: any) {
-    return Response.json({ success: false, error: err.message, detail: err.stack }, { status: 500 })
+    return apiServerError(err, 'settings/test-whatsapp')
   }
 }

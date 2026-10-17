@@ -1,3 +1,4 @@
+import { apiError, apiServerError } from '@/lib/api-error'
 import { NextRequest, NextResponse } from 'next/server'
 import { requireRole } from '@/lib/guard'
 import { prisma } from '@/lib/db'
@@ -34,7 +35,7 @@ export async function GET(
       }
     })
 
-    if (!inquiry) return NextResponse.json({ error: 'Quote not found' }, { status: 404 })
+    if (!inquiry) return apiError('notFound', 'Quote not found')
 
     const { unit } = inquiry
     const project = unit.floor.wing.project
@@ -209,7 +210,6 @@ export async function GET(
       }
     })
   } catch (error: any) {
-    console.error('PDF generation error:', error)
-    return NextResponse.json({ error: error.message }, { status: 500 })
+    return apiServerError(error, 'units/[unitId]/quotes/[quoteId]/pdf')
   }
 }

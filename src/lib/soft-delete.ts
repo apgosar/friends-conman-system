@@ -13,7 +13,7 @@
  */
 
 import { prisma } from '@/lib/db'
-import { createAuditLog } from '@/lib/audit'
+import { fail } from '@/lib/errors'
 
 interface SoftDeleteOptions {
   userId: string
@@ -31,8 +31,8 @@ export const softDelete = {
       select: { saleNumber: true, unitId: true, status: true, deletedAt: true },
     })
 
-    if (!sale) throw new Error('Sale not found')
-    if (sale.deletedAt) throw new Error('Sale is already deleted')
+    if (!sale) throw fail('notFound', 'Sale not found')
+    if (sale.deletedAt) throw fail('conflict', 'Sale is already deleted')
 
     await prisma.$transaction(async (tx) => {
       // Mark the sale as soft-deleted
@@ -80,8 +80,8 @@ export const softDelete = {
       select: { receiptNumber: true, amount: true, deletedAt: true },
     })
 
-    if (!payment) throw new Error('Payment not found')
-    if (payment.deletedAt) throw new Error('Payment is already deleted')
+    if (!payment) throw fail('notFound', 'Payment not found')
+    if (payment.deletedAt) throw fail('conflict', 'Payment is already deleted')
 
     await prisma.$transaction(async (tx) => {
       await tx.payment.update({
@@ -111,8 +111,8 @@ export const softDelete = {
       select: { type: true, status: true, deletedAt: true },
     })
 
-    if (!doc) throw new Error('Document not found')
-    if (doc.deletedAt) throw new Error('Document is already deleted')
+    if (!doc) throw fail('notFound', 'Document not found')
+    if (doc.deletedAt) throw fail('conflict', 'Document is already deleted')
 
     await prisma.$transaction(async (tx) => {
       await tx.document.update({

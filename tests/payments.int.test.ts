@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeEach } from 'vitest'
+import { it, expect, beforeEach } from 'vitest'
 import { describeDb, resetDb, getPrisma, seedProject, seedUser } from './helpers/db'
 
 async function setup(opts: { principal?: number; gst?: number; receiveComms?: boolean; projectName?: string } = {}) {

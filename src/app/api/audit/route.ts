@@ -1,3 +1,4 @@
+import { apiError, apiServerError } from '@/lib/api-error'
 import { NextRequest } from 'next/server'
 import { requireRole } from '@/lib/guard'
 import { prisma } from '@/lib/db'
@@ -34,7 +35,7 @@ export async function GET(req: NextRequest) {
     ])
 
     return Response.json({ success: true, data: logs, total, page, pages: Math.ceil(total / limit) })
-  } catch (err: any) {
-    return Response.json({ error: 'Internal Server Error' }, { status: 500 })
+  } catch (err) {
+    return apiServerError(err, 'audit')
   }
 }

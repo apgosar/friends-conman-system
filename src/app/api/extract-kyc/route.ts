@@ -1,3 +1,5 @@
+import { logger } from '@/lib/logger'
+import { apiError } from '@/lib/api-error'
 import { NextRequest, NextResponse } from 'next/server'
 import { requireRole } from '@/lib/guard'
 import { kycRateLimit, rateLimitExceeded } from '@/lib/rate-limit'
@@ -12,7 +14,7 @@ export async function POST(req: NextRequest) {
 
   const token = process.env.AZAPI_TOKEN
   if (!token) {
-    return NextResponse.json({ error: 'OCR API token not configured on server' }, { status: 500 })
+    return apiError('server', 'OCR API token not configured on server')
   }
 
   try {
@@ -21,10 +23,10 @@ export async function POST(req: NextRequest) {
     const docType = formData.get('docType') as string | null
 
     if (!file) {
-      return NextResponse.json({ error: 'No file provided' }, { status: 400 })
+      return apiError('invalid', 'No file provided')
     }
     if (!docType || !['PAN', 'AADHAAR'].includes(docType)) {
-      return NextResponse.json({ error: 'Invalid or missing docType' }, { status: 400 })
+      return apiError('invalid', 'Invalid or missing docType')
     }
 
     const fileBuffer = Buffer.from(await file.arrayBuffer())
@@ -89,7 +91,7 @@ export async function POST(req: NextRequest) {
       data: extractedData,
     })
   } catch (error: any) {
-    console.error('[KYC Extract] Error:', error)
-    return NextResponse.json({ error: 'KYC extraction failed. Please try again.' }, { status: 500 })
+    logger.error({ err: error }, '[KYC Extract] Error:')
+    return apiError('server', 'KYC extraction failed. Please try again')
   }
 }

@@ -1,3 +1,5 @@
+import { kindForStatus } from '@/lib/errors'
+import { apiError } from '@/lib/api-error'
 import { NextRequest } from 'next/server'
 import { prisma } from '@/lib/db'
 import { requireRole } from '@/lib/guard'
@@ -38,9 +40,9 @@ export async function POST(req: NextRequest) {
     dispatchAllPending().catch((err) => logger.error({ err }, 'Dispatch after sale failed'))
     return Response.json({ success: true, data: sale }, { status: 201 })
   } catch (err) {
-    if (err instanceof SaleError) return Response.json({ error: err.message }, { status: err.status })
-    if (isDuplicateActiveSale(err)) return Response.json({ error: 'This unit was just booked by someone else. Choose another unit.' }, { status: 409 })
+    if (err instanceof SaleError) return apiError(kindForStatus(err.status), err.message)
+    if (isDuplicateActiveSale(err)) return apiError('conflict', 'This unit was just booked by someone else. Choose another unit')
     logger.error({ err }, 'Sale creation failed')
-    return Response.json({ error: 'Could not create the sale' }, { status: 500 })
+    return apiError('server', 'Could not create the sale')
   }
 }

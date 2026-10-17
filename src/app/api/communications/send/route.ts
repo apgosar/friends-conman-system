@@ -1,3 +1,4 @@
+import { apiError, apiServerError } from '@/lib/api-error'
 import { NextRequest } from 'next/server'
 import { requireRole } from '@/lib/guard'
 import { prisma } from '@/lib/db'
@@ -14,7 +15,7 @@ export async function POST(req: NextRequest) {
     const { saleId, buyerId, channel, type, messageContent } = body
 
     if (!saleId || !channel || !messageContent) {
-      return Response.json({ error: 'saleId, channel, and messageContent are required' }, { status: 400 })
+      return apiError('invalid', 'saleId, channel, and messageContent are required')
     }
 
     const log = await prisma.communicationLog.create({
@@ -30,8 +31,8 @@ export async function POST(req: NextRequest) {
 
     const result = await dispatchCommunicationLog(log.id)
     return Response.json({ success: true, logId: log.id, result })
-  } catch (err: any) {
-    return Response.json({ error: 'Internal server error' }, { status: 500 })
+  } catch (err) {
+    return apiServerError(err, 'communications/send')
   }
 }
 

@@ -1,6 +1,7 @@
 import { notFound } from 'next/navigation'
 import { prisma } from '@/lib/db'
 import { auth } from '@/lib/auth'
+import { can } from '@/lib/authz'
 import TopNav from '@/components/layout/TopNav'
 import BackToProject from '@/components/projects/BackToProject'
 import UnitTypesPanel from '@/components/structure/UnitTypesPanel'
@@ -40,7 +41,7 @@ export default async function ProjectStructurePage(props: PageProps<'/projects/[
   ])
   if (!project) notFound()
 
-  const canEdit = ['SUPER_ADMIN', 'ADMIN'].includes(session?.user?.role as string)
+  const canEdit = can(session?.user?.role, 'admin')
 
   const types: UnitTypeRow[] = project.unitTypes.map((t) => ({
     id: t.id, category: t.category as UnitTypeRow['category'], name: t.name, configuration: t.configuration, carpetAreaSqft: t.carpetAreaSqft, builtupAreaSqft: t.builtupAreaSqft,

@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeEach } from 'vitest'
+import { it, expect, beforeEach } from 'vitest'
 import { describeDb, resetDb, getPrisma, seedProject } from './helpers/db'
 
 describeDb('NUMERIC money columns are read back as plain numbers', () => {

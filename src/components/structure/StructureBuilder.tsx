@@ -70,8 +70,8 @@ function ExtraRows({ extras, types, onChange }: { extras: ExtraPattern[]; types:
       {extras.map((x, i) => {
         const floors = floorsOf(x)
         return (
-          <div key={i} className="pattern-row dir-col items-stretch" style={{ gap: 6 }}>
-            <div className="flex items-center wrap" style={{ gap: 10 }}>
+          <div key={i} className="pattern-row dir-col items-stretch gap-2">
+            <div className="flex items-center wrap gap-3">
               <Words>On floors</Words>
               <Input type="number" min={0} aria-label="From floor" className="num-input" value={Number.isNaN(x.from) ? '' : x.from} onChange={(e) => set(i, (v) => { const from = num(e.target.value); return { ...v, from, to: Number.isNaN(from) || !(v.to >= from) ? from : v.to } })} />
               <Words>to</Words>
@@ -239,7 +239,7 @@ export default function StructureBuilder({ projectId, types, existingWings }: { 
         <div className="section-label mb-3">Preview</div>
         {errors.length > 0 ? (
           <Alert variant="danger">
-            <ul className="m-0" style={{ paddingLeft: 18 }}>{errors.slice(0, 6).map((e) => <li key={e}>{e}</li>)}</ul>
+            <ul className="m-0 pl-5">{errors.slice(0, 6).map((e) => <li key={e}>{e}</li>)}</ul>
           </Alert>
         ) : (
           <>

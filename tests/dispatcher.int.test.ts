@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest'
+import { it, expect, beforeEach, afterEach, vi } from 'vitest'
 import { describeDb, resetDb, getPrisma, seedProject } from './helpers/db'
 
 const sendEmail = vi.fn(async (_opts: any) => ({ messageId: 'm-1' }))

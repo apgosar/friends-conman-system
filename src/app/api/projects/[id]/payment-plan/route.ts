@@ -1,3 +1,4 @@
+import { apiError, apiServerError } from '@/lib/api-error'
 import { NextRequest } from 'next/server'
 import { prisma } from '@/lib/db'
 import { auth } from '@/lib/auth'
@@ -6,7 +7,7 @@ import { requireRole } from '@/lib/guard'
 // GET /api/projects/[id]/payment-plan — returns all milestones with percentOfAV
 export async function GET(req: NextRequest, props: { params: Promise<{ id: string }> }) {
   const session = await auth()
-  if (!session) return Response.json({ error: 'Unauthorized' }, { status: 401 })
+  if (!session) return apiError('unauthorized')
 
   const { id } = await props.params
   const milestones = await prisma.constructionMilestone.findMany({
@@ -26,13 +27,13 @@ export async function PUT(req: NextRequest, props: { params: Promise<{ id: strin
   const { milestones } = body // [{ id?, name, percentOfAV, sequence }]
 
   if (!Array.isArray(milestones) || milestones.length === 0) {
-    return Response.json({ error: 'milestones array required' }, { status: 400 })
+    return apiError('invalid', 'milestones array required')
   }
 
   // Validate total
   const total = milestones.reduce((s: number, m: any) => s + (Number(m.percentOfAV) || 0), 0)
   if (Math.abs(total - 100) > 0.1) {
-    return Response.json({ error: `Percentages must total 100% (got ${total}%)` }, { status: 400 })
+    return apiError('invalid', `Percentages must total 100% (got ${total}%)`)
   }
 
   try {
@@ -91,7 +92,7 @@ export async function PUT(req: NextRequest, props: { params: Promise<{ id: strin
       orderBy: { sequence: 'asc' }
     })
     return Response.json({ success: true, data: updated })
-  } catch (err: any) {
-    return Response.json({ error: 'Internal server error' }, { status: 500 })
+  } catch (err) {
+    return apiServerError(err, 'projects/[id]/payment-plan')
   }
 }

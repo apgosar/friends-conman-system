@@ -1,7 +1,6 @@
 'use client'
 
 import { Button, ButtonLink } from '@/components/ui'
-import { wingLabel } from '@/lib/building-structure'
 import { formatRupees } from '@/lib/format'
 import { isUnsold, unitStatusLabel } from '@/lib/status'
 import InquiryCard, { type InquiryAction } from './InquiryCard'

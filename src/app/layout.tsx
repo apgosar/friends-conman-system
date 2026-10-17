@@ -11,6 +11,7 @@ export const metadata: Metadata = {
 export const viewport: Viewport = {
   width: 'device-width',
   initialScale: 1,
+  // eslint-disable-next-line no-restricted-syntax -- the browser chrome colour is read by the browser, which cannot resolve a CSS variable
   themeColor: '#09090b',
   colorScheme: 'dark',
 }

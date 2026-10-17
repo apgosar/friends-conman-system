@@ -1,3 +1,4 @@
+import { logger } from '@/lib/logger'
 import { prisma } from '@/lib/db'
 import { floorPlanDataUri } from '@/lib/floor-plan-image'
 import puppeteer from 'puppeteer'
@@ -176,7 +177,7 @@ export async function generateAndSaveQuotePdf(quoteId: string) {
 
     return true
   } catch (error) {
-    console.error('Failed to generate PDF in background:', error)
+    logger.error({ err: error }, 'Failed to generate PDF in background')
     return false
   }
 }
