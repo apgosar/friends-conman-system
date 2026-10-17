@@ -58,7 +58,11 @@ RUN mkdir -p data-migrations \
  && npx --no-install esbuild scripts/migrate-lifecycle-statuses.ts \
       --bundle --platform=node --target=node20 --format=cjs --packages=external \
       --tsconfig=tsconfig.json --minify --legal-comments=none \
-      --outfile=data-migrations/001-lifecycle-statuses.js
+      --outfile=data-migrations/001-lifecycle-statuses.js \
+ && npx --no-install esbuild scripts/encrypt-pii.ts \
+      --bundle --platform=node --target=node20 --format=cjs --packages=external \
+      --tsconfig=tsconfig.json --minify --legal-comments=none \
+      --outfile=data-migrations/002-encrypt-pii.js
 
 # Runner layer — minimal production image
 FROM base AS runner

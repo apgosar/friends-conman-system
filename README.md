@@ -64,12 +64,16 @@ A comprehensive Real Estate Construction & Sales Management platform built for m
    DATABASE_URL="postgresql://user:password@localhost:5432/friends_db"
    NEXTAUTH_SECRET="your-secret-key"
    NEXTAUTH_URL="http://localhost:3000"
+   # Encrypts buyers' PAN and Aadhaar numbers. Optional for local development, REQUIRED in production.
+   # Generate with `openssl rand -base64 32` and back it up apart from the database (without it those numbers cannot be read).
+   PII_ENCRYPTION_KEY="..."
    ```
+   Upgrading a database that already holds buyers? Run `npm run db:encrypt-pii` once after setting the key (safe to repeat).
 
 4. **Initialize Database**
    ```bash
    npx prisma generate
-   npx prisma db push
+   npx prisma migrate deploy   # creates the tables and applies every migration
    # Optional: Run seeders to populate initial data
    # npx tsx prisma/seed.ts
    ```
@@ -78,7 +82,7 @@ A comprehensive Real Estate Construction & Sales Management platform built for m
    ```bash
    npm run dev
    ```
-   Open [http://localhost:3000](http://localhost:3000) in your browser. Default login: `admin@friends.com` / `Admin@123`
+   Open [http://localhost:3000](http://localhost:3000) in your browser. The demo seed creates `admin@friends.com` and prints a generated password once (set `SEED_PASSWORD` to choose it); there is no default password.
 
 ## 🎨 UI / UX Philosophy
 
@@ -86,3 +90,35 @@ The application features a sleek, premium, dark-mode optimized aesthetic. Key de
 * **Glassmorphism**: Subtle blurs (`backdrop-filter`) and semi-transparent overlays on Modals and Sidebars.
 * **Strict Design Tokens**: All colors, shadows, and radiuses map to CSS Variables (e.g., `var(--bg-card)`) ensuring 100% consistency across 50+ components.
 * **Data-Dense but Clean**: Tables and forms maximize screen real estate while maintaining distinct visual hierarchies for financial data.
+
+
+## Testing and quality gate
+
+```bash
+npm run typecheck     # TypeScript
+npm run lint          # ESLint (warnings are tracked and may not increase: see lint:ci)
+npm test              # unit tests; integration tests are skipped without a database
+```
+
+The integration tests run against a real PostgreSQL and **empty its tables**, so give them a disposable database:
+
+```bash
+createdb neev_test
+TEST_DATABASE_URL=postgresql://localhost:5432/neev_test npm test     # applies the migrations, then runs everything
+```
+
+CI (`.github/workflows/ci.yml`) runs the same checks plus a migrations-vs-schema drift check and a production build.
+`deploy.yml` and `release-onprem.yml` call it first, so a failing commit is never deployed or released.
+
+### Database changes
+
+Schema changes are Prisma migrations (`prisma/migrations`), not `db push`.
+
+```bash
+npx prisma migrate dev --name what_changed   # edit schema.prisma first; commit the generated folder
+```
+
+Never edit a migration that has already shipped. Things `schema.prisma` cannot express (partial unique indexes,
+CHECK constraints) go in the migration SQL, as in `20261017000000_hardening`.
+Existing databases created by the old `db push` are baselined automatically by the on-prem updater
+(`prisma migrate resolve --applied 0_init`); on Cloud Run run that once by hand (`npm run db:baseline`) before the first `npm run db:deploy`.

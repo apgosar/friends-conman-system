@@ -20,6 +20,9 @@ const buildSha = (): string => {
   }
 }
 
+const isProd = process.env.NODE_ENV === 'production'
+
+// The API is only called by this app's own pages, so there are no CORS headers: other sites' scripts cannot call it with a signed-in user's cookies.
 const nextConfig: NextConfig = {
   output: 'standalone',
   env: {
@@ -42,10 +45,6 @@ const nextConfig: NextConfig = {
             value: 'DENY',
           },
           {
-            key: 'X-XSS-Protection',
-            value: '1; mode=block',
-          },
-          {
             key: 'Referrer-Policy',
             value: 'strict-origin-when-cross-origin',
           },
@@ -61,9 +60,10 @@ const nextConfig: NextConfig = {
             key: 'Content-Security-Policy',
             value: [
               "default-src 'self'",
-              "script-src 'self' 'unsafe-inline' 'unsafe-eval'", // unsafe-eval needed for Next.js dev
-              "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com",
-              "font-src 'self' https://fonts.gstatic.com",
+              // Next.js inlines small bootstrap scripts, so 'unsafe-inline' stays until the CSP moves to per-request nonces. eval is only for dev tooling.
+              `script-src 'self' 'unsafe-inline'${isProd ? '' : " 'unsafe-eval'"}`,
+              "style-src 'self' 'unsafe-inline'",
+              "font-src 'self' data:", // fonts are self-hosted (@fontsource), nothing is loaded from Google
               "img-src 'self' data: blob: https:",
               "connect-src 'self' https://graph.facebook.com https://ocr.azapi.ai",
               "frame-ancestors 'none'",
@@ -71,15 +71,6 @@ const nextConfig: NextConfig = {
               "form-action 'self'",
             ].join('; '),
           },
-        ],
-      },
-      {
-        source: '/api/:path*',
-        headers: [
-          { key: 'Access-Control-Allow-Credentials', value: 'true' },
-          { key: 'Access-Control-Allow-Origin', value: process.env.APP_URL || 'http://localhost:3000' },
-          { key: 'Access-Control-Allow-Methods', value: 'GET,DELETE,PATCH,POST,PUT,OPTIONS' },
-          { key: 'Access-Control-Allow-Headers', value: 'X-CSRF-Token, X-Requested-With, Accept, Accept-Version, Content-Length, Content-MD5, Content-Type, Date, X-Api-Version' },
         ],
       },
     ]

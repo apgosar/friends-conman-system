@@ -2,6 +2,9 @@
 
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
+import { Alert, Button, Card, CardHeader, Input, Table, useToast } from '@/components/ui'
+import { errorMessage, fetchJson, jsonRequest } from '@/lib/client/api'
+import { formatNumber } from '@/lib/format'
 
 const DEFAULT_PLAN = [
   { name: 'Token',                           percentOfAV: 10 },
@@ -20,8 +23,9 @@ type Row = { id?: string; name: string; percentOfAV: number }
 
 export default function PaymentPlanEditor({ projectId, milestones }: { projectId: string; milestones: any[] }) {
   const router = useRouter()
+  const toast = useToast()
   const [saving, setSaving] = useState(false)
-  const [msg, setMsg] = useState<{ type: 'success' | 'error'; text: string } | null>(null)
+  const [error, setError] = useState('')
 
   // Initialise rows from DB milestones, or fall back to defaults
   const init: Row[] = milestones.length > 0
@@ -36,164 +40,102 @@ export default function PaymentPlanEditor({ projectId, milestones }: { projectId
   const updateRow = (idx: number, field: keyof Row, value: string | number) => {
     setRows(prev => prev.map((r, i) => i === idx ? { ...r, [field]: value } : r))
   }
-
-  const addRow = () => {
-    setRows(prev => [...prev, { name: '', percentOfAV: 0 }])
-  }
-
-  const removeRow = (idx: number) => {
-    setRows(prev => prev.filter((_, i) => i !== idx))
-  }
-
+  const addRow = () => setRows(prev => [...prev, { name: '', percentOfAV: 0 }])
+  const removeRow = (idx: number) => setRows(prev => prev.filter((_, i) => i !== idx))
   const resetToDefault = () => {
     setRows(DEFAULT_PLAN.map(d => ({ name: d.name, percentOfAV: d.percentOfAV })))
-    setMsg(null)
+    setError('')
   }
 
   const handleSave = async () => {
     if (!isValid) {
-      setMsg({ type: 'error', text: `Percentages must total 100%. Currently: ${total}%` })
+      setError(`Percentages must total 100%. They currently total ${formatNumber(total)}%`)
       return
     }
     setSaving(true)
-    setMsg(null)
+    setError('')
     try {
-      const res = await fetch(`/api/projects/${projectId}/payment-plan`, {
-        method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ milestones: rows.map((r, i) => ({ ...r, sequence: i + 1 })) }),
-      })
-      const data = await res.json()
-      if (!data.success) throw new Error(data.error || 'Save failed')
-      setMsg({ type: 'success', text: 'Payment plan saved successfully!' })
+      await fetchJson(`/api/projects/${projectId}/payment-plan`, jsonRequest('PUT', { milestones: rows.map((r, i) => ({ ...r, sequence: i + 1 })) }))
+      toast.success('Payment plan saved')
       router.refresh()
-    } catch (err: any) {
-      setMsg({ type: 'error', text: err.message })
+    } catch (err) {
+      setError(errorMessage(err))
     } finally {
       setSaving(false)
     }
   }
 
   return (
-    <div style={{ maxWidth: 680, margin: '0 auto' }}>
-      {/* Table card */}
-      <div className="card mb-4">
-        <div className="card-header">
-          <span className="card-title">Milestone Payment Schedule</span>
-          <button className="btn btn-ghost btn-sm" onClick={resetToDefault} type="button">
-            Reset to Defaults
-          </button>
+    <div className="max-w-lg mx-auto">
+      <Card flush className="mb-4">
+        <div className="p-5 pb-0">
+          <CardHeader title="Milestone Payment Schedule" actions={<Button variant="ghost" size="sm" onClick={resetToDefault}>Reset to Defaults</Button>} />
         </div>
 
-        <div className="table-wrapper" style={{ border: 'none' }}>
-          <table>
-            <thead>
-              <tr>
-                <th style={{ width: 40 }}>#</th>
-                <th>Milestone</th>
-                <th style={{ width: 180, textAlign: 'right' }}>% of Agreement Value</th>
-                <th style={{ width: 48 }}></th>
-              </tr>
-            </thead>
-            <tbody>
-              {rows.map((row, idx) => (
-                <tr key={idx}>
-                  <td style={{ color: 'var(--text-muted)', fontWeight: 600 }}>{idx + 1}</td>
-                  <td>
-                    <input
-                      className="form-input"
-                      style={{ padding: '6px 10px', fontSize: '0.875rem' }}
-                      value={row.name}
-                      onChange={e => updateRow(idx, 'name', e.target.value)}
-                      placeholder="Milestone name"
-                    />
-                  </td>
-                  <td>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: 4, justifyContent: 'flex-end' }}>
-                      <input
-                        type="number"
-                        min={0}
-                        max={100}
-                        step={0.5}
-                        className="form-input"
-                        style={{ padding: '6px 10px', fontSize: '0.875rem', width: 80, textAlign: 'right' }}
-                        value={row.percentOfAV}
-                        onChange={e => updateRow(idx, 'percentOfAV', parseFloat(e.target.value) || 0)}
-                      />
-                      <span style={{ color: 'var(--text-muted)', fontSize: '0.875rem' }}>%</span>
-                    </div>
-                  </td>
-                  <td>
-                    <button
-                      type="button"
-                      onClick={() => removeRow(idx)}
-                      style={{
-                        background: 'none', border: 'none', cursor: 'pointer',
-                        color: 'var(--text-muted)', fontSize: '1rem', padding: '4px 6px',
-                        borderRadius: 4,
-                      }}
-                      title="Remove row"
-                    >
-                      ✕
-                    </button>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-            <tfoot>
-              <tr style={{ borderTop: '2px solid var(--border-color)' }}>
-                <td></td>
-                <td style={{ fontWeight: 700, fontSize: '0.9rem', paddingTop: 10 }}>TOTAL</td>
-                <td style={{
-                  textAlign: 'right', fontWeight: 700, fontSize: '1rem', paddingTop: 10,
-                  color: isValid ? 'var(--color-success)' : 'var(--color-danger)',
-                }}>
-                  {total}%
+        <Table flush>
+          <thead>
+            <tr>
+              <th className="col-xs">#</th>
+              <th>Milestone</th>
+              <th className="text-right col-lg">% of Agreement Value</th>
+              <th className="col-xs"></th>
+            </tr>
+          </thead>
+          <tbody>
+            {rows.map((row, idx) => (
+              <tr key={idx}>
+                <td className="text-muted font-semibold">{idx + 1}</td>
+                <td>
+                  <Input small aria-label={`Milestone ${idx + 1} name`} value={row.name} onChange={e => updateRow(idx, 'name', e.target.value)} placeholder="Milestone name" />
                 </td>
-                <td></td>
+                <td>
+                  <div className="flex items-center gap-1 justify-end">
+                    <Input
+                      small
+                      type="number"
+                      inputMode="decimal"
+                      min={0}
+                      max={100}
+                      step={0.5}
+                      aria-label={`Milestone ${idx + 1} percentage`}
+                      className="num-input text-right"
+                      value={row.percentOfAV}
+                      onChange={e => updateRow(idx, 'percentOfAV', parseFloat(e.target.value) || 0)}
+                    />
+                    <span className="text-muted text-base">%</span>
+                  </div>
+                </td>
+                <td>
+                  <Button variant="ghost" size="sm" icon aria-label={`Remove milestone ${idx + 1}`} title="Remove row" onClick={() => removeRow(idx)}>✕</Button>
+                </td>
               </tr>
-            </tfoot>
-          </table>
-        </div>
+            ))}
+          </tbody>
+          <tfoot>
+            <tr>
+              <td></td>
+              <td className="font-bold">TOTAL</td>
+              <td className={`text-right font-bold text-md ${isValid ? 'text-success' : 'text-danger'}`}>{formatNumber(total)}%</td>
+              <td></td>
+            </tr>
+          </tfoot>
+        </Table>
 
-        <div style={{ padding: '8px 0 4px 0' }}>
-          <button type="button" className="btn btn-ghost btn-sm" onClick={addRow}>
-            + Add Milestone Row
-          </button>
+        <div className="p-4">
+          <Button variant="ghost" size="sm" onClick={addRow}>+ Add Milestone Row</Button>
         </div>
-      </div>
+      </Card>
 
-      {/* Validation hint */}
       {!isValid && (
-        <div style={{
-          background: 'var(--color-warning-light, #fef3c7)',
-          border: '1px solid var(--color-warning, #f59e0b)',
-          borderRadius: 8, padding: '10px 16px', marginBottom: 16,
-          fontSize: '0.875rem', color: '#92400e',
-        }}>
-          ⚠ Total must equal 100%. Currently {total}% ({total > 100 ? `${total - 100}% over` : `${100 - total}% short`}).
-        </div>
+        <Alert variant="warning" className="mb-4">
+          Total must equal 100%. It is {formatNumber(total)}% ({total > 100 ? `${formatNumber(total - 100)}% over` : `${formatNumber(100 - total)}% short`}).
+        </Alert>
       )}
-
-      {/* Message */}
-      {msg && (
-        <div className={`alert ${msg.type === 'success' ? 'alert-success' : 'alert-danger'} mb-4`}>
-          {msg.text}
-        </div>
-      )}
+      {error && <Alert variant="danger" className="mb-4">{error}</Alert>}
 
       <div className="flex justify-end gap-3">
-        <button type="button" className="btn btn-secondary" onClick={resetToDefault}>
-          Reset to Defaults
-        </button>
-        <button
-          type="button"
-          className="btn btn-primary"
-          onClick={handleSave}
-          disabled={saving || !isValid}
-        >
-          {saving ? 'Saving...' : 'Save Payment Plan'}
-        </button>
+        <Button onClick={resetToDefault}>Reset to Defaults</Button>
+        <Button variant="primary" loading={saving} disabled={!isValid} onClick={handleSave}>Save Payment Plan</Button>
       </div>
     </div>
   )

@@ -1,64 +1,38 @@
 'use client'
 
-import { formatCurrency, formatDate } from '@/lib/template-engine'
 import { useRouter } from 'next/navigation'
-
-const MODE_LABELS: Record<string, string> = {
-  CHEQUE: 'Cheque', RTGS_NEFT: 'RTGS/NEFT', UPI: 'UPI',
-  DD: 'DD', CASH: 'Cash', LOAN_DISBURSEMENT: 'Loan',
-}
+import { Badge, Card, CardHeader, EmptyState, Table, Td } from '@/components/ui'
+import { formatCurrency, formatDate } from '@/lib/format'
+import { paymentModeLabel } from '@/lib/status'
 
 export default function RecentPayments({ payments }: { payments: any[] }) {
   const router = useRouter()
-  
+
   return (
-    <div className="card">
-      <div className="card-header">
-        <span className="card-title">Recent Payments</span>
-      </div>
+    <Card>
+      <CardHeader title="Recent Payments" />
       {payments.length === 0 ? (
-        <div style={{ textAlign: 'center', padding: '40px', color: 'var(--text-muted)' }}>
-          No payments recorded yet
-        </div>
+        <EmptyState>No payments recorded yet</EmptyState>
       ) : (
-        <div className="table-wrapper" style={{ border: 'none' }}>
-          <table>
-            <thead>
-              <tr>
-                <th>Receipt #</th>
-                <th>Unit</th>
-                <th>Buyer</th>
-                <th>Description</th>
-                <th>Mode</th>
-                <th>Date</th>
-                <th style={{ textAlign: 'right' }}>Amount</th>
+        <Table flush stack>
+          <thead>
+            <tr><th>Receipt #</th><th>Unit</th><th>Buyer</th><th>Description</th><th>Mode</th><th>Date</th><th className="text-right">Amount</th></tr>
+          </thead>
+          <tbody>
+            {payments.map((p) => (
+              <tr key={p.id} onClick={() => router.push(`/sales/${p.saleId}`)} className="row-link">
+                <Td label="Receipt #"><Badge variant="primary">{p.receiptNumber}</Badge></Td>
+                <Td label="Unit">{p.sale?.unit?.unitNumber ?? '-'}</Td>
+                <Td label="Buyer">{p.sale?.buyers?.[0]?.fullName ?? '-'}</Td>
+                <Td label="Description" className="text-secondary">{p.schedule?.description}</Td>
+                <Td label="Mode"><Badge>{paymentModeLabel(p.mode)}</Badge></Td>
+                <Td label="Date" className="text-muted">{formatDate(p.paymentDate)}</Td>
+                <Td label="Amount" className="text-right font-semibold text-success">{formatCurrency(Number(p.amount))}</Td>
               </tr>
-            </thead>
-            <tbody>
-              {payments.map((p) => (
-                <tr 
-                  key={p.id} 
-                  onClick={() => router.push(`/sales/${p.saleId}`)}
-                  style={{ cursor: 'pointer' }}
-                  className="hoverable-row"
-                >
-                  <td>
-                    <span className="badge badge-primary">{p.receiptNumber}</span>
-                  </td>
-                  <td>{p.sale?.unit?.unitNumber ?? '-'}</td>
-                  <td>{p.sale?.buyers?.[0]?.fullName ?? '-'}</td>
-                  <td style={{ color: 'var(--text-secondary)', maxWidth: 160 }}>{p.schedule?.description}</td>
-                  <td><span className="badge badge-muted">{MODE_LABELS[p.mode] ?? p.mode}</span></td>
-                  <td style={{ color: 'var(--text-muted)' }}>{formatDate(p.paymentDate)}</td>
-                  <td style={{ textAlign: 'right', fontWeight: 600, color: 'var(--color-success)' }}>
-                    {formatCurrency(Number(p.amount))}
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
+            ))}
+          </tbody>
+        </Table>
       )}
-    </div>
+    </Card>
   )
 }

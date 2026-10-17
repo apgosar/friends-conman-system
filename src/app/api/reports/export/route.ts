@@ -1,6 +1,9 @@
+import { apiError, apiServerError } from '@/lib/api-error'
 import { NextRequest } from 'next/server'
-import { auth } from '@/lib/auth'
+import { requireRole } from '@/lib/guard'
 import { prisma } from '@/lib/db'
+import { activeSale } from '@/lib/soft-delete'
+import { formatDate } from '@/lib/format'
 
 function escapeCsv(val: any): string {
   if (val === null || val === undefined) return ''
@@ -17,11 +20,8 @@ function toCsv(headers: string[], rows: string[][]): string {
 
 // GET /api/reports/export?type=sales|payments|inventory
 export async function GET(req: NextRequest) {
-  const session = await auth()
-  if (!session) return new Response('Unauthorized', { status: 401 })
-  if (session.user.role !== 'SUPER_ADMIN' && session.user.role !== 'ADMIN') {
-    return new Response('Forbidden', { status: 403 })
-  }
+  const guard = await requireRole('admin')
+  if ('error' in guard) return guard.error
 
   const type = new URL(req.url).searchParams.get('type') ?? 'sales'
 
@@ -32,6 +32,7 @@ export async function GET(req: NextRequest) {
     if (type === 'sales') {
       filename = 'sales_book.csv'
       const sales = await prisma.sale.findMany({
+        where: activeSale,
         include: {
           project: { select: { name: true } },
           unit: { select: { unitNumber: true, configuration: true } },
@@ -42,7 +43,7 @@ export async function GET(req: NextRequest) {
       const headers = ['Sale #', 'Date', 'Project', 'Unit', 'Configuration', 'Buyer Name', 'Buyer Email', 'Buyer Phone', 'Agreement Value', 'GST', 'Total', 'Booking Amount', 'Status']
       const rows = sales.map(s => [
         s.saleNumber,
-        new Date(s.createdAt).toLocaleDateString('en-IN'),
+        formatDate(s.createdAt),
         s.project.name,
         s.unit?.unitNumber ?? '',
         s.unit?.configuration ?? '',
@@ -63,6 +64,7 @@ export async function GET(req: NextRequest) {
       // Payment model has: scheduleId, saleId, amount, gstPaid, mode, referenceNumber, bankName, remark, paymentDate, receiptNumber
       // We join with sale and schedule via separate queries for simplicity
       const payments = await prisma.payment.findMany({
+        where: { deletedAt: null, sale: activeSale },
         include: {
           sale: {
             include: {
@@ -78,7 +80,7 @@ export async function GET(req: NextRequest) {
       const headers = ['Receipt #', 'Payment Date', 'Project', 'Unit', 'Buyer', 'Milestone', 'Amount', 'GST Paid', 'Total', 'Mode', 'Reference #', 'Bank']
       const rows = payments.map(p => [
         p.receiptNumber ?? '',
-        new Date(p.paymentDate).toLocaleDateString('en-IN'),
+        formatDate(p.paymentDate),
         p.sale.project.name,
         p.sale.unit?.unitNumber ?? '',
         p.sale.buyers[0]?.fullName ?? '',
@@ -129,7 +131,7 @@ export async function GET(req: NextRequest) {
     }
 
     else {
-      return Response.json({ error: 'Unknown export type' }, { status: 400 })
+      return apiError('invalid', 'Unknown export type')
     }
 
     return new Response(csv, {
@@ -139,7 +141,7 @@ export async function GET(req: NextRequest) {
         'Content-Disposition': `attachment; filename="${filename}"`,
       },
     })
-  } catch (err: any) {
-    return Response.json({ error: 'Internal server error' }, { status: 500 })
+  } catch (err) {
+    return apiServerError(err, 'reports/export')
   }
 }

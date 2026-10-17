@@ -1,9 +1,10 @@
+import { requireRole } from '@/lib/guard'
 import { NextRequest } from 'next/server'
 import { prisma } from '@/lib/db'
 import { z, parseBody } from '@/lib/validate'
 import { createAuditLog } from '@/lib/audit'
-import { requireAdmin } from '@/lib/building-create'
 import { NOT_FOR_SALE_STATUS } from '@/lib/status'
+import { activeSale } from '@/lib/soft-delete'
 
 const Schema = z.discriminatedUnion('kind', [
   // Turn flats into common areas (refuge area, society office...). The label is what the area is called.
@@ -15,7 +16,7 @@ const Schema = z.discriminatedUnion('kind', [
 // POST — change the kind of many units at once.
 // Units that have a sale, or inquiries, are skipped: they are real flats someone is buying.
 export async function POST(req: NextRequest, props: { params: Promise<{ id: string }> }) {
-  const guard = await requireAdmin()
+  const guard = await requireRole('admin')
   if ('error' in guard) return guard.error
   const { id: projectId } = await props.params
 
@@ -24,7 +25,7 @@ export async function POST(req: NextRequest, props: { params: Promise<{ id: stri
 
   const units = await prisma.unit.findMany({
     where: { id: { in: data.unitIds }, floor: { wing: { projectId } } },
-    select: { id: true, category: true, _count: { select: { sales: true, inquiries: true } } },
+    select: { id: true, category: true, _count: { select: { sales: { where: activeSale }, inquiries: true } } },
   })
 
   // To common area: only flats. Back to flat: only common areas.

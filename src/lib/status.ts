@@ -117,11 +117,31 @@ export const OVERDUE_SCHEDULE_STATUSES = ['OVERDUE_7', 'OVERDUE_15', 'OVERDUE_30
 /** Demands that have been raised and still have money owed. */
 export const OUTSTANDING_SCHEDULE_STATUSES = ['DUE', 'PARTIALLY_PAID', ...OVERDUE_SCHEDULE_STATUSES]
 
+// ── Payment modes ──────────────────────────────────────────────────────────────
+
+/** How a payment was made. The API validates against these values; every dialog and list shows these labels. */
+export const PAYMENT_MODES = [
+  { value: 'NEFT', label: 'NEFT' },
+  { value: 'RTGS', label: 'RTGS' },
+  { value: 'IMPS', label: 'IMPS' },
+  { value: 'UPI', label: 'UPI' },
+  { value: 'CHEQUE', label: 'Cheque' },
+  { value: 'DD', label: 'Demand Draft' },
+  { value: 'CASH', label: 'Cash' },
+  { value: 'OTHER', label: 'Other' },
+] as const
+export type PaymentMode = (typeof PAYMENT_MODES)[number]['value']
+export const PAYMENT_MODE_VALUES = PAYMENT_MODES.map((m) => m.value) as unknown as readonly [PaymentMode, ...PaymentMode[]]
+export const paymentModeLabel = (mode: string) => PAYMENT_MODES.find((m) => m.value === mode)?.label ?? humanize(mode)
+/** Modes where the bank matters (cheque / draft). */
+export const MODES_NEEDING_BANK: readonly string[] = ['CHEQUE', 'DD']
+
 // ── Communications & documents ─────────────────────────────────────────────────
 
 export const COMM_STATUS: Record<string, StatusStyle> = {
   QUEUED:    { label: 'Queued',    badge: 'badge-warning' },
   PENDING:   { label: 'Pending',   badge: 'badge-warning' },
+  SENDING:   { label: 'Sending',   badge: 'badge-info' },
   SENT:      { label: 'Sent',      badge: 'badge-info' },
   SIMULATED: { label: 'Simulated', badge: 'badge-muted' },
   DELIVERED: { label: 'Delivered', badge: 'badge-success' },
@@ -135,13 +155,39 @@ export const DOCUMENT_STATUS: Record<string, StatusStyle> = {
   SENT:      { label: 'Sent',      badge: 'badge-success' },
 }
 
+// ── Construction milestones & KYC ──────────────────────────────────────────────
+
+export const MILESTONE_STATUS: Record<string, StatusStyle> = {
+  PENDING:     { label: 'Pending',     badge: 'badge-muted' },
+  IN_PROGRESS: { label: 'In progress', badge: 'badge-warning' },
+  COMPLETED:   { label: 'Completed',   badge: 'badge-success' },
+}
+
+export const KYC_STATUS: Record<string, StatusStyle> = {
+  UPLOADED: { label: 'Uploaded', badge: 'badge-warning' },
+  VERIFIED: { label: 'Verified', badge: 'badge-success' },
+  REJECTED: { label: 'Rejected', badge: 'badge-danger' },
+}
+
+// ── Projects ───────────────────────────────────────────────────────────────────
+
+export const PROJECT_STATUS: Record<string, StatusStyle> = {
+  PLANNING:           { label: 'Planning',           badge: 'badge-muted' },
+  UNDER_CONSTRUCTION: { label: 'Under construction', badge: 'badge-warning' },
+  READY:              { label: 'Ready',              badge: 'badge-info' },
+  COMPLETED:          { label: 'Completed',          badge: 'badge-success' },
+}
+
+export const PROJECT_TYPE: Record<string, StatusStyle> = {
+  FRESH:         { label: 'Fresh',         badge: 'badge-primary' },
+  REDEVELOPMENT: { label: 'Redevelopment', badge: 'badge-orange' },
+  MIXED:         { label: 'Mixed',         badge: 'badge-info' },
+}
+
 // ── Helpers ────────────────────────────────────────────────────────────────────
 
 const humanize = (s: string) => s.replace(/_/g, ' ').toLowerCase().replace(/\b\w/g, (c) => c.toUpperCase())
 
 export const unitStatusLabel = (s: string) => UNIT_STATUS[s]?.label ?? humanize(s)
-export const saleStatusLabel = (s: string) => SALE_STATUS[s]?.label ?? humanize(s)
-export const scheduleStatusLabel = (s: string) => SCHEDULE_STATUS[s]?.label ?? humanize(s)
-export const unitStatusBadge = (s: string) => UNIT_STATUS[s]?.badge ?? 'badge-muted'
-export const saleStatusBadge = (s: string) => SALE_STATUS[s]?.badge ?? 'badge-muted'
-export const scheduleStatusBadge = (s: string) => SCHEDULE_STATUS[s]?.badge ?? 'badge-muted'
+export const commStatusBadge = (s: string) => COMM_STATUS[s]?.badge ?? 'badge-muted'
+export const commStatusLabel = (s: string) => COMM_STATUS[s]?.label ?? humanize(s)

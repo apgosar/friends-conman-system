@@ -3,17 +3,18 @@
 import { useEffect, useLayoutEffect, useMemo, useRef, useState, type Ref } from 'react'
 import { UNIT_COLOR_LEGEND, unitStatusLabel } from '@/lib/status'
 import { categoryLabel } from '@/lib/building-structure'
-import { STATUS_COLOR, getStatusColor, prefersReducedMotion, type UnitData, type WingData } from './building-model'
+import { getStatusColor, prefersReducedMotion, tint, type UnitData, type WingData } from './building-model'
 import { TW, computeLayout, drawOverlay, drawScene, hitTest, type Tile } from './building-draw'
+import { Button } from '@/components/ui'
 
 const MIN_SCALE = 0.3
 const MAX_SCALE = 2.5
 const clamp = (n: number, lo: number, hi: number) => Math.min(hi, Math.max(lo, n))
 
 function ShapeIcon({ kind }: { kind: 'FLAT' | 'SHOP' | 'OFFICE' }) {
-  const c = '#94a3b8'
+  const c = 'currentColor'
   return (
-    <svg width="30" height="24" viewBox="0 0 30 24" aria-hidden="true">
+    <svg className="bv-shape" width="30" height="24" viewBox="0 0 30 24" aria-hidden="true">
       {kind === 'FLAT' && (
         <>
           <polygon points="15,3 28,9 15,15 2,9" fill={c} fillOpacity="0.85" />
@@ -26,8 +27,8 @@ function ShapeIcon({ kind }: { kind: 'FLAT' | 'SHOP' | 'OFFICE' }) {
           <polygon points="15,7 28,13 15,19 2,13" fill={c} fillOpacity="0.85" />
           <polygon points="2,13 15,19 15,22 2,16" fill={c} fillOpacity="0.35" />
           <polygon points="28,13 15,19 15,22 28,16" fill={c} fillOpacity="0.55" />
-          <polygon points="2,13 8,16 8,18 2,15" fill="#f8fafc" />
-          <polygon points="14,19 20,16 20,18 14,21" fill="#f8fafc" />
+          <polygon points="2,13 8,16 8,18 2,15" fill="var(--text-primary)" />
+          <polygon points="14,19 20,16 20,18 14,21" fill="var(--text-primary)" />
         </>
       )}
       {kind === 'OFFICE' && (
@@ -35,11 +36,11 @@ function ShapeIcon({ kind }: { kind: 'FLAT' | 'SHOP' | 'OFFICE' }) {
           <polygon points="15,10 28,16 15,22 2,16" fill={c} fillOpacity="0.85" />
           <polygon points="2,16 15,22 15,24 2,18" fill={c} fillOpacity="0.35" />
           <polygon points="28,16 15,22 15,24 28,18" fill={c} fillOpacity="0.55" />
-          <polygon points="15,6 23,10 15,14 7,10" fill="#e2e8f0" fillOpacity="0.9" />
+          <polygon points="15,6 23,10 15,14 7,10" fill="var(--text-primary)" fillOpacity="0.9" />
           <polygon points="7,10 15,14 15,16 7,12" fill={c} fillOpacity="0.5" />
           <polygon points="23,10 15,14 15,16 23,12" fill={c} fillOpacity="0.7" />
-          <polygon points="15,3 19,5 15,7 11,5" fill="#e2e8f0" />
-          <line x1="15" y1="3" x2="15" y2="0.5" stroke="#e2e8f0" strokeWidth="1" />
+          <polygon points="15,3 19,5 15,7 11,5" fill="var(--text-primary)" />
+          <line x1="15" y1="3" x2="15" y2="0.5" stroke="var(--text-primary)" strokeWidth="1" />
         </>
       )}
     </svg>
@@ -49,20 +50,15 @@ function ShapeIcon({ kind }: { kind: 'FLAT' | 'SHOP' | 'OFFICE' }) {
 /** Placeholder with the same look as the building, shown while the data loads. */
 export function BuildingSkeleton() {
   return (
-    <div aria-busy="true" aria-label="Loading building" style={{ borderRadius: 'var(--radius-lg)', border: '1px solid var(--border-color)', background: 'radial-gradient(ellipse at 50% 20%, #0f172a 0%, #09090b 70%)', padding: '24px 28px 28px' }}>
-      <div className="bv-skel" style={{ width: 160, height: 14, borderRadius: 6, marginBottom: 22 }} />
+    <div className="bv-skeleton" aria-busy="true" aria-label="Loading building">
+      <div className="bv-skel bv-skel-title" />
       {[0, 1, 2, 3].map((r) => (
-        <div key={r} style={{ display: 'flex', gap: 10, justifyContent: 'center', marginBottom: 12 }}>
+        <div key={r} className="bv-skel-row">
           {[0, 1, 2, 3, 4].map((c) => (
-            <div key={c} className="bv-skel" style={{ width: 96, height: 46, borderRadius: 8, transform: 'skewY(-6deg)', animationDelay: `${(r + c) * 90}ms` }} />
+            <div key={c} className="bv-skel bv-skel-tile" style={{ animationDelay: `${(r + c) * 90}ms` }} />
           ))}
         </div>
       ))}
-      <style>{`
-        .bv-skel { background: linear-gradient(90deg, rgba(148,163,184,0.10) 25%, rgba(148,163,184,0.22) 50%, rgba(148,163,184,0.10) 75%); background-size: 200% 100%; animation: bv-shimmer 1.4s ease-in-out infinite; }
-        @keyframes bv-shimmer { from { background-position: 200% 0 } to { background-position: -200% 0 } }
-        @media (prefers-reduced-motion: reduce) { .bv-skel { animation: none } }
-      `}</style>
     </div>
   )
 }
@@ -299,42 +295,34 @@ export default function BuildingCanvas({ wing, title, filterStatus, filterType, 
     : ''
   const floors = wing.floors.filter((f) => f.units.length > 0).length
   const unitCount = wing.floors.reduce((s, f) => s + f.units.length, 0)
-  const zoomBtn: React.CSSProperties = { width: 30, height: 30, borderRadius: 8, border: '1px solid var(--border-color)', background: 'var(--bg-card)', color: 'var(--text-primary)', cursor: 'pointer', fontSize: '1rem', lineHeight: 1 }
+
+  const hoveredTint = hovered ? tint(hovered.unit.status) : undefined
 
   return (
-    <div
-      ref={outerRef}
-      style={{
-        flex: 1, minWidth: 0, position: 'relative',
-        background: 'radial-gradient(ellipse at 50% 20%, #0f172a 0%, #09090b 70%)',
-        borderRadius: 'var(--radius-lg)', border: '1px solid var(--border-color)', overflow: 'hidden',
-      }}
-    >
-      {/* Header */}
-      <div style={{ padding: '12px 20px', borderBottom: '1px solid var(--border-color)', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12, flexWrap: 'wrap' }}>
+    <div ref={outerRef} className="bv-stage">
+      <div className="bv-stage-bar">
         <div>
-          <span style={{ fontWeight: 700, fontSize: '1rem', letterSpacing: '-0.01em' }}>{title}</span>
-          <span style={{ marginLeft: 12, fontSize: '0.8125rem', color: 'var(--text-muted)' }}>{floors} floors · {unitCount} units</span>
+          <span className="bv-stage-title">{title}</span>
+          <span className="bv-stage-meta">{floors} floors · {unitCount} units</span>
         </div>
         {!layout.empty && (
-          <div style={{ display: 'flex', gap: 6, alignItems: 'center' }} role="group" aria-label="Zoom">
-            <button type="button" style={zoomBtn} aria-label="Zoom out" title="Zoom out (−)" onClick={() => zoomAt(live.current.zoom / 1.25)}>−</button>
-            <span style={{ minWidth: 42, textAlign: 'center', fontSize: '0.75rem', color: 'var(--text-muted)' }}>{Math.round(scale * 100)}%</span>
-            <button type="button" style={zoomBtn} aria-label="Zoom in" title="Zoom in (+). Ctrl + scroll also zooms" onClick={() => zoomAt(live.current.zoom * 1.25)}>+</button>
-            <button type="button" className="btn btn-secondary btn-sm" title="Fit to width (0)" onClick={() => { setZoom(1); viewportRef.current?.scrollTo(0, 0) }}>Fit</button>
+          <div className="bv-zoom" role="group" aria-label="Zoom">
+            <button type="button" className="bv-zoom-btn" aria-label="Zoom out" title="Zoom out (−)" onClick={() => zoomAt(live.current.zoom / 1.25)}>−</button>
+            <span className="bv-zoom-level">{Math.round(scale * 100)}%</span>
+            <button type="button" className="bv-zoom-btn" aria-label="Zoom in" title="Zoom in (+). Ctrl + scroll also zooms" onClick={() => zoomAt(live.current.zoom * 1.25)}>+</button>
+            <Button size="sm" title="Fit to width (0)" onClick={() => { setZoom(1); viewportRef.current?.scrollTo(0, 0) }}>Fit</Button>
           </div>
         )}
       </div>
 
-      {/* The building */}
       {layout.empty ? (
-        <div style={{ padding: '64px 24px', textAlign: 'center', color: 'var(--text-muted)' }}>
+        <div className="bv-empty">
           {unitCount === 0 ? (
-            <div style={{ fontWeight: 600, color: 'var(--text-secondary)' }}>This wing has no units yet. Add them in Building Setup.</div>
+            <div className="bv-empty-title">This wing has no units yet. Add them in Building Setup.</div>
           ) : (
             <>
-              <div style={{ fontWeight: 600, marginBottom: 6, color: 'var(--text-secondary)' }}>No units match the current filters</div>
-              <button type="button" className="btn btn-secondary btn-sm" onClick={onClearFilters}>Show all units</button>
+              <div className="bv-empty-title">No units match the current filters</div>
+              <Button size="sm" onClick={onClearFilters}>Show all units</Button>
             </>
           )}
         </div>
@@ -346,14 +334,15 @@ export default function BuildingCanvas({ wing, title, filterStatus, filterType, 
           aria-label="Interactive building view. Use the arrow keys to move between units and Enter to open one. Plus and minus zoom."
           onKeyDown={onKeyDown}
           onBlur={() => setFocusId(null)}
-          className="bv-fade"
-          style={{ overflow: 'auto', height: `min(${Math.round(layout.logicalH * scale)}px, 78vh)`, minHeight: 280, outline: 'none' }}
+          className="bv-viewport"
+          style={{ height: `min(${Math.round(layout.logicalH * scale)}px, 78vh)` }}
         >
-          <div style={{ position: 'relative', width: layout.logicalW * scale, height: layout.logicalH * scale, margin: '0 auto' }}>
-            <canvas ref={baseRef} aria-hidden="true" style={{ position: 'absolute', inset: 0, width: '100%', height: '100%' }} />
+          <div className="bv-scene" style={{ width: layout.logicalW * scale, height: layout.logicalH * scale }}>
+            <canvas ref={baseRef} aria-hidden="true" className="bv-layer" />
             <canvas
               ref={overlayRef}
               aria-hidden="true"
+              className="bv-layer bv-layer-hit"
               onMouseMove={onMouseMove}
               onMouseLeave={onMouseLeave}
               onClick={onClick}
@@ -361,64 +350,43 @@ export default function BuildingCanvas({ wing, title, filterStatus, filterType, 
               onPointerMove={onPointerMove}
               onPointerUp={endDrag}
               onPointerCancel={endDrag}
-              style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', touchAction: 'pan-x pan-y' }}
             />
           </div>
         </div>
       )}
-      <style>{`
-        .bv-fade { animation: bv-fade-in 0.22s ease-out; }
-        @keyframes bv-fade-in { from { opacity: 0.3 } to { opacity: 1 } }
-        @media (prefers-reduced-motion: reduce) { .bv-fade { animation: none } }
-      `}</style>
-      <div aria-live="polite" style={{ position: 'absolute', width: 1, height: 1, overflow: 'hidden', clip: 'rect(0 0 0 0)', whiteSpace: 'nowrap' }}>{announce}</div>
+      <div aria-live="polite" className="sr-only">{announce}</div>
 
-      {/* Legend */}
-      <div style={{ padding: '12px 20px', borderTop: '1px solid var(--border-color)', display: 'flex', gap: 16, flexWrap: 'wrap' }}>
-        {UNIT_COLOR_LEGEND.map((group) => {
-          const colors = STATUS_COLOR[group.statuses[0]]
-          return (
-            <div key={group.label} style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-              <div style={{ width: 14, height: 14, borderRadius: 3, background: colors.top, border: `1.5px solid ${colors.stroke}`, flexShrink: 0 }} />
-              <span style={{ fontSize: '0.8rem', color: 'var(--text-secondary)' }}>{group.label}</span>
-            </div>
-          )
-        })}
-      </div>
-      <div style={{ padding: '10px 20px 12px', borderTop: '1px dashed var(--border-color)', display: 'flex', gap: 18, flexWrap: 'wrap', alignItems: 'center' }}>
-        <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>Shape shows the kind of unit, colour shows its status:</span>
-        {([['FLAT', 'Flat'], ['SHOP', 'Shop'], ['OFFICE', 'Office']] as const).map(([kind, label]) => (
-          <div key={kind} style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-            <ShapeIcon kind={kind} />
-            <span style={{ fontSize: '0.8rem', color: 'var(--text-secondary)' }}>{label}</span>
+      <div className="bv-legend">
+        {UNIT_COLOR_LEGEND.map((group) => (
+          <div key={group.label} className="bv-legend-item">
+            <span className="bv-swatch" style={tint(group.statuses[0])} />
+            <span>{group.label}</span>
           </div>
         ))}
-        <span style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: '0.75rem', color: 'var(--text-muted)' }}>
-          <span style={{ width: 14, height: 14, borderRadius: '50%', background: '#0d9488', color: '#fff', fontSize: '0.55rem', fontWeight: 700, display: 'inline-flex', alignItems: 'center', justifyContent: 'center' }}>2</span> open inquiries
-          <span style={{ width: 14, height: 14, borderRadius: '50%', background: '#d97706', color: '#fff', fontSize: '0.6rem', fontWeight: 700, display: 'inline-flex', alignItems: 'center', justifyContent: 'center', marginLeft: 8 }}>!</span> quote expiring
+      </div>
+      <div className="bv-legend bv-legend-shapes">
+        <span className="bv-legend-note">Shape shows the kind of unit, colour shows its status:</span>
+        {([['FLAT', 'Flat'], ['SHOP', 'Shop'], ['OFFICE', 'Office']] as const).map(([kind, label]) => (
+          <div key={kind} className="bv-legend-item"><ShapeIcon kind={kind} /><span>{label}</span></div>
+        ))}
+        <span className="bv-legend-note flex items-center gap-2">
+          <span className="bv-dot bv-dot-inquiry">2</span> open inquiries
+          <span className="bv-dot bv-dot-expiring ml-2">!</span> quote expiring
         </span>
       </div>
 
-      {/* Hover tooltip (positioned directly on mouse move, so moving the mouse never re-renders the page) */}
+      {/* Hover tooltip (positioned directly on mouse move, so moving the mouse never re-renders the page). Touch users tap a unit to open its panel. */}
       {hovered && hovered.unit.id !== selectedUnitId && (
-        <div
-          ref={tooltipRef}
-          style={{
-            position: 'fixed', left: tipPos.x + 14, top: tipPos.y - 10,
-            background: 'var(--bg-card)', border: `1px solid ${getStatusColor(hovered.unit.status).stroke}`, borderRadius: 'var(--radius-md)',
-            padding: '8px 12px', fontSize: '0.8125rem', color: 'var(--text-primary)', pointerEvents: 'none', zIndex: 200,
-            boxShadow: 'var(--shadow-md)', maxWidth: 240,
-          }}
-        >
-          <div style={{ fontWeight: 700, color: getStatusColor(hovered.unit.status).top, marginBottom: 2 }}>{hovered.unit.unitNumber}</div>
-          <div style={{ color: 'var(--text-secondary)', fontSize: '0.75rem' }}>{hovered.unit.configuration} · {hovered.unit.carpetAreaSqft} sqft</div>
-          <div style={{ color: 'var(--text-muted)', fontSize: '0.75rem', marginTop: 2 }}>
+        <div ref={tooltipRef} className="bv-tooltip" style={{ ...hoveredTint, left: tipPos.x + 14, top: tipPos.y - 10 }}>
+          <div className="bv-tooltip-unit">{hovered.unit.unitNumber}</div>
+          <div className="bv-tooltip-line">{hovered.unit.configuration} · {hovered.unit.carpetAreaSqft} sqft</div>
+          <div className="bv-tooltip-muted">
             {hovered.unit.buyerName || hovered.unit.bookedByName ? `👤 ${hovered.unit.buyerName ?? hovered.unit.bookedByName}` : getStatusColor(hovered.unit.status).label}
           </div>
           {hovered.unit.openInquiries > 0 && (
-            <div style={{ color: '#2dd4bf', fontSize: '0.75rem', marginTop: 2 }}>{hovered.unit.openInquiries} open inquir{hovered.unit.openInquiries === 1 ? 'y' : 'ies'}{hovered.unit.quoteExpiring ? ' · quote expiring' : ''}</div>
+            <div className="bv-tooltip-inquiry">{hovered.unit.openInquiries} open inquir{hovered.unit.openInquiries === 1 ? 'y' : 'ies'}{hovered.unit.quoteExpiring ? ' · quote expiring' : ''}</div>
           )}
-          <div style={{ fontSize: '0.7rem', color: 'var(--text-disabled)', marginTop: 4 }}>Click to view details</div>
+          <div className="bv-tooltip-hint">Click to view details</div>
         </div>
       )}
     </div>

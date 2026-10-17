@@ -1,8 +1,10 @@
+import { requireRole } from '@/lib/guard'
+import { apiError } from '@/lib/api-error'
 import { NextRequest } from 'next/server'
 import ExcelJS from 'exceljs'
 import { prisma } from '@/lib/db'
 import { createAuditLog } from '@/lib/audit'
-import { createUnits, requireAdmin, type UnitRow } from '@/lib/building-create'
+import { createUnits, type UnitRow } from '@/lib/building-create'
 import { COMMERCIAL_WING, LIMITS, isCategory, type UnitCategory } from '@/lib/building-structure'
 import { NOT_FOR_SALE_STATUS, parseBooker, parseManualUnitStatus } from '@/lib/status'
 
@@ -20,26 +22,26 @@ const num = (s: string) => (s === '' ? undefined : Number(s.replace(/,/g, '')))
 
 // POST multipart/form-data: file = the filled template (.xlsx). All-or-nothing.
 export async function POST(req: NextRequest, props: { params: Promise<{ id: string }> }) {
-  const guard = await requireAdmin()
+  const guard = await requireRole('admin')
   if ('error' in guard) return guard.error
   const { id: projectId } = await props.params
 
   const project = await prisma.project.findUnique({ where: { id: projectId }, select: { id: true, unitTypes: true } })
-  if (!project) return Response.json({ error: 'Project not found' }, { status: 404 })
+  if (!project) return apiError('notFound', 'Project not found')
 
   const file = (await req.formData()).get('file')
-  if (!(file instanceof File) || file.size === 0) return Response.json({ error: 'Choose the filled Excel file' }, { status: 400 })
-  if (!file.name.toLowerCase().endsWith('.xlsx')) return Response.json({ error: 'Only .xlsx files are accepted' }, { status: 400 })
-  if (file.size > MAX_BYTES) return Response.json({ error: 'File is too large (maximum 5 MB)' }, { status: 400 })
+  if (!(file instanceof File) || file.size === 0) return apiError('invalid', 'Choose the filled Excel file')
+  if (!file.name.toLowerCase().endsWith('.xlsx')) return apiError('invalid', 'Only .xlsx files are accepted')
+  if (file.size > MAX_BYTES) return apiError('invalid', 'File is too large (maximum 5 MB)')
 
   const wb = new ExcelJS.Workbook()
   try {
     await wb.xlsx.load(await file.arrayBuffer() as ArrayBuffer)
   } catch {
-    return Response.json({ error: 'That file could not be read as an Excel workbook' }, { status: 400 })
+    return apiError('invalid', 'That file could not be read as an Excel workbook')
   }
   const ws = wb.getWorksheet('Units') ?? wb.worksheets[0]
-  if (!ws) return Response.json({ error: 'The workbook has no sheets' }, { status: 400 })
+  if (!ws) return apiError('invalid', 'The workbook has no sheets')
 
   const types = new Map(project.unitTypes.map((t) => [t.name.toLowerCase(), t]))
   const rows: UnitRow[] = []
@@ -102,7 +104,7 @@ export async function POST(req: NextRequest, props: { params: Promise<{ id: stri
   if (rows.length > LIMITS.maxUnits) errors.push(`The file has ${rows.length} units; the limit is ${LIMITS.maxUnits} per import`)
 
   if (errors.length > 0) {
-    return Response.json({ error: errors[0], errors: errors.slice(0, 25), totalErrors: errors.length }, { status: 400 })
+    return apiError('invalid', errors[0], { errors: errors.slice(0, 25), totalErrors: errors.length })
   }
 
   const result = await createUnits(projectId, rows)

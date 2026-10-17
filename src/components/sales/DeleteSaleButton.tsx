@@ -2,35 +2,34 @@
 
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
+import { Button, useConfirm, useToast } from '@/components/ui'
+import { errorMessage, fetchJson } from '@/lib/client/api'
 
 export default function DeleteSaleButton({ saleId }: { saleId: string }) {
   const [loading, setLoading] = useState(false)
   const router = useRouter()
+  const confirm = useConfirm()
+  const toast = useToast()
 
   const handleDelete = async () => {
-    if (!confirm('⚠️ Permanently delete this sale and ALL its data (buyers, payments, documents)? This CANNOT be undone.')) return
+    const ok = await confirm({
+      title: 'Delete this sale?',
+      message: 'This permanently deletes the sale and all of its data: buyers, payments and documents. It cannot be undone.',
+      confirmLabel: 'Delete sale',
+      danger: true,
+    })
+    if (!ok) return
     setLoading(true)
     try {
-      const res = await fetch(`/api/sales/${saleId}`, { method: 'DELETE' })
-      const data = await res.json()
-      if (!res.ok) throw new Error(data.error || 'Failed to delete sale')
+      await fetchJson(`/api/sales/${saleId}`, { method: 'DELETE' })
+      toast.success('Sale deleted')
       router.push('/sales')
       router.refresh()
-    } catch (err: any) {
-      alert(err.message)
+    } catch (err) {
+      toast.error(errorMessage(err))
       setLoading(false)
     }
   }
 
-  return (
-    <button
-      type="button"
-      className="btn btn-secondary"
-      style={{ color: 'var(--color-danger, #ef4444)', borderColor: 'var(--color-danger, #ef4444)' }}
-      disabled={loading}
-      onClick={handleDelete}
-    >
-      {loading ? 'Deleting...' : '🗑 Delete Sale'}
-    </button>
-  )
+  return <Button variant="danger" loading={loading} onClick={handleDelete}>🗑 Delete Sale</Button>
 }

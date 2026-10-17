@@ -150,7 +150,7 @@ The license-gating mechanism in §4 is what makes that agreement enforceable in 
 4. [ ] License issued for this customer (`scripts/license/issue-license.ts`, from your machine) — get `LICENSE_TOKEN`'s value before touching the server.
 5. [ ] `deploy/onprem/.env` (from `.env.onprem.example`, including `LICENSE_TOKEN` and `IMAGE_TAG`) placed on server by you; `docker login ghcr.io` once, then `docker compose pull && docker compose up -d`.
 6. [ ] `cloudflared` tunnel created, DNS routed, WAF/rate-limit rules configured on Cloudflare — see [deploy/onprem/README.md](deploy/onprem/README.md).
-7. [ ] `docker compose exec web npx prisma db push` run against the fresh Postgres container (the project has no migration history, so `migrate deploy` would do nothing).
+7. [ ] `docker compose exec web npx prisma migrate deploy` run against the fresh Postgres container (creates the tables and applies every migration in order).
 8. [ ] `minio-init` ran successfully (bucket created) — check `docker compose logs minio-init`.
 9. [ ] GHCR package visibility confirmed **Private** (one-time, after the first tag push — §1).
 10. [ ] Backups scheduled and one restore tested.

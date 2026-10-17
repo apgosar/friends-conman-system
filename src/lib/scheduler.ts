@@ -6,6 +6,7 @@
 
 import { prisma } from '@/lib/db'
 import { calculateInterest, getOverdueBucket } from '@/lib/interest'
+import { activeSale } from '@/lib/soft-delete'
 
 /**
  * Run daily: Update overdue statuses and accrue interest.
@@ -15,6 +16,7 @@ export async function runDailyInterestAndStatus() {
     where: {
       status: { notIn: ['PAID', 'UPCOMING'] },
       demandGeneratedDate: { not: null },
+      sale: activeSale,
     },
     include: { sale: { include: { project: true } } },
   })
@@ -24,6 +26,7 @@ export async function runDailyInterestAndStatus() {
     const interest = calculateInterest({
       principalAmount: Number(schedule.principalAmount),
       demandGeneratedDate: schedule.demandGeneratedDate!,
+      ratePA: schedule.sale.project.interestRatePercent,
     })
 
     await prisma.paymentSchedule.update({
@@ -37,40 +40,4 @@ export async function runDailyInterestAndStatus() {
       },
     })
   }
-}
-
-/**
- * Returns schedules that need a reminder sent based on days overdue.
- */
-export async function getSchedulesDueForReminder(daysBucket: 7 | 15 | 30) {
-  const targetStatus = {
-    7: 'OVERDUE_7',
-    15: 'OVERDUE_15',
-    30: 'OVERDUE_30',
-  }[daysBucket]
-
-  return prisma.paymentSchedule.findMany({
-    where: {
-      status: targetStatus,
-      // Don't re-remind within 12 hours
-      OR: [
-        { lastReminderAt: null },
-        {
-          lastReminderAt: {
-            lt: new Date(Date.now() - 12 * 60 * 60 * 1000),
-          },
-        },
-      ],
-    },
-    include: {
-      sale: {
-        include: {
-          project: true,
-          unit: { include: { floor: { include: { wing: true } } } },
-          buyers: true,
-        },
-      },
-      milestone: true,
-    },
-  })
 }

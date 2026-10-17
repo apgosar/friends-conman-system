@@ -2,6 +2,7 @@ import PizZip from 'pizzip'
 import Docxtemplater from 'docxtemplater'
 import { DOCX_MIME, TEMPLATE_LIMITS, TEMPLATE_TYPES, TEMPLATE_TYPE_VALUES, formatBytes } from '@/lib/template-constants'
 import { describeTagIssues, findTagIssues } from '@/lib/template-tags'
+import { formatNumber } from '@/lib/format'
 
 export class TemplateValidationError extends Error {}
 
@@ -65,7 +66,7 @@ export function validateHtmlTemplate(html: unknown): string {
   const h = typeof html === 'string' ? html : ''
   if (!h.trim()) throw new TemplateValidationError('HTML content is required')
   if (h.length > TEMPLATE_LIMITS.htmlMaxChars) {
-    throw new TemplateValidationError(`HTML is too long (${h.length.toLocaleString('en-IN')} characters). Maximum is ${TEMPLATE_LIMITS.htmlMaxChars.toLocaleString('en-IN')}`)
+    throw new TemplateValidationError(`HTML is too long (${formatNumber(h.length)} characters). Maximum is ${formatNumber(TEMPLATE_LIMITS.htmlMaxChars)}`)
   }
   // Templates are previewed in the app and rendered by a headless browser, so scripts must not be allowed
   if (/<\s*script\b/i.test(h) || /\son[a-z]+\s*=/i.test(h) || /javascript\s*:/i.test(h)) {

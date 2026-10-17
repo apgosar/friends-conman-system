@@ -2,15 +2,12 @@
 
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
+import { DEFAULT_PRICING, computeCharges, gstOn, type PricingConfig } from '@/lib/pricing'
 
-// ─── Constants ───────────────────────────────────────────────
-const GST_RATE = 0.05
-const STAMP_DUTY_RATE = 0.06
-const REG_BASE = 30000
-const REG_PARKING = 20000
+// Tax and pricing rules come from the selected project's settings (see lib/pricing.ts)
 
 function fmt(n: number) {
-  return new Intl.NumberFormat('en-IN', { style: 'currency', currency: 'INR', maximumFractionDigits: 0 }).format(n)
+  return formatCurrency(n, 0)
 }
 
 // ─── Validation helpers ──────────────────────────────────────
@@ -42,7 +39,8 @@ type ScheduleRow = { milestoneId: string; description: string; principalAmount: 
 const emptyBuyer = (): Buyer => ({ fullName: '', panNumber: '', aadhaarNumber: '', address: '', email: '', whatsappNumber: '' })
 
 // ─── Step indicator ──────────────────────────────────────────
-import { StepBar } from '@/components/ui/StepBar'
+import { Alert, Button, Input, Select, SelectField, StepBar, Table, TextField, TextareaField, cn } from '@/components/ui'
+import { formatCurrency } from '@/lib/format'
 
 // ─── Main Wizard ─────────────────────────────────────────────
 type Prefill = { inquiryId: string; projectId: string; unitId: string; agreementValue: number; carParking: boolean; buyerName: string; mobileNumber: string } | null
@@ -69,10 +67,9 @@ export default function NewSaleWizard({ projects, prefill = null }: { projects: 
   const [buyers, setBuyers] = useState<Buyer[]>([prefill ? { ...emptyBuyer(), fullName: prefill.buyerName, whatsappNumber: prefill.mobileNumber } : emptyBuyer()])
 
   // Derived financials
-  const stampDuty = Math.round(agreementValue * STAMP_DUTY_RATE)
-  const gst = Math.round(agreementValue * GST_RATE)
+  const pricing: PricingConfig = selectedProject?.pricing ?? DEFAULT_PRICING
+  const { gst, stampDuty, registration: regCharges } = computeCharges(pricing, agreementValue, carParking)
   const parkingCost = selectedProject?.carParkingCharges ?? 0
-  const regCharges = carParking ? REG_BASE + REG_PARKING : REG_BASE
 
   // Step 2 state — editable payment schedule
   const [schedules, setSchedules] = useState<ScheduleRow[]>([])
@@ -132,11 +129,6 @@ export default function NewSaleWizard({ projects, prefill = null }: { projects: 
 
     const milestones = selectedProject?.milestones ?? []
 
-    // Find the plinth milestone by name only
-    const plinthMilestone = milestones.find((m: any) =>
-      m.name.toLowerCase().includes('plinth') && m.percentOfAV > 0
-    )
-
     // Find the possession milestone for car parking
     const possessionMilestone = milestones.find((m: any) =>
       m.name.toLowerCase().includes('possession')
@@ -193,7 +185,7 @@ export default function NewSaleWizard({ projects, prefill = null }: { projects: 
 
       if (shouldKeep && (basePrincipal > 0 || index === 0)) {
         const pct = Number(((basePrincipal / agreementValue) * 100).toFixed(2))
-        const gstAmt = Math.round(basePrincipal * GST_RATE)
+        const gstAmt = gstOn(pricing, basePrincipal)
         rows.push({
           milestoneId: m.id,
           description: m.name,
@@ -236,7 +228,7 @@ export default function NewSaleWizard({ projects, prefill = null }: { projects: 
   const updateScheduleAmount = (idx: number, newAmt: number) => {
     setSchedules(prev => prev.map((r, i) => {
       if (i !== idx) return r
-      const newGst = r.percentOfAV !== undefined ? Math.round(newAmt * GST_RATE) : 0
+      const newGst = r.percentOfAV !== undefined ? gstOn(pricing, newAmt) : 0
       const newPct = r.percentOfAV !== undefined ? Number(((newAmt / agreementValue) * 100).toFixed(2)) : undefined
       return { ...r, principalAmount: newAmt, gstAmount: newGst, percentOfAV: newPct }
     }))
@@ -246,7 +238,7 @@ export default function NewSaleWizard({ projects, prefill = null }: { projects: 
     setSchedules(prev => prev.map((r, i) => {
       if (i !== idx) return r
       const newAmt = Math.round((newPct / 100) * agreementValue)
-      const newGst = r.percentOfAV !== undefined ? Math.round(newAmt * GST_RATE) : 0
+      const newGst = r.percentOfAV !== undefined ? gstOn(pricing, newAmt) : 0
       return { ...r, principalAmount: newAmt, gstAmount: newGst, percentOfAV: newPct }
     }))
   }
@@ -325,8 +317,8 @@ export default function NewSaleWizard({ projects, prefill = null }: { projects: 
 
   // ── Render ────────────────────────────────────────────────
   return (
-    <div style={{ maxWidth: 860, margin: '0 auto' }}>
-        <StepBar step={step} steps={['Sale Details', 'Payment Plan', 'Agreement']} />
+    <div className="max-w-xl mx-auto">
+      <StepBar step={step} steps={['Sale Details', 'Payment Plan', 'Agreement']} />
 
       {/* ══════════════ STEP 1 ══════════════ */}
       {step === 1 && (
@@ -334,43 +326,31 @@ export default function NewSaleWizard({ projects, prefill = null }: { projects: 
           <div className="card-header">
             <span className="card-title">Sale Details</span>
           </div>
-          {error && <div className="alert alert-danger mb-4">{error}</div>}
+          {error && <Alert variant="danger" className="mb-4">{error}</Alert>}
 
           {/* Project & Unit */}
-          <h4 style={{ marginBottom: 12 }}>Project & Unit</h4>
+          <h4 className="mb-3">Project & Unit</h4>
           <div className="grid grid-2 gap-4 mb-4">
-            <div className="form-group">
-              <label className="form-label">Project *</label>
-              <select className="form-select" value={projectId} required onChange={e => {
-                setProjectId(e.target.value)
-                setUnitId('')
-                const proj = projects.find(p => p.id === e.target.value)
-                if (proj) setSaleType(proj.type === 'MIXED' ? 'FRESH' : proj.type)
-                setCarParking(false)
-              }}>
-                <option value="">-- Select Project --</option>
-                {projects.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
-              </select>
-            </div>
-            <div className="form-group">
-              <label className="form-label">Sale Type *</label>
-              <select className="form-select" value={saleType} onChange={e => setSaleType(e.target.value)} disabled={!selectedProject || selectedProject.type !== 'MIXED'}>
-                <option value="FRESH">Fresh Sale</option>
-                <option value="REDEVELOPMENT">Redevelopment (PAAA)</option>
-              </select>
-            </div>
+            <SelectField label="Project" value={projectId} required onChange={e => {
+ setProjectId(e.target.value)
+ setUnitId('')
+ const proj = projects.find(p => p.id === e.target.value)
+ if (proj) setSaleType(proj.type === 'MIXED' ? 'FRESH' : proj.type)
+ setCarParking(false)
+ }}><option value="">-- Select Project --</option>{projects.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}</SelectField>
+            <SelectField label="Sale Type *" value={saleType} onChange={e => setSaleType(e.target.value)} disabled={!selectedProject || selectedProject.type !== 'MIXED'}><option value="FRESH">Fresh Sale</option><option value="REDEVELOPMENT">Redevelopment (PAAA)</option></SelectField>
             <div className="form-group">
               <label className="form-label">Unit *</label>
-              <select className="form-select" value={unitId} required disabled={!selectedProject} onChange={e => setUnitId(e.target.value)}>
+              <Select value={unitId} required disabled={!selectedProject} onChange={e => setUnitId(e.target.value)}>
                 <option value="">-- Select Unit --</option>
                 {selectedProject?.units.map((u: any) => (
                   <option key={u.id} value={u.id}>{u.wingName} - {u.unitNumber} ({u.configuration})</option>
                 ))}
-              </select>
+              </Select>
               {unitId && (() => {
                 const selectedUnit = selectedProject?.units.find((u: any) => u.id === unitId)
                 return selectedUnit ? (
-                  <div style={{ marginTop: 6, fontSize: '0.8rem', color: 'var(--text-muted)', display: 'flex', gap: 12 }}>
+                  <div className="text-muted flex gap-3 text-sm mt-2">
                     <span>📐 Carpet Area: <strong>{selectedUnit.carpetAreaSqft} sqft</strong></span>
                     <span>(<strong>{(selectedUnit.carpetAreaSqft * 0.092903).toFixed(2)} sqm</strong>)</span>
                   </div>
@@ -378,48 +358,39 @@ export default function NewSaleWizard({ projects, prefill = null }: { projects: 
               })()}
             </div>
             {saleType === 'REDEVELOPMENT' && (
-              <div className="form-group">
-                <label className="form-label">Link Tenant *</label>
-                <select className="form-select" value={tenantId} onChange={e => setTenantId(e.target.value)} required>
-                  <option value="">-- Select Tenant --</option>
-                  {selectedProject?.tenants.map((t: any) => (
-                    <option key={t.id} value={t.id}>{t.name} (Old: {t.oldFlatNumber})</option>
-                  ))}
-                </select>
-              </div>
+              <SelectField label="Link Tenant" value={tenantId} onChange={e => setTenantId(e.target.value)} required><option value="">-- Select Tenant --</option>{selectedProject?.tenants.map((t: any) => (
+ <option key={t.id} value={t.id}>{t.name} (Old: {t.oldFlatNumber})</option>
+ ))}</SelectField>
             )}
           </div>
 
           <div className="divider" />
 
           {/* Buyers */}
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
-            <h4 style={{ margin: 0 }}>Buyer Details</h4>
-            <button type="button" className="btn btn-ghost btn-sm" onClick={addBuyer}>+ Add Co-owner</button>
+          <div className="flex justify-between items-center mb-3">
+            <h4 className="m-0">Buyer Details</h4>
+            <Button type="button" variant="ghost" size="sm" onClick={addBuyer}>+ Add Co-owner</Button>
           </div>
           {buyers.map((buyer, idx) => (
-            <div key={idx} style={{
-              border: '1px solid var(--border-color)', borderRadius: 10, padding: '16px 20px',
-              marginBottom: 16, position: 'relative'
-            }}>
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
-                <span style={{ fontWeight: 600, fontSize: '0.875rem', color: 'var(--text-secondary)' }}>
+            <div key={idx} className="panel mb-4 relative">
+              <div className="flex justify-between items-center mb-3">
+                <span className="font-semibold text-base text-secondary">
                   {idx === 0 ? '👤 Primary Buyer' : `👤 Co-owner ${idx + 1}`}
                 </span>
                 {idx > 0 && (
-                  <button type="button" className="btn btn-ghost btn-sm" onClick={() => removeBuyer(idx)} style={{ color: 'var(--color-danger)' }}>
+                  <Button variant="danger" size="sm" onClick={() => removeBuyer(idx)}>
                     Remove
-                  </button>
+                  </Button>
                 )}
               </div>
 
               {/* KYC Auto-fill Section */}
-              <div style={{ display: 'flex', gap: 12, marginBottom: 16, background: 'var(--bg-muted, #f1f5f9)', padding: 12, borderRadius: 8, alignItems: 'center', flexWrap: 'wrap' }}>
-                <span style={{ fontSize: '0.875rem', fontWeight: 500, color: 'var(--text-secondary)', display: 'flex', alignItems: 'center', gap: 6 }}>
+              <div className="flex gap-3 mb-4 p-3 items-center wrap card-flat">
+                <span className="text-base font-medium text-secondary flex items-center gap-2">
                   ✨ Auto-fill via KYC
-                  {extractingKyc?.startsWith(`${idx}-`) && <span style={{ color: 'var(--color-primary)' }}> (Extracting...)</span>}
+                  {extractingKyc?.startsWith(`${idx}-`) && <span className="text-brand"> (Extracting...)</span>}
                 </span>
-                <label className="btn btn-ghost btn-sm" style={{ cursor: 'pointer', border: '1px solid var(--border-color)', background: 'var(--bg-card)' }}>
+                <label className="btn btn-ghost btn-sm file-btn">
                   Upload PAN
                   <input type="file" hidden accept="image/*" onChange={(e) => {
                     const file = e.target.files?.[0]
@@ -427,7 +398,7 @@ export default function NewSaleWizard({ projects, prefill = null }: { projects: 
                     e.target.value = '' // reset
                   }} />
                 </label>
-                <label className="btn btn-ghost btn-sm" style={{ cursor: 'pointer', border: '1px solid var(--border-color)', background: 'var(--bg-card)' }}>
+                <label className="btn btn-ghost btn-sm file-btn">
                   Upload Aadhaar
                   <input type="file" hidden accept="image/*" onChange={(e) => {
                     const file = e.target.files?.[0]
@@ -436,157 +407,107 @@ export default function NewSaleWizard({ projects, prefill = null }: { projects: 
                   }} />
                 </label>
                 {kycMessage?.idx === idx && (
-                  <div style={{ width: '100%', marginTop: 4, fontSize: '0.85rem', color: kycMessage.type === 'success' ? 'var(--color-success, #16a34a)' : 'var(--color-danger, #dc2626)' }}>
+                  <div className={`w-full mt-1 text-sm ${kycMessage.type === 'success' ? 'text-success' : 'text-danger'}`} role={kycMessage.type === 'success' ? 'status' : 'alert'}>
                     {kycMessage.type === 'success' ? '✅ ' : '❌ '} {kycMessage.text}
                   </div>
                 )}
               </div>
 
               <div className="grid grid-2 gap-4 mb-3">
-                <div className="form-group">
-                  <label className="form-label">Full Name *</label>
-                  <input className="form-input" value={buyer.fullName} required onChange={e => updateBuyer(idx, 'fullName', e.target.value)} placeholder="John Doe" />
-                </div>
-                <div className="form-group">
-                  <label className="form-label">PAN Number *</label>
-                  <input
-                    className="form-input"
-                    value={buyer.panNumber}
-                    required
-                    onChange={e => updateBuyer(idx, 'panNumber', e.target.value.toUpperCase().replace(/[^A-Z0-9]/g, ''))}
-                    placeholder="ABCDE1234F"
-                    maxLength={10}
-                    style={buyer.panNumber && validatePan(buyer.panNumber) ? { borderColor: 'var(--color-warning, #f59e0b)' } : {}}
-                  />
-                  {buyer.panNumber && validatePan(buyer.panNumber) && (
-                    <div style={{ color: 'var(--color-warning, #f59e0b)', fontSize: '0.75rem', marginTop: 4 }}>⚠ {validatePan(buyer.panNumber)}</div>
-                  )}
-                </div>
-                <div className="form-group">
-                  <label className="form-label">Aadhaar Number</label>
-                  <input
-                    className="form-input"
-                    value={buyer.aadhaarNumber}
-                    onChange={e => updateBuyer(idx, 'aadhaarNumber', formatAadhaar(e.target.value))}
-                    placeholder="XXXX XXXX XXXX"
-                    maxLength={14}
-                    inputMode="numeric"
-                    style={buyer.aadhaarNumber && validateAadhaar(buyer.aadhaarNumber) ? { borderColor: 'var(--color-warning, #f59e0b)' } : {}}
-                  />
-                  {buyer.aadhaarNumber && validateAadhaar(buyer.aadhaarNumber) && (
-                    <div style={{ color: 'var(--color-warning, #f59e0b)', fontSize: '0.75rem', marginTop: 4 }}>⚠ {validateAadhaar(buyer.aadhaarNumber)}</div>
-                  )}
-                </div>
-                <div className="form-group">
-                  <label className="form-label">Email ID</label>
-                  <input
-                    className="form-input"
-                    type="email"
-                    value={buyer.email}
-                    onChange={e => updateBuyer(idx, 'email', e.target.value)}
-                    placeholder="john@example.com"
-                    style={buyer.email && validateEmail(buyer.email) ? { borderColor: 'var(--color-warning, #f59e0b)' } : {}}
-                  />
-                  {buyer.email && validateEmail(buyer.email) && (
-                    <div style={{ color: 'var(--color-warning, #f59e0b)', fontSize: '0.75rem', marginTop: 4 }}>⚠ {validateEmail(buyer.email)}</div>
-                  )}
-                </div>
-                <div className="form-group">
-                  <label className="form-label">WhatsApp</label>
-                  <input className="form-input" value={buyer.whatsappNumber} onChange={e => updateBuyer(idx, 'whatsappNumber', e.target.value)} placeholder="+91 98765 43210" />
-                </div>
+                <TextField label="Full Name" value={buyer.fullName} required onChange={e => updateBuyer(idx, 'fullName', e.target.value)} placeholder="John Doe" />
+                <TextField
+                  label="PAN number"
+                  required
+                  value={buyer.panNumber}
+                  onChange={e => updateBuyer(idx, 'panNumber', e.target.value.toUpperCase().replace(/[^A-Z0-9]/g, ''))}
+                  placeholder="ABCDE1234F"
+                  maxLength={10}
+                  autoCapitalize="characters"
+                  error={buyer.panNumber ? validatePan(buyer.panNumber) || undefined : undefined}
+                />
+                <TextField
+                  label="Aadhaar number"
+                  value={buyer.aadhaarNumber}
+                  onChange={e => updateBuyer(idx, 'aadhaarNumber', formatAadhaar(e.target.value))}
+                  placeholder="XXXX XXXX XXXX"
+                  maxLength={14}
+                  inputMode="numeric"
+                  error={buyer.aadhaarNumber ? validateAadhaar(buyer.aadhaarNumber) || undefined : undefined}
+                />
+                <TextField
+                  label="Email"
+                  type="email"
+                  value={buyer.email}
+                  onChange={e => updateBuyer(idx, 'email', e.target.value)}
+                  placeholder="john@example.com"
+                  error={buyer.email ? validateEmail(buyer.email) || undefined : undefined}
+                />
+                <TextField label="WhatsApp" value={buyer.whatsappNumber} onChange={e => updateBuyer(idx, 'whatsappNumber', e.target.value)} placeholder="+91 98765 43210" />
               </div>
-              <div className="form-group">
-                <label className="form-label">Address</label>
-                <textarea className="form-textarea" rows={2} value={buyer.address} onChange={e => updateBuyer(idx, 'address', e.target.value)} />
-              </div>
+              <TextareaField label="Address" rows={2} value={buyer.address} onChange={e => updateBuyer(idx, 'address', e.target.value)} />
             </div>
           ))}
 
           <div className="divider" />
 
           {/* Financials */}
-          <h4 style={{ marginBottom: 12 }}>Financials</h4>
+          <h4 className="mb-3">Financials</h4>
           <div className="grid grid-2 gap-4 mb-4">
-            <div className="form-group">
-              <label className="form-label">Agreement Value (₹) *</label>
-              <input type="number" className="form-input" min={100000} step={1000} value={agreementValue} onChange={e => setAgreementValue(Number(e.target.value))} />
-            </div>
-            <div className="form-group">
-              <label className="form-label">Booking Amount (₹)</label>
-              <input type="number" className="form-input" placeholder="Leave blank to use default %" value={bookingAmount} onChange={e => setBookingAmount(e.target.value ? Number(e.target.value) : '')} />
-            </div>
-            <div className="form-group">
-              <label className="form-label">Booking Date *</label>
-              <input type="date" className="form-input" value={bookingDate} onChange={e => setBookingDate(e.target.value)} />
-            </div>
+            <TextField label="Agreement Value (₹) *" type="number" min={100000} step={1000} value={agreementValue} onChange={e => setAgreementValue(Number(e.target.value))} />
+            <TextField label="Booking Amount (₹)" type="number" placeholder="Leave blank to use default %" value={bookingAmount} onChange={e => setBookingAmount(e.target.value ? Number(e.target.value) : '')} />
+            <TextField label="Booking Date *" type="date" value={bookingDate} onChange={e => setBookingDate(e.target.value)} />
           </div>
 
           {/* Car Parking */}
           <div className="form-group mb-5">
             <label className="form-label">Car Parking</label>
-            <div style={{ display: 'flex', gap: 12, marginTop: 6 }}>
+            <div className="flex gap-3 mt-2" role="radiogroup" aria-label="Car parking">
               {(['Yes', 'No'] as const).map(opt => (
-                <label key={opt} style={{
-                  display: 'flex', alignItems: 'center', gap: 8, cursor: 'pointer',
-                  padding: '10px 20px', borderRadius: 8,
-                  border: `2px solid ${(opt === 'Yes') === carParking ? 'var(--color-primary)' : 'var(--border-color)'}`,
-                  background: (opt === 'Yes') === carParking ? 'var(--color-primary-light, #ede9fe)' : 'transparent',
-                  fontWeight: (opt === 'Yes') === carParking ? 600 : 400,
-                }}>
-                  <input type="radio" checked={(opt === 'Yes') === carParking} onChange={() => setCarParking(opt === 'Yes')} style={{ accentColor: 'var(--color-primary)' }} />
+                <label key={opt} className={cn('radio-card', (opt === 'Yes') === carParking && 'is-selected')}>
+                  <input type="radio" name="car-parking" checked={(opt === 'Yes') === carParking} onChange={() => setCarParking(opt === 'Yes')} />
                   {opt}
                 </label>
               ))}
             </div>
             {carParking && selectedProject && (
-              <div style={{ marginTop: 12 }}>
-                <p style={{ marginBottom: 12, fontSize: '0.875rem', color: 'var(--text-muted)' }}>
-                  Car parking: <strong>{fmt(parkingCost)}</strong> + Registration: <strong>{fmt(REG_PARKING)}</strong>
+              <div className="mt-3">
+                <p className="mb-3 text-base text-muted">
+                  Car parking: <strong>{fmt(parkingCost)}</strong> + Registration: <strong>{fmt(pricing.regParkingCharges)}</strong>
                 </p>
                 <div className="grid grid-3 gap-4">
-                  <div className="form-group">
-                    <label className="form-label">Podium Floor Level</label>
-                    <input className="form-input" value={parkingPodiumLevel} onChange={e => setParkingPodiumLevel(e.target.value)} placeholder="e.g. Podium 1" />
-                  </div>
-                  <div className="form-group">
-                    <label className="form-label">Floor</label>
-                    <input className="form-input" value={parkingFloor} onChange={e => setParkingFloor(e.target.value)} placeholder="e.g. Ground" />
-                  </div>
-                  <div className="form-group">
-                    <label className="form-label">Parking No.</label>
-                    <input className="form-input" value={parkingNumber} onChange={e => setParkingNumber(e.target.value)} placeholder="e.g. P-45" />
-                  </div>
+                  <TextField label="Podium Floor Level" value={parkingPodiumLevel} onChange={e => setParkingPodiumLevel(e.target.value)} placeholder="e.g. Podium 1" />
+                  <TextField label="Floor" value={parkingFloor} onChange={e => setParkingFloor(e.target.value)} placeholder="e.g. Ground" />
+                  <TextField label="Parking No." value={parkingNumber} onChange={e => setParkingNumber(e.target.value)} placeholder="e.g. P-45" />
                 </div>
               </div>
             )}
           </div>
 
           {/* Cost summary */}
-          <div style={{ background: 'var(--bg-muted, #f8f9fa)', borderRadius: 10, padding: '16px 20px', marginBottom: 24, border: '1px solid var(--border-color)' }}>
-            <div style={{ fontWeight: 600, marginBottom: 10, fontSize: '0.875rem' }}>Estimated Costs</div>
+          <div className="panel mb-6">
+            <div className="font-semibold text-base mb-3">Estimated Costs</div>
             {[
               ['Agreement Value', agreementValue],
-              [`GST (5%)`, gst],
-              [`Stamp Duty (6%)`, stampDuty],
+              [`GST (${pricing.gstRatePercent}%)`, gst],
+              [`Stamp Duty (${pricing.stampDutyPercent}%)`, stampDuty],
               [`Registration${carParking ? ' (incl. parking)' : ''}`, regCharges],
               ...(carParking ? [['Car Parking', parkingCost]] : []),
             ].map(([label, amount]) => (
-              <div key={String(label)} style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.875rem', marginBottom: 4 }}>
-                <span style={{ color: 'var(--text-secondary)' }}>{label}</span>
-                <span style={{ fontWeight: 500 }}>{fmt(Number(amount))}</span>
+              <div key={String(label)} className="flex justify-between text-base mb-1">
+                <span className="text-secondary">{label}</span>
+                <span className="font-medium">{fmt(Number(amount))}</span>
               </div>
             ))}
-            <div style={{ borderTop: '1px solid var(--border-color)', paddingTop: 8, marginTop: 6, display: 'flex', justifyContent: 'space-between', fontWeight: 700 }}>
+            <div className="pt-2 mt-2 flex justify-between font-bold border-top">
               <span>Total Payable</span>
-              <span style={{ color: 'var(--color-primary)' }}>{fmt(agreementValue + gst + stampDuty + regCharges + (carParking ? parkingCost : 0))}</span>
+              <span className="text-brand">{fmt(agreementValue + gst + stampDuty + regCharges + (carParking ? parkingCost : 0))}</span>
             </div>
           </div>
 
           <div className="flex justify-end">
-            <button type="button" className="btn btn-primary" onClick={goToStep2} disabled={!selectedProject}>
+            <Button type="button" variant="primary" onClick={goToStep2} disabled={!selectedProject}>
               Next: Review Payment Plan →
-            </button>
+            </Button>
           </div>
         </div>
       )}
@@ -596,23 +517,22 @@ export default function NewSaleWizard({ projects, prefill = null }: { projects: 
         <div className="card">
           <div className="card-header">
             <span className="card-title">Payment Plan</span>
-            <button className="btn btn-ghost btn-sm" onClick={() => setStep(1)}>← Back</button>
+            <Button variant="ghost" size="sm" onClick={() => setStep(1)}>← Back</Button>
           </div>
-          {error && <div className="alert alert-danger mb-4">{error}</div>}
-          <p style={{ fontSize: '0.875rem', color: 'var(--text-muted)', marginBottom: 20 }}>
-            Review the milestone-based payment schedule below. Amounts are pre-calculated from the project's payment plan and your Agreement Value. You may adjust them before confirming.
+          {error && <Alert variant="danger" className="mb-4">{error}</Alert>}
+          <p className="text-base text-muted mb-5">
+            Review the milestone-based payment schedule below. Amounts are pre-calculated from the project&apos;s payment plan and your Agreement Value. You may adjust them before confirming.
           </p>
 
-          <div className="table-wrapper" style={{ border: 'none', marginBottom: 16 }}>
-            <table>
+          <div className="mb-4"><Table flush>
               <thead>
                 <tr>
                   <th>#</th>
                   <th>Milestone</th>
-                  <th style={{ textAlign: 'right' }}>% of Agreement Value</th>
-                  <th style={{ textAlign: 'right' }}>Amount (₹)</th>
-                  <th style={{ textAlign: 'right' }}>GST 5% (₹)</th>
-                  <th style={{ textAlign: 'right' }}>Total (₹)</th>
+                  <th className="text-right">% of Agreement Value</th>
+                  <th className="text-right">Amount (₹)</th>
+                  <th className="text-right">GST 5% (₹)</th>
+                  <th className="text-right">Total (₹)</th>
                 </tr>
               </thead>
               <tbody>
@@ -620,72 +540,74 @@ export default function NewSaleWizard({ projects, prefill = null }: { projects: 
                   const rowTotal = row.principalAmount + row.gstAmount
                   return (
                     <tr key={idx}>
-                      <td style={{ color: 'var(--text-muted)', fontSize: '0.8rem' }}>{idx + 1}</td>
+                      <td className="text-muted text-sm">{idx + 1}</td>
                       <td>
-                        <div style={{ fontWeight: 500 }}>{row.description}</div>
+                        <div className="font-medium">{row.description}</div>
                         {row.percentOfAV === undefined && (
-                          <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', marginTop: 2 }}>Excluded from milestone %</div>
+                          <div className="text-xs text-muted">Excluded from milestone %</div>
                         )}
                       </td>
-                      <td style={{ textAlign: 'right' }}>
+                      <td className="text-right">
                         {row.percentOfAV !== undefined ? (
-                          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-end', gap: 4 }}>
-                            <input
+                          <div className="flex items-center justify-end gap-1">
+                            <Input
+                              small
                               type="number"
-                              className="form-input"
-                              style={{ width: 70, textAlign: 'right', padding: '4px 8px', fontSize: '0.875rem' }}
+                              inputMode="decimal"
+                              aria-label={`Milestone ${idx + 1} percentage`}
+                              className="num-input text-right"
                               value={row.percentOfAV}
                               onChange={e => updateSchedulePercent(idx, Number(e.target.value) || 0)}
                             />
-                            <span style={{ color: 'var(--text-muted)' }}>%</span>
+                            <span className="text-muted">%</span>
                           </div>
                         ) : (
-                          <span style={{ color: 'var(--text-muted)' }}>—</span>
+                          <span className="text-muted">—</span>
                         )}
                       </td>
-                      <td style={{ textAlign: 'right' }}>
-                        <input
+                      <td className="text-right">
+                        <Input
+                          small
                           type="number"
-                          className="form-input"
-                          style={{ width: 130, textAlign: 'right', padding: '4px 8px', fontSize: '0.875rem' }}
+                          inputMode="decimal"
+                          aria-label={`Milestone ${idx + 1} amount`}
+                          className="amount-input text-right"
                           value={row.principalAmount}
                           onChange={e => updateScheduleAmount(idx, Number(e.target.value) || 0)}
                         />
                       </td>
-                      <td style={{ textAlign: 'right', color: 'var(--text-muted)' }}>
-                        {row.gstAmount > 0 ? fmt(row.gstAmount) : <span style={{ color: 'var(--text-muted)', fontSize: '0.8rem' }}>—</span>}
+                      <td className="text-right text-muted">
+                        {row.gstAmount > 0 ? fmt(row.gstAmount) : <span className="text-muted text-sm">—</span>}
                       </td>
-                      <td style={{ textAlign: 'right', fontWeight: 600 }}>{fmt(rowTotal)}</td>
+                      <td className="text-right font-semibold">{fmt(rowTotal)}</td>
                     </tr>
                   )
                 })}
               </tbody>
               <tfoot>
-                <tr style={{ borderTop: '2px solid var(--border-color)', fontWeight: 700 }}>
-                  <td colSpan={3} style={{ textAlign: 'right', paddingTop: 12 }}>TOTALS</td>
-                  <td style={{ textAlign: 'right', paddingTop: 12 }}>{fmt(totalPrincipal)}</td>
-                  <td style={{ textAlign: 'right', paddingTop: 12 }}>{fmt(totalGst)}</td>
-                  <td style={{ textAlign: 'right', paddingTop: 12, color: 'var(--color-primary)', fontSize: '1rem' }}>{fmt(grandTotal)}</td>
+                <tr className="font-bold">
+                  <td colSpan={3} className="text-right pt-3">TOTALS</td>
+                  <td className="text-right pt-3">{fmt(totalPrincipal)}</td>
+                  <td className="text-right pt-3">{fmt(totalGst)}</td>
+                  <td className="text-right pt-3 text-brand text-md">{fmt(grandTotal)}</td>
                 </tr>
               </tfoot>
-            </table>
-          </div>
+          </Table></div>
 
           {!isValidPlan && (
-            <div style={{ background: '#fef2f2', border: '1px solid #fca5a5', color: '#b91c1c', padding: '12px 16px', borderRadius: 8, marginBottom: 16, fontSize: '0.875rem' }}>
-              <strong>Warning:</strong> The milestone payment plan does not match the Agreement Value ({fmt(agreementValue)}).
-              <ul style={{ marginTop: 8, paddingLeft: 20, marginBottom: 0 }}>
-                {totalPercent !== 100 && <li>Total percentage is {totalPercent}%, but must equal exactly 100%.</li>}
-                {totalMilestoneAmount !== agreementValue && <li>Total milestone amount is {fmt(totalMilestoneAmount)}, but must equal exactly {fmt(agreementValue)}.</li>}
+            <Alert variant="danger" className="mb-4" title={`The milestone payment plan does not match the agreement value (${fmt(agreementValue)})`}>
+              <ul className="mt-2 pl-5 mb-0">
+                {totalPercent !== 100 && <li>The percentages total {totalPercent}%. They must total exactly 100%.</li>}
+                {totalMilestoneAmount !== agreementValue && <li>The milestone amounts total {fmt(totalMilestoneAmount)}. They must total exactly {fmt(agreementValue)}.</li>}
               </ul>
-            </div>
+            </Alert>
           )}
 
           <div className="flex justify-end gap-3">
-            <button type="button" className="btn btn-secondary" onClick={() => setStep(1)}>← Back</button>
-            <button type="button" className="btn btn-primary" onClick={goToStep3} disabled={generating || !isValidPlan}>
+            <Button type="button" variant="secondary" onClick={() => setStep(1)}>← Back</Button>
+            <Button type="button" variant="primary" onClick={goToStep3} disabled={generating || !isValidPlan}>
               {generating ? 'Creating Sale...' : `Confirm & Continue →`}
-            </button>
+            </Button>
           </div>
         </div>
       )}
@@ -696,67 +618,65 @@ export default function NewSaleWizard({ projects, prefill = null }: { projects: 
           <div className="card-header">
             <span className="card-title">Generate Agreement</span>
           </div>
-          {error && <div className="alert alert-danger mb-4">{error}</div>}
+          {error && <Alert variant="danger" className="mb-4">{error}</Alert>}
 
           {!generatedDoc ? (
-            <div style={{ textAlign: 'center', padding: '40px 24px' }}>
-              <div style={{ fontSize: 64, marginBottom: 16 }}>🎉</div>
-              <h2 style={{ marginBottom: 8 }}>Sale Created Successfully!</h2>
-              <p style={{ color: 'var(--text-muted)', marginBottom: 32 }}>
+            <div className="centered-panel">
+              <div className="big-emoji mb-4" aria-hidden="true">🎉</div>
+              <h2 className="mb-2">Sale Created Successfully!</h2>
+              <p className="text-muted mb-8">
                 The sale has been recorded with all {schedules.length} payment milestones. Now generate the agreement document.
               </p>
-              <button
+              <Button
                 type="button"
-                className="btn btn-primary"
-                style={{ fontSize: '1rem', padding: '14px 32px' }}
+                size="lg" variant="primary"
                 onClick={generateAgreement}
-                disabled={generating}
+                loading={generating}
               >
                 {generating ? 'Generating...' : saleType === 'FRESH' ? '📄 Generate Sale Agreement (DOCX)' : '📄 Generate PAAA (DOCX)'}
-              </button>
-              <div style={{ marginTop: 16 }}>
-                <button type="button" className="btn btn-ghost" onClick={() => router.push(`/sales/${createdSaleId}`)}>
+              </Button>
+              <div className="mt-4">
+                <Button type="button" variant="ghost" onClick={() => router.push(`/sales/${createdSaleId}`)}>
                   Skip — Go to Sale →
-                </button>
+                </Button>
               </div>
             </div>
           ) : (
-            <div style={{ textAlign: 'center', padding: '40px 24px' }}>
-              <div style={{ fontSize: 64, marginBottom: 16 }}>✅</div>
-              <h2 style={{ marginBottom: 8 }}>Agreement Generated!</h2>
-              <p style={{ color: 'var(--text-muted)', marginBottom: 32 }}>
+            <div className="centered-panel">
+              <div className="big-emoji mb-4" aria-hidden="true">✅</div>
+              <h2 className="mb-2">Agreement Generated!</h2>
+              <p className="text-muted mb-8">
                 Your {saleType === 'FRESH' ? 'Sale Agreement' : 'PAAA'} has been generated and saved.
               </p>
 
-              <div style={{ display: 'flex', gap: 16, justifyContent: 'center', flexWrap: 'wrap' }}>
+              <div className="flex gap-4 justify-center wrap">
                 {/* Preview in browser — opens the file URL in our docx-preview page */}
-                <button
+                <Button
                   type="button"
                   onClick={() => window.open(`/documents/preview?url=${encodeURIComponent(generatedDoc.pdfUrl)}`, '_blank')}
-                  className="btn btn-secondary"
-                  style={{ fontSize: '0.95rem', padding: '12px 28px' }}
+                  variant="secondary"
+                  size="lg"
                 >
                   👁 Preview in Browser
-                </button>
+                </Button>
 
                 {/* Download */}
                 <a
                   href={generatedDoc.pdfUrl}
                   download
-                  className="btn btn-primary"
-                  style={{ fontSize: '0.95rem', padding: '12px 28px' }}
+                  className="btn btn-primary btn-lg"
                 >
                   ⬇ Download Word File
                 </a>
               </div>
 
-              <div style={{ marginTop: 24, display: 'flex', gap: 12, justifyContent: 'center' }}>
-                <button type="button" className="btn btn-ghost" onClick={() => router.push(`/sales/${createdSaleId}`)}>
+              <div className="mt-6 flex gap-3 justify-center">
+                <Button type="button" variant="ghost" onClick={() => router.push(`/sales/${createdSaleId}`)}>
                   Go to Sale Details →
-                </button>
-                <button type="button" className="btn btn-ghost" onClick={() => router.push(`/sales/${createdSaleId}/documents`)}>
+                </Button>
+                <Button type="button" variant="ghost" onClick={() => router.push(`/sales/${createdSaleId}/documents`)}>
                   Go to Documents →
-                </button>
+                </Button>
               </div>
             </div>
           )}

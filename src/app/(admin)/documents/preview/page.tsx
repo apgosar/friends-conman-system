@@ -1,149 +1,88 @@
 'use client'
 
-import { useEffect, useRef, useState } from 'react'
+import { Suspense, useEffect, useRef, useState } from 'react'
 import { useSearchParams } from 'next/navigation'
+import TopNav from '@/components/layout/TopNav'
+import { Alert, Button, EmptyState, Spinner } from '@/components/ui'
 
-export default function DocPreviewPage() {
+/** Only files served by this application can be previewed: a crafted ?url= must not make the browser fetch or open another site. */
+function sameOriginPath(raw: string | null): string | null {
+  if (!raw) return null
+  try {
+    const url = new URL(raw, window.location.origin)
+    return url.origin === window.location.origin ? url.pathname + url.search : null
+  } catch {
+    return null
+  }
+}
+
+function Preview() {
   const containerRef = useRef<HTMLDivElement>(null)
   const [error, setError] = useState('')
   const [loading, setLoading] = useState(true)
-  const searchParams = useSearchParams()
-  const fileUrl = searchParams.get('url')
+  const raw = useSearchParams().get('url')
+  const [fileUrl, setFileUrl] = useState<string | null | undefined>(undefined) // undefined until the browser can resolve it
+
+  useEffect(() => setFileUrl(sameOriginPath(raw)), [raw])
 
   useEffect(() => {
     if (!fileUrl || !containerRef.current) return
+    let cancelled = false
 
     const render = async () => {
       try {
         setLoading(true)
-
-        if (fileUrl.toLowerCase().endsWith('.pdf')) {
+        if (fileUrl.toLowerCase().split('?')[0].endsWith('.pdf')) {
           window.location.replace(fileUrl)
           return
         }
-
-        // Fetch the DOCX file as an ArrayBuffer
         const res = await fetch(fileUrl)
-        if (!res.ok) throw new Error('Could not fetch document file')
+        if (!res.ok) throw new Error('Could not load the document file')
         const arrayBuffer = await res.arrayBuffer()
-
-        // Dynamically import docx-preview to avoid SSR issues
-        const { renderAsync } = await import('docx-preview')
-
-        if (containerRef.current) {
-          containerRef.current.innerHTML = ''
-          await renderAsync(arrayBuffer, containerRef.current, undefined, {
-            className: 'docx-preview',
-            inWrapper: true,
-            ignoreWidth: false,
-            ignoreHeight: false,
-            ignoreFonts: false,
-            breakPages: true,
-            useBase64URL: true,
-          })
-        }
-      } catch (err: any) {
-        setError(err.message || 'Failed to render document')
+        const { renderAsync } = await import('docx-preview') // client only, so it is loaded on demand
+        if (cancelled || !containerRef.current) return
+        containerRef.current.innerHTML = ''
+        await renderAsync(arrayBuffer, containerRef.current, undefined, {
+          className: 'docx-preview', inWrapper: true, ignoreWidth: false, ignoreHeight: false, ignoreFonts: false, breakPages: true, useBase64URL: true,
+        })
+      } catch (err) {
+        if (!cancelled) setError(err instanceof Error ? err.message : 'Could not show this document')
       } finally {
-        setLoading(false)
+        if (!cancelled) setLoading(false)
       }
     }
-
     render()
+    return () => { cancelled = true }
   }, [fileUrl])
 
-  if (!fileUrl) {
-    return (
-      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '100vh', fontFamily: 'sans-serif' }}>
-        <p style={{ color: '#666' }}>No document URL provided.</p>
-      </div>
-    )
-  }
+  if (fileUrl === undefined) return null
+  if (!fileUrl) return <EmptyState title="No document to show">The link is missing a document, or points outside this application.</EmptyState>
 
   return (
-    <div style={{ minHeight: '100vh', background: '#e5e7eb' }}>
-      {/* Toolbar */}
-      <div style={{
-        position: 'sticky', top: 0, zIndex: 10,
-        background: '#1e293b', color: '#fff',
-        padding: '10px 24px',
-        display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-        boxShadow: '0 2px 8px rgba(0,0,0,0.3)'
-      }}>
-        <span style={{ fontWeight: 600, fontSize: '0.9rem' }}>📄 Document Preview</span>
-        <div style={{ display: 'flex', gap: 12 }}>
-          <a
-            href={fileUrl}
-            download
-            style={{
-              background: '#3b82f6', color: '#fff',
-              padding: '6px 16px', borderRadius: 6,
-              fontSize: '0.85rem', fontWeight: 500,
-              textDecoration: 'none'
-            }}
-          >
-            ⬇ Download DOCX
-          </a>
-          <button
-            onClick={() => window.close()}
-            style={{
-              background: 'transparent', color: '#94a3b8',
-              border: '1px solid #475569',
-              padding: '6px 14px', borderRadius: 6,
-              fontSize: '0.85rem', cursor: 'pointer'
-            }}
-          >
-            Close
-          </button>
+    <>
+      <div className="doc-preview-bar">
+        <span className="font-semibold">📄 Document preview</span>
+        <div className="flex gap-3">
+          <a href={fileUrl} download className="btn btn-primary btn-sm">⬇ Download DOCX</a>
+          <Button size="sm" onClick={() => window.close()}>Close</Button>
         </div>
       </div>
-
-      {/* Content */}
-      <div style={{ maxWidth: 900, margin: '0 auto', padding: '32px 16px' }}>
-        {loading && (
-          <div style={{ textAlign: 'center', padding: 60, color: '#64748b', fontFamily: 'sans-serif' }}>
-            <div style={{ fontSize: '2rem', marginBottom: 12 }}>⏳</div>
-            <p>Rendering document…</p>
-          </div>
-        )}
-
-        {error && (
-          <div style={{
-            background: '#fef2f2', border: '1px solid #fca5a5',
-            borderRadius: 8, padding: 20, color: '#b91c1c',
-            fontFamily: 'sans-serif', marginBottom: 20
-          }}>
-            ⚠ {error}
-          </div>
-        )}
-
-        <div
-          ref={containerRef}
-          style={{
-            background: '#fff',
-            borderRadius: 8,
-            boxShadow: '0 4px 24px rgba(0,0,0,0.12)',
-            minHeight: 400,
-            overflow: 'hidden'
-          }}
-        />
+      <div className="doc-preview-page">
+        {loading && <div className="flex items-center justify-center gap-3 text-muted py-10"><Spinner /> Rendering document…</div>}
+        {error && <Alert variant="danger" className="mb-4">{error}</Alert>}
+        <div ref={containerRef} className="doc-preview-sheet" />
       </div>
+    </>
+  )
+}
 
-      <style>{`
-        .docx-preview section.docx {
-          padding: 40px 60px !important;
-          min-height: 100% !important;
-        }
-        .docx-wrapper {
-          background: transparent !important;
-          padding: 0 !important;
-        }
-        .docx-wrapper > section.docx {
-          margin-bottom: 24px !important;
-          border-radius: 6px !important;
-          box-shadow: 0 2px 8px rgba(0,0,0,0.08) !important;
-        }
-      `}</style>
-    </div>
+export default function DocPreviewPage() {
+  return (
+    <>
+      <TopNav title="Document Preview" subtitle="Preview a generated document" />
+      <div className="admin-content">
+        <Suspense fallback={null}><Preview /></Suspense>
+      </div>
+    </>
   )
 }

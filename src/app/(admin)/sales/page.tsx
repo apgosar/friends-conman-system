@@ -1,12 +1,12 @@
 import { prisma } from '@/lib/db'
-import Link from 'next/link'
 import TopNav from '@/components/layout/TopNav'
-import { formatCurrency, formatDate } from '@/lib/template-engine'
+import { formatCurrency, formatDate } from '@/lib/format'
 import ClickableRow from '@/components/sales/ClickableRow'
-import { saleStatusBadge, saleStatusLabel } from '@/lib/status'
+import { Badge, ButtonLink, Card, EmptyRow, PageHeader, StatusBadge, Table, Td } from '@/components/ui'
 
 async function getSales() {
   return prisma.sale.findMany({
+    where: { deletedAt: null },
     include: {
       project: { select: { name: true } },
       unit: { select: { unitNumber: true, configuration: true } },
@@ -24,15 +24,13 @@ export default async function SalesPage() {
     <>
       <TopNav title="Sales" subtitle="All sales and lifecycle status" />
       <div className="admin-content">
-        <div className="page-header">
-          <div>
-            <h1 className="page-title">All Sales</h1>
-            <p className="page-subtitle">{sales.length} sale{sales.length !== 1 ? 's' : ''}</p>
-          </div>
-          <Link href="/sales/new" className="btn btn-primary" id="new-sale-btn">+ New Sale</Link>
-        </div>
-        <div className="table-wrapper">
-          <table>
+        <PageHeader
+          title="All Sales"
+          subtitle={`${sales.length} sale${sales.length !== 1 ? 's' : ''}`}
+          actions={<ButtonLink href="/sales/new" variant="primary" id="new-sale-btn">+ New Sale</ButtonLink>}
+        />
+        <Card flush>
+          <Table flush stack>
             <thead>
               <tr>
                 <th>Sale #</th><th>Project</th><th>Unit</th><th>Buyer</th>
@@ -42,31 +40,23 @@ export default async function SalesPage() {
             </thead>
             <tbody>
               {sales.length === 0 ? (
-                <tr><td colSpan={9} style={{ textAlign: 'center', padding: '40px', color: 'var(--text-muted)' }}>No sales yet</td></tr>
+                <EmptyRow colSpan={9}>No sales yet</EmptyRow>
               ) : sales.map((sale) => (
                 <ClickableRow key={sale.id} href={`/sales/${sale.id}`}>
-                  <td><span className="badge badge-muted">{sale.saleNumber}</span></td>
-                  <td style={{ fontWeight: 500 }}>{sale.project.name}</td>
-                  <td>{sale.unit.unitNumber} <span className="text-muted text-xs">({sale.unit.configuration})</span></td>
-                  <td>{sale.buyers[0]?.fullName ?? '—'}</td>
-                  <td>
-                    <span className={`badge ${sale.saleType === 'FRESH' ? 'badge-primary' : 'badge-orange'}`}>
-                      {sale.saleType}
-                    </span>
-                  </td>
-                  <td style={{ fontWeight: 600 }}>{formatCurrency(Number(sale.agreementValue))}</td>
-                  <td>
-                    <span className={`badge ${saleStatusBadge(sale.status)}`}>
-                      {saleStatusLabel(sale.status)}
-                    </span>
-                  </td>
-                  <td style={{ color: 'var(--text-muted)' }}>{formatDate(sale.bookingDate)}</td>
-                  <td style={{ textAlign: 'center' }}>{sale._count.payments}</td>
+                  <Td label="Sale #"><Badge>{sale.saleNumber}</Badge></Td>
+                  <Td label="Project" className="font-medium">{sale.project.name}</Td>
+                  <Td label="Unit"><span>{sale.unit.unitNumber} <span className="text-muted text-xs">({sale.unit.configuration})</span></span></Td>
+                  <Td label="Buyer">{sale.buyers[0]?.fullName ?? '—'}</Td>
+                  <Td label="Type"><Badge variant={sale.saleType === 'FRESH' ? 'primary' : 'orange'}>{sale.saleType}</Badge></Td>
+                  <Td label="Agreement value" className="font-semibold">{formatCurrency(Number(sale.agreementValue))}</Td>
+                  <Td label="Status"><StatusBadge kind="sale" status={sale.status} /></Td>
+                  <Td label="Booked" className="text-muted">{formatDate(sale.bookingDate)}</Td>
+                  <Td label="Payments" className="text-center">{sale._count.payments}</Td>
                 </ClickableRow>
               ))}
             </tbody>
-          </table>
-        </div>
+          </Table>
+        </Card>
       </div>
     </>
   )

@@ -209,11 +209,11 @@ docker login ghcr.io -u <your-github-username>
 
 docker compose pull
 docker compose up -d
-docker compose exec web npx prisma db push
-docker compose exec web npx prisma db seed   # first install only; change the default passwords straight away
+docker compose exec web npx prisma migrate deploy
+docker compose exec web npx prisma db seed   # first install only (demo data); set SEED_PASSWORD, or note the password it prints
 ```
 
-The project has no migration history, so the tables are created with `db push`. `migrate deploy` would find nothing to apply and leave the database empty.
+`migrate deploy` creates the tables and applies every later change in order. (Older installs were built with `db push`; the updater converts them automatically the first time.)
 
 ---
 

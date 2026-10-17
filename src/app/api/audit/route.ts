@@ -1,11 +1,11 @@
+import { apiServerError } from '@/lib/api-error'
 import { NextRequest } from 'next/server'
-import { auth } from '@/lib/auth'
+import { requireRole } from '@/lib/guard'
 import { prisma } from '@/lib/db'
 
 export async function GET(req: NextRequest) {
-  const session = await auth()
-  if (!session?.user) return Response.json({ error: 'Unauthorized' }, { status: 401 })
-  if (!['SUPER_ADMIN', 'ADMIN'].includes(session.user.role)) { return Response.json({ error: 'Forbidden' }, { status: 403 }) }
+  const guard = await requireRole('admin')
+  if ('error' in guard) return guard.error
 
   const { searchParams } = new URL(req.url)
   const action = searchParams.get('action')
@@ -35,7 +35,7 @@ export async function GET(req: NextRequest) {
     ])
 
     return Response.json({ success: true, data: logs, total, page, pages: Math.ceil(total / limit) })
-  } catch (err: any) {
-    return Response.json({ error: 'Internal Server Error' }, { status: 500 })
+  } catch (err) {
+    return apiServerError(err, 'audit')
   }
 }

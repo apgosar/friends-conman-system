@@ -1,5 +1,6 @@
+import { apiError } from '@/lib/api-error'
 import { NextRequest, NextResponse } from 'next/server'
-import { auth } from '@/lib/auth'
+import { requireRole } from '@/lib/guard'
 import { prisma } from '@/lib/db'
 import { parseBody, z } from '@/lib/validate'
 import { generateAndSaveQuotePdf } from '@/lib/pdf-generator'
@@ -33,20 +34,20 @@ async function loadInquiry(unitId: string, quoteId: string) {
 
 // PATCH — fix details, change validity, mark as lost or reopen
 export async function PATCH(req: NextRequest, { params }: Ctx) {
-  const session = await auth()
-  if (!session?.user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+  const guard = await requireRole('staff')
+  if ('error' in guard) return guard.error
 
   const { unitId, quoteId } = await params
   const { data, error } = await parseBody(req, PatchSchema)
   if (error) return error
 
   const inquiry = await loadInquiry(unitId, quoteId)
-  if (!inquiry) return NextResponse.json({ error: 'Inquiry not found' }, { status: 404 })
+  if (!inquiry) return apiError('notFound', 'Inquiry not found')
   if (inquiry.status === 'CONVERTED') {
-    return NextResponse.json({ error: 'This inquiry has already been converted to a sale and cannot be changed' }, { status: 409 })
+    return apiError('conflict', 'This inquiry has already been converted to a sale and cannot be changed')
   }
   if (data.status === 'LOST' && !data.lostReason) {
-    return NextResponse.json({ error: 'A reason is required to mark an inquiry as lost' }, { status: 400 })
+    return apiError('invalid', 'A reason is required to mark an inquiry as lost')
   }
 
   const update: Record<string, unknown> = {}
@@ -85,17 +86,14 @@ export async function PATCH(req: NextRequest, { params }: Ctx) {
 
 // DELETE — remove a wrongly entered inquiry (admins only; converted inquiries are kept)
 export async function DELETE(_req: NextRequest, { params }: Ctx) {
-  const session = await auth()
-  if (!session?.user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
-  if (!['SUPER_ADMIN', 'ADMIN'].includes(session.user.role)) {
-    return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
-  }
+  const guard = await requireRole('admin')
+  if ('error' in guard) return guard.error
 
   const { unitId, quoteId } = await params
   const inquiry = await prisma.inquiry.findFirst({ where: { id: quoteId, unitId } })
-  if (!inquiry) return NextResponse.json({ error: 'Inquiry not found' }, { status: 404 })
+  if (!inquiry) return apiError('notFound', 'Inquiry not found')
   if (inquiry.status === 'CONVERTED') {
-    return NextResponse.json({ error: 'A converted inquiry is linked to a sale and cannot be deleted' }, { status: 409 })
+    return apiError('conflict', 'A converted inquiry is linked to a sale and cannot be deleted')
   }
 
   await prisma.inquiry.delete({ where: { id: quoteId } })

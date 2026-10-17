@@ -4,7 +4,12 @@ import { useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { FLOOR_PLAN_ACCEPT, FLOOR_PLAN_LIMITS } from '@/lib/floor-plan'
 import { CATEGORIES, categoryLabel, type UnitCategory } from '@/lib/building-structure'
-import { Modal, UnitTypeRow, api, fmtNum, inputStyle, labelStyle } from './ui'
+import { fmtNum, type UnitTypeRow } from './ui'
+import { Alert, Button, CheckboxField, EmptyState, Input, Modal, Table, TextField } from '@/components/ui'
+import { errorMessage, fetchJson } from '@/lib/client/api'
+import { formatRupees } from '@/lib/format'
+import { plural } from '@/lib/errors'
+import { useConfirm } from '@/components/ui'
 
 const normalize = (s: string) => s.trim().toLowerCase()
 
@@ -55,9 +60,9 @@ function TypeForm({ projectId, category, type, existingNames, onClose }: {
       if (type) {
         if (removePlan) body.append('removeFloorPlan', '1')
         if (applyToUnits) body.append('applyToUnits', '1')
-        await api(`/api/projects/${projectId}/unit-types/${type.id}`, { method: 'PATCH', body })
+        await fetchJson(`/api/projects/${projectId}/unit-types/${type.id}`, { method: 'PATCH', body })
       } else {
-        await api(`/api/projects/${projectId}/unit-types`, { method: 'POST', body })
+        await fetchJson(`/api/projects/${projectId}/unit-types`, { method: 'POST', body })
       }
       router.refresh()
       if (andAddAnother) {
@@ -67,8 +72,8 @@ function TypeForm({ projectId, category, type, existingNames, onClose }: {
       } else {
         onClose()
       }
-    } catch (err: any) {
-      setError(err.message)
+    } catch (err) {
+      setError(errorMessage(err))
     } finally {
       setBusy(false)
     }
@@ -77,53 +82,58 @@ function TypeForm({ projectId, category, type, existingNames, onClose }: {
   const currentPlan = type?.floorPlanUrl && !removePlan && !file
   const label = categoryLabel(category).toLowerCase()
 
+  const subtitle = isFlat
+    ? 'A flat layout that repeats in the building. Every flat of this type shares these details and the floor plan.'
+    : category === 'COMMON'
+      ? 'Something that is part of the building but not for sale, such as a Refuge Area or the Society Office. The name is what shows on the 3D view.'
+      : `A ${label} size. Each ${label} you place later is named automatically (for example ${category} NO 101).`
+
   return (
-    <Modal title={type ? `Edit ${type.name}` : `Add ${label} type`} subtitle={isFlat ? 'A flat layout that repeats in the building. Every flat of this type shares these details and the floor plan.' : category === 'COMMON' ? 'Something that is part of the building but not for sale, such as a Refuge Area or the Society Office. The name is what shows on the 3D view.' : `A ${label} size. Each ${label} you place later is named automatically (for example ${category} NO 101).`} onClose={onClose}>
-      <form onSubmit={(e) => { e.preventDefault(); save(false) }}>
-        {added.length > 0 && (
-          <div role="status" style={{ marginBottom: 12, padding: '8px 12px', borderRadius: 8, background: 'var(--color-success-light, rgba(16,185,129,0.12))', color: 'var(--color-success)', fontSize: '0.8125rem' }}>
-            Added: {added.join(', ')}. The fields below are kept: change the name and area to add the next one.
-          </div>
-        )}
-        <div style={{ display: 'grid', gridTemplateColumns: isFlat ? '1fr 1fr' : '1fr', gap: 12, marginBottom: 12 }}>
-          <div>
-            <label style={labelStyle}>Name *</label>
-            <input required autoFocus style={{ ...inputStyle, ...(duplicate ? { borderColor: 'var(--color-danger, #ef4444)' } : {}) }} placeholder={isFlat ? '2BHK-A' : category === 'SHOP' ? 'SHOP-250' : category === 'COMMON' ? 'Refuge Area' : 'OFFICE-400'} value={f.name} onChange={(e) => set('name', e.target.value)} />
-            {duplicate && <div role="alert" style={{ color: 'var(--color-danger)', fontSize: '0.75rem', marginTop: 4 }}>A unit type named “{f.name.trim()}” already exists in this project. Names must be unique.</div>}
-          </div>
-          {isFlat && <div><label style={labelStyle}>Configuration *</label><input required style={inputStyle} placeholder="1BHK, 2BHK, 3BHK…" value={f.configuration} onChange={(e) => set('configuration', e.target.value)} /></div>}
+    <Modal
+      title={type ? `Edit ${type.name}` : `Add ${label} type`}
+      subtitle={subtitle}
+      onClose={onClose}
+      dismissible={!busy}
+      footer={
+        <>
+          <Button onClick={onClose}>{added.length > 0 ? 'Done' : 'Cancel'}</Button>
+          {!type && <Button disabled={duplicate} loading={busy} onClick={() => save(true)}>Save &amp; add another</Button>}
+          <Button type="submit" form="unit-type-form" variant="primary" disabled={duplicate} loading={busy}>{type ? 'Save changes' : 'Save'}</Button>
+        </>
+      }
+    >
+      <form id="unit-type-form" className="stack" onSubmit={(e) => { e.preventDefault(); save(false) }}>
+        {added.length > 0 && <Alert variant="success">Added: {added.join(', ')}. The fields below are kept: change the name and area to add the next one.</Alert>}
+        <div className={isFlat ? 'form-grid' : undefined}>
+          <TextField
+            label="Name" required autoFocus
+            placeholder={isFlat ? '2BHK-A' : category === 'SHOP' ? 'SHOP-250' : category === 'COMMON' ? 'Refuge Area' : 'OFFICE-400'}
+            value={f.name} onChange={(e) => set('name', e.target.value)}
+            error={duplicate ? `A unit type named “${f.name.trim()}” already exists in this project. Names must be unique.` : undefined}
+          />
+          {isFlat && <TextField label="Configuration" required placeholder="1BHK, 2BHK, 3BHK…" value={f.configuration} onChange={(e) => set('configuration', e.target.value)} />}
         </div>
-        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 12, marginBottom: 12 }}>
-          <div><label style={labelStyle}>Carpet area (sqft) *</label><input required type="number" min="1" step="0.01" style={inputStyle} value={f.carpetAreaSqft} onChange={(e) => set('carpetAreaSqft', e.target.value)} /></div>
-          <div><label style={labelStyle}>Built-up (sqft)</label><input type="number" min="1" step="0.01" style={inputStyle} value={f.builtupAreaSqft} onChange={(e) => set('builtupAreaSqft', e.target.value)} /></div>
-          <div><label style={labelStyle}>Price per sqft (₹)</label><input type="number" min="0" step="1" style={inputStyle} value={f.basePricePerSqft} onChange={(e) => set('basePricePerSqft', e.target.value)} /></div>
+        <div className="form-grid form-grid-3">
+          <TextField label="Carpet area (sqft)" required type="number" min="1" step="0.01" value={f.carpetAreaSqft} onChange={(e) => set('carpetAreaSqft', e.target.value)} />
+          <TextField label="Built-up (sqft)" type="number" min="1" step="0.01" value={f.builtupAreaSqft} onChange={(e) => set('builtupAreaSqft', e.target.value)} />
+          <TextField label="Price per sqft (₹)" type="number" min="0" step="1" value={f.basePricePerSqft} onChange={(e) => set('basePricePerSqft', e.target.value)} />
         </div>
 
-        <div style={{ marginBottom: 12 }}>
-          <label style={labelStyle}>Floor plan image (PNG, JPG or WebP, up to 5 MB)</label>
-          {currentPlan && <img src={type!.floorPlanUrl!} alt="Current floor plan" style={{ maxWidth: '100%', maxHeight: 160, display: 'block', marginBottom: 8, borderRadius: 6, border: '1px solid var(--border-color)', background: '#fff' }} />}
-          {file && <img src={URL.createObjectURL(file)} alt="New floor plan" style={{ maxWidth: '100%', maxHeight: 160, display: 'block', marginBottom: 8, borderRadius: 6, border: '1px solid var(--border-color)', background: '#fff' }} />}
-          <input key={added.length} type="file" accept={FLOOR_PLAN_ACCEPT} onChange={pickFile} style={inputStyle} />
-          {type?.floorPlanUrl && !file && (
-            <label style={{ display: 'flex', gap: 8, alignItems: 'center', fontSize: '0.8125rem', marginTop: 8 }}>
-              <input type="checkbox" checked={removePlan} onChange={(e) => setRemovePlan(e.target.checked)} /> Remove the current floor plan
-            </label>
-          )}
+        <div className="form-group">
+          <label className="form-label" htmlFor="floor-plan">Floor plan image (PNG, JPG or WebP, up to 5 MB)</label>
+          {currentPlan && <img src={type!.floorPlanUrl!} alt="Current floor plan" className="thumb" />}
+          {file && <img src={URL.createObjectURL(file)} alt="New floor plan" className="thumb" />}
+          <Input id="floor-plan" key={added.length} type="file" accept={FLOOR_PLAN_ACCEPT} onChange={pickFile} />
+          {type?.floorPlanUrl && !file && <CheckboxField label="Remove the current floor plan" checked={removePlan} onChange={(e) => setRemovePlan(e.target.checked)} />}
         </div>
 
         {type && type.unitCount > 0 && (
-          <label style={{ display: 'flex', gap: 8, alignItems: 'flex-start', fontSize: '0.8125rem', marginBottom: 12, padding: 10, borderRadius: 8, background: 'var(--bg-surface)' }}>
-            <input type="checkbox" checked={applyToUnits} onChange={(e) => setApplyToUnits(e.target.checked)} style={{ marginTop: 2 }} />
-            <span>Also update this type’s unsold units ({type.unitCount} use it). Units that already have a sale are never changed.</span>
-          </label>
+          <div className="note-box">
+            <CheckboxField label={`Also update this type’s unsold units (${type.unitCount} use it). Units that already have a sale are never changed.`} checked={applyToUnits} onChange={(e) => setApplyToUnits(e.target.checked)} />
+          </div>
         )}
 
-        {error && <div role="alert" style={{ color: 'var(--color-danger)', fontSize: '0.8125rem', marginBottom: 12 }}>{error}</div>}
-        <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 10, flexWrap: 'wrap' }}>
-          <button type="button" className="btn btn-secondary" onClick={onClose}>{added.length > 0 ? 'Done' : 'Cancel'}</button>
-          {!type && <button type="button" className="btn btn-secondary" disabled={busy || duplicate} onClick={() => save(true)}>{busy ? 'Saving…' : 'Save & add another'}</button>}
-          <button type="submit" className="btn btn-primary" disabled={busy || duplicate}>{busy ? 'Saving…' : type ? 'Save changes' : 'Save'}</button>
-        </div>
+        {error && <Alert variant="danger">{error}</Alert>}
       </form>
     </Modal>
   )
@@ -133,16 +143,17 @@ export default function UnitTypesPanel({ projectId, types }: { projectId: string
   const router = useRouter()
   const [editing, setEditing] = useState<{ category: UnitCategory; type: UnitTypeRow | null } | null>(null)
   const [error, setError] = useState('')
+  const confirm = useConfirm()
   const names = types.map((t) => t.name)
 
   const remove = async (t: UnitTypeRow) => {
-    if (!window.confirm(`Delete the unit type "${t.name}"?`)) return
+    if (!(await confirm({ title: 'Delete unit type', message: `Delete the unit type “${t.name}”?`, confirmLabel: 'Delete', danger: true }))) return
     setError('')
     try {
-      await api(`/api/projects/${projectId}/unit-types/${t.id}`, { method: 'DELETE' })
+      await fetchJson(`/api/projects/${projectId}/unit-types/${t.id}`, { method: 'DELETE' })
       router.refresh()
-    } catch (err: any) {
-      setError(err.message)
+    } catch (err) {
+      setError(errorMessage(err))
     }
   }
 
@@ -151,53 +162,49 @@ export default function UnitTypesPanel({ projectId, types }: { projectId: string
       <div className="card-header">
         <div>
           <span className="card-title">1. Unit types</span>
-          <p style={{ margin: '4px 0 0', fontSize: '0.8125rem', color: 'var(--text-muted)' }}>
+          <p className="text-sm text-muted mt-1 mb-0">
             Every project has three kinds of units: flats, shops and offices. Define each size or layout once: its area, price and floor plan. Names must be unique.
           </p>
         </div>
       </div>
 
-      {error && <div role="alert" className="alert alert-danger" style={{ marginBottom: 12 }}>{error}</div>}
+      {error && <Alert variant="danger" className="mb-3">{error}</Alert>}
 
       {CATEGORIES.map((cat) => {
         const list = types.filter((t) => t.category === cat.value)
         return (
-          <div key={cat.value} style={{ marginBottom: 18 }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 6 }}>
-              <div style={{ fontSize: '0.8125rem', fontWeight: 700 }}>{cat.plural} <span style={{ color: 'var(--text-muted)', fontWeight: 400 }}>({list.length} type{list.length === 1 ? '' : 's'})</span></div>
-              <button className="btn btn-secondary btn-sm" onClick={() => setEditing({ category: cat.value, type: null })}>+ Add {cat.label.toLowerCase()} type</button>
+          <div key={cat.value} className="mb-5">
+            <div className="flex justify-between items-center mb-2">
+              <div className="text-sm font-bold">{cat.plural} <span className="text-muted font-medium">({plural(list.length, 'type')})</span></div>
+              <Button size="sm" onClick={() => setEditing({ category: cat.value, type: null })}>+ Add {cat.label.toLowerCase()} type</Button>
             </div>
             {list.length === 0 ? (
-              <div style={{ padding: '10px 12px', borderRadius: 8, border: '1px dashed var(--border-color)', color: 'var(--text-muted)', fontSize: '0.8125rem' }}>
-                No {cat.label.toLowerCase()} types yet.
-              </div>
+              <EmptyState dashed>No {cat.label.toLowerCase()} types yet.</EmptyState>
             ) : (
-              <div className="table-wrapper" style={{ border: 'none' }}>
-                <table>
-                  <thead><tr><th>Floor plan</th><th>Name</th>{cat.value === 'FLAT' && <th>Configuration</th>}<th>Carpet</th><th>Built-up</th><th>Price / sqft</th><th>Units</th><th></th></tr></thead>
-                  <tbody>
-                    {list.map((t) => (
-                      <tr key={t.id}>
-                        <td style={{ width: 70 }}>
-                          {t.floorPlanUrl
-                            ? <img src={t.floorPlanUrl} alt={`${t.name} floor plan`} style={{ width: 56, height: 40, objectFit: 'cover', borderRadius: 4, border: '1px solid var(--border-color)', background: '#fff' }} />
-                            : <span className="text-muted" style={{ fontSize: '0.75rem' }}>none</span>}
-                        </td>
-                        <td style={{ fontWeight: 600 }}>{t.name}</td>
-                        {cat.value === 'FLAT' && <td>{t.configuration}</td>}
-                        <td>{fmtNum(t.carpetAreaSqft)} sqft</td>
-                        <td>{t.builtupAreaSqft ? `${fmtNum(t.builtupAreaSqft)} sqft` : '—'}</td>
-                        <td>{t.basePricePerSqft ? `₹${fmtNum(t.basePricePerSqft)}` : '—'}</td>
-                        <td>{t.unitCount}</td>
-                        <td style={{ whiteSpace: 'nowrap' }}>
-                          <button className="btn btn-ghost btn-sm" onClick={() => setEditing({ category: cat.value, type: t })}>Edit</button>
-                          <button className="btn btn-ghost btn-sm" style={{ color: 'var(--color-danger, #ef4444)' }} disabled={t.unitCount > 0} title={t.unitCount > 0 ? 'Units use this type' : undefined} onClick={() => remove(t)}>Delete</button>
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
+              <Table flush>
+                <thead><tr><th>Floor plan</th><th>Name</th>{cat.value === 'FLAT' && <th>Configuration</th>}<th>Carpet</th><th>Built-up</th><th>Price / sqft</th><th>Units</th><th></th></tr></thead>
+                <tbody>
+                  {list.map((t) => (
+                    <tr key={t.id}>
+                      <td style={{ width: 70 }}>
+                        {t.floorPlanUrl
+                          ? <img src={t.floorPlanUrl} alt={`${t.name} floor plan`} className="thumb-sm" />
+                          : <span className="text-muted text-xs">none</span>}
+                      </td>
+                      <td className="font-semibold">{t.name}</td>
+                      {cat.value === 'FLAT' && <td>{t.configuration}</td>}
+                      <td>{fmtNum(t.carpetAreaSqft)} sqft</td>
+                      <td>{t.builtupAreaSqft ? `${fmtNum(t.builtupAreaSqft)} sqft` : '—'}</td>
+                      <td>{t.basePricePerSqft ? formatRupees(t.basePricePerSqft) : '—'}</td>
+                      <td>{t.unitCount}</td>
+                      <td className="nowrap">
+                        <Button variant="ghost" size="sm" onClick={() => setEditing({ category: cat.value, type: t })}>Edit</Button>
+                        <Button variant="ghost" size="sm" className="text-danger" disabled={t.unitCount > 0} title={t.unitCount > 0 ? 'Units use this type' : undefined} onClick={() => remove(t)}>Delete</Button>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </Table>
             )}
           </div>
         )

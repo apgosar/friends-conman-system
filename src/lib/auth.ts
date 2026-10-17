@@ -1,70 +1,48 @@
-import NextAuth from 'next-auth'
+import NextAuth, { CredentialsSignin } from 'next-auth'
 import Credentials from 'next-auth/providers/credentials'
 import { prisma } from '@/lib/db'
-import bcrypt from 'bcryptjs'
-import { UserRole } from '@/types'
+import { normalizeRole, type Role } from '@/lib/roles'
+import { DUMMY_HASH, verifyPassword } from '@/lib/password'
+import { clearBucket, clientIp, hit, peek } from '@/lib/rate-limit'
+import { logger } from '@/lib/logger'
+import { revalidateToken, SESSION_MAX_AGE_SECONDS, type SessionToken } from '@/lib/session-token'
 
 declare module 'next-auth' {
   interface User {
-    role: UserRole
+    role: Role
+    tokenVersion?: number
   }
   interface Session {
     user: {
       id: string
       name: string
       email: string
-      role: UserRole
+      role: Role
     }
   }
 }
 
-// ---------------------------------------------------------------------------
-// Per-email login attempt tracking for brute-force protection.
-// Using email as key (not IP) since authorize() has no access to the request.
-// Limit: 10 failed attempts per 15 minutes before lockout.
-// ---------------------------------------------------------------------------
-const loginAttempts = new Map<string, { count: number; resetAt: number }>()
-const LOGIN_MAX_ATTEMPTS = 10
-const LOGIN_WINDOW_MS = 15 * 60 * 1000 // 15 minutes
-
-function checkLoginAttempts(email: string): { allowed: boolean; resetAt?: number } {
-  const now = Date.now()
-  const entry = loginAttempts.get(email)
-
-  // Window expired — reset
-  if (!entry || now > entry.resetAt) {
-    loginAttempts.set(email, { count: 0, resetAt: now + LOGIN_WINDOW_MS })
-    return { allowed: true }
-  }
-
-  if (entry.count >= LOGIN_MAX_ATTEMPTS) {
-    return { allowed: false, resetAt: entry.resetAt }
-  }
-
-  return { allowed: true }
-}
-
-function recordFailedAttempt(email: string) {
-  const now = Date.now()
-  const entry = loginAttempts.get(email)
-  if (!entry || now > entry.resetAt) {
-    loginAttempts.set(email, { count: 1, resetAt: now + LOGIN_WINDOW_MS })
-  } else {
-    entry.count++
+declare module '@auth/core/jwt' {
+  interface JWT {
+    id?: string
+    role?: Role
+    tv?: number
+    checkedAt?: number
   }
 }
 
-function clearAttempts(email: string) {
-  loginAttempts.delete(email)
+/** Shown to the person at the login screen (see app/login/page.tsx). */
+export class TooManyAttempts extends CredentialsSignin {
+  code = 'too_many_attempts'
 }
 
-// Purge stale entries every 30 minutes
-setInterval(() => {
-  const now = Date.now()
-  for (const [email, entry] of loginAttempts.entries()) {
-    if (now > entry.resetAt) loginAttempts.delete(email)
-  }
-}, 30 * 60 * 1000)
+// Failed sign-ins: 10 per account per 15 minutes (so guessing one person's password is slow), plus 30 attempts per
+// IP per 15 minutes (so one machine cannot try many accounts). Both live in the database and are shared by every
+// instance. Only failures count against the account, so a stranger cannot lock someone out by typing their address
+// once, and a successful sign-in clears it.
+const WINDOW_MS = 15 * 60 * 1000
+const MAX_FAILURES_PER_ACCOUNT = 10
+const MAX_ATTEMPTS_PER_IP = 30
 
 export const { handlers, auth, signIn, signOut } = NextAuth({
   trustHost: true,
@@ -75,61 +53,60 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
         email: { label: 'Email', type: 'email' },
         password: { label: 'Password', type: 'password' },
       },
-      async authorize(credentials) {
-        if (!credentials?.email || !credentials?.password) return null
+      async authorize(credentials, request) {
+        if (typeof credentials?.email !== 'string' || typeof credentials?.password !== 'string') return null
+        const email = credentials.email.trim().toLowerCase()
+        if (!email || !credentials.password) return null
 
-        const email = credentials.email as string
+        const ip = request ? clientIp(request) : 'unknown'
+        const accountBucket = `login:acct:${email}`
 
-        // Check rate limit before hitting the database
-        const check = checkLoginAttempts(email)
-        if (!check.allowed) {
-          // Return null — NextAuth will treat this as a failed login
-          // The UI will show a generic error; the real reason is logged server-side
-          console.warn(`[Auth] Login blocked for ${email} — too many attempts (resets at ${new Date(check.resetAt!).toISOString()})`)
+        if (!(await hit(`login:ip:${ip}`, MAX_ATTEMPTS_PER_IP, WINDOW_MS)).ok) {
+          logger.warn({ ip }, 'Sign-in blocked: too many attempts from this address')
+          throw new TooManyAttempts()
+        }
+        const failures = await peek(accountBucket)
+        if (failures && failures.count >= MAX_FAILURES_PER_ACCOUNT) {
+          logger.warn({ email }, 'Sign-in blocked: too many failed attempts on this account')
+          throw new TooManyAttempts()
+        }
+
+        const user = await prisma.user.findFirst({ where: { email: { equals: email, mode: 'insensitive' } } })
+        // Always run a password check, even for an unknown address, so the response time does not reveal which emails exist
+        const passwordOk = await verifyPassword(credentials.password, user?.password ?? DUMMY_HASH)
+        if (!user || !user.isActive || !passwordOk) {
+          await hit(accountBucket, MAX_FAILURES_PER_ACCOUNT, WINDOW_MS)
           return null
         }
 
-        const user = await prisma.user.findUnique({
-          where: { email },
-        })
-        if (!user || !user.isActive) {
-          recordFailedAttempt(email)
-          return null
-        }
-
-        const passwordMatch = await bcrypt.compare(
-          credentials.password as string,
-          user.password
-        )
-        if (!passwordMatch) {
-          recordFailedAttempt(email)
-          return null
-        }
-
-        // Success — clear attempt counter
-        clearAttempts(email)
-
-        return {
-          id: user.id,
-          name: user.name,
-          email: user.email,
-          role: user.role as UserRole,
-        }
+        await clearBucket(accountBucket)
+        return { id: user.id, name: user.name, email: user.email, role: normalizeRole(user.role), tokenVersion: user.tokenVersion }
       },
     }),
   ],
   callbacks: {
-    jwt({ token, user }) {
+    async jwt({ token, user }) {
       if (user) {
         token.id = user.id
-        token.role = user.role
+        token.role = normalizeRole(user.role)
+        token.tv = user.tokenVersion ?? 0
+        token.checkedAt = Date.now()
+        return token
       }
-      return token
+      try {
+        return (await revalidateToken(token as SessionToken, (id) =>
+          prisma.user.findUnique({ where: { id }, select: { isActive: true, role: true, tokenVersion: true } }),
+        )) as typeof token | null
+      } catch (err) {
+        // Database unreachable: keep the session rather than signing everyone out; it is re-checked on the next request.
+        logger.error({ err }, 'Could not re-check the account behind a session')
+        return token
+      }
     },
     session({ session, token }) {
       if (token) {
         session.user.id = token.id as string
-        session.user.role = token.role as UserRole
+        session.user.role = normalizeRole(token.role)
       }
       return session
     },
@@ -137,5 +114,5 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
   pages: {
     signIn: '/login',
   },
-  session: { strategy: 'jwt' },
+  session: { strategy: 'jwt', maxAge: SESSION_MAX_AGE_SECONDS, updateAge: 60 * 60 },
 })

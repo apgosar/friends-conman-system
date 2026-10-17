@@ -2,6 +2,7 @@ import { prisma } from '@/lib/db'
 import { notFound } from 'next/navigation'
 import TopNav from '@/components/layout/TopNav'
 import EditProjectForm from '@/components/projects/EditProjectForm'
+import { plain } from '@/lib/plain'
 
 export default async function EditProjectPage(props: PageProps<'/projects/[id]/edit'>) {
   const { id } = await props.params
@@ -12,7 +13,7 @@ export default async function EditProjectPage(props: PageProps<'/projects/[id]/e
     <>
       <TopNav title="Edit Project" subtitle={project.name} />
       <div className="admin-content">
-        <EditProjectForm project={project} />
+        <EditProjectForm project={plain(project)} />
       </div>
     </>
   )

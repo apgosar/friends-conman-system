@@ -1,11 +1,11 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { auth } from '@/lib/auth'
+import { requireRole } from '@/lib/guard'
 import { prisma } from '@/lib/db'
 
 // GET — all inquiries of one unit (loaded when the unit is selected in the building view)
 export async function GET(_req: NextRequest, { params }: { params: Promise<{ unitId: string }> }) {
-  const session = await auth()
-  if (!session?.user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+  const guard = await requireRole('staff')
+  if ('error' in guard) return guard.error
 
   const { unitId } = await params
   const inquiries = await prisma.inquiry.findMany({ where: { unitId }, orderBy: { createdAt: 'desc' } })

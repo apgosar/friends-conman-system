@@ -1,20 +1,20 @@
-import { NextRequest } from 'next/server'
-import { auth } from '@/lib/auth'
+import { apiServerError } from '@/lib/api-error'
+import { requireRole } from '@/lib/guard'
 import { prisma } from '@/lib/db'
 import { OUTSTANDING_SCHEDULE_STATUSES, UNIT_STATUS_ORDER, isSaleable, isUnsold } from '@/lib/status'
+import { activeSale } from '@/lib/soft-delete'
+import { formatMonthYear } from '@/lib/format'
 
-export async function GET(req: NextRequest) {
-  const session = await auth()
-  if (!session) return Response.json({ error: 'Unauthorized' }, { status: 401 })
-  if (session.user.role !== 'SUPER_ADMIN' && session.user.role !== 'ADMIN') {
-    return Response.json({ error: 'Forbidden' }, { status: 403 })
-  }
+export async function GET() {
+  const guard = await requireRole('admin')
+  if ('error' in guard) return guard.error
 
   try {
     const now = new Date()
 
     // ─── 1. Sales & Revenue ────────────────────────────────────────────────────
     const allSales = await prisma.sale.findMany({
+      where: activeSale,
       select: {
         id: true,
         agreementValue: true,
@@ -33,7 +33,7 @@ export async function GET(req: NextRequest) {
     for (let i = 11; i >= 0; i--) {
       const d = new Date(now.getFullYear(), now.getMonth() - i, 1)
       const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`
-      const label = d.toLocaleString('en-IN', { month: 'short', year: '2-digit' })
+      const label = formatMonthYear(d)
       monthlySales[key] = { month: label, count: 0, revenue: 0 }
     }
     for (const sale of allSales) {
@@ -84,6 +84,7 @@ export async function GET(req: NextRequest) {
     // ─── 3. Collections & Finance ──────────────────────────────────────────────
     const today = new Date()
     const payments = await prisma.payment.findMany({
+      where: { deletedAt: null, sale: activeSale },
       select: { amount: true, paymentDate: true, mode: true }
     })
 
@@ -98,7 +99,7 @@ export async function GET(req: NextRequest) {
 
     // Overdue schedules — use principalAmount + gstAmount as the "amount" field
     const overdueSchedules = await prisma.paymentSchedule.findMany({
-      where: { status: { in: OUTSTANDING_SCHEDULE_STATUSES }, dueDate: { lt: today } },
+      where: { status: { in: OUTSTANDING_SCHEDULE_STATUSES }, dueDate: { lt: today }, sale: activeSale },
       select: { principalAmount: true, gstAmount: true, dueDate: true },
     })
 
@@ -115,7 +116,7 @@ export async function GET(req: NextRequest) {
     // Upcoming receivables (next 90 days)
     const next90 = new Date(today.getTime() + 90 * 86400000)
     const upcoming = await prisma.paymentSchedule.findMany({
-      where: { status: 'UPCOMING', dueDate: { gte: today, lte: next90 } },
+      where: { status: 'UPCOMING', dueDate: { gte: today, lte: next90 }, sale: activeSale },
       select: { principalAmount: true, gstAmount: true, dueDate: true, description: true },
       orderBy: { dueDate: 'asc' },
       take: 10,
@@ -145,10 +146,10 @@ export async function GET(req: NextRequest) {
       inventoryStatus: Object.entries(inventoryStatus).filter(([, value]) => value > 0).map(([name, value]) => ({ name, value })),
       paymentByMode: Object.entries(paymentByMode).map(([name, value]) => ({ name, value })),
       aging: [
-        { label: '0–30 days', amount: aging['0-30'], color: '#f59e0b' },
-        { label: '31–60 days', amount: aging['31-60'], color: '#f97316' },
-        { label: '61–90 days', amount: aging['61-90'], color: '#ef4444' },
-        { label: '90+ days', amount: aging['90+'], color: '#991b1b' },
+        { label: '0–30 days', amount: aging['0-30'], tone: 'warn' },
+        { label: '31–60 days', amount: aging['31-60'], tone: 'orange' },
+        { label: '61–90 days', amount: aging['61-90'], tone: 'danger' },
+        { label: '90+ days', amount: aging['90+'], tone: 'severe' },
       ],
       upcomingReceivables: upcoming.map(u => ({
         dueDate: u.dueDate,
@@ -156,7 +157,7 @@ export async function GET(req: NextRequest) {
         amount: (u.principalAmount ?? 0) + (u.gstAmount ?? 0),
       })),
     })
-  } catch (err: any) {
-    return Response.json({ error: 'Internal server error' }, { status: 500 })
+  } catch (err) {
+    return apiServerError(err, 'reports/analytics')
   }
 }

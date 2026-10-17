@@ -1,13 +1,16 @@
+import { apiError, apiServerError } from '@/lib/api-error'
 import { NextRequest } from 'next/server'
 import { prisma } from '@/lib/db'
-import { auth } from '@/lib/auth'
+import { requireRole } from '@/lib/guard'
 import { syncSaleLifecycle } from '@/lib/sale-lifecycle'
 import { dispatchAllPending } from '@/lib/comms-dispatcher'
+import { buildCommContent, sanitizeInline } from '@/lib/comms-content'
+import type { Prisma } from '@prisma/client'
+import { formatDate, formatRupees } from '@/lib/format'
 
 export async function POST(req: NextRequest, props: { params: Promise<{ id: string }> }) {
-  const session = await auth()
-  if (!session?.user) return Response.json({ error: 'Unauthorized' }, { status: 401 })
-  if (!['SUPER_ADMIN', 'ADMIN'].includes(session.user.role)) { return Response.json({ error: 'Forbidden' }, { status: 403 }) }
+  const guard = await requireRole('admin')
+  if ('error' in guard) return guard.error
   
   const { id } = await props.params
 
@@ -16,7 +19,7 @@ export async function POST(req: NextRequest, props: { params: Promise<{ id: stri
     const { architectCertificateUrl } = body
 
     if (!architectCertificateUrl) {
-      return Response.json({ error: 'Architect Certificate URL is required' }, { status: 400 })
+      return apiError('invalid', 'Architect Certificate URL is required')
     }
 
     const actualDate = new Date()
@@ -63,50 +66,27 @@ export async function POST(req: NextRequest, props: { params: Promise<{ id: stri
 
     // Generate Communication Logs
     if (affectedSchedules.length > 0) {
-      const commLogs: any[] = []
-      
+      const commLogs: Prisma.CommunicationLogCreateManyInput[] = []
+      const dueText = sanitizeInline(formatDate(dueDate))
+
       affectedSchedules.forEach(schedule => {
         const amount = Number(schedule.principalAmount) + Number(schedule.gstAmount)
         const isTaxOrParking = schedule.description.toLowerCase().includes('stamp duty') || schedule.description.toLowerCase().includes('registration') || schedule.description.toLowerCase().includes('parking')
-        
-        schedule.sale.buyers.forEach(buyer => {
-          let content = ''
-          if (isTaxOrParking) {
-             content = `Dear ${buyer.fullName || 'Customer'},\nPayment for '${schedule.description}' is now due. Please find the attached Demand Letter for ₹${amount.toLocaleString('en-IN')}.\nDue Date: ${dueDate.toLocaleDateString('en-IN')}.\n\nATTACHMENTS:\nDemand Letter|/api/documents/preview/demand-letter?saleId=${schedule.saleId}&milestoneName=${encodeURIComponent(schedule.description)}`
-          } else {
-             content = `Dear ${buyer.fullName || 'Customer'},\nThe milestone '${milestone.name}' is now complete. Please find the attached Demand Letter for ₹${amount.toLocaleString('en-IN')} and the Architect Completion Certificate.\nDue Date: ${dueDate.toLocaleDateString('en-IN')}.\n\nATTACHMENTS:\nArchitect Certificate|${architectCertificateUrl}\nDemand Letter|/api/documents/preview/demand-letter?saleId=${schedule.saleId}&milestoneName=${encodeURIComponent(milestone.name)}`
-          }
-          
-          // Email Log
-          if (buyer.email) {
-            commLogs.push({
-              saleId: schedule.saleId,
-              buyerId: buyer.id,
-              channel: 'EMAIL',
-              type: 'DEMAND_LETTER',
-              messageContent: content,
-              status: 'PENDING',
-              sentAt: new Date(),
-              deliveredAt: new Date()
-            })
-          }
 
-          // WhatsApp Log
-          if (buyer.whatsappNumber) {
-            commLogs.push({
-              saleId: schedule.saleId,
-              buyerId: buyer.id,
-              channel: 'WHATSAPP',
-              type: 'DEMAND_LETTER',
-              messageContent: content,
-              status: 'PENDING',
-              sentAt: new Date(),
-              deliveredAt: new Date()
-            })
+        schedule.sale.buyers.forEach(buyer => {
+          const greeting = `Dear ${sanitizeInline(buyer.fullName) || 'Customer'},`
+          const letter = { label: 'Demand Letter', path: `/api/documents/preview/demand-letter?saleId=${schedule.saleId}&milestoneName=${encodeURIComponent(isTaxOrParking ? schedule.description : milestone.name)}` }
+          const { messageContent, attachments } = isTaxOrParking
+            ? buildCommContent(`${greeting}\nPayment for '${sanitizeInline(schedule.description)}' is now due. Please find the attached Demand Letter for ${formatRupees(amount)}.\nDue Date: ${dueText}.`, [letter])
+            : buildCommContent(`${greeting}\nThe milestone '${sanitizeInline(milestone.name)}' is now complete. Please find the attached Demand Letter for ${formatRupees(amount)} and the Architect Completion Certificate.\nDue Date: ${dueText}.`, [{ label: 'Architect Certificate', path: architectCertificateUrl }, letter])
+
+          for (const [channel, address] of [['EMAIL', buyer.email], ['WHATSAPP', buyer.whatsappNumber]] as const) {
+            if (!address) continue
+            commLogs.push({ saleId: schedule.saleId, buyerId: buyer.id, channel, type: 'DEMAND_LETTER', messageContent, attachments, status: 'PENDING' })
           }
         })
       })
-      
+
       await prisma.communicationLog.createMany({
         data: commLogs
       })
@@ -116,7 +96,7 @@ export async function POST(req: NextRequest, props: { params: Promise<{ id: stri
     }
     
     return Response.json({ success: true, data: milestone })
-  } catch (err: any) {
-    return Response.json({ error: 'Internal Server Error' }, { status: 500 })
+  } catch (err) {
+    return apiServerError(err, 'milestones/[id]/complete')
   }
 }

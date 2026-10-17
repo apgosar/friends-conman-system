@@ -1,7 +1,7 @@
 import { notFound } from 'next/navigation'
-import Link from 'next/link'
 import { prisma } from '@/lib/db'
 import { auth } from '@/lib/auth'
+import { can } from '@/lib/authz'
 import TopNav from '@/components/layout/TopNav'
 import BackToProject from '@/components/projects/BackToProject'
 import UnitTypesPanel from '@/components/structure/UnitTypesPanel'
@@ -9,6 +9,8 @@ import StructureBuilder from '@/components/structure/StructureBuilder'
 import ExcelImport from '@/components/structure/ExcelImport'
 import UnitsTable from '@/components/structure/UnitsTable'
 import type { StructureUnit, UnitTypeRow, WingRow } from '@/components/structure/ui'
+import { activeSale } from '@/lib/soft-delete'
+import { Alert, ButtonLink, PageHeader } from '@/components/ui'
 
 export default async function ProjectStructurePage(props: PageProps<'/projects/[id]/structure'>) {
   const { id } = await props.params
@@ -28,7 +30,7 @@ export default async function ProjectStructurePage(props: PageProps<'/projects/[
               include: {
                 units: {
                   orderBy: { unitNumber: 'asc' },
-                  include: { unitType: { select: { name: true } }, _count: { select: { sales: true, inquiries: true } } },
+                  include: { unitType: { select: { name: true } }, _count: { select: { sales: { where: activeSale }, inquiries: true } } },
                 },
               },
             },
@@ -39,7 +41,7 @@ export default async function ProjectStructurePage(props: PageProps<'/projects/[
   ])
   if (!project) notFound()
 
-  const canEdit = ['SUPER_ADMIN', 'ADMIN'].includes(session?.user?.role as string)
+  const canEdit = can(session?.user?.role, 'admin')
 
   const types: UnitTypeRow[] = project.unitTypes.map((t) => ({
     id: t.id, category: t.category as UnitTypeRow['category'], name: t.name, configuration: t.configuration, carpetAreaSqft: t.carpetAreaSqft, builtupAreaSqft: t.builtupAreaSqft,
@@ -60,23 +62,19 @@ export default async function ProjectStructurePage(props: PageProps<'/projects/[
     <>
       <TopNav title="Building Setup" subtitle={project.name} />
       <div className="admin-content">
-        <div className="page-header">
-          <div>
-            <h1 className="page-title">Building Setup</h1>
-            <p className="page-subtitle">Define the wings, floors and units of {project.name}</p>
-          </div>
-          <BackToProject projectId={id} />
-        </div>
+        <PageHeader title="Building Setup" subtitle={`Define the wings, floors and units of ${project.name}`} actions={<BackToProject projectId={id} />} />
 
         {isNew && (
-          <div className="alert alert-success mb-6" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 12, flexWrap: 'wrap' }}>
-            <span><strong>Project created.</strong> Next, describe the building so units can be quoted and sold. You can also do this later.</span>
-            <Link href={`/projects/${id}`} className="btn btn-secondary btn-sm">Skip for now</Link>
-          </div>
+          <Alert variant="success" className="mb-6" title="Project created">
+            <div className="flex justify-between items-center gap-3 wrap">
+              <span>Next, describe the building so units can be quoted and sold. You can also do this later.</span>
+              <ButtonLink href={`/projects/${id}`} size="sm">Skip for now</ButtonLink>
+            </div>
+          </Alert>
         )}
 
         {!canEdit ? (
-          <div className="card"><p style={{ margin: 0 }}>Only administrators can change a project’s building structure.</p></div>
+          <Alert variant="info">Only administrators can change a project’s building structure</Alert>
         ) : (
           <>
             <UnitTypesPanel projectId={id} types={types} />

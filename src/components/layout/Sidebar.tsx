@@ -4,6 +4,10 @@ import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 import { signOut, useSession } from 'next-auth/react'
 import { buildTitle, versionLabel } from '@/lib/version'
+import { canAccessPath } from '@/lib/authz'
+import { ROLE_LABELS, normalizeRole } from '@/lib/roles'
+import { useNav } from '@/components/layout/AppShell'
+import { cn } from '@/components/ui/cn'
 
 const NAV_ITEMS = [
   {
@@ -48,90 +52,64 @@ const NAV_ITEMS = [
 export default function Sidebar() {
   const pathname = usePathname()
   const { data: session } = useSession()
-  const role = session?.user?.role || 'SALES'
+  const { open, close } = useNav()
+  const role = normalizeRole(session?.user?.role)
 
-  // Filter NAV_ITEMS based on role
-  const visibleNavItems = NAV_ITEMS.map(section => {
-    let items = section.items
-    
-    // SALES cannot view Dashboard
-    if (role === 'SALES' && section.section === 'Overview') {
-      items = items.filter(i => i.href !== '/dashboard')
-    }
-    
-    // Only SUPER_ADMIN can view Audit, Users, Settings
-    if (role !== 'SUPER_ADMIN' && section.section === 'System') {
-      items = items.filter(i => !['/audit', '/users', '/settings'].includes(i.href))
-    }
-    
-    return { ...section, items }
-  }).filter(section => section.items.length > 0)
-
-  const closeSidebar = () => {
-    document.querySelector('.sidebar')?.classList.remove('open')
-    document.querySelector('.mobile-overlay')?.classList.remove('open')
-  }
+  // Show exactly what the role may open (same policy table the proxy enforces), plus the long-standing rule
+  // that the finance dashboard is not shown to the sales role.
+  const visibleNavItems = NAV_ITEMS.map((section) => ({
+    ...section,
+    items: section.items.filter((i) => canAccessPath(role, i.href) && !(role === 'SALES' && i.href === '/dashboard')),
+  })).filter((section) => section.items.length > 0)
 
   return (
     <>
-      <div className="mobile-overlay" onClick={closeSidebar} />
-      <aside className="sidebar">
-        <Link href="/dashboard" className="sidebar-logo" onClick={closeSidebar}>
-        <div className="sidebar-logo-icon">NC</div>
-        <div>
+      <div className={cn('mobile-overlay', open && 'open')} onClick={close} aria-hidden="true" />
+      <aside className={cn('sidebar', open && 'open')} aria-label="Main navigation">
+        <Link href="/dashboard" className="sidebar-logo" onClick={close} title="Neev CMS">
+          <div className="sidebar-logo-icon">NC</div>
           <div className="sidebar-logo-text">
             Neev CMS
             <span className="sidebar-logo-sub">Property Management</span>
           </div>
-        </div>
-      </Link>
+        </Link>
 
-      <nav className="sidebar-nav">
-        {visibleNavItems.map((section) => (
-          <div key={section.section}>
-            <div className="nav-section-label">{section.section}</div>
-            {section.items.map((item) => {
-              const isActive =
-                pathname === item.href ||
-                (item.href !== '/dashboard' && pathname.startsWith(item.href))
-              return (
-                <Link
-                  key={item.href}
-                  href={item.href}
-                  className={`nav-item ${isActive ? 'active' : ''}`}
-                  onClick={closeSidebar}
-                >
-                  <span className="nav-item-icon">{item.icon}</span>
-                  <span>{item.label}</span>
-                </Link>
-              )
-            })}
-          </div>
-        ))}
-      </nav>
+        <nav className="sidebar-nav">
+          {visibleNavItems.map((section) => (
+            <div key={section.section}>
+              <div className="nav-section-label">{section.section}</div>
+              {section.items.map((item) => {
+                const isActive = pathname === item.href || (item.href !== '/dashboard' && pathname.startsWith(item.href))
+                return (
+                  <Link key={item.href} href={item.href} className={cn('nav-item', isActive && 'active')} onClick={close} title={item.label} aria-current={isActive ? 'page' : undefined}>
+                    <span className="nav-item-icon" aria-hidden="true">{item.icon}</span>
+                    <span>{item.label}</span>
+                  </Link>
+                )
+              })}
+            </div>
+          ))}
+        </nav>
 
-      <div className="sidebar-footer">
-        {session?.user && (
-          <div className="sidebar-user" style={{ padding: '0 1rem 1rem 1rem', fontSize: '0.875rem' }}>
-            <div style={{ fontWeight: '600', color: '#f9fafb' }}>{session.user.name}</div>
-            <div style={{ color: '#9ca3af', fontSize: '0.75rem', marginTop: '0.25rem' }}>{session.user.role}</div>
-            <div style={{ color: '#9ca3af', fontSize: '0.75rem' }}>{session.user.email}</div>
-          </div>
-        )}
-        <button
-          className="nav-item w-full"
-          style={{ border: 'none', cursor: 'pointer', background: 'transparent' }}
-          onClick={() => signOut({ callbackUrl: '/login' })}
-          id="signout-btn"
-        >
-          <span className="nav-item-icon">↩</span>
-          <span>Sign Out</span>
-        </button>
-        <div title={buildTitle()} style={{ padding: '10px 1rem 4px', fontSize: '0.6875rem', color: '#6b7280', letterSpacing: '0.02em' }}>
-          {versionLabel()}
+        <div className="sidebar-footer">
+          {session?.user && (
+            <div className="sidebar-user">
+              <div className="sidebar-user-name">{session.user.name}</div>
+              <div className="sidebar-user-meta">{ROLE_LABELS[role]}</div>
+              <div className="sidebar-user-meta">{session.user.email}</div>
+            </div>
+          )}
+          <Link href="/account" className={cn('nav-item', pathname.startsWith('/account') && 'active')} onClick={close} title="My Account">
+            <span className="nav-item-icon" aria-hidden="true">🔑</span>
+            <span>My Account</span>
+          </Link>
+          <button className="nav-item sidebar-signout" onClick={() => signOut({ callbackUrl: '/login' })} id="signout-btn" title="Sign Out">
+            <span className="nav-item-icon" aria-hidden="true">↩</span>
+            <span>Sign Out</span>
+          </button>
+          <div className="sidebar-version" title={buildTitle()}>{versionLabel()}</div>
         </div>
-      </div>
-    </aside>
+      </aside>
     </>
   )
 }

@@ -1,15 +1,16 @@
-import { NextRequest, NextResponse } from 'next/server'
-import { auth } from '@/lib/auth'
+import { apiError } from '@/lib/api-error'
+import { NextRequest } from 'next/server'
+import { requireRole } from '@/lib/guard'
 import { TEMPLATE_TYPE_VALUES, DOCX_MIME } from '@/lib/template-constants'
 import { buildSampleDocx } from '@/lib/template-sample'
 
 // GET /api/projects/[id]/templates/sample?type=DEMAND_LETTER — a starter .docx with the right tags for that type
 export async function GET(req: NextRequest) {
-  const session = await auth()
-  if (!session?.user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+  const guard = await requireRole('admin')
+  if ('error' in guard) return guard.error
 
   const type = new URL(req.url).searchParams.get('type') ?? 'DEMAND_LETTER'
-  if (!TEMPLATE_TYPE_VALUES.includes(type)) return NextResponse.json({ error: 'Unknown document type' }, { status: 400 })
+  if (!TEMPLATE_TYPE_VALUES.includes(type)) return apiError('invalid', 'Unknown document type')
 
   const buf = await buildSampleDocx(type)
   return new Response(new Uint8Array(buf), {

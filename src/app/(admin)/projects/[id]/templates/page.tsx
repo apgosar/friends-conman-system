@@ -1,15 +1,15 @@
 import { prisma } from '@/lib/db'
 import TopNav from '@/components/layout/TopNav'
 import BackToProject from '@/components/projects/BackToProject'
-import Link from 'next/link'
 import { notFound } from 'next/navigation'
-import { formatDate } from '@/lib/template-engine'
+import { formatDate, formatDateTime } from '@/lib/format'
 import ActivateButton from './ActivateButton'
 import DeleteTemplateButton from './DeleteTemplateButton'
 import TemplateHtmlPreview from '@/components/projects/TemplateHtmlPreview'
 import CopyTemplateButton from '@/components/projects/CopyTemplateButton'
 import TemplateCoverage from '@/components/projects/TemplateCoverage'
 import { TEMPLATE_TYPES } from '@/lib/template-constants'
+import { Badge, ButtonLink, Card, CardHeader, EmptyRow, PageHeader, Table, Td } from '@/components/ui'
 
 export default async function TemplatesPage(props: PageProps<'/projects/[id]/templates'>) {
   const { id } = await props.params
@@ -38,108 +38,72 @@ export default async function TemplatesPage(props: PageProps<'/projects/[id]/tem
     <>
       <TopNav title="Templates" subtitle={`Manage templates for ${project.name}`} />
       <div className="admin-content">
-        <div className="page-header">
-          <div>
-            <h1 className="page-title">Document Templates</h1>
-            <p className="page-subtitle">Upload .docx for agreements, HTML for others</p>
-          </div>
-          <div className="flex gap-2">
-            <BackToProject projectId={id} />
-            <Link href={`/projects/${id}/templates/new`} className="btn btn-primary">
-              + New Template
-            </Link>
-          </div>
-        </div>
+        <PageHeader
+          title="Document Templates"
+          subtitle="Upload .docx for agreements, HTML for others"
+          actions={
+            <>
+              <BackToProject projectId={id} />
+              <ButtonLink href={`/projects/${id}/templates/new`} variant="primary">+ New Template</ButtonLink>
+            </>
+          }
+        />
 
         <TemplateCoverage projectId={id} projectType={project.type} templates={templates} variant="full" />
 
-        <div className="table-wrapper">
-          <table>
-            <thead>
-              <tr>
-                <th>Name</th>
-                <th>Type</th>
-                <th>Version</th>
-                <th>Status</th>
-                <th>Updated</th>
-                <th></th>
-              </tr>
-            </thead>
+        <Card flush>
+          <Table flush stack>
+            <thead><tr><th>Name</th><th>Type</th><th>Version</th><th>Status</th><th>Updated</th><th></th></tr></thead>
             <tbody>
               {templates.length === 0 ? (
-                <tr>
-                  <td colSpan={6} style={{ textAlign: 'center', padding: '40px', color: 'var(--text-muted)' }}>
-                    No templates uploaded yet
-                  </td>
-                </tr>
+                <EmptyRow colSpan={6}>No templates uploaded yet</EmptyRow>
               ) : (
                 templates.map(t => (
                   <tr key={t.id}>
-                    <td style={{ fontWeight: 500 }}>{t.name}</td>
-                    <td><span className="badge badge-muted">{t.type}</span></td>
-                    <td>v{t.version}</td>
-                    <td>
-                      <ActivateButton 
-                        projectId={id} 
-                        templateId={t.id} 
-                        type={t.type} 
-                        isActive={t.isActive} 
-                      />
-                    </td>
-                    <td style={{ color: 'var(--text-muted)' }}>{formatDate(t.updatedAt)}</td>
-                    <td>
-                      <div className="tpl-actions">
-                        <div className="tpl-slot">
-                          {t.fileUrl ? (
-                            <a href={t.fileUrl} download className="btn btn-ghost btn-sm">Download</a>
-                          ) : (
-                            t.templateHtml && <TemplateHtmlPreview html={t.templateHtml} />
-                          )}
-                        </div>
-                        <div className="tpl-slot">
-                          <CopyTemplateButton projectId={id} templateId={t.id} projects={otherProjects} />
-                        </div>
-                        <div className="tpl-slot">
-                          <DeleteTemplateButton projectId={id} templateId={t.id} isActive={t.isActive} />
-                        </div>
+                    <Td label="Name" className="font-medium">{t.name}</Td>
+                    <Td label="Type"><Badge>{t.type}</Badge></Td>
+                    <Td label="Version">v{t.version}</Td>
+                    <Td label="Status"><ActivateButton projectId={id} templateId={t.id} type={t.type} isActive={t.isActive} /></Td>
+                    <Td label="Updated" className="text-muted">{formatDate(t.updatedAt)}</Td>
+                    <Td label="">
+                      <div className="row-actions">
+                        {t.fileUrl ? (
+                          <a href={t.fileUrl} download className="btn btn-ghost btn-sm">Download</a>
+                        ) : (
+                          t.templateHtml && <TemplateHtmlPreview html={t.templateHtml} />
+                        )}
+                        <CopyTemplateButton projectId={id} templateId={t.id} projects={otherProjects} />
+                        <DeleteTemplateButton projectId={id} templateId={t.id} isActive={t.isActive} />
                       </div>
-                    </td>
+                    </Td>
                   </tr>
                 ))
               )}
             </tbody>
-          </table>
-        </div>
+          </Table>
+        </Card>
 
         {activity.length > 0 && (
-          <div className="card" style={{ marginTop: 24 }}>
-            <div className="card-header"><span className="card-title">Recent template activity</span></div>
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 8, fontSize: '0.8125rem' }}>
+          <Card className="mt-6">
+            <CardHeader title="Recent template activity" />
+            <div className="flex dir-col gap-2 text-sm">
               {activity.map((a) => {
                 const v = (a.newValues ?? a.oldValues) as { name?: string; type?: string; version?: number } | null
                 const typeLabel = TEMPLATE_TYPES.find((t) => t.value === v?.type)?.label ?? v?.type
                 return (
-                  <div key={a.id} style={{ display: 'flex', justifyContent: 'space-between', gap: 12 }}>
+                  <div key={a.id} className="flex justify-between gap-3 wrap">
                     <span>
                       <b>{a.user?.name ?? 'Someone'}</b> {ACTION_LABEL[a.action] ?? a.action} {typeLabel ? <>{typeLabel} </> : null}
                       {v?.name ? <>“{v.name}” </> : null}{v?.version ? <>(v{v.version})</> : null}
                     </span>
-                    <span style={{ color: 'var(--text-muted)', whiteSpace: 'nowrap' }}>{a.createdAt.toLocaleString('en-IN')}</span>
+                    <span className="text-muted nowrap">{formatDateTime(a.createdAt)}</span>
                   </div>
                 )
               })}
             </div>
-          </div>
+          </Card>
         )}
       </div>
-      <style>{`
-        .tpl-actions { display: grid; grid-template-columns: 104px 64px 80px; gap: 8px; align-items: center; }
-        .tpl-slot { display: flex; }
-        .tpl-slot > .btn {
-          flex: 1; display: inline-flex; align-items: center; justify-content: center;
-          box-sizing: border-box; min-height: 32px; line-height: 1; white-space: nowrap; text-decoration: none;
-        }
-      `}</style>
     </>
   )
 }

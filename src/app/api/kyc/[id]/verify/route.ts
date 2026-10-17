@@ -1,29 +1,9 @@
-import { NextRequest } from 'next/server'
 import { prisma } from '@/lib/db'
-import { auth } from '@/lib/auth'
+import { route } from '@/lib/route'
 
-export async function POST(req: NextRequest, props: { params: Promise<{ id: string }> }) {
-  const session = await auth()
-  if (!session?.user) return Response.json({ error: 'Unauthorized' }, { status: 401 })
-  if (!['SUPER_ADMIN', 'ADMIN'].includes(session.user.role)) { return Response.json({ error: 'Forbidden' }, { status: 403 }) }
-  
-  const { id } = await props.params
-
-  try {
-    const doc = await prisma.kycDocument.update({
-      where: { id },
-      data: {
-        status: 'VERIFIED',
-        verifiedAt: new Date(),
-      }
-    })
-    
-    // Check if all docs for this buyer are verified, we could update Buyer status
-    // Check if all buyers for the sale are verified, we could update Sale status to KYC_DONE
-    // (For this mock, updating the doc is enough to demonstrate the UI change)
-    
-    return Response.json({ success: true, data: doc })
-  } catch (err: any) {
-    return Response.json({ error: 'Internal Server Error' }, { status: 500 })
-  }
-}
+// KycDocument writes are audited automatically (lib/prisma-extension.ts), so there is no manual audit entry here.
+export const POST = route<{ id: string }>('admin', async ({ params }) => {
+  // a missing document makes Prisma throw P2025, which route() answers with "Not found"
+  const doc = await prisma.kycDocument.update({ where: { id: params.id }, data: { status: 'VERIFIED', verifiedAt: new Date() } })
+  return Response.json({ success: true, data: doc })
+})

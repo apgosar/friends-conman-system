@@ -1,8 +1,9 @@
 import { NextRequest } from 'next/server'
 import ExcelJS from 'exceljs'
-import { auth } from '@/lib/auth'
+import { requireRole } from '@/lib/guard'
 import { prisma } from '@/lib/db'
 import { SOURCE_LABEL, LOST_REASON_LABEL } from '@/lib/inquiry-constants'
+import { formatDate } from '@/lib/format'
 
 const HEADERS = [
   'Inquiry Date', 'Wing', 'Floor', 'Unit', 'Configuration', 'Carpet Area (sqft)',
@@ -18,8 +19,8 @@ function csvEscape(val: unknown): string {
 
 // GET /api/projects/[id]/inquiries/export?format=xlsx|csv&status=OPEN|CONVERTED|ALL
 export async function GET(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
-  const session = await auth()
-  if (!session?.user) return new Response('Unauthorized', { status: 401 })
+  const guard = await requireRole('staff')
+  if ('error' in guard) return guard.error
 
   const { id } = await params
   const sp = new URL(req.url).searchParams
@@ -48,7 +49,7 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ id: 
   const now = new Date()
 
   const rows = inquiries.map((q) => [
-    new Date(q.createdAt).toLocaleDateString('en-IN'),
+    formatDate(q.createdAt),
     q.unit.floor.wing.name,
     q.unit.floor.floorNumber,
     q.unit.unitNumber,
@@ -68,10 +69,10 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ id: 
     q.totalCost,
     q.unit.status.replace(/_/g, ' '),
     q.status === 'CONVERTED' ? 'Converted to sale' : q.status === 'LOST' ? 'Lost' : q.validUntil && q.validUntil < now ? 'Open (quote expired)' : 'Open',
-    q.validUntil ? new Date(q.validUntil).toLocaleDateString('en-IN') : '',
+    q.validUntil ? formatDate(q.validUntil) : '',
     q.lostReason ? (LOST_REASON_LABEL[q.lostReason] ?? q.lostReason) : '',
     q.lostNote ?? '',
-    q.lastSharedAt ? `${new Date(q.lastSharedAt).toLocaleDateString('en-IN')} (${q.lastSharedVia})` : '',
+    q.lastSharedAt ? `${formatDate(q.lastSharedAt)} (${q.lastSharedVia})` : '',
   ])
 
   const baseName = `${project.name.replace(/[^a-z0-9]+/gi, '_')}_inquiries_${new Date().toISOString().slice(0, 10)}`

@@ -1,21 +1,19 @@
-import { NextRequest } from 'next/server'
+import { z } from 'zod'
 import { prisma } from '@/lib/db'
-import { auth } from '@/lib/auth'
+import { route } from '@/lib/route'
 import { createAuditLog } from '@/lib/audit'
 
-export async function POST(req: NextRequest) {
-  const session = await auth()
-  if (!session?.user) return Response.json({ error: 'Unauthorized' }, { status: 401 })
-  if (!['SUPER_ADMIN', 'ADMIN'].includes(session.user.role)) { return Response.json({ error: 'Forbidden' }, { status: 403 }) }
-  const { scheduleId } = await req.json()
-  if (!scheduleId) return Response.json({ error: 'scheduleId required' }, { status: 400 })
+const schema = z.object({ scheduleId: z.string().min(1, 'Choose a payment schedule') })
+
+export const POST = route('admin', async ({ user, body }) => {
+  const { scheduleId } = await body(schema)
   const schedule = await prisma.paymentSchedule.update({
     where: { id: scheduleId },
-    data: { managementApprovedStern: true, managementApprovedAt: new Date(), managementApprovedBy: session.user.id },
+    data: { managementApprovedStern: true, managementApprovedAt: new Date(), managementApprovedBy: user.id },
     include: {
       sale: { include: { buyers: { where: { receiveComms: true } }, project: { select: { name: true } }, unit: { select: { unitNumber: true } } } },
     },
   })
-  await createAuditLog({ userId: session.user.id, entityType: 'payment_schedule', entityId: scheduleId, action: 'stern_reminder_approved', newValues: { approvedBy: session.user.name } })
+  await createAuditLog({ userId: user.id, entityType: 'payment_schedule', entityId: scheduleId, action: 'stern_reminder_approved', newValues: { approvedBy: user.name } })
   return Response.json({ success: true, data: schedule })
-}
+})

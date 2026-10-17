@@ -3,6 +3,7 @@ import { NextResponse } from 'next/server'
 import { deploymentConfig } from '@/lib/deployment-config'
 import { getLicenseStatus, isBlocked } from '@/lib/license/verify'
 import { isInternalRequest } from '@/lib/internal-auth'
+import { canAccessPath, FALLBACK_PATH } from '@/lib/authz'
 
 export default auth(async (req) => {
   const { pathname } = req.nextUrl
@@ -38,6 +39,12 @@ export default auth(async (req) => {
   // Everything else requires authentication
   if (!isLoggedIn) {
     return NextResponse.redirect(new URL('/login', req.url))
+  }
+
+  // Page-level access by role. Hiding a sidebar link is not access control: without this a read-only user could
+  // open /users or /reports by typing the URL. (API routes enforce their own permission as well.)
+  if (!pathname.startsWith('/api/') && !canAccessPath(req.auth?.user?.role, pathname)) {
+    return NextResponse.redirect(new URL(FALLBACK_PATH, req.url))
   }
 
   return NextResponse.next()

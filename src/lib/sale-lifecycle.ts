@@ -1,4 +1,4 @@
-import { prisma } from '@/lib/db'
+import { prisma, type DbTransaction } from '@/lib/db'
 import type { SaleLifecycleStatus } from '@/lib/status'
 
 interface LifecycleInput {
@@ -31,8 +31,8 @@ export function deriveSaleStatus(sale: LifecycleInput): SaleLifecycleStatus {
  * payment recorded, milestone completed (demands raised), agreement / handover dates edited.
  * Cancelled / deleted sales are left alone (see lib/soft-delete.ts, which releases the unit).
  */
-export async function syncSaleLifecycle(saleId: string): Promise<SaleLifecycleStatus | null> {
-  const sale = await prisma.sale.findUnique({
+export async function syncSaleLifecycle(saleId: string, db: DbTransaction | typeof prisma = prisma): Promise<SaleLifecycleStatus | null> {
+  const sale = await db.sale.findUnique({
     where: { id: saleId },
     select: {
       status: true, unitId: true, deletedAt: true, agreementDate: true, possessionDate: true,
@@ -42,7 +42,7 @@ export async function syncSaleLifecycle(saleId: string): Promise<SaleLifecycleSt
   if (!sale || sale.deletedAt || sale.status === 'CANCELLED') return null
 
   const next = deriveSaleStatus(sale)
-  if (next !== sale.status) await prisma.sale.update({ where: { id: saleId }, data: { status: next } })
-  await prisma.unit.updateMany({ where: { id: sale.unitId, OR: [{ status: { not: next } }, { statusManual: true }] }, data: { status: next, statusManual: false, bookedByName: null, bookedByMobile: null } })
+  if (next !== sale.status) await db.sale.update({ where: { id: saleId }, data: { status: next } })
+  await db.unit.updateMany({ where: { id: sale.unitId, OR: [{ status: { not: next } }, { statusManual: true }] }, data: { status: next, statusManual: false, bookedByName: null, bookedByMobile: null } })
   return next
 }

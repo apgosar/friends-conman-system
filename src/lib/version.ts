@@ -1,3 +1,4 @@
+import { formatDateTimeLong } from '@/lib/format'
 /**
  * Which build is running. The values are stamped in at build time by next.config.ts:
  *   version  from package.json
@@ -16,6 +17,6 @@ export const versionLabel = () => `v${APP_VERSION}${BUILD_SHA ? ` · ${BUILD_SHA
 export function buildTitle(): string {
   if (!BUILD_TIME) return `Version ${APP_VERSION}`
   const d = new Date(BUILD_TIME)
-  const when = isNaN(d.getTime()) ? BUILD_TIME : d.toLocaleString('en-IN', { day: 'numeric', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' })
+  const when = isNaN(d.getTime()) ? BUILD_TIME : formatDateTimeLong(d)
   return `Version ${APP_VERSION}${BUILD_SHA ? `, build ${BUILD_SHA}` : ''}. Built ${when}`
 }

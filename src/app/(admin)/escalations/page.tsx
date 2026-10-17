@@ -1,13 +1,16 @@
 import { prisma } from '@/lib/db'
 import TopNav from '@/components/layout/TopNav'
 import EscalationAlerts from '@/components/dashboard/EscalationAlerts'
-import { formatCurrency } from '@/lib/template-engine'
+import { formatCurrency } from '@/lib/format'
+import { activeSale } from '@/lib/soft-delete'
+import { Badge, Card, CardHeader, EmptyState, PageHeader } from '@/components/ui'
 
 async function getEscalations() {
   return prisma.paymentSchedule.findMany({
     where: {
       managementEscalated: true,
       status: { notIn: ['PAID'] },
+      sale: activeSale,
     },
     include: {
       sale: {
@@ -31,49 +34,37 @@ export default async function EscalationsPage() {
     <>
       <TopNav title="Escalations" subtitle="Overdue payments requiring management action" />
       <div className="admin-content">
-        <div className="page-header">
-          <div>
-            <h1 className="page-title">Escalations</h1>
-            <p className="page-subtitle">{pendingApproval.length} pending approval · {sternSent.length} stern reminder sent</p>
-          </div>
-        </div>
+        <PageHeader title="Escalations" subtitle={`${pendingApproval.length} pending approval · ${sternSent.length} stern reminder sent`} />
 
         {pendingApproval.length > 0 && (
           <div className="mb-6">
-            <h3 style={{ marginBottom: 16, color: 'var(--color-danger)' }}>⚠ Pending Management Approval</h3>
+            <h3 className="mb-4 text-danger">⚠ Pending Management Approval</h3>
             <EscalationAlerts escalations={pendingApproval} />
           </div>
         )}
 
         {sternSent.length > 0 && (
-          <div className="card">
-            <div className="card-header">
-              <span className="card-title">Stern Reminder Sent</span>
-              <span className="badge badge-success">{sternSent.length}</span>
-            </div>
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+          <Card>
+            <CardHeader title="Stern Reminder Sent" actions={<Badge variant="success">{sternSent.length}</Badge>} />
+            <div className="flex dir-col gap-2">
               {sternSent.map((e) => (
-                <div key={e.id} className="flex items-center justify-between" style={{ padding: '10px 12px', background: 'var(--bg-input)', borderRadius: 'var(--radius-md)' }}>
-                  <div>
-                    <div style={{ fontWeight: 500 }}>{e.sale?.project?.name} — {e.sale?.unit?.unitNumber}</div>
-                    <div style={{ fontSize: '0.8125rem', color: 'var(--text-muted)' }}>{e.sale?.buyers?.[0]?.fullName}</div>
+                <div key={e.id} className="list-row wrap">
+                  <div className="min-w-0">
+                    <div className="font-medium">{e.sale?.project?.name} — {e.sale?.unit?.unitNumber}</div>
+                    <div className="text-sm text-muted">{e.sale?.buyers?.[0]?.fullName}</div>
                   </div>
-                  <div style={{ fontWeight: 600, color: 'var(--color-danger)' }}>
-                    {formatCurrency(Number(e.principalAmount) + Number(e.gstAmount) + Number(e.interestAmount))}
-                  </div>
-                  <span className="badge badge-warning">Stern Sent ✓</span>
+                  <div className="font-semibold text-danger">{formatCurrency(Number(e.principalAmount) + Number(e.gstAmount) + Number(e.interestAmount))}</div>
+                  <Badge variant="warning">Stern sent ✓</Badge>
                 </div>
               ))}
             </div>
-          </div>
+          </Card>
         )}
 
         {escalations.length === 0 && (
-          <div className="card" style={{ textAlign: 'center', padding: '60px 20px' }}>
-            <div style={{ fontSize: '3rem', marginBottom: 16 }}>✅</div>
-            <h3>No escalations</h3>
-            <p style={{ color: 'var(--text-muted)', marginTop: 8 }}>All payments are on track</p>
-          </div>
+          <Card>
+            <EmptyState title="✅ No escalations">All payments are on track</EmptyState>
+          </Card>
         )}
       </div>
     </>

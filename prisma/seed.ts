@@ -1,17 +1,25 @@
 import { PrismaClient } from '@prisma/client'
 import bcrypt from 'bcryptjs'
+import { randomBytes } from 'node:crypto'
 
 const prisma = new PrismaClient({ log: ['error'] })
 
 async function main() {
   console.log('Seeding database...')
 
-  // 1. Create Admins
-  const hashedPassword = await bcrypt.hash('Admin@123', 12)
-  const superAdmin = await prisma.user.upsert({ where: { email: 'admin@friends.com' }, update: {}, create: { name: 'Super Admin', email: 'admin@friends.com', password: hashedPassword, role: 'SUPER_ADMIN' } })
-  await prisma.user.upsert({ where: { email: 'sales@friends.com' }, update: {}, create: { name: 'Sales Manager', email: 'sales@friends.com', password: hashedPassword, role: 'SALES_MANAGER' } })
-  await prisma.user.upsert({ where: { email: 'accounts@friends.com' }, update: {}, create: { name: 'Accounts', email: 'accounts@friends.com', password: hashedPassword, role: 'ACCOUNTS' } })
-  await prisma.user.upsert({ where: { email: 'management@friends.com' }, update: {}, create: { name: 'Management', email: 'management@friends.com', password: hashedPassword, role: 'MANAGEMENT' } })
+  // 1. Create demo users. This is DEMO data: never run the seed against a real customer database.
+  // The password comes from SEED_PASSWORD, or is generated and shown once; there is no built-in default to guess.
+  const seedPassword = process.env.SEED_PASSWORD || `Demo-${randomBytes(6).toString('hex')}-${Math.floor(10 + Math.random() * 89)}`
+  const hashedPassword = await bcrypt.hash(seedPassword, 12)
+  const demoUsers = [
+    { name: 'Super Admin', email: 'admin@friends.com', role: 'SUPER_ADMIN' },
+    { name: 'Admin', email: 'sales@friends.com', role: 'ADMIN' },
+    { name: 'Sales', email: 'accounts@friends.com', role: 'SALES' },
+    { name: 'Viewer', email: 'management@friends.com', role: 'VIEWER' },
+  ]
+  const [superAdmin] = await Promise.all(demoUsers.map((u) =>
+    prisma.user.upsert({ where: { email: u.email }, update: {}, create: { ...u, password: hashedPassword, passwordChangedAt: new Date() } }),
+  ))
 
   // 2. Create Project 1 (Mixed Sale)
   const project1 = await prisma.project.create({
@@ -253,7 +261,7 @@ async function main() {
     })
   }
 
-  console.log('Seed complete! Login: admin@friends.com / Admin@123')
+  console.log(`Seed complete. Demo logins (${demoUsers.map((u) => u.email).join(', ')}) share the password: ${seedPassword}`)
 }
 
 main().catch((e) => { console.error(e); process.exit(1) }).finally(() => prisma.$disconnect())

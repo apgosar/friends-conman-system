@@ -2,185 +2,203 @@
 
 import { useState, useEffect, useCallback } from 'react'
 import TopNav from '@/components/layout/TopNav'
+import { Alert, Badge, Button, EmptyRow, Modal, PageHeader, Select, SelectField, Table, Td, TextField, useConfirm, useToast } from '@/components/ui'
+import { ROLES, ROLE_DESCRIPTIONS, ROLE_LABELS, type Role } from '@/lib/roles'
+import { PASSWORD_RULES } from '@/lib/password-rules'
+import { errorMessage, fetchJson, jsonRequest } from '@/lib/client/api'
+import { formatDate } from '@/lib/format'
 
-const ROLES = ['SUPER_ADMIN', 'ADMIN', 'SALES']
+interface UserRow { id: string; name: string; email: string; role: Role; isActive: boolean; createdAt: string }
 
 export default function UsersPage() {
-  const [users, setUsers] = useState<any[]>([])
+  const toast = useToast()
+  const confirm = useConfirm()
+  const [users, setUsers] = useState<UserRow[]>([])
   const [loading, setLoading] = useState(true)
-  const [showModal, setShowModal] = useState(false)
-  
-  // New User Form
+  const [loadError, setLoadError] = useState('')
+
+  // New user dialog
+  const [showCreate, setShowCreate] = useState(false)
   const [name, setName] = useState('')
   const [email, setEmail] = useState('')
-  const [role, setRole] = useState('SALES')
+  const [role, setRole] = useState<Role>('SALES')
   const [password, setPassword] = useState('')
-  const [submitting, setSubmitting] = useState(false)
-  const [errorMsg, setErrorMsg] = useState('')
+  const [creating, setCreating] = useState(false)
+  const [createError, setCreateError] = useState('')
+
+  // Reset password dialog
+  const [resetFor, setResetFor] = useState<{ id: string; name: string } | null>(null)
+  const [newPassword, setNewPassword] = useState('')
+  const [resetError, setResetError] = useState('')
+  const [resetting, setResetting] = useState(false)
 
   const fetchUsers = useCallback(async () => {
-    setLoading(true)
-    const res = await fetch('/api/users')
-    const data = await res.json()
-    if (data.success) {
-      setUsers(data.data)
+    try {
+      const res = await fetchJson<{ data: UserRow[] }>('/api/users')
+      setUsers(res.data)
+      setLoadError('')
+    } catch (err) {
+      setLoadError(errorMessage(err))
+    } finally {
+      setLoading(false)
     }
-    setLoading(false)
   }, [])
 
   useEffect(() => { fetchUsers() }, [fetchUsers])
 
   async function handleCreateUser(e: React.FormEvent) {
     e.preventDefault()
-    setSubmitting(true)
-    setErrorMsg('')
+    setCreating(true)
+    setCreateError('')
     try {
-      const res = await fetch('/api/users', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ name, email, role, password })
-      })
-      const data = await res.json()
-      if (data.success) {
-        setShowModal(false)
-        setName(''); setEmail(''); setRole('SALES'); setPassword('')
-        fetchUsers()
-      } else {
-        setErrorMsg(data.error)
-      }
-    } catch (err: any) {
-      setErrorMsg(err.message)
+      await fetchJson('/api/users', jsonRequest('POST', { name, email, role, password }))
+      setShowCreate(false)
+      setName(''); setEmail(''); setRole('SALES'); setPassword('')
+      toast.success('User created')
+      fetchUsers()
+    } catch (err) {
+      setCreateError(errorMessage(err))
+    } finally {
+      setCreating(false)
     }
-    setSubmitting(false)
   }
 
-  async function toggleStatus(id: string, currentStatus: boolean) {
-    if (!confirm(`Are you sure you want to ${currentStatus ? 'suspend' : 'activate'} this user?`)) return
-    await fetch(`/api/users/${id}`, {
-      method: 'PATCH',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ isActive: !currentStatus })
-    })
+  async function patchUser(id: string, body: Record<string, unknown>, done: string) {
+    try {
+      await fetchJson(`/api/users/${id}`, jsonRequest('PATCH', body))
+      toast.success(done)
+    } catch (err) {
+      toast.error(errorMessage(err))
+    }
     fetchUsers()
   }
 
-  async function changeRole(id: string, newRole: string) {
-    if (!confirm(`Change role to ${newRole}?`)) return
-    await fetch(`/api/users/${id}`, {
-      method: 'PATCH',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ role: newRole })
+  async function toggleStatus(user: UserRow) {
+    const suspending = user.isActive
+    const ok = await confirm({
+      title: suspending ? 'Suspend user' : 'Activate user',
+      message: suspending ? `Suspend ${user.name}? They will be signed out immediately.` : `Activate ${user.name}?`,
+      confirmLabel: suspending ? 'Suspend' : 'Activate',
+      danger: suspending,
     })
-    fetchUsers()
+    if (ok) await patchUser(user.id, { isActive: !user.isActive }, suspending ? 'User suspended' : 'User activated')
+  }
+
+  async function changeRole(user: UserRow, newRole: Role) {
+    const ok = await confirm({
+      title: 'Change role',
+      message: `Change ${user.name} to ${ROLE_LABELS[newRole]}? They will be signed out, and the new role applies when they sign in again.`,
+      confirmLabel: 'Change role',
+    })
+    if (ok) await patchUser(user.id, { role: newRole }, 'Role changed')
+    else fetchUsers() // put the dropdown back
+  }
+
+  async function handleResetPassword(e: React.FormEvent) {
+    e.preventDefault()
+    if (!resetFor) return
+    setResetting(true)
+    setResetError('')
+    try {
+      await fetchJson(`/api/users/${resetFor.id}/password`, jsonRequest('POST', { newPassword }))
+      setResetFor(null)
+      setNewPassword('')
+      toast.success('Password reset. They are signed out everywhere')
+    } catch (err) {
+      setResetError(errorMessage(err))
+    } finally {
+      setResetting(false)
+    }
   }
 
   return (
     <>
       <TopNav title="User Management" subtitle="Manage team members and access roles" />
       <div className="admin-content">
-        <div className="page-header">
-          <div>
-            <h1 className="page-title">Users</h1>
-            <p className="page-subtitle">{users.length} team members</p>
-          </div>
-          <button className="btn btn-primary" onClick={() => setShowModal(true)}>
-            + Add User
-          </button>
-        </div>
+        <PageHeader
+          title="Users"
+          subtitle={`${users.length} team members`}
+          actions={<Button variant="primary" onClick={() => setShowCreate(true)}>+ Add User</Button>}
+        />
 
-        <div className="card" style={{ padding: 0 }}>
-          <div className="table-wrapper" style={{ border: 'none', margin: 0 }}>
-            <table>
-              <thead>
-                <tr>
-                  <th>Name</th>
-                  <th>Email</th>
-                  <th>Role</th>
-                  <th>Status</th>
-                  <th>Joined</th>
-                  <th>Actions</th>
+        {loadError && <Alert variant="danger" className="mb-4">{loadError}</Alert>}
+
+        <div className="card p-0 overflow-hidden">
+          <Table flush stack>
+            <thead>
+              <tr><th>Name</th><th>Email</th><th>Role</th><th>Status</th><th>Joined</th><th>Actions</th></tr>
+            </thead>
+            <tbody>
+              {loading ? (
+                <EmptyRow colSpan={6}>Loading…</EmptyRow>
+              ) : users.length === 0 ? (
+                <EmptyRow colSpan={6}>No users found</EmptyRow>
+              ) : users.map((user) => (
+                <tr key={user.id}>
+                  <Td label="Name" className="font-medium">{user.name}</Td>
+                  <Td label="Email" className="text-muted">{user.email}</Td>
+                  <Td label="Role">
+                    <Select small className="w-auto" aria-label={`Role of ${user.name}`} value={user.role} onChange={(e) => changeRole(user, e.target.value as Role)}>
+                      {ROLES.map((r) => <option key={r} value={r}>{ROLE_LABELS[r]}</option>)}
+                    </Select>
+                  </Td>
+                  <Td label="Status"><Badge variant={user.isActive ? 'success' : 'danger'}>{user.isActive ? 'Active' : 'Suspended'}</Badge></Td>
+                  <Td label="Joined" className="text-sm text-muted">{formatDate(user.createdAt)}</Td>
+                  <Td label="" className="nowrap">
+                    <Button size="sm" variant={user.isActive ? 'ghost' : 'primary'} onClick={() => toggleStatus(user)}>{user.isActive ? 'Suspend' : 'Activate'}</Button>
+                    <Button size="sm" variant="ghost" onClick={() => { setResetFor({ id: user.id, name: user.name }); setNewPassword(''); setResetError('') }}>Reset password</Button>
+                  </Td>
                 </tr>
-              </thead>
-              <tbody>
-                {loading ? (
-                  <tr><td colSpan={6} style={{ textAlign: 'center', padding: 40, color: 'var(--text-muted)' }}>Loading…</td></tr>
-                ) : users.length === 0 ? (
-                  <tr><td colSpan={6} style={{ textAlign: 'center', padding: 40, color: 'var(--text-muted)' }}>No users found</td></tr>
-                ) : users.map((user) => (
-                  <tr key={user.id} className="hover-row">
-                    <td style={{ fontWeight: 500 }}>{user.name}</td>
-                    <td style={{ color: 'var(--text-muted)' }}>{user.email}</td>
-                    <td>
-                      <select 
-                        value={user.role} 
-                        onChange={(e) => changeRole(user.id, e.target.value)}
-                        className="form-input"
-                        style={{ padding: '4px 8px', height: 'auto', fontSize: '0.8125rem', width: 'auto' }}
-                      >
-                        {ROLES.map(r => <option key={r} value={r}>{r.replace('_', ' ')}</option>)}
-                      </select>
-                    </td>
-                    <td>
-                      <span className={`badge ${user.isActive ? 'badge-success' : 'badge-danger'}`}>
-                        {user.isActive ? 'Active' : 'Suspended'}
-                      </span>
-                    </td>
-                    <td style={{ fontSize: '0.8125rem', color: 'var(--text-muted)' }}>
-                      {new Date(user.createdAt).toLocaleDateString('en-IN')}
-                    </td>
-                    <td>
-                      <button 
-                        className={`btn btn-sm ${user.isActive ? 'btn-ghost' : 'btn-primary'}`}
-                        onClick={() => toggleStatus(user.id, user.isActive)}
-                      >
-                        {user.isActive ? 'Suspend' : 'Activate'}
-                      </button>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
+              ))}
+            </tbody>
+          </Table>
         </div>
       </div>
 
-      {showModal && (
-        <div style={{ position: 'fixed', inset: 0, zIndex: 1000, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-          <div style={{ position: 'absolute', inset: 0, background: 'rgba(0,0,0,0.6)', backdropFilter: 'blur(2px)' }} onClick={() => setShowModal(false)} />
-          <div style={{ position: 'relative', background: 'var(--bg-card)', width: '100%', maxWidth: 400, borderRadius: 12, boxShadow: 'var(--shadow-xl)', overflow: 'hidden' }}>
-            <div style={{ padding: '20px 24px', borderBottom: '1px solid var(--border-color)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-              <h3 style={{ margin: 0 }}>Add New User</h3>
-              <button onClick={() => setShowModal(false)} style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: '1.2rem', color: 'var(--text-muted)' }}>×</button>
-            </div>
-            <form onSubmit={handleCreateUser} style={{ padding: 24, display: 'flex', flexDirection: 'column', gap: 16 }}>
-              {errorMsg && <div className="alert alert-danger">{errorMsg}</div>}
-              <div>
-                <label className="form-label">Full Name</label>
-                <input type="text" className="form-input" value={name} onChange={e => setName(e.target.value)} required />
-              </div>
-              <div>
-                <label className="form-label">Email Address</label>
-                <input type="email" className="form-input" value={email} onChange={e => setEmail(e.target.value)} required />
-              </div>
-              <div>
-                <label className="form-label">Role</label>
-                <select className="form-input" value={role} onChange={e => setRole(e.target.value)} required>
-                  {ROLES.map(r => <option key={r} value={r}>{r.replace('_', ' ')}</option>)}
-                </select>
-              </div>
-              <div>
-                <label className="form-label">Temporary Password</label>
-                <input type="text" className="form-input" value={password} onChange={e => setPassword(e.target.value)} required />
-              </div>
-              <div style={{ marginTop: 8, display: 'flex', gap: 12 }}>
-                <button type="button" className="btn btn-secondary" style={{ flex: 1 }} onClick={() => setShowModal(false)}>Cancel</button>
-                <button type="submit" className="btn btn-primary" style={{ flex: 1 }} disabled={submitting}>
-                  {submitting ? 'Saving...' : 'Create User'}
-                </button>
-              </div>
-            </form>
-          </div>
-        </div>
+      {showCreate && (
+        <Modal
+          title="Add New User"
+          size="sm"
+          onClose={() => setShowCreate(false)}
+          dismissible={!creating}
+          footer={
+            <>
+              <Button onClick={() => setShowCreate(false)}>Cancel</Button>
+              <Button type="submit" form="create-user-form" variant="primary" loading={creating}>Create User</Button>
+            </>
+          }
+        >
+          <form id="create-user-form" className="stack" onSubmit={handleCreateUser}>
+            {createError && <Alert variant="danger">{createError}</Alert>}
+            <TextField label="Full Name" required value={name} onChange={(e) => setName(e.target.value)} />
+            <TextField label="Email Address" type="email" required value={email} onChange={(e) => setEmail(e.target.value)} />
+            <SelectField label="Role" required value={role} onChange={(e) => setRole(e.target.value as Role)} hint={ROLE_DESCRIPTIONS[role]}>
+              {ROLES.map((r) => <option key={r} value={r}>{ROLE_LABELS[r]}</option>)}
+            </SelectField>
+            <TextField label="Temporary Password" type="password" autoComplete="new-password" required value={password} onChange={(e) => setPassword(e.target.value)} hint={PASSWORD_RULES} />
+          </form>
+        </Modal>
+      )}
+
+      {resetFor && (
+        <Modal
+          title="Reset password"
+          subtitle={`Set a new password for ${resetFor.name}. They are signed out everywhere.`}
+          size="sm"
+          onClose={() => setResetFor(null)}
+          dismissible={!resetting}
+          footer={
+            <>
+              <Button onClick={() => setResetFor(null)}>Cancel</Button>
+              <Button type="submit" form="reset-password-form" variant="primary" loading={resetting}>Set password</Button>
+            </>
+          }
+        >
+          <form id="reset-password-form" className="stack" onSubmit={handleResetPassword}>
+            {resetError && <Alert variant="danger">{resetError}</Alert>}
+            <TextField label="New password" type="password" autoComplete="new-password" required autoFocus value={newPassword} onChange={(e) => setNewPassword(e.target.value)} hint={PASSWORD_RULES} />
+          </form>
+        </Modal>
       )}
     </>
   )

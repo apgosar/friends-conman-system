@@ -1,23 +1,21 @@
+import { apiError, apiServerError } from '@/lib/api-error'
 import { NextRequest } from 'next/server'
-import { auth } from '@/lib/auth'
+import { requireRole } from '@/lib/guard'
 import { prisma } from '@/lib/db'
 import { dispatchCommunicationLog } from '@/lib/comms-dispatcher'
 
 // POST /api/communications/send
 // Compose and send a one-off message to a buyer
 export async function POST(req: NextRequest) {
-  const session = await auth()
-  if (!session) return Response.json({ error: 'Unauthorized' }, { status: 401 })
-  if (session.user.role !== 'SUPER_ADMIN' && session.user.role !== 'ADMIN') {
-    return Response.json({ error: 'Forbidden' }, { status: 403 })
-  }
+  const guard = await requireRole('admin')
+  if ('error' in guard) return guard.error
 
   try {
     const body = await req.json()
     const { saleId, buyerId, channel, type, messageContent } = body
 
     if (!saleId || !channel || !messageContent) {
-      return Response.json({ error: 'saleId, channel, and messageContent are required' }, { status: 400 })
+      return apiError('invalid', 'saleId, channel, and messageContent are required')
     }
 
     const log = await prisma.communicationLog.create({
@@ -33,18 +31,15 @@ export async function POST(req: NextRequest) {
 
     const result = await dispatchCommunicationLog(log.id)
     return Response.json({ success: true, logId: log.id, result })
-  } catch (err: any) {
-    return Response.json({ error: 'Internal server error' }, { status: 500 })
+  } catch (err) {
+    return apiServerError(err, 'communications/send')
   }
 }
 
 // GET /api/communications/send - list all logs with filters
 export async function GET(req: NextRequest) {
-  const session = await auth()
-  if (!session) return Response.json({ error: 'Unauthorized' }, { status: 401 })
-  if (session.user.role !== 'SUPER_ADMIN' && session.user.role !== 'ADMIN') {
-    return Response.json({ error: 'Forbidden' }, { status: 403 })
-  }
+  const guard = await requireRole('admin')
+  if ('error' in guard) return guard.error
 
   const { searchParams } = new URL(req.url)
   const channel = searchParams.get('channel')

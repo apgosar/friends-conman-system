@@ -1,16 +1,5 @@
 import type { Prisma } from '@prisma/client'
-import { prisma } from '@/lib/db'
-import { auth } from '@/lib/auth'
-
-/** Admin-only guard for the Building Setup APIs. Returns the user, or a ready-made error response. */
-export async function requireAdmin() {
-  const session = await auth()
-  if (!session?.user) return { error: Response.json({ error: 'Unauthorized' }, { status: 401 }) }
-  if (!['SUPER_ADMIN', 'ADMIN'].includes(session.user.role)) {
-    return { error: Response.json({ error: 'Forbidden: insufficient permissions' }, { status: 403 }) }
-  }
-  return { user: session.user }
-}
+import { transaction } from '@/lib/db'
 
 export interface UnitRow {
   category?: 'FLAT' | 'SHOP' | 'OFFICE' | 'COMMON'
@@ -40,7 +29,7 @@ export interface CreateResult {
  * again or to extend a building later.
  */
 export async function createUnits(projectId: string, rows: UnitRow[]): Promise<CreateResult> {
-  return prisma.$transaction(async (tx) => {
+  return transaction(async (tx) => {
     const existing = await tx.unit.findMany({ where: { floor: { wing: { projectId } } }, select: { unitNumber: true } })
     const taken = new Set(existing.map((u) => u.unitNumber.toLowerCase()))
 

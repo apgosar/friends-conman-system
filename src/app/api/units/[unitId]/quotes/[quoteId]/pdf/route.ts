@@ -1,15 +1,16 @@
+import { apiError, apiServerError } from '@/lib/api-error'
 import { NextRequest, NextResponse } from 'next/server'
-import { auth } from '@/lib/auth'
+import { requireRole } from '@/lib/guard'
 import { prisma } from '@/lib/db'
 import { floorPlanDataUri } from '@/lib/floor-plan-image'
-import { formatCurrency, formatDate } from '@/lib/template-engine'
+import { formatCurrency, formatDate } from '@/lib/format'
 
 export async function GET(
   req: NextRequest,
   { params }: { params: Promise<{ unitId: string; quoteId: string }> }
 ) {
-  const session = await auth()
-  if (!session) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+  const guard = await requireRole('staff')
+  if ('error' in guard) return guard.error
 
   const { quoteId } = await params
 
@@ -34,7 +35,7 @@ export async function GET(
       }
     })
 
-    if (!inquiry) return NextResponse.json({ error: 'Quote not found' }, { status: 404 })
+    if (!inquiry) return apiError('notFound', 'Quote not found')
 
     const { unit } = inquiry
     const project = unit.floor.wing.project
@@ -209,7 +210,6 @@ export async function GET(
       }
     })
   } catch (error: any) {
-    console.error('PDF generation error:', error)
-    return NextResponse.json({ error: error.message }, { status: 500 })
+    return apiServerError(error, 'units/[unitId]/quotes/[quoteId]/pdf')
   }
 }

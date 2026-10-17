@@ -1,3 +1,4 @@
+import type { CSSProperties } from 'react'
 import { UNIT_COLORS, UNIT_STATUS_ORDER, unitStatusLabel, isUnsold } from '@/lib/status'
 
 // ─── Data shapes returned by /api/projects/[id]/building-view ────────────────
@@ -57,3 +58,9 @@ export const statusMatches = (filter: string, status: string) =>
 
 export const prefersReducedMotion = () =>
   typeof window !== 'undefined' && !!window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches
+
+/** Custom properties that tint an element in a unit's status colour (read by building.css). */
+export const tint = (status: string): CSSProperties => {
+  const c = getStatusColor(status)
+  return { '--tint-fill': c.fill, '--tint-stroke': c.stroke, '--tint-top': c.top } as CSSProperties
+}

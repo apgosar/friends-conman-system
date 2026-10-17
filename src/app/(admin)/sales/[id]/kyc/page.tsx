@@ -1,9 +1,9 @@
 import { prisma } from '@/lib/db'
 import { notFound } from 'next/navigation'
-import Link from 'next/link'
 import TopNav from '@/components/layout/TopNav'
-import { formatDate } from '@/lib/template-engine'
 import KycDocumentRow from '@/components/sales/KycDocumentRow'
+import { plain } from '@/lib/plain'
+import { Badge, ButtonLink, Card, CardHeader, EmptyState, PageHeader, Table } from '@/components/ui'
 
 export default async function SaleKycPage(props: PageProps<'/sales/[id]/kyc'>) {
   const { id } = await props.params
@@ -23,46 +23,24 @@ export default async function SaleKycPage(props: PageProps<'/sales/[id]/kyc'>) {
     <>
       <TopNav title={`KYC: ${sale.saleNumber}`} subtitle={`Unit ${sale.unit.unitNumber}`} />
       <div className="admin-content">
-        <div className="page-header">
-          <div>
-            <h1 className="page-title">KYC Documents</h1>
-            <p className="page-subtitle">Manage identity and address proofs for all buyers</p>
-          </div>
-          <Link href={`/sales/${id}`} className="btn btn-secondary">
-            Back to Sale
-          </Link>
-        </div>
+        <PageHeader title="KYC Documents" subtitle="Manage identity and address proofs for all buyers" actions={<ButtonLink href={`/sales/${id}`}>Back to Sale</ButtonLink>} />
 
         {sale.buyers.map(buyer => (
-          <div key={buyer.id} className="card mb-6">
-            <div className="card-header">
-              <span className="card-title">{buyer.fullName} {buyer.isPrimary && <span className="badge badge-primary">Primary</span>}</span>
+          <Card key={buyer.id} flush className="mb-6">
+            <div className="p-5 pb-0">
+              <CardHeader title={<>{buyer.fullName} {buyer.isPrimary && <Badge variant="primary">Primary</Badge>}</>} />
             </div>
-            
             {buyer.kycDocuments.length === 0 ? (
-              <div style={{ textAlign: 'center', padding: '20px', color: 'var(--text-muted)' }}>
-                No KYC documents uploaded for this buyer.
-              </div>
+              <EmptyState>No KYC documents uploaded for this buyer</EmptyState>
             ) : (
-              <div className="table-wrapper" style={{ border: 'none' }}>
-                <table>
-                  <thead>
-                    <tr>
-                      <th>Document Type</th>
-                      <th>Status</th>
-                      <th>Uploaded At</th>
-                      <th>Actions</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {buyer.kycDocuments.map(doc => (
-                      <KycDocumentRow key={doc.id} doc={doc} />
-                    ))}
-                  </tbody>
-                </table>
-              </div>
+              <Table flush stack>
+                <thead><tr><th>Document Type</th><th>Status</th><th>Uploaded</th><th>Actions</th></tr></thead>
+                <tbody>
+                  {buyer.kycDocuments.map(doc => <KycDocumentRow key={doc.id} doc={plain(doc)} />)}
+                </tbody>
+              </Table>
             )}
-          </div>
+          </Card>
         ))}
       </div>
     </>

@@ -1,13 +1,14 @@
-import { auth } from '@/lib/auth'
 import Link from 'next/link'
 import { prisma } from '@/lib/db'
 import { OUTSTANDING_SCHEDULE_STATUSES } from '@/lib/status'
-import { formatCurrency } from '@/lib/template-engine'
+import { formatCurrency } from '@/lib/format'
 import TopNav from '@/components/layout/TopNav'
 import AgingChart from '@/components/dashboard/AgingChart'
 import RecentPayments from '@/components/dashboard/RecentPayments'
 import UpcomingDues from '@/components/dashboard/UpcomingDues'
 import EscalationAlerts from '@/components/dashboard/EscalationAlerts'
+import { activeSale } from '@/lib/soft-delete'
+import { Badge, Card, StatCard, cn } from '@/components/ui'
 
 async function getDashboardData() {
   const now = new Date()
@@ -16,7 +17,7 @@ async function getDashboardData() {
   const [schedules, recentPayments, escalations] = await Promise.all([
     // All unpaid, non-upcoming schedules (DUE + OVERDUE)
     prisma.paymentSchedule.findMany({
-      where: { status: { in: OUTSTANDING_SCHEDULE_STATUSES } },
+      where: { status: { in: OUTSTANDING_SCHEDULE_STATUSES }, sale: activeSale },
       select: {
         principalAmount: true,
         gstAmount: true,
@@ -26,6 +27,7 @@ async function getDashboardData() {
       },
     }),
     prisma.payment.findMany({
+      where: { deletedAt: null, sale: activeSale },
       orderBy: { createdAt: 'desc' },
       take: 10,
       include: {
@@ -39,7 +41,7 @@ async function getDashboardData() {
       },
     }),
     prisma.paymentSchedule.findMany({
-      where: { managementEscalated: true, managementApprovedStern: false, status: { notIn: ['PAID'] } },
+      where: { managementEscalated: true, managementApprovedStern: false, status: { notIn: ['PAID'] }, sale: activeSale },
       include: {
         sale: {
           include: {
@@ -76,14 +78,14 @@ async function getDashboardData() {
 
   const [collectedThisMonth, tdsPending] = await Promise.all([
     prisma.payment.aggregate({
-      where: { paymentDate: { gte: monthStart } },
+      where: { paymentDate: { gte: monthStart }, deletedAt: null, sale: activeSale },
       _sum: { amount: true },
     }),
     prisma.tdsRecord.count({ where: { status: { not: 'CERTIFICATE_RECEIVED' } } }),
   ])
 
   const totalDueThisMonth = await prisma.paymentSchedule.aggregate({
-    where: { dueDate: { gte: monthStart, lte: now }, status: { not: 'UPCOMING' } },
+    where: { dueDate: { gte: monthStart, lte: now }, status: { not: 'UPCOMING' }, sale: activeSale },
     _sum: { principalAmount: true, gstAmount: true },
   })
   const dueAmt       = Number(totalDueThisMonth._sum.principalAmount ?? 0) + Number(totalDueThisMonth._sum.gstAmount ?? 0)
@@ -95,6 +97,7 @@ async function getDashboardData() {
     where: {
       status: { in: ['UPCOMING', ...OUTSTANDING_SCHEDULE_STATUSES] },
       dueDate: { lte: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000) },
+      sale: activeSale,
     },
     include: {
       sale: {
@@ -129,14 +132,13 @@ async function getDashboardData() {
 }
 
 export default async function DashboardPage() {
-  const session = await auth()
   const { stats, recentPayments, escalations, upcomingDues } = await getDashboardData()
 
   const agingData = [
-    { label: 'Current', amount: stats.current, count: 0, color: '#10b981' },
-    { label: '8–15 Days', amount: stats.overdue15, count: 0, color: '#f59e0b' },
-    { label: '16–30 Days', amount: stats.overdue30, count: 0, color: '#f97316' },
-    { label: '30+ Days', amount: stats.overdue30Plus, count: 0, color: '#ef4444' },
+    { label: 'Current', amount: stats.current, tone: 'ok' as const },
+    { label: '8–15 Days', amount: stats.overdue15, tone: 'warn' as const },
+    { label: '16–30 Days', amount: stats.overdue30, tone: 'orange' as const },
+    { label: '30+ Days', amount: stats.overdue30Plus, tone: 'danger' as const },
   ]
 
   return (
@@ -144,40 +146,14 @@ export default async function DashboardPage() {
       <TopNav title="Dashboard" subtitle="Financial overview & receivables" />
       <div className="admin-content">
 
-        {/* KPI Cards */}
-        <div className="grid grid-4 gap-4 mb-6">
-          <StatCard
-            label="Total Outstanding"
-            value={formatCurrency(stats.totalOutstanding)}
-            sub="All unpaid demands"
-            icon="₹"
-            gradient="linear-gradient(90deg, #6366f1, #8b5cf6)"
-          />
-          <StatCard
-            label="Collected This Month"
-            value={formatCurrency(stats.collectedThisMonth)}
-            sub={`${stats.collectionEfficiency}% efficiency`}
-            icon="✓"
-            gradient="linear-gradient(90deg, #10b981, #059669)"
-          />
-          <StatCard
-            label="Interest Accrued"
-            value={formatCurrency(stats.interestAccrued)}
-            sub="On 30+ day overdues"
-            icon="%"
-            gradient="linear-gradient(90deg, #f59e0b, #d97706)"
-          />
-          <StatCard
-            label="TDS Pending"
-            value={String(stats.tdsPending)}
-            sub="Certificates not received"
-            icon="📄"
-            gradient="linear-gradient(90deg, #06b6d4, #0891b2)"
-          />
+        <div className="grid grid-stats gap-4 mb-6">
+          <StatCard label="Total Outstanding" value={formatCurrency(stats.totalOutstanding)} note="All unpaid demands" icon="₹" accent="linear-gradient(90deg, var(--color-primary), var(--color-secondary))" />
+          <StatCard label="Collected This Month" value={formatCurrency(stats.collectedThisMonth)} note={`${stats.collectionEfficiency}% efficiency`} icon="✓" accent="var(--color-success)" />
+          <StatCard label="Interest Accrued" value={formatCurrency(stats.interestAccrued)} note="On 30+ day overdues" icon="%" accent="var(--color-warning)" />
+          <StatCard label="TDS Pending" value={String(stats.tdsPending)} note="Certificates not received" icon="📄" accent="var(--color-accent)" />
         </div>
 
-        {/* Aging Buckets */}
-        <div className="grid grid-4 gap-4 mb-6">
+        <div className="grid grid-stats gap-4 mb-6">
           <AgingBucketCard label="Current Due" amount={stats.current} color="var(--color-success)" bucket="current" />
           <AgingBucketCard label="Overdue 8–15 Days" amount={stats.overdue15} color="var(--color-warning)" bucket="8-15" />
           <AgingBucketCard label="Overdue 16–30 Days" amount={stats.overdue30} color="var(--color-orange)" bucket="16-30" />
@@ -190,7 +166,7 @@ export default async function DashboardPage() {
           </div>
         )}
 
-        <div className="grid gap-6" style={{ gridTemplateColumns: '1fr 1fr' }}>
+        <div className="grid grid-2 gap-6">
           <AgingChart data={agingData} />
           <UpcomingDues dues={upcomingDues} />
         </div>
@@ -203,53 +179,20 @@ export default async function DashboardPage() {
   )
 }
 
-function StatCard({ label, value, sub, icon, gradient }: {
-  label: string; value: string; sub: string; icon: string; gradient: string
-}) {
-  return (
-    <div className="stat-card" style={{ '--accent-gradient': gradient } as React.CSSProperties}>
-      <div className="stat-label">{label}</div>
-      <div className="stat-value">{value}</div>
-      <div className="stat-sub">{sub}</div>
-      <div className="stat-icon">{icon}</div>
-    </div>
-  )
-}
-
 function AgingBucketCard({ label, amount, color, critical, bucket }: {
-  label: string; amount: number; color: string; critical?: boolean; bucket?: string
+  label: string; amount: number; color: string; critical?: boolean; bucket: string
 }) {
-  const content = (
-    <div
-      className="card hoverable-card"
-      style={{
-        borderColor: critical && amount > 0 ? 'rgba(239,68,68,0.3)' : undefined,
-        background: critical && amount > 0 ? 'rgba(239,68,68,0.05)' : undefined,
-        cursor: 'pointer',
-      }}
-    >
-      <div className="flex items-center gap-2 mb-2">
-        <div className="status-dot" style={{ background: color }} />
-        <span className="text-sm text-secondary">{label}</span>
-        {critical && amount > 0 && (
-          <span className="badge badge-danger" style={{ marginLeft: 'auto' }}>Action Needed</span>
-        )}
-      </div>
-      <div
-        style={{
-          fontSize: '1.375rem',
-          fontFamily: 'var(--font-display)',
-          fontWeight: 700,
-          color: amount > 0 ? color : 'var(--text-muted)',
-        }}
-      >
-        {formatCurrency(amount)}
-      </div>
-    </div>
+  const alarming = critical && amount > 0
+  return (
+    <Link href={`/receivables?bucket=${bucket}`} className="card-link">
+      <Card className={cn('hoverable-card', alarming && 'card-danger-soft')}>
+        <div className="flex items-center gap-2 mb-2">
+          <div className="status-dot" style={{ background: color }} />
+          <span className="text-base text-secondary">{label}</span>
+          {alarming && <Badge variant="danger" className="ml-auto">Action Needed</Badge>}
+        </div>
+        <div className="bucket-amount" style={{ color: amount > 0 ? color : 'var(--text-muted)' }}>{formatCurrency(amount)}</div>
+      </Card>
+    </Link>
   )
-
-  if (bucket) {
-    return <Link href={`/receivables?bucket=${bucket}`} style={{ textDecoration: 'none' }}>{content}</Link>
-  }
-  return content
 }

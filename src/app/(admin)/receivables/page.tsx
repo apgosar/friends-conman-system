@@ -1,20 +1,22 @@
 import { auth } from '@/lib/auth'
 import { prisma } from '@/lib/db'
 import { OUTSTANDING_SCHEDULE_STATUSES } from '@/lib/status'
-import { formatCurrency, formatDate } from '@/lib/template-engine'
+import { formatCurrency, formatDate } from '@/lib/format'
 import TopNav from '@/components/layout/TopNav'
-import Link from 'next/link'
 import { redirect } from 'next/navigation'
+import { activeSale } from '@/lib/soft-delete'
+import { Badge, ButtonLink, Card, CardHeader, EmptyState, Table, Td } from '@/components/ui'
 
-export default async function ReceivablesPage({ searchParams }: { searchParams: { bucket?: string } }) {
+export default async function ReceivablesPage(props: PageProps<'/receivables'>) {
   const session = await auth()
   if (!session) redirect('/login')
-  const bucket = searchParams.bucket || 'all'
+  const { bucket: rawBucket } = await props.searchParams // searchParams is a promise in this version of Next.js
+  const bucket = (Array.isArray(rawBucket) ? rawBucket[0] : rawBucket) || 'all'
   const now = new Date()
 
   // 1. Fetch all unpaid schedules
   const allSchedules = await prisma.paymentSchedule.findMany({
-    where: { status: { in: OUTSTANDING_SCHEDULE_STATUSES } },
+    where: { status: { in: OUTSTANDING_SCHEDULE_STATUSES }, sale: activeSale },
     include: {
       sale: {
         include: {
@@ -56,67 +58,43 @@ export default async function ReceivablesPage({ searchParams }: { searchParams: 
       <TopNav title={pageTitle} subtitle={`${filtered.length} pending demands`} />
       <div className="admin-content">
         <div className="mb-4">
-          <Link href="/dashboard" className="btn btn-ghost btn-sm">← Back to Dashboard</Link>
+          <ButtonLink href="/dashboard" variant="ghost" size="sm">← Back to Dashboard</ButtonLink>
         </div>
         
-        <div className="card" style={{ padding: 0 }}>
-          <div className="card-header" style={{ display: 'flex', justifyContent: 'space-between', padding: '16px 20px', borderBottom: '1px solid var(--border-color)' }}>
-            <span className="card-title">Demands</span>
-            <span style={{ fontWeight: 600, color: 'var(--color-primary)' }}>Total: {formatCurrency(totalAmount)}</span>
+        <Card flush>
+          <div className="p-5 pb-0">
+            <CardHeader title="Demands" actions={<span className="font-semibold text-brand">Total: {formatCurrency(totalAmount)}</span>} />
           </div>
 
           {filtered.length === 0 ? (
-            <div style={{ textAlign: 'center', padding: '60px 20px', color: 'var(--text-muted)' }}>
-              No receivables found in this bucket.
-            </div>
+            <EmptyState>No receivables found in this bucket</EmptyState>
           ) : (
-            <div className="table-wrapper" style={{ border: 'none' }}>
-              <table>
-                <thead>
-                  <tr>
-                    <th>Project</th>
-                    <th>Unit</th>
-                    <th>Buyer</th>
-                    <th>Description</th>
-                    <th>Due Date</th>
-                    <th>Days Overdue</th>
-                    <th style={{ textAlign: 'right' }}>Amount</th>
-                    <th>Action</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {filtered.map(s => {
-                    const daysPast = s.dueDate ? Math.floor((now.getTime() - new Date(s.dueDate).getTime()) / 86400000) : 0
-                    const amt = Number(s.principalAmount) + Number(s.gstAmount) + Number(s.interestAmount)
-                    
-                    return (
-                      <tr key={s.id}>
-                        <td>{s.sale?.project?.name}</td>
-                        <td style={{ fontWeight: 500 }}>{s.sale?.unit?.unitNumber}</td>
-                        <td>{s.sale?.buyers[0]?.fullName || '-'}</td>
-                        <td style={{ color: 'var(--text-secondary)' }}>{s.description || s.milestone?.name}</td>
-                        <td style={{ color: 'var(--text-muted)' }}>{s.dueDate ? formatDate(s.dueDate) : 'On milestone'}</td>
-                        <td>
-                          {daysPast > 0 ? (
-                            <span className={`badge ${daysPast > 30 ? 'badge-danger' : daysPast > 15 ? 'badge-orange' : daysPast > 7 ? 'badge-warning' : 'badge-primary'}`}>
-                              {daysPast} days
-                            </span>
-                          ) : (
-                            <span className="badge badge-success">Current</span>
-                          )}
-                        </td>
-                        <td style={{ textAlign: 'right', fontWeight: 600 }}>{formatCurrency(amt)}</td>
-                        <td style={{ textAlign: 'right' }}>
-                           <Link href={`/sales/${s.saleId}`} className="btn btn-primary btn-sm">View Sale</Link>
-                        </td>
-                      </tr>
-                    )
-                  })}
-                </tbody>
-              </table>
-            </div>
+            <Table flush stack>
+              <thead>
+                <tr><th>Project</th><th>Unit</th><th>Buyer</th><th>Description</th><th>Due Date</th><th>Days Overdue</th><th className="text-right">Amount</th><th>Action</th></tr>
+              </thead>
+              <tbody>
+                {filtered.map(s => {
+                  const daysPast = s.dueDate ? Math.floor((now.getTime() - new Date(s.dueDate).getTime()) / 86400000) : 0
+                  const amt = Number(s.principalAmount) + Number(s.gstAmount) + Number(s.interestAmount)
+                  const lateness = daysPast > 30 ? 'danger' : daysPast > 15 ? 'orange' : daysPast > 7 ? 'warning' : 'primary'
+                  return (
+                    <tr key={s.id}>
+                      <Td label="Project">{s.sale?.project?.name}</Td>
+                      <Td label="Unit" className="font-medium">{s.sale?.unit?.unitNumber}</Td>
+                      <Td label="Buyer">{s.sale?.buyers[0]?.fullName || '-'}</Td>
+                      <Td label="Description" className="text-secondary">{s.description || s.milestone?.name}</Td>
+                      <Td label="Due date" className="text-muted">{s.dueDate ? formatDate(s.dueDate) : 'On milestone'}</Td>
+                      <Td label="Overdue">{daysPast > 0 ? <Badge variant={lateness}>{daysPast} days</Badge> : <Badge variant="success">Current</Badge>}</Td>
+                      <Td label="Amount" className="text-right font-semibold">{formatCurrency(amt)}</Td>
+                      <Td label=""><ButtonLink href={`/sales/${s.saleId}`} variant="primary" size="sm">View Sale</ButtonLink></Td>
+                    </tr>
+                  )
+                })}
+              </tbody>
+            </Table>
           )}
-        </div>
+        </Card>
       </div>
     </>
   )

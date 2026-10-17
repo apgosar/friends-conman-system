@@ -1,69 +1,36 @@
 'use client'
 
 import { useSession } from 'next-auth/react'
+import { ROLE_BADGES, ROLE_LABELS, normalizeRole } from '@/lib/roles'
+import { useNav } from '@/components/layout/AppShell'
+import { Badge, type BadgeVariant } from '@/components/ui'
 
+/** The bar at the top of every page: menu button (phones), page title, and who is signed in. */
 export default function TopNav({ title, subtitle }: { title?: string; subtitle?: string }) {
   const { data: session } = useSession()
-  const roleColors: Record<string, string> = {
-    SUPER_ADMIN: 'badge-primary',
-    SALES_MANAGER: 'badge-info',
-    ACCOUNTS: 'badge-success',
-    MANAGEMENT: 'badge-warning',
-    VIEWER: 'badge-muted',
-  }
-  const roleLabel: Record<string, string> = {
-    SUPER_ADMIN: 'Super Admin',
-    SALES_MANAGER: 'Sales Manager',
-    ACCOUNTS: 'Accounts',
-    MANAGEMENT: 'Management',
-    VIEWER: 'Viewer',
-  }
-
-  const toggleSidebar = () => {
-    document.querySelector('.sidebar')?.classList.toggle('open')
-    document.querySelector('.mobile-overlay')?.classList.toggle('open')
-  }
+  const { open, toggle } = useNav()
+  const role = normalizeRole(session?.user?.role)
 
   return (
     <header className="topnav">
-      <div className="topnav-left">
-        <button className="mobile-menu-btn" onClick={toggleSidebar}>
-          ☰
-        </button>
+      <div className="topnav-left min-w-0">
+        <button type="button" className="mobile-menu-btn" onClick={toggle} aria-label="Open menu" aria-expanded={open}>☰</button>
         {title && (
-          <div>
-            <h1 style={{ fontSize: '1.125rem', fontWeight: 600, margin: 0 }}>{title}</h1>
-            {subtitle && <p style={{ fontSize: '0.8125rem', margin: 0 }}>{subtitle}</p>}
+          <div className="topnav-title min-w-0">
+            <div className="topnav-heading truncate">{title}</div>
+            {subtitle && <p className="truncate">{subtitle}</p>}
           </div>
         )}
       </div>
       <div className="topnav-right">
         {session?.user && (
-          <div className="flex items-center gap-3">
-            <span className={`badge ${roleColors[session.user.role] ?? 'badge-muted'}`}>
-              {roleLabel[session.user.role] ?? session.user.role}
-            </span>
-            <div style={{ textAlign: 'right' }}>
-              <div style={{ fontSize: '0.875rem', fontWeight: 500 }}>{session.user.name}</div>
-              <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>{session.user.email}</div>
+          <div className="topnav-user">
+            <Badge variant={ROLE_BADGES[role].replace('badge-', '') as BadgeVariant} className="hide-sm">{ROLE_LABELS[role]}</Badge>
+            <div className="topnav-user-meta">
+              <div className="topnav-user-name">{session.user.name}</div>
+              <div className="topnav-user-email">{session.user.email}</div>
             </div>
-            <div
-              style={{
-                width: 36,
-                height: 36,
-                borderRadius: '50%',
-                background: 'linear-gradient(135deg, var(--color-primary), var(--color-secondary))',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                fontWeight: 700,
-                fontSize: '0.875rem',
-                color: '#fff',
-                flexShrink: 0,
-              }}
-            >
-              {session.user.name?.[0]?.toUpperCase()}
-            </div>
+            <div className="avatar" aria-hidden="true">{session.user.name?.[0]?.toUpperCase()}</div>
           </div>
         )}
       </div>

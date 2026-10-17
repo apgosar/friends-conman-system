@@ -1,15 +1,21 @@
+import { apiError } from '@/lib/api-error'
 import { runDailyInterestAndStatus } from '@/lib/scheduler'
+import { isCronRequest } from '@/lib/internal-auth'
+import { logger } from '@/lib/logger'
 
-export async function GET(req: Request) {
-  const authHeader = req.headers.get('authorization')
-  if (authHeader !== `Bearer ${process.env.CRON_SECRET}`) {
-    return Response.json({ error: 'Unauthorized' }, { status: 401 })
+async function run(req: Request) {
+  if (!isCronRequest(req)) {
+    return apiError('unauthorized')
   }
   try {
     await runDailyInterestAndStatus()
     return Response.json({ success: true, message: 'Daily job complete' })
   } catch (err) {
-    console.error('Daily cron error:', err)
-    return Response.json({ error: 'Internal error' }, { status: 500 })
+    logger.error({ err }, 'Daily cron failed')
+    return apiError('server')
   }
 }
+
+// Schedulers differ in which verb they send; both need the same secret.
+export const GET = run
+export const POST = run

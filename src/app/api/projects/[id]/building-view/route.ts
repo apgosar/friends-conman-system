@@ -1,20 +1,14 @@
-import { NextRequest, NextResponse } from 'next/server'
-import { auth } from '@/lib/auth'
+import { route, fail } from '@/lib/route'
 import { prisma } from '@/lib/db'
+import { activeSale } from '@/lib/soft-delete'
 
 const EXPIRY_WARNING_DAYS = 3
 
 // GET — everything the building view needs to draw the project, kept deliberately small:
 // per-unit inquiry COUNTS and flags only. The full inquiry list for a unit is fetched when it is selected
 // (/api/units/[unitId]/inquiries), so the payload doesn't grow as inquiries pile up.
-export async function GET(
-  req: NextRequest,
-  { params }: { params: Promise<{ id: string }> }
-) {
-  const session = await auth()
-  if (!session) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
-
-  const { id } = await params
+export const GET = route<{ id: string }>('any', async ({ params }) => {
+  const { id } = params
 
   const [project, inquiryRows] = await Promise.all([
     prisma.project.findUnique({
@@ -31,7 +25,7 @@ export async function GET(
                   include: {
                     unitType: { select: { floorPlanUrl: true } },
                     sales: {
-                      where: { status: { not: 'CANCELLED' } },
+                      where: activeSale,
                       select: {
                         id: true,
                         saleNumber: true,
@@ -60,7 +54,7 @@ export async function GET(
     }),
   ])
 
-  if (!project) return NextResponse.json({ error: 'Project not found' }, { status: 404 })
+  if (!project) throw fail('notFound', 'Project not found')
 
   const soon = Date.now() + EXPIRY_WARNING_DAYS * 24 * 60 * 60 * 1000
   const perUnit = new Map<string, { total: number; open: number; expiring: boolean }>()
@@ -112,5 +106,5 @@ export async function GET(
       }),
     })),
   }))
-  return NextResponse.json({ wings, projectParkingCharge: project.carParkingCharges, repeatMobiles })
-}
+  return Response.json({ wings, projectParkingCharge: project.carParkingCharges, repeatMobiles })
+})

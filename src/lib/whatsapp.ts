@@ -1,3 +1,4 @@
+import { logger } from '@/lib/logger'
 /**
  * WhatsApp Cloud API (Meta/official) integration.
  * Uses the free WhatsApp Business Cloud API directly — no third-party provider needed.
@@ -6,11 +7,6 @@
  *   WHATSAPP_PHONE_NUMBER_ID  — from Meta Developer Console → WhatsApp → API Setup
  *   WHATSAPP_ACCESS_TOKEN     — permanent system user token from Meta Business Manager
  */
-
-export interface WhatsAppTemplateParam {
-  type: 'text' | 'currency' | 'date_time'
-  text?: string
-}
 
 export interface WhatsAppMessage {
   to: string           // phone with country code, no +  e.g. "919876543210"
@@ -37,9 +33,7 @@ export async function sendWhatsApp(msg: WhatsAppMessage): Promise<WhatsAppResult
 
   // Simulation mode — log to console when credentials are not configured
   if (!phoneNumberId || !accessToken) {
-    console.log('[WhatsApp SIMULATION] Would send to:', msg.to)
-    console.log('[WhatsApp SIMULATION] Message:', msg.message)
-    if (msg.documentUrl) console.log('[WhatsApp SIMULATION] Document:', msg.documentUrl)
+    logger.info({ to: `…${msg.to.slice(-4)}`, hasDocument: !!msg.documentUrl }, 'WhatsApp simulation: message not sent (no credentials configured)')
     return { messageId: `sim_${Date.now()}`, status: 'simulated' }
   }
 

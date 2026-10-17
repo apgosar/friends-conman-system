@@ -1,15 +1,13 @@
 import { prisma } from '@/lib/db'
 import TopNav from '@/components/layout/TopNav'
-import { formatCurrency, formatDate } from '@/lib/template-engine'
-import Link from 'next/link'
-
-const MODE_LABELS: Record<string, string> = {
-  CHEQUE: 'Cheque', RTGS_NEFT: 'RTGS/NEFT', UPI: 'UPI',
-  DD: 'DD', CASH: 'Cash', LOAN_DISBURSEMENT: 'Loan',
-}
+import { formatCurrency, formatDate } from '@/lib/format'
+import { activeSale } from '@/lib/soft-delete'
+import { Badge, ButtonLink, Card, EmptyRow, PageHeader, Table, Td } from '@/components/ui'
+import { paymentModeLabel } from '@/lib/status'
 
 async function getPayments() {
   return prisma.payment.findMany({
+    where: { deletedAt: null, sale: activeSale },
     orderBy: { paymentDate: 'desc' },
     take: 100,
     include: {
@@ -27,22 +25,23 @@ async function getPayments() {
 }
 
 export default async function PaymentsPage() {
-  const payments = await getPayments()
-  const totalCollected = payments.reduce((sum, p) => sum + Number(p.amount), 0)
+  const [payments, totals] = await Promise.all([
+    getPayments(),
+    prisma.payment.aggregate({ where: { deletedAt: null, sale: activeSale }, _sum: { amount: true }, _count: true }),
+  ])
+  const totalCollected = Number(totals._sum.amount ?? 0) // across every payment, not just the latest ones listed below
 
   return (
     <>
       <TopNav title="Payments" subtitle="All recorded payments and receipts" />
       <div className="admin-content">
-        <div className="page-header">
-          <div>
-            <h1 className="page-title">Payments</h1>
-            <p className="page-subtitle">{payments.length} payments · Total: <strong>{formatCurrency(totalCollected)}</strong></p>
-          </div>
-        </div>
+        <PageHeader
+          title="Payments"
+          subtitle={<>{totals._count} payments · Total: <strong>{formatCurrency(totalCollected)}</strong>{totals._count > payments.length && ` · showing the latest ${payments.length}`}</>}
+        />
 
-        <div className="table-wrapper">
-          <table>
+        <Card flush>
+          <Table flush stack>
             <thead>
               <tr>
                 <th>Receipt #</th><th>Project</th><th>Unit</th><th>Buyer</th>
@@ -52,37 +51,37 @@ export default async function PaymentsPage() {
             </thead>
             <tbody>
               {payments.length === 0 ? (
-                <tr><td colSpan={11} style={{ textAlign: 'center', padding: '40px', color: 'var(--text-muted)' }}>No payments recorded</td></tr>
+                <EmptyRow colSpan={11}>No payments recorded</EmptyRow>
               ) : payments.map((p) => (
                 <tr key={p.id}>
-                  <td><span className="badge badge-primary">{p.receiptNumber}</span></td>
-                  <td style={{ fontWeight: 500 }}>{p.sale?.project?.name}</td>
-                  <td>{p.sale?.unit?.unitNumber}</td>
-                  <td>{p.sale?.buyers?.[0]?.fullName ?? '—'}</td>
-                  <td style={{ color: 'var(--text-secondary)', maxWidth: 140 }}>{p.schedule?.description}</td>
-                  <td><span className="badge badge-muted">{MODE_LABELS[p.mode] ?? p.mode}</span></td>
-                  <td style={{ color: 'var(--text-muted)', fontSize: '0.8125rem' }}>{p.referenceNumber ?? '—'}</td>
-                  <td style={{ color: 'var(--text-muted)' }}>{formatDate(p.paymentDate)}</td>
-                  <td style={{ fontWeight: 700, color: 'var(--color-success)' }}>{formatCurrency(Number(p.amount))}</td>
-                  <td>
+                  <Td label="Receipt #"><Badge variant="primary">{p.receiptNumber}</Badge></Td>
+                  <Td label="Project" className="font-medium">{p.sale?.project?.name}</Td>
+                  <Td label="Unit">{p.sale?.unit?.unitNumber}</Td>
+                  <Td label="Buyer">{p.sale?.buyers?.[0]?.fullName ?? '—'}</Td>
+                  <Td label="Description" className="text-secondary">{p.schedule?.description}</Td>
+                  <Td label="Mode"><Badge>{paymentModeLabel(p.mode)}</Badge></Td>
+                  <Td label="Reference" className="text-muted text-sm">{p.referenceNumber ?? '—'}</Td>
+                  <Td label="Date" className="text-muted">{formatDate(p.paymentDate)}</Td>
+                  <Td label="Amount" className="font-bold text-success">{formatCurrency(Number(p.amount))}</Td>
+                  <Td label="TDS">
                     {p.tdsRecord ? (
-                      <span className={`badge ${p.tdsRecord.status === 'CERTIFICATE_RECEIVED' ? 'badge-success' : p.tdsRecord.status === 'DEPOSITED' ? 'badge-info' : 'badge-warning'}`}>
+                      <Badge variant={p.tdsRecord.status === 'CERTIFICATE_RECEIVED' ? 'success' : p.tdsRecord.status === 'DEPOSITED' ? 'info' : 'warning'}>
                         TDS {p.tdsRecord.status.replace(/_/g, ' ')}
-                      </span>
+                      </Badge>
                     ) : '—'}
-                  </td>
-                  <td>
+                  </Td>
+                  <Td label="">
                     {p.receiptPdfUrl ? (
-                      <a href={p.receiptPdfUrl} target="_blank" rel="noreferrer" className="btn btn-ghost btn-sm">📄</a>
+                      <a href={p.receiptPdfUrl} target="_blank" rel="noreferrer" className="btn btn-ghost btn-sm">📄 Receipt</a>
                     ) : (
-                      <Link href={`/sales/${p.saleId}/payments`} className="btn btn-ghost btn-sm">View</Link>
+                      <ButtonLink href={`/sales/${p.saleId}/payments`} variant="ghost" size="sm">View</ButtonLink>
                     )}
-                  </td>
+                  </Td>
                 </tr>
               ))}
             </tbody>
-          </table>
-        </div>
+          </Table>
+        </Card>
       </div>
     </>
   )

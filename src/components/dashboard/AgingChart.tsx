@@ -1,59 +1,37 @@
 'use client'
 
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Cell } from 'recharts'
+import { Card, CardHeader } from '@/components/ui'
+import { formatRupees } from '@/lib/format'
+import { AGING_TONE_COLOR, AXIS_TICK, GRID_STROKE, TOOLTIP_CURSOR, TOOLTIP_ITEM_STYLE, TOOLTIP_LABEL_STYLE, TOOLTIP_STYLE, formatRupeesCompact, type AgingTone } from '@/lib/chart-theme'
 
-interface AgingData {
+export interface AgingData {
   label: string
   amount: number
-  count: number
-  color: string
+  tone: AgingTone
 }
 
 export default function AgingChart({ data }: { data: AgingData[] }) {
-  const formatVal = (val: number) => {
-    if (val >= 10000000) return `₹${(val / 10000000).toFixed(1)}Cr`
-    if (val >= 100000) return `₹${(val / 100000).toFixed(1)}L`
-    return `₹${(val / 1000).toFixed(0)}K`
-  }
-
   return (
-    <div className="card">
-      <div className="card-header">
-        <span className="card-title">Receivables Aging</span>
-      </div>
+    <Card>
+      <CardHeader title="Receivables Aging" />
       <ResponsiveContainer width="100%" height={240}>
         <BarChart data={data} margin={{ top: 0, right: 0, left: 0, bottom: 0 }}>
-          <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.06)" />
-          <XAxis
-            dataKey="label"
-            tick={{ fill: '#71717a', fontSize: 12 }}
-            axisLine={false}
-            tickLine={false}
-          />
-          <YAxis
-            tick={{ fill: '#71717a', fontSize: 11 }}
-            axisLine={false}
-            tickLine={false}
-            tickFormatter={formatVal}
-          />
+          <CartesianGrid strokeDasharray="3 3" stroke={GRID_STROKE} />
+          <XAxis dataKey="label" tick={AXIS_TICK} axisLine={false} tickLine={false} />
+          <YAxis tick={AXIS_TICK} axisLine={false} tickLine={false} tickFormatter={formatRupeesCompact} width={56} />
           <Tooltip
-            formatter={(val: any) => [`₹${Number(val).toLocaleString('en-IN')}`, 'Amount'] as any}
-            contentStyle={{
-              background: '#18181b',
-              border: '1px solid rgba(255,255,255,0.1)',
-              borderRadius: 8,
-              fontSize: 13,
-            }}
-            labelStyle={{ color: '#fafafa', fontWeight: 600 }}
-            itemStyle={{ color: '#a1a1aa' }}
+            formatter={(val: any) => [formatRupees(val), 'Amount'] as any}
+            cursor={TOOLTIP_CURSOR}
+            contentStyle={TOOLTIP_STYLE}
+            labelStyle={TOOLTIP_LABEL_STYLE}
+            itemStyle={TOOLTIP_ITEM_STYLE}
           />
           <Bar dataKey="amount" radius={[6, 6, 0, 0]}>
-            {data.map((entry, i) => (
-              <Cell key={i} fill={entry.color} />
-            ))}
+            {data.map((entry, i) => <Cell key={i} fill={AGING_TONE_COLOR[entry.tone]} />)}
           </Bar>
         </BarChart>
       </ResponsiveContainer>
-    </div>
+    </Card>
   )
 }

@@ -1,35 +1,41 @@
 'use client'
 
-import { useTransition } from 'react'
+import { useState } from 'react'
 import { useRouter } from 'next/navigation'
+import { Button, useConfirm, useToast } from '@/components/ui'
+import { errorMessage, fetchJson } from '@/lib/client/api'
 
 export default function DeleteTemplateButton({ projectId, templateId, isActive = false }: { projectId: string; templateId: string; isActive?: boolean }) {
-  const [isPending, startTransition] = useTransition()
+  const [busy, setBusy] = useState(false)
   const router = useRouter()
+  const confirm = useConfirm()
+  const toast = useToast()
 
-  const handleDelete = () => {
-    if (!confirm('Delete this template? This cannot be undone.')) return
-    startTransition(async () => {
-      const res = await fetch(`/api/projects/${projectId}/templates/${templateId}`, { method: 'DELETE' })
-      if (res.ok) {
-        router.refresh()
-      } else {
-        const json = await res.json().catch(() => ({}))
-        alert(json.error || 'Failed to delete template')
-      }
-    })
+  const handleDelete = async () => {
+    const ok = await confirm({ title: 'Delete this template?', message: 'This cannot be undone.', confirmLabel: 'Delete template', danger: true })
+    if (!ok) return
+    setBusy(true)
+    try {
+      await fetchJson(`/api/projects/${projectId}/templates/${templateId}`, { method: 'DELETE' })
+      toast.success('Template deleted')
+      router.refresh()
+    } catch (err) {
+      toast.error(errorMessage(err))
+    } finally {
+      setBusy(false)
+    }
   }
 
   return (
-    <button
-      type="button"
-      className="btn btn-ghost btn-sm"
-      style={{ color: 'var(--color-danger, #ef4444)', ...(isActive ? { opacity: 0.4, cursor: 'not-allowed' } : {}) }}
-      disabled={isPending || isActive}
+    <Button
+      variant="danger"
+      size="sm"
+      loading={busy}
+      disabled={isActive}
       title={isActive ? 'This template is active. Activate another version first, then delete this one.' : undefined}
       onClick={handleDelete}
     >
-      {isPending ? '...' : 'Delete'}
-    </button>
+      Delete
+    </Button>
   )
 }

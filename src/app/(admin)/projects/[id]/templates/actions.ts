@@ -3,15 +3,17 @@
 import { prisma } from '@/lib/db'
 import { auth } from '@/lib/auth'
 import { createAuditLog } from '@/lib/audit'
+import { can } from '@/lib/authz'
+import { ERROR_KINDS, notFoundMessage } from '@/lib/errors'
 import { revalidatePath } from 'next/cache'
 
 export async function activateTemplate(projectId: string, templateId: string, type: string) {
   const session = await auth()
-  if (!session?.user) throw new Error('Unauthorized')
-  if (session.user.role !== 'SUPER_ADMIN' && session.user.role !== 'ADMIN') throw new Error('Forbidden')
+  if (!session?.user) throw new Error(ERROR_KINDS.unauthorized.message)
+  if (!can(session.user.role, 'admin')) throw new Error(ERROR_KINDS.forbidden.message)
 
   const target = await prisma.template.findFirst({ where: { id: templateId, projectId, type } })
-  if (!target) throw new Error('Template not found')
+  if (!target) throw new Error(notFoundMessage('Template'))
   const previous = await prisma.template.findFirst({ where: { projectId, type, isActive: true } })
 
   await prisma.$transaction([

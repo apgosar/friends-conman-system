@@ -1,15 +1,20 @@
 import { prisma } from '@/lib/db'
 import { notFound } from 'next/navigation'
-import Link from 'next/link'
 import TopNav from '@/components/layout/TopNav'
-import { formatDate, formatCurrency } from '@/lib/template-engine'
+import { formatDate, formatCurrency, formatNumber } from '@/lib/format'
 import { auth } from '@/lib/auth'
+import { can } from '@/lib/authz'
 import DeleteSaleButton from '@/components/sales/DeleteSaleButton'
 import PaymentScheduleTable from '@/components/sales/PaymentScheduleTable'
 import RecordPaymentModal from '@/components/sales/RecordPaymentModal'
 import CommunicationLogTable from '@/components/sales/CommunicationLogTable'
 import SaleLifecycleCard from '@/components/sales/SaleLifecycleCard'
-import { saleStatusBadge, saleStatusLabel, DOCUMENT_STATUS } from '@/lib/status'
+
+import { plain } from '@/lib/plain'
+import { maskedAadhaar, maskedPan } from '@/lib/pii'
+import { isAnonymized } from '@/lib/dpdp-compliance'
+import AnonymizeBuyerButton from '@/components/sales/AnonymizeBuyerButton'
+import { Badge, ButtonLink, Card, CardHeader, PageHeader, StatusBadge } from '@/components/ui'
 
 async function getSale(id: string) {
   return prisma.sale.findUnique({
@@ -40,7 +45,7 @@ export default async function SaleDetailPage(props: PageProps<'/sales/[id]'>) {
   if (!sale) notFound()
 
   const session = await auth()
-  const isSuperAdmin = session?.user?.role === 'SUPER_ADMIN'
+  const isSuperAdmin = can(session?.user?.role, 'superadmin')
 
   const livePayments = sale.paymentSchedules.flatMap((s) => s.payments.filter((p) => !p.deletedAt))
   const principalPaid = livePayments.reduce((a, p) => a + Number(p.amount), 0)
@@ -49,6 +54,8 @@ export default async function SaleDetailPage(props: PageProps<'/sales/[id]'>) {
   const gstDue = sale.paymentSchedules.reduce((sum, s) => sum + Number(s.gstAmount ?? 0), 0)
   const totalPaid = principalPaid + gstReceived
   const totalDue = principalDue + gstDue
+  // The rate this sale was actually charged at (the project's rate may have changed since)
+  const gstRateLabel = Number(sale.agreementValue) > 0 ? `${formatNumber((Number(sale.gstAmount) / Number(sale.agreementValue)) * 100)}%` : '—'
   const paidPct = totalDue > 0 ? Math.round((totalPaid / totalDue) * 100) : 0
 
   return (
@@ -58,101 +65,86 @@ export default async function SaleDetailPage(props: PageProps<'/sales/[id]'>) {
         subtitle={`${sale.project.name} · ${sale.unit.unitNumber} · ${sale.unit.configuration}`}
       />
       <div className="admin-content">
-        {/* Header */}
-        <div className="page-header">
-          <div>
-            <div className="flex items-center gap-2 mb-1">
-              <span className={`badge ${sale.saleType === 'FRESH' ? 'badge-primary' : 'badge-orange'}`}>{sale.saleType}</span>
-              <span className={`badge ${saleStatusBadge(sale.status)}`}>{saleStatusLabel(sale.status)}</span>
-            </div>
-            <h1 className="page-title">{sale.saleNumber} — {sale.unit.unitNumber}</h1>
-            <p className="page-subtitle">
-              {sale.unit.floor.wing.name} Wing, Floor {sale.unit.floor.floorNumber} · {sale.unit.configuration} · {sale.unit.carpetAreaSqft.toString()} sqft
-            </p>
-          </div>
-          <div className="flex gap-2">
-            <Link href={`/sales/${id}/kyc`} className="btn btn-secondary">KYC</Link>
-            <Link href={`/sales/${id}/documents`} className="btn btn-secondary">Documents</Link>
-            <Link href={`/sales/${id}/payments`} className="btn btn-primary">Payments</Link>
-            {isSuperAdmin && <DeleteSaleButton saleId={id} />}
-          </div>
-        </div>
+        <PageHeader
+          eyebrow={
+            <>
+              <Badge variant={sale.saleType === 'FRESH' ? 'primary' : 'orange'}>{sale.saleType}</Badge>
+              <StatusBadge kind="sale" status={sale.status} />
+            </>
+          }
+          title={`${sale.saleNumber} — ${sale.unit.unitNumber}`}
+          subtitle={`${sale.unit.floor.wing.name} Wing, Floor ${sale.unit.floor.floorNumber} · ${sale.unit.configuration} · ${sale.unit.carpetAreaSqft.toString()} sqft`}
+          actions={
+            <>
+              <ButtonLink href={`/sales/${id}/kyc`}>KYC</ButtonLink>
+              <ButtonLink href={`/sales/${id}/documents`}>Documents</ButtonLink>
+              <ButtonLink href={`/sales/${id}/payments`} variant="primary">Payments</ButtonLink>
+              {isSuperAdmin && <DeleteSaleButton saleId={id} />}
+            </>
+          }
+        />
 
-        {/* Buyers */}
-        <div className="card mb-6">
-          <div className="card-header">
-            <span className="card-title">Buyers ({sale.buyers.length})</span>
-          </div>
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))', gap: 16 }}>
+        <Card className="mb-6">
+          <CardHeader title={`Buyers (${sale.buyers.length})`} />
+          <div className="grid grid-auto gap-4">
             {sale.buyers.map((buyer) => (
-              <div key={buyer.id} style={{ padding: '14px', background: 'var(--bg-input)', borderRadius: 'var(--radius-md)', border: '1px solid var(--border-color)' }}>
-                <div className="flex items-center justify-between mb-2">
-                  <div style={{ fontWeight: 600, fontSize: '0.9375rem' }}>{buyer.fullName}</div>
-                  <div style={{ display: 'flex', gap: 6 }}>
-                    {buyer.isPrimary && <span className="badge badge-primary">Primary</span>}
-                    {buyer.receiveComms && <span className="badge badge-success">Comms On</span>}
+              <div key={buyer.id} className="detail-tile">
+                <div className="flex items-center justify-between gap-2 mb-2">
+                  <div className="font-semibold">{buyer.fullName}</div>
+                  <div className="flex gap-2">
+                    {buyer.isPrimary && <Badge variant="primary">Primary</Badge>}
+                    {buyer.receiveComms && <Badge variant="success">Comms On</Badge>}
                   </div>
                 </div>
-                <div style={{ fontSize: '0.8125rem', color: 'var(--text-muted)' }}>
+                <div className="text-sm text-muted">
                   {buyer.email && <div>✉ {buyer.email}</div>}
                   {buyer.whatsappNumber && <div>📱 {buyer.whatsappNumber}</div>}
-                  {buyer.panNumber && <div>PAN: {buyer.panNumber}</div>}
-                  {buyer.aadhaarNumber && <div>Aadhaar: {buyer.aadhaarNumber}</div>}
+                  {buyer.panNumber && <div>PAN: {maskedPan(buyer.panNumber)}</div>}
+                  {buyer.aadhaarNumber && <div>Aadhaar: {maskedAadhaar(buyer.aadhaarNumber)}</div>}
                 </div>
+                {isSuperAdmin && !isAnonymized(buyer.fullName) && <div className="mt-2"><AnonymizeBuyerButton buyerId={buyer.id} buyerName={buyer.fullName} /></div>}
               </div>
             ))}
           </div>
-        </div>
+        </Card>
 
-        {/* Sale Info */}
-        <div className="grid gap-6 mb-6" style={{ gridTemplateColumns: '1fr 1fr' }}>
-          <div className="card">
-            <div className="card-header"><span className="card-title">Sale Details</span></div>
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+        <div className="grid grid-2 gap-6 mb-6">
+          <Card>
+            <CardHeader title="Sale Details" />
+            <div className="kv-list">
               {[
                 ['Agreement Value', formatCurrency(Number(sale.agreementValue))],
-                ['GST (5%)', formatCurrency(Number(sale.gstAmount))],
+                [`GST (${gstRateLabel})`, formatCurrency(Number(sale.gstAmount))],
                 ['Stamp Duty', sale.stampDuty ? formatCurrency(Number(sale.stampDuty)) : '—'],
                 ['Reg. Charges', sale.registrationCharges ? formatCurrency(Number(sale.registrationCharges)) : '—'],
                 ['Booking Date', formatDate(sale.bookingDate)],
                 ['Agreement Date', sale.agreementDate ? formatDate(sale.agreementDate) : 'Pending'],
                 ['Handover Date', sale.possessionDate ? formatDate(sale.possessionDate) : 'Pending'],
               ].map(([label, value]) => (
-                <div key={label} className="flex justify-between">
-                  <span style={{ color: 'var(--text-muted)', fontSize: '0.875rem' }}>{label}</span>
-                  <span style={{ fontWeight: 500, fontSize: '0.875rem' }}>{value}</span>
-                </div>
+                <div key={label} className="kv-row"><span className="kv-label">{label}</span><span className="kv-value">{value}</span></div>
               ))}
             </div>
-          </div>
+          </Card>
 
-          <div className="card">
-            <div className="card-header"><span className="card-title">Payment Summary</span></div>
-            <div style={{ marginBottom: 16 }}>
-              <div className="flex justify-between mb-2">
-                <span className="text-sm">Total Collected</span>
-                <span style={{ fontWeight: 700, color: 'var(--color-success)' }}>{formatCurrency(totalPaid)}</span>
-              </div>
-              <div className="flex justify-between mb-2">
-                <span className="text-sm">Total Due</span>
-                <span style={{ fontWeight: 500 }}>{formatCurrency(totalDue)}</span>
-              </div>
-              <div className="flex justify-between mb-2" style={{ fontSize: '0.8125rem', color: 'var(--text-muted)' }}>
+          <Card>
+            <CardHeader title="Payment Summary" />
+            <div className="kv-list mb-3">
+              <div className="kv-row"><span>Total Collected</span><span className="kv-value text-success">{formatCurrency(totalPaid)}</span></div>
+              <div className="kv-row"><span>Total Due</span><span className="kv-value">{formatCurrency(totalDue)}</span></div>
+              <div className="kv-row text-sm text-muted wrap">
                 <span>Principal: {formatCurrency(principalPaid)} / {formatCurrency(principalDue)}</span>
                 <span>GST: {formatCurrency(gstReceived)} / {formatCurrency(gstDue)}</span>
               </div>
-              <div className="flex justify-between mb-3">
-                <span className="text-sm">Outstanding</span>
-                <span style={{ fontWeight: 700, color: totalDue - totalPaid > 0 ? 'var(--color-danger)' : 'var(--color-success)' }}>
-                  {formatCurrency(Math.max(0, totalDue - totalPaid))}
-                </span>
+              <div className="kv-row">
+                <span>Outstanding</span>
+                <span className={`kv-value ${totalDue - totalPaid > 0 ? 'text-danger' : 'text-success'}`}>{formatCurrency(Math.max(0, totalDue - totalPaid))}</span>
               </div>
-              <div className="progress-bar">
-                <div className="progress-fill" style={{ width: `${paidPct}%` }} />
-              </div>
-              <div style={{ textAlign: 'right', fontSize: '0.8125rem', color: 'var(--text-muted)', marginTop: 4 }}>{paidPct}% paid</div>
             </div>
-          </div>
+            <div className="progress-bar" role="progressbar" aria-valuenow={paidPct} aria-valuemin={0} aria-valuemax={100} aria-label="Share of the total paid">
+              <div className="progress-fill" style={{ width: `${Math.min(100, paidPct)}%` }} />
+            </div>
+            <div className="text-right text-sm text-muted mt-1">{paidPct}% paid</div>
+          </Card>
         </div>
 
         {/* Lifecycle */}
@@ -161,13 +153,12 @@ export default async function SaleDetailPage(props: PageProps<'/sales/[id]'>) {
           status={sale.status}
           agreementDate={sale.agreementDate ? sale.agreementDate.toISOString() : null}
           possessionDate={sale.possessionDate ? sale.possessionDate.toISOString() : null}
-          canEdit={['SUPER_ADMIN', 'ADMIN'].includes(session?.user?.role as string)}
+          canEdit={can(session?.user?.role, 'admin')}
         />
 
-        {/* Redevelopment Tenant Info */}
         {sale.tenant && (
-          <div className="card mb-6">
-            <div className="card-header"><span className="card-title">Redevelopment Details</span></div>
+          <Card className="mb-6">
+            <CardHeader title="Redevelopment Details" />
             <div className="grid grid-4 gap-4">
               {[
                 ['Old Flat #', sale.tenant.oldFlatNumber],
@@ -175,62 +166,44 @@ export default async function SaleDetailPage(props: PageProps<'/sales/[id]'>) {
                 ['New Flat #', sale.unit.unitNumber],
                 ['Extra Area', `${sale.tenant.extraAreaSqft} sqft`],
               ].map(([label, value]) => (
-                <div key={label} className="card" style={{ padding: '12px' }}>
-                  <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>{label}</div>
-                  <div style={{ fontWeight: 700, marginTop: 4 }}>{value}</div>
+                <div key={label} className="detail-tile">
+                  <div className="label-caps">{label}</div>
+                  <div className="font-bold mt-1">{value}</div>
                 </div>
               ))}
             </div>
-          </div>
+          </Card>
         )}
 
-        {/* Payment Schedules */}
-        <div className="card mb-6">
-          <div className="card-header">
-            <span className="card-title">Payment Schedule</span>
-            <RecordPaymentModal schedules={sale.paymentSchedules} saleId={id} />
-          </div>
-          <PaymentScheduleTable schedules={sale.paymentSchedules} />
-        </div>
+        <Card className="mb-6">
+          <CardHeader title="Payment Schedule" actions={<RecordPaymentModal schedules={plain(sale.paymentSchedules)} saleId={id} />} />
+          <PaymentScheduleTable schedules={plain(sale.paymentSchedules)} />
+        </Card>
 
-        {/* Documents */}
         {sale.documents.length > 0 && (
-          <div className="card mb-6">
-            <div className="card-header">
-              <span className="card-title">Documents ({sale.documents.length})</span>
-              <Link href={`/sales/${id}/documents`} className="btn btn-ghost btn-sm">Manage</Link>
-            </div>
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+          <Card className="mb-6">
+            <CardHeader title={`Documents (${sale.documents.length})`} actions={<ButtonLink href={`/sales/${id}/documents`} variant="ghost" size="sm">Manage</ButtonLink>} />
+            <div className="flex dir-col gap-2">
               {sale.documents.map((doc) => (
-                <div key={doc.id} className="flex items-center justify-between" style={{ padding: '10px 12px', background: 'var(--bg-input)', borderRadius: 'var(--radius-md)' }}>
-                  <div>
-                    <span style={{ fontWeight: 500, fontSize: '0.875rem' }}>{doc.type.replace(/_/g, ' ')}</span>
-                    <span className={`badge ${DOCUMENT_STATUS[doc.status]?.badge ?? 'badge-muted'} ml-auto`} style={{ marginLeft: 8 }}>{DOCUMENT_STATUS[doc.status]?.label ?? doc.status}</span>
+                <div key={doc.id} className="detail-tile flex items-center justify-between gap-3 wrap">
+                  <div className="flex items-center gap-2 wrap">
+                    <span className="font-medium text-base">{doc.type.replace(/_/g, ' ')}</span>
+                    <StatusBadge kind="document" status={doc.status} />
                   </div>
                   {doc.pdfUrl && (
-                    <a
-                      href={`/documents/preview?url=${encodeURIComponent(doc.pdfUrl)}`}
-                      target="_blank"
-                      rel="noreferrer"
-                      className="btn btn-ghost btn-sm"
-                    >
-                      👁 Preview
-                    </a>
+                    <a href={`/documents/preview?url=${encodeURIComponent(doc.pdfUrl)}`} target="_blank" rel="noreferrer" className="btn btn-ghost btn-sm">👁 Preview</a>
                   )}
                 </div>
               ))}
             </div>
-          </div>
+          </Card>
         )}
 
-        {/* Communication Log */}
         {sale.communicationLogs.length > 0 && (
-          <div className="card">
-            <div className="card-header">
-              <span className="card-title">Communication Log</span>
-            </div>
-            <CommunicationLogTable logs={sale.communicationLogs} />
-          </div>
+          <Card>
+            <CardHeader title="Communication Log" />
+            <CommunicationLogTable logs={plain(sale.communicationLogs)} />
+          </Card>
         )}
       </div>
     </>

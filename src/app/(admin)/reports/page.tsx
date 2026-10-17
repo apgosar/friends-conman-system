@@ -5,58 +5,29 @@ import TopNav from '@/components/layout/TopNav'
 import { UNIT_COLORS, unitStatusLabel } from '@/lib/status'
 import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
-  PieChart, Pie, Cell, LineChart, Line, Legend, AreaChart, Area,
+  PieChart, Pie, Cell, Legend, AreaChart, Area,
 } from 'recharts'
+import { Alert, Button, Card, EmptyRow, PageHeader, Spinner, StatCard, Table, Tabs, useToast } from '@/components/ui'
+import { formatDate } from '@/lib/format'
+import { errorMessage, fetchJson } from '@/lib/client/api'
+import { AXIS_TICK, CHART_COLORS as COLORS, GRID_STROKE, TOOLTIP_CURSOR, TOOLTIP_LABEL_STYLE, TOOLTIP_STYLE, AGING_TONE_COLOR, formatRupeesCompact } from '@/lib/chart-theme'
 
-// ─── Colour palette ────────────────────────────────────────────────────────────
-const COLORS = ['#6366f1', '#10b981', '#f59e0b', '#ef4444', '#3b82f6', '#ec4899', '#8b5cf6']
-// ─── Helpers ───────────────────────────────────────────────────────────────────
-function fmt(val: number): string {
-  if (val >= 10000000) return `₹${(val / 10000000).toFixed(2)}Cr`
-  if (val >= 100000)   return `₹${(val / 100000).toFixed(2)}L`
-  if (val >= 1000)     return `₹${(val / 1000).toFixed(1)}K`
-  return `₹${val.toLocaleString('en-IN')}`
-}
-
-const TOOLTIP_STYLE = {
-  background: '#18181b',
-  border: '1px solid rgba(255,255,255,0.1)',
-  borderRadius: 8,
-  fontSize: 13,
-}
-
-// ─── Sub-components ───────────────────────────────────────────────────────────
-function KpiCard({ icon, label, value, sub, color = 'var(--color-primary)' }: { icon: string; label: string; value: string; sub?: string; color?: string }) {
-  return (
-    <div className="stat-card" style={{ background: 'var(--bg-card)', border: '1px solid var(--border-color)', borderRadius: 12, padding: '20px 24px' }}>
-      <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 12 }}>
-        <div style={{ width: 40, height: 40, borderRadius: 10, background: `${color}20`, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '1.25rem' }}>{icon}</div>
-        <span style={{ fontSize: '0.8125rem', color: 'var(--text-muted)', fontWeight: 500 }}>{label}</span>
-      </div>
-      <div style={{ fontSize: '1.75rem', fontWeight: 700, color: 'var(--text-primary)' }}>{value}</div>
-      {sub && <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', marginTop: 4 }}>{sub}</div>}
-    </div>
-  )
-}
+const fmt = formatRupeesCompact
 
 function SectionTitle({ children }: { children: React.ReactNode }) {
   return (
-    <div style={{ display: 'flex', alignItems: 'center', gap: 10, margin: '32px 0 16px' }}>
-      <div style={{ flex: 1, height: 1, background: 'var(--border-color)' }} />
-      <h2 style={{ fontSize: '0.75rem', fontWeight: 600, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.08em', whiteSpace: 'nowrap', margin: 0 }}>{children}</h2>
-      <div style={{ flex: 1, height: 1, background: 'var(--border-color)' }} />
+    <div className="section-divider">
+      <h2 className="section-divider-title">{children}</h2>
     </div>
   )
 }
 
 function ChartCard({ title, children }: { title: string; children: React.ReactNode }) {
   return (
-    <div className="card" style={{ padding: 0 }}>
-      <div className="card-header" style={{ padding: '16px 20px', borderBottom: '1px solid var(--border-color)' }}>
-        <span className="card-title" style={{ fontSize: '0.875rem', fontWeight: 600 }}>{title}</span>
-      </div>
-      <div style={{ padding: '16px 8px 8px' }}>{children}</div>
-    </div>
+    <Card flush>
+      <div className="p-4 border-bottom"><h3 className="card-title m-0">{title}</h3></div>
+      <div className="chart-body">{children}</div>
+    </Card>
   )
 }
 
@@ -80,24 +51,33 @@ export default function ReportsPage() {
   const [activeTab, setActiveTab] = useState<'sales' | 'inventory' | 'collections'>('sales')
   const [exportLoading, setExportLoading] = useState<string | null>(null)
 
+  const toast = useToast()
+  const [now] = useState(() => Date.now()) // fixed per visit, so rendering stays pure
+  const [loadError, setLoadError] = useState('')
+
   useEffect(() => {
-    fetch('/api/reports/analytics')
-      .then(r => r.json())
-      .then(d => { setData(d); setLoading(false) })
-      .catch(() => setLoading(false))
+    fetchJson('/api/reports/analytics')
+      .then(setData)
+      .catch((err) => setLoadError(errorMessage(err)))
+      .finally(() => setLoading(false))
   }, [])
 
   async function handleExport(type: string) {
     setExportLoading(type)
-    const res = await fetch(`/api/reports/export?type=${type}`)
-    const blob = await res.blob()
-    const url  = URL.createObjectURL(blob)
-    const a    = document.createElement('a')
-    a.href = url
-    a.download = `${type}_export_${new Date().toISOString().slice(0,10)}.csv`
-    a.click()
-    URL.revokeObjectURL(url)
-    setExportLoading(null)
+    try {
+      const res = await fetch(`/api/reports/export?type=${type}`)
+      if (!res.ok) throw new Error((await res.json().catch(() => ({}))).error || 'Could not export. Try again')
+      const url = URL.createObjectURL(await res.blob())
+      const a = document.createElement('a')
+      a.href = url
+      a.download = `${type}_export_${new Date().toISOString().slice(0, 10)}.csv`
+      a.click()
+      URL.revokeObjectURL(url)
+    } catch (err) {
+      toast.error(errorMessage(err))
+    } finally {
+      setExportLoading(null)
+    }
   }
 
   if (loading) {
@@ -105,9 +85,7 @@ export default function ReportsPage() {
       <>
         <TopNav title="Reports & Analytics" subtitle="Business intelligence and insights" />
         <div className="admin-content">
-          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: 400, color: 'var(--text-muted)', fontSize: '1rem' }}>
-            Loading analytics…
-          </div>
+          <div className="flex items-center justify-center gap-3 text-muted py-10"><Spinner /> Loading analytics…</div>
         </div>
       </>
     )
@@ -119,57 +97,36 @@ export default function ReportsPage() {
     <>
       <TopNav title="Reports & Analytics" subtitle="Business intelligence and insights" />
       <div className="admin-content">
-        <div className="page-header">
-          <div>
-            <h1 className="page-title">Reports</h1>
-            <p className="page-subtitle">Real-time analytics across your entire portfolio</p>
-          </div>
-          {/* Export buttons */}
-          <div style={{ display: 'flex', gap: 8 }}>
-            <button onClick={() => handleExport('sales')} disabled={!!exportLoading} className="btn btn-secondary" style={{ fontSize: '0.8125rem' }}>
-              {exportLoading === 'sales' ? 'Downloading…' : '⬇ Sales Book'}
-            </button>
-            <button onClick={() => handleExport('payments')} disabled={!!exportLoading} className="btn btn-secondary" style={{ fontSize: '0.8125rem' }}>
-              {exportLoading === 'payments' ? 'Downloading…' : '⬇ Payment Ledger'}
-            </button>
-            <button onClick={() => handleExport('inventory')} disabled={!!exportLoading} className="btn btn-secondary" style={{ fontSize: '0.8125rem' }}>
-              {exportLoading === 'inventory' ? 'Downloading…' : '⬇ Inventory List'}
-            </button>
-          </div>
-        </div>
-
-        {/* KPI Strip */}
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(200px, 1fr))', gap: 16, marginBottom: 8 }}>
-          <KpiCard icon="📋" label="Total Sales" value={String(kpis?.totalSalesCount ?? 0)} sub={`${fmt(kpis?.totalSalesValue ?? 0)} total value`} color="#6366f1" />
-          <KpiCard icon="🏢" label="Units Sold" value={`${kpis?.soldUnits ?? 0} / ${kpis?.totalUnits ?? 0}`} sub={`${kpis?.totalUnits ? Math.round(((kpis.soldUnits ?? 0) / kpis.totalUnits) * 100) : 0}% sell-through`} color="#10b981" />
-          <KpiCard icon="💰" label="Total Collected" value={fmt(kpis?.totalCollected ?? 0)} color="#3b82f6" />
-          <KpiCard icon="🏦" label="Unsold Value" value={fmt(kpis?.unsoldInventoryValue ?? 0)} sub="Available inventory" color="#f59e0b" />
-          <KpiCard icon="⚠️" label="Overdue" value={fmt(kpis?.overdueAmount ?? 0)} sub="Past due schedules" color="#ef4444" />
-        </div>
-
-        {/* Tabs */}
-        <div style={{ display: 'flex', gap: 4, borderBottom: '1px solid var(--border-color)', marginBottom: 24, marginTop: 24 }}>
-          {(['sales', 'inventory', 'collections'] as const).map(tab => (
-            <button
-              key={tab}
-              onClick={() => setActiveTab(tab)}
-              style={{
-                padding: '10px 20px',
-                fontSize: '0.875rem',
-                fontWeight: 500,
-                background: 'none',
-                border: 'none',
-                borderBottom: activeTab === tab ? '2px solid var(--color-primary)' : '2px solid transparent',
-                color: activeTab === tab ? 'var(--color-primary)' : 'var(--text-muted)',
-                cursor: 'pointer',
-                textTransform: 'capitalize',
-                transition: 'all 0.15s',
-              }}
-            >
-              {tab === 'sales' ? '📈 Sales & Revenue' : tab === 'inventory' ? '🏢 Inventory' : '💰 Collections'}
-            </button>
+        <PageHeader
+          title="Reports"
+          subtitle="Real-time analytics across your entire portfolio"
+          actions={(['sales', 'payments', 'inventory'] as const).map((type) => (
+            <Button key={type} size="sm" loading={exportLoading === type} disabled={!!exportLoading} onClick={() => handleExport(type)}>
+              {exportLoading === type ? 'Downloading…' : { sales: '⬇ Sales Book', payments: '⬇ Payment Ledger', inventory: '⬇ Inventory List' }[type]}
+            </Button>
           ))}
+        />
+
+        {loadError && <Alert variant="danger" className="mb-4">{loadError}</Alert>}
+
+        <div className="grid grid-auto gap-4 mb-6">
+          <StatCard icon="📋" label="Total Sales" value={String(kpis?.totalSalesCount ?? 0)} note={`${fmt(kpis?.totalSalesValue ?? 0)} total value`} accent="var(--chart-1)" />
+          <StatCard icon="🏢" label="Units Sold" value={`${kpis?.soldUnits ?? 0} / ${kpis?.totalUnits ?? 0}`} note={`${kpis?.totalUnits ? Math.round(((kpis.soldUnits ?? 0) / kpis.totalUnits) * 100) : 0}% sell-through`} accent="var(--chart-2)" />
+          <StatCard icon="💰" label="Total Collected" value={fmt(kpis?.totalCollected ?? 0)} accent="var(--chart-5)" />
+          <StatCard icon="🏦" label="Unsold Value" value={fmt(kpis?.unsoldInventoryValue ?? 0)} note="Available inventory" accent="var(--chart-3)" />
+          <StatCard icon="⚠️" label="Overdue" value={fmt(kpis?.overdueAmount ?? 0)} note="Past due schedules" accent="var(--chart-4)" />
         </div>
+
+        <Tabs
+          label="Report sections"
+          active={activeTab}
+          onChange={setActiveTab}
+          items={[
+            { id: 'sales', label: '📈 Sales & Revenue' },
+            { id: 'inventory', label: '🏢 Inventory' },
+            { id: 'collections', label: '💰 Collections' },
+          ]}
+        />
 
         {/* ─── Sales Tab ─────────────────────────────────────────────────────── */}
         {activeTab === 'sales' && (
@@ -180,27 +137,28 @@ export default function ReportsPage() {
                 <AreaChart data={monthlySales} margin={{ top: 4, right: 20, left: 0, bottom: 0 }}>
                   <defs>
                     <linearGradient id="revGrad" x1="0" y1="0" x2="0" y2="1">
-                      <stop offset="5%" stopColor="#6366f1" stopOpacity={0.3} />
-                      <stop offset="95%" stopColor="#6366f1" stopOpacity={0} />
+                      <stop offset="5%" stopColor="var(--chart-1)" stopOpacity={0.3} />
+                      <stop offset="95%" stopColor="var(--chart-1)" stopOpacity={0} />
                     </linearGradient>
                   </defs>
-                  <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.06)" />
-                  <XAxis dataKey="month" tick={{ fill: '#71717a', fontSize: 11 }} axisLine={false} tickLine={false} />
-                  <YAxis yAxisId="left" orientation="left" tick={{ fill: '#71717a', fontSize: 11 }} axisLine={false} tickLine={false} tickFormatter={v => String(v)} />
-                  <YAxis yAxisId="right" orientation="right" tick={{ fill: '#71717a', fontSize: 11 }} axisLine={false} tickLine={false} tickFormatter={fmt} />
+                  <CartesianGrid strokeDasharray="3 3" stroke={GRID_STROKE} />
+                  <XAxis dataKey="month" tick={AXIS_TICK} axisLine={false} tickLine={false} />
+                  <YAxis yAxisId="left" orientation="left" tick={AXIS_TICK} axisLine={false} tickLine={false} tickFormatter={v => String(v)} />
+                  <YAxis yAxisId="right" orientation="right" tick={AXIS_TICK} axisLine={false} tickLine={false} tickFormatter={fmt} />
                   <Tooltip
+                    cursor={TOOLTIP_CURSOR}
                     contentStyle={TOOLTIP_STYLE}
-                    labelStyle={{ color: '#fafafa', fontWeight: 600 }}
+                    labelStyle={TOOLTIP_LABEL_STYLE}
                   formatter={(val: any) => [fmt(val), 'Revenue']}
                   />
-                  <Legend wrapperStyle={{ fontSize: 12, color: '#71717a' }} />
-                  <Bar yAxisId="left" dataKey="count" fill="#6366f1" name="Units Sold" radius={[4, 4, 0, 0]} opacity={0.9} />
-                  <Area yAxisId="right" type="monotone" dataKey="revenue" stroke="#10b981" strokeWidth={2} fill="url(#revGrad)" name="revenue" dot={false} />
+                  <Legend />
+                  <Bar yAxisId="left" dataKey="count" fill="var(--chart-1)" name="Units Sold" radius={[4, 4, 0, 0]} opacity={0.9} />
+                  <Area yAxisId="right" type="monotone" dataKey="revenue" stroke="var(--chart-2)" strokeWidth={2} fill="url(#revGrad)" name="revenue" dot={false} />
                 </AreaChart>
               </ResponsiveContainer>
             </ChartCard>
 
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16, marginTop: 16 }}>
+            <div className="grid grid-2 gap-4 mt-4">
               <ChartCard title="Sales by Project">
                 {salesByProject?.length > 0 ? (
                   <ResponsiveContainer width="100%" height={240}>
@@ -218,11 +176,11 @@ export default function ReportsPage() {
                 {salesByConfig?.length > 0 ? (
                   <ResponsiveContainer width="100%" height={240}>
                     <BarChart data={salesByConfig} layout="vertical" margin={{ top: 0, right: 20, left: 20, bottom: 0 }}>
-                      <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.06)" horizontal={false} />
-                      <XAxis type="number" tick={{ fill: '#71717a', fontSize: 11 }} axisLine={false} tickLine={false} />
-                      <YAxis type="category" dataKey="config" tick={{ fill: '#71717a', fontSize: 11 }} axisLine={false} tickLine={false} width={60} />
-                      <Tooltip contentStyle={TOOLTIP_STYLE} formatter={(val: any) => [val, 'Units Sold']} />
-                      <Bar dataKey="count" fill="#6366f1" radius={[0, 6, 6, 0]}>
+                      <CartesianGrid strokeDasharray="3 3" stroke={GRID_STROKE} horizontal={false} />
+                      <XAxis type="number" tick={AXIS_TICK} axisLine={false} tickLine={false} />
+                      <YAxis type="category" dataKey="config" tick={AXIS_TICK} axisLine={false} tickLine={false} width={60} />
+                      <Tooltip cursor={TOOLTIP_CURSOR} contentStyle={TOOLTIP_STYLE} formatter={(val: any) => [val, 'Units Sold']} />
+                      <Bar dataKey="count" fill="var(--chart-1)" radius={[0, 6, 6, 0]}>
                         {salesByConfig.map((_: any, i: number) => <Cell key={i} fill={COLORS[i % COLORS.length]} />)}
                       </Bar>
                     </BarChart>
@@ -237,13 +195,13 @@ export default function ReportsPage() {
         {activeTab === 'inventory' && (
           <>
             <SectionTitle>Portfolio Inventory Status</SectionTitle>
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16 }}>
+            <div className="grid grid-2 gap-4">
               <ChartCard title="Unit Status Breakdown">
                 {inventoryStatus?.length > 0 ? (
                   <ResponsiveContainer width="100%" height={280}>
                     <PieChart>
                       <Pie data={inventoryStatus} dataKey="value" nameKey="name" cx="50%" cy="50%" innerRadius={60} outerRadius={100} paddingAngle={3} labelLine={false} label={<CustomPieLabel />}>
-                        {inventoryStatus.map((d: any, i: number) => <Cell key={i} fill={UNIT_COLORS[d.name]?.hex ?? COLORS[i]} />)}
+                        {inventoryStatus.map((d: any, i: number) => <Cell key={i} fill={UNIT_COLORS[d.name]?.hex ?? COLORS[i % COLORS.length]} />)}
                       </Pie>
                       <Tooltip contentStyle={TOOLTIP_STYLE} formatter={(val: any) => [val, 'Units']} />
                     </PieChart>
@@ -251,22 +209,22 @@ export default function ReportsPage() {
                 ) : <EmptyState />}
               </ChartCard>
 
-              <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+              <div className="flex dir-col gap-3">
                 {inventoryStatus?.map((d: any) => {
                   const total = inventoryStatus.reduce((s: number, x: any) => s + x.value, 0)
                   const pct = total ? Math.round((d.value / total) * 100) : 0
                   const color = UNIT_COLORS[d.name]?.hex ?? COLORS[0]
                   return (
-                    <div key={d.name} className="card" style={{ padding: '16px 20px' }}>
-                      <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 8 }}>
-                        <span style={{ fontWeight: 600, fontSize: '0.875rem' }}>{unitStatusLabel(d.name)}</span>
-                        <span style={{ fontWeight: 700, color }}>{d.value} units</span>
+                    <Card key={d.name}>
+                      <div className="flex justify-between mb-2">
+                        <span className="font-semibold text-base">{unitStatusLabel(d.name)}</span>
+                        <span className="font-bold" style={{ color }}>{d.value} units</span>
                       </div>
-                      <div style={{ height: 6, background: 'var(--bg-surface)', borderRadius: 3, overflow: 'hidden' }}>
-                        <div style={{ height: '100%', width: `${pct}%`, background: color, borderRadius: 3, transition: 'width 0.6s ease' }} />
+                      <div className="meter" role="progressbar" aria-valuenow={pct} aria-valuemin={0} aria-valuemax={100} aria-label={`${unitStatusLabel(d.name)} share of inventory`}>
+                        <div className="meter-fill" style={{ width: `${pct}%`, background: color }} />
                       </div>
-                      <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', marginTop: 4 }}>{pct}% of total inventory</div>
-                    </div>
+                      <div className="text-xs text-muted mt-1">{pct}% of total inventory</div>
+                    </Card>
                   )
                 })}
               </div>
@@ -278,16 +236,16 @@ export default function ReportsPage() {
         {activeTab === 'collections' && (
           <>
             <SectionTitle>Receivables Aging Analysis</SectionTitle>
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16 }}>
+            <div className="grid grid-2 gap-4">
               <ChartCard title="Overdue Amounts by Age Bucket">
                 <ResponsiveContainer width="100%" height={260}>
                   <BarChart data={aging} margin={{ top: 4, right: 16, left: 0, bottom: 0 }}>
-                    <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.06)" />
-                    <XAxis dataKey="label" tick={{ fill: '#71717a', fontSize: 11 }} axisLine={false} tickLine={false} />
-                    <YAxis tick={{ fill: '#71717a', fontSize: 11 }} axisLine={false} tickLine={false} tickFormatter={fmt} />
-                    <Tooltip contentStyle={TOOLTIP_STYLE} formatter={(val: any) => [fmt(val), 'Overdue']} />
+                    <CartesianGrid strokeDasharray="3 3" stroke={GRID_STROKE} />
+                    <XAxis dataKey="label" tick={AXIS_TICK} axisLine={false} tickLine={false} />
+                    <YAxis tick={AXIS_TICK} axisLine={false} tickLine={false} tickFormatter={fmt} />
+                    <Tooltip cursor={TOOLTIP_CURSOR} contentStyle={TOOLTIP_STYLE} formatter={(val: any) => [fmt(val), 'Overdue']} />
                     <Bar dataKey="amount" radius={[6, 6, 0, 0]}>
-                      {aging?.map((d: any, i: number) => <Cell key={i} fill={d.color} />)}
+                      {aging?.map((d: any, i: number) => <Cell key={i} fill={AGING_TONE_COLOR[d.tone as keyof typeof AGING_TONE_COLOR]} />)}
                     </Bar>
                   </BarChart>
                 </ResponsiveContainer>
@@ -308,40 +266,32 @@ export default function ReportsPage() {
             </div>
 
             <SectionTitle>Upcoming Receivables — Next 90 Days</SectionTitle>
-            <div className="card" style={{ padding: 0 }}>
-              <div className="table-wrapper" style={{ border: 'none', margin: 0 }}>
-                <table>
-                  <thead>
-                    <tr>
-                      <th>Due Date</th>
-                      <th>Milestone / Description</th>
-                      <th style={{ textAlign: 'right' }}>Expected Amount</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {upcomingReceivables?.length === 0 ? (
-                      <tr><td colSpan={3} style={{ textAlign: 'center', padding: 32, color: 'var(--text-muted)' }}>No upcoming receivables in the next 90 days</td></tr>
-                    ) : upcomingReceivables?.map((u: any, i: number) => {
-                      const days = Math.ceil((new Date(u.dueDate).getTime() - Date.now()) / 86400000)
-                      return (
-                        <tr key={i} className="hover-row">
-                          <td style={{ whiteSpace: 'nowrap' }}>
-                            <div style={{ fontWeight: 500 }}>{new Date(u.dueDate).toLocaleDateString('en-IN')}</div>
-                            <div style={{ fontSize: '0.75rem', color: days <= 7 ? 'var(--color-warning)' : 'var(--text-muted)' }}>
-                              {days <= 0 ? 'Due today' : `In ${days} day${days === 1 ? '' : 's'}`}
-                            </div>
-                          </td>
-                          <td>{u.description ?? '—'}</td>
-                          <td style={{ textAlign: 'right', fontWeight: 600, color: 'var(--color-success)' }}>
-                            {fmt(u.amount)}
-                          </td>
-                        </tr>
-                      )
-                    })}
-                  </tbody>
-                </table>
-              </div>
-            </div>
+            <Card flush>
+              <Table flush>
+                <thead>
+                  <tr><th>Due Date</th><th>Milestone / Description</th><th className="text-right">Expected Amount</th></tr>
+                </thead>
+                <tbody>
+                  {!upcomingReceivables?.length ? (
+                    <EmptyRow colSpan={3}>No upcoming receivables in the next 90 days</EmptyRow>
+                  ) : upcomingReceivables.map((u: any, i: number) => {
+                    const days = Math.ceil((new Date(u.dueDate).getTime() - now) / 86400000)
+                    return (
+                      <tr key={i}>
+                        <td className="nowrap">
+                          <div className="font-medium">{formatDate(u.dueDate)}</div>
+                          <div className={`text-xs ${days <= 7 ? 'text-warning' : 'text-muted'}`}>
+                            {days <= 0 ? 'Due today' : `In ${days} day${days === 1 ? '' : 's'}`}
+                          </div>
+                        </td>
+                        <td>{u.description ?? '—'}</td>
+                        <td className="text-right font-semibold text-success">{fmt(u.amount)}</td>
+                      </tr>
+                    )
+                  })}
+                </tbody>
+              </Table>
+            </Card>
           </>
         )}
       </div>
@@ -350,9 +300,5 @@ export default function ReportsPage() {
 }
 
 function EmptyState() {
-  return (
-    <div style={{ height: 240, display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--text-muted)', fontSize: '0.875rem' }}>
-      No data available yet
-    </div>
-  )
+  return <div className="chart-empty">No data available yet</div>
 }

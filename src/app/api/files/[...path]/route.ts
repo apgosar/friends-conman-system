@@ -1,18 +1,18 @@
+import { logger } from '@/lib/logger'
+import { apiError } from '@/lib/api-error'
 import { NextRequest, NextResponse } from 'next/server'
-import { auth } from '@/lib/auth'
+import { requireRole } from '@/lib/guard'
 import { downloadFile } from '@/lib/storage'
 import path from 'path'
 
 export async function GET(req: NextRequest, props: { params: Promise<{ path: string[] }> }) {
-  const session = await auth()
-  if (!session?.user) {
-    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
-  }
+  const guard = await requireRole('staff')
+  if ('error' in guard) return guard.error
 
   const { path: pathArray } = await props.params
   
   if (!pathArray || pathArray.length === 0) {
-    return NextResponse.json({ error: 'Invalid file path' }, { status: 400 })
+    return apiError('invalid', 'Invalid file path')
   }
 
   // Decode URI component because storage helper encodeURIComponent'ed the key
@@ -41,9 +41,9 @@ export async function GET(req: NextRequest, props: { params: Promise<{ path: str
     // GCS errors carry a numeric `code`; AWS SDK v3 errors carry `name`/`$metadata.httpStatusCode`.
     const isNotFound = err.code === 404 || err.code === 'ENOENT' || err.name === 'NoSuchKey' || err.$metadata?.httpStatusCode === 404
     if (isNotFound) {
-      return NextResponse.json({ error: 'File not found' }, { status: 404 })
+      return apiError('notFound', 'File not found')
     }
-    console.error('[File Serve] Error fetching from storage:', err)
-    return NextResponse.json({ error: 'Internal Server Error' }, { status: 500 })
+    logger.error({ err: err }, '[File Serve] Error fetching from storage:')
+    return apiError('server')
   }
 }

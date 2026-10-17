@@ -2,49 +2,50 @@
 
 import { useMemo, useState } from 'react'
 import { useRouter } from 'next/navigation'
-import { formatCurrency } from '@/lib/template-engine'
+import { Alert, Button, Modal, SelectField, TextField, TextareaField, useToast } from '@/components/ui'
+import { errorMessage, fetchJson, jsonRequest } from '@/lib/client/api'
+import { formatCurrency } from '@/lib/format'
+import { fromPaise, round2, toPaise } from '@/lib/money'
+import { MODES_NEEDING_BANK, PAYMENT_MODES } from '@/lib/status'
 
-const round2 = (n: number) => Math.round(n * 100) / 100
-
-const inputStyle: React.CSSProperties = {
-  width: '100%', padding: '10px 14px', borderRadius: 8, border: '1px solid var(--border-color)',
-  background: 'var(--bg-surface)', outline: 'none', fontSize: '0.9rem', color: 'var(--text-primary)',
-}
-const labelStyle: React.CSSProperties = {
-  display: 'block', fontSize: '0.8125rem', fontWeight: 500, color: 'var(--text-secondary)', marginBottom: 6,
-}
-
-function outstandingOf(schedule: any) {
+/** What is still owed on a demand (live payments only), never below zero. */
+export function outstandingOf(schedule: any) {
   const live = (schedule.payments ?? []).filter((p: any) => !p.deletedAt)
-  const principal = round2(Number(schedule.principalAmount) - live.reduce((a: number, p: any) => a + Number(p.amount), 0))
-  const gst = round2(Number(schedule.gstAmount ?? 0) - live.reduce((a: number, p: any) => a + Number(p.gstPaid ?? 0), 0))
-  return { principal: Math.max(0, principal), gst: Math.max(0, gst) }
+  const principal = toPaise(schedule.principalAmount) - live.reduce((a: number, p: any) => a + toPaise(p.amount), 0)
+  const gst = toPaise(schedule.gstAmount ?? 0) - live.reduce((a: number, p: any) => a + toPaise(p.gstPaid ?? 0), 0)
+  return { principal: fromPaise(Math.max(0, principal)), gst: fromPaise(Math.max(0, gst)) }
 }
 
-export default function RecordPaymentModal({ schedules, saleId }: { schedules: any[]; saleId: string }) {
-  const router = useRouter()
-  const [open, setOpen] = useState(false)
-  const [loading, setLoading] = useState(false)
-  const [error, setError] = useState('')
+const today = () => new Date().toISOString().split('T')[0]
 
+/**
+ * The one place a payment is entered. Pick a demand (or arrive with one chosen), the amounts default to what is still
+ * owed on it, so recording "the full amount" is just Save. Validation of the rules happens again on the server.
+ */
+export function RecordPaymentDialog({ schedules, saleId, initialScheduleId, onClose }: { schedules: any[]; saleId: string; initialScheduleId?: string; onClose: () => void }) {
+  const router = useRouter()
+  const toast = useToast()
   const outstanding = useMemo(
-    () =>
-      schedules
-        .map((s) => ({ schedule: s, ...outstandingOf(s) }))
-        .filter((o) => o.principal + o.gst > 0.005),
+    () => schedules.map((s) => ({ schedule: s, ...outstandingOf(s) })).filter((o) => o.principal + o.gst > 0.005),
     [schedules],
   )
+  // Default to the chosen demand, else the first one that has actually been raised, else the first outstanding one
+  const start = outstanding.find((o) => o.schedule.id === initialScheduleId) ?? outstanding.find((o) => o.schedule.status !== 'UPCOMING') ?? outstanding[0]
 
-  const [scheduleId, setScheduleId] = useState('')
-  const [principal, setPrincipal] = useState('')
-  const [gst, setGst] = useState('')
-  const [paymentDate, setPaymentDate] = useState(() => new Date().toISOString().split('T')[0])
+  const [scheduleId, setScheduleId] = useState(start?.schedule.id ?? '')
+  const [principal, setPrincipal] = useState(start ? String(start.principal) : '')
+  const [gst, setGst] = useState(start ? String(start.gst) : '')
+  const [paymentDate, setPaymentDate] = useState(today)
   const [mode, setMode] = useState('NEFT')
   const [bankName, setBankName] = useState('')
   const [referenceNumber, setReferenceNumber] = useState('')
   const [remark, setRemark] = useState('')
+  const [loading, setLoading] = useState(false)
+  const [error, setError] = useState('')
 
   const selected = outstanding.find((o) => o.schedule.id === scheduleId)
+  const principalNum = Number(principal) || 0
+  const gstNum = Number(gst) || 0
 
   const selectSchedule = (id: string) => {
     setScheduleId(id)
@@ -54,155 +55,94 @@ export default function RecordPaymentModal({ schedules, saleId }: { schedules: a
     setError('')
   }
 
-  const openModal = () => {
-    // Default to the first demand that has actually been raised, else the first outstanding one
-    const first = outstanding.find((o) => o.schedule.status !== 'UPCOMING') ?? outstanding[0]
-    selectSchedule(first?.schedule.id ?? '')
-    setReferenceNumber('')
-    setRemark('')
-    setBankName('')
-    setOpen(true)
-  }
-
-  const principalNum = Number(principal) || 0
-  const gstNum = Number(gst) || 0
-
   const submit = async (e: React.FormEvent) => {
     e.preventDefault()
     if (!selected) return
     if (principalNum < 0 || gstNum < 0) return setError('Amounts cannot be negative')
     if (principalNum + gstNum <= 0) return setError('Enter a principal and/or GST amount')
-    if (principalNum > selected.principal + 0.005) return setError(`Principal cannot exceed ${formatCurrency(selected.principal)}`)
-    if (gstNum > selected.gst + 0.005) return setError(`GST cannot exceed ${formatCurrency(selected.gst)}`)
+    if (toPaise(principalNum) > toPaise(selected.principal)) return setError(`Principal cannot exceed ${formatCurrency(selected.principal)}`)
+    if (toPaise(gstNum) > toPaise(selected.gst)) return setError(`GST cannot exceed ${formatCurrency(selected.gst)}`)
 
     setLoading(true)
     setError('')
     try {
-      const res = await fetch('/api/payments', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          scheduleId: selected.schedule.id,
-          saleId,
-          amount: principalNum,
-          gstPaid: gstNum,
-          mode,
-          referenceNumber: referenceNumber || undefined,
-          bankName: bankName || undefined,
-          remark: remark || undefined,
-          paymentDate: new Date(paymentDate).toISOString(),
-        }),
-      })
-      if (!res.ok) {
-        const body = await res.json().catch(() => ({}))
-        throw new Error(typeof body.error === 'string' ? body.error : 'Failed to record payment')
-      }
-      setOpen(false)
+      await fetchJson('/api/payments', jsonRequest('POST', {
+        scheduleId: selected.schedule.id,
+        saleId,
+        amount: principalNum,
+        gstPaid: gstNum,
+        mode,
+        referenceNumber: referenceNumber || undefined,
+        bankName: bankName || undefined,
+        remark: remark || undefined,
+        paymentDate: new Date(paymentDate).toISOString(),
+      }))
+      toast.success('Payment recorded')
+      onClose()
       router.refresh()
-    } catch (err: any) {
-      setError(err.message)
+    } catch (err) {
+      setError(errorMessage(err))
     } finally {
       setLoading(false)
     }
   }
 
   return (
-    <>
-      <button className="btn btn-primary btn-sm" onClick={openModal} disabled={outstanding.length === 0}>
-        Record Payment
-      </button>
+    <Modal
+      title="Record Payment"
+      onClose={onClose}
+      dismissible={!loading}
+      footer={
+        <>
+          <Button onClick={onClose}>Cancel</Button>
+          <Button type="submit" form="record-payment-form" variant="primary" disabled={!selected} loading={loading}>Save Payment</Button>
+        </>
+      }
+    >
+      <form id="record-payment-form" className="stack" onSubmit={submit}>
+        <SelectField
+          label="Against Demand" required value={scheduleId} onChange={(e) => selectSchedule(e.target.value)}
+          hint={selected ? `Outstanding: Principal ${formatCurrency(selected.principal)} · GST ${formatCurrency(selected.gst)}` : undefined}
+        >
+          {outstanding.map((o) => (
+            <option key={o.schedule.id} value={o.schedule.id}>{o.schedule.description} — outstanding {formatCurrency(round2(o.principal + o.gst))}</option>
+          ))}
+        </SelectField>
 
-      {open && (
-        <div style={{ position: 'fixed', inset: 0, zIndex: 1000, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-          <div style={{ position: 'absolute', inset: 0, background: 'rgba(0,0,0,0.5)', backdropFilter: 'blur(2px)' }} onClick={() => setOpen(false)} />
-          <div style={{ position: 'relative', background: 'var(--bg-card)', width: '100%', maxWidth: 540, maxHeight: '92vh', overflowY: 'auto', borderRadius: 12, boxShadow: 'var(--shadow-xl)', border: '1px solid var(--border-color)' }}>
-            <div style={{ padding: '20px 24px', borderBottom: '1px solid var(--border-color)', display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: 'var(--bg-surface)' }}>
-              <h3 style={{ fontSize: '1.25rem', fontWeight: 600, margin: 0, color: 'var(--text-primary)' }}>Record Payment</h3>
-              <button type="button" onClick={() => setOpen(false)} style={{ background: 'var(--bg-card)', border: '1px solid var(--border-color)', borderRadius: '50%', width: 32, height: 32, color: 'var(--text-muted)', fontSize: '1.2rem', cursor: 'pointer' }}>×</button>
-            </div>
-
-            <form onSubmit={submit} style={{ padding: 24 }}>
-              <div style={{ marginBottom: 16 }}>
-                <label style={labelStyle}>Against Demand</label>
-                <select required value={scheduleId} onChange={(e) => selectSchedule(e.target.value)} style={inputStyle}>
-                  {outstanding.map((o) => (
-                    <option key={o.schedule.id} value={o.schedule.id}>
-                      {o.schedule.description} — outstanding {formatCurrency(o.principal + o.gst)}
-                    </option>
-                  ))}
-                </select>
-                {selected && (
-                  <p style={{ margin: '6px 0 0', fontSize: '0.75rem', color: 'var(--text-muted)' }}>
-                    Outstanding: Principal {formatCurrency(selected.principal)} · GST {formatCurrency(selected.gst)}
-                  </p>
-                )}
-              </div>
-
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, marginBottom: 8 }}>
-                <div>
-                  <label style={labelStyle}>Principal Amount (₹)</label>
-                  <input type="number" min="0" step="0.01" value={principal} onChange={(e) => setPrincipal(e.target.value)} style={inputStyle} />
-                </div>
-                <div>
-                  <label style={labelStyle}>GST Amount (₹)</label>
-                  <input type="number" min="0" step="0.01" value={gst} onChange={(e) => setGst(e.target.value)} style={inputStyle} />
-                </div>
-              </div>
-              <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 16, padding: '8px 12px', borderRadius: 8, background: 'var(--bg-surface)', fontSize: '0.875rem' }}>
-                <span style={{ color: 'var(--text-secondary)' }}>Total being recorded</span>
-                <span style={{ fontWeight: 700 }}>{formatCurrency(round2(principalNum + gstNum))}</span>
-              </div>
-
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, marginBottom: 16 }}>
-                <div>
-                  <label style={labelStyle}>Payment Date</label>
-                  <input type="date" required value={paymentDate} onChange={(e) => setPaymentDate(e.target.value)} style={inputStyle} />
-                </div>
-                <div>
-                  <label style={labelStyle}>Payment Mode</label>
-                  <select required value={mode} onChange={(e) => setMode(e.target.value)} style={inputStyle}>
-                    <option value="NEFT">NEFT</option>
-                    <option value="RTGS">RTGS</option>
-                    <option value="IMPS">IMPS</option>
-                    <option value="UPI">UPI</option>
-                    <option value="CHEQUE">Cheque</option>
-                    <option value="DD">Demand Draft</option>
-                    <option value="CASH">Cash</option>
-                    <option value="OTHER">Other</option>
-                  </select>
-                </div>
-              </div>
-
-              {(mode === 'CHEQUE' || mode === 'DD') && (
-                <div style={{ marginBottom: 16 }}>
-                  <label style={labelStyle}>Bank Name</label>
-                  <input type="text" value={bankName} onChange={(e) => setBankName(e.target.value)} style={inputStyle} />
-                </div>
-              )}
-
-              <div style={{ marginBottom: 16 }}>
-                <label style={labelStyle}>Reference Number</label>
-                <input type="text" placeholder="e.g. UTR / Cheque No." value={referenceNumber} onChange={(e) => setReferenceNumber(e.target.value)} style={inputStyle} />
-              </div>
-              <div style={{ marginBottom: 20 }}>
-                <label style={labelStyle}>Remark</label>
-                <textarea placeholder="Optional remarks" value={remark} onChange={(e) => setRemark(e.target.value)} style={{ ...inputStyle, minHeight: 60 }} />
-              </div>
-
-              {error && <div style={{ marginBottom: 16, color: 'var(--color-danger)', fontSize: '0.8125rem' }}>{error}</div>}
-
-              <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 12 }}>
-                <button type="button" className="btn" style={{ background: 'var(--bg-surface)', border: '1px solid var(--border-color)', color: 'var(--text-primary)', borderRadius: 8 }} onClick={() => setOpen(false)}>
-                  Cancel
-                </button>
-                <button type="submit" className="btn btn-primary" style={{ borderRadius: 8 }} disabled={loading || !selected}>
-                  {loading ? 'Saving...' : 'Save Payment'}
-                </button>
-              </div>
-            </form>
-          </div>
+        <div className="form-grid">
+          <TextField label="Principal Amount (₹)" type="number" min="0" step="0.01" value={principal} onChange={(e) => setPrincipal(e.target.value)} />
+          <TextField label="GST Amount (₹)" type="number" min="0" step="0.01" value={gst} onChange={(e) => setGst(e.target.value)} />
         </div>
-      )}
+        <div className="kv-row card-flat py-2">
+          <span className="text-secondary">Total being recorded</span>
+          <span className="font-bold">{formatCurrency(round2(principalNum + gstNum))}</span>
+        </div>
+
+        <div className="form-grid">
+          <TextField label="Payment Date" type="date" required value={paymentDate} onChange={(e) => setPaymentDate(e.target.value)} />
+          <SelectField label="Payment Mode" required value={mode} onChange={(e) => setMode(e.target.value)}>
+            {PAYMENT_MODES.map((m) => <option key={m.value} value={m.value}>{m.label}</option>)}
+          </SelectField>
+        </div>
+
+        {MODES_NEEDING_BANK.includes(mode) && <TextField label="Bank Name" value={bankName} onChange={(e) => setBankName(e.target.value)} />}
+        <TextField label="Reference Number" placeholder="e.g. UTR / Cheque No." value={referenceNumber} onChange={(e) => setReferenceNumber(e.target.value)} />
+        <TextareaField label="Remark" placeholder="Optional remarks" value={remark} onChange={(e) => setRemark(e.target.value)} />
+
+        {error && <Alert variant="danger">{error}</Alert>}
+      </form>
+    </Modal>
+  )
+}
+
+/** The "Record Payment" button for a sale's page, with its dialog. */
+export default function RecordPaymentModal({ schedules, saleId }: { schedules: any[]; saleId: string }) {
+  const [open, setOpen] = useState(false)
+  const hasOutstanding = useMemo(() => schedules.some((s) => { const o = outstandingOf(s); return o.principal + o.gst > 0.005 }), [schedules])
+  return (
+    <>
+      <Button variant="primary" size="sm" onClick={() => setOpen(true)} disabled={!hasOutstanding}>Record Payment</Button>
+      {open && <RecordPaymentDialog schedules={schedules} saleId={saleId} onClose={() => setOpen(false)} />}
     </>
   )
 }

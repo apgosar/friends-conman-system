@@ -1,7 +1,10 @@
+import { logger } from '@/lib/logger'
+import { apiError, apiServerError } from '@/lib/api-error'
 import { NextRequest, NextResponse } from 'next/server'
 import crypto from 'crypto'
-import { prisma } from '@/lib/db'
+import { prisma, transaction } from '@/lib/db'
 import { auth } from '@/lib/auth'
+import { requireRole } from '@/lib/guard'
 import { uploadFile } from '@/lib/storage'
 import { DOCX_MIME } from '@/lib/template-constants'
 import { TemplateValidationError, extractDocxText, templateWarnings, validateDocx, validateHtmlTemplate, validateTemplateMeta } from '@/lib/template-validation'
@@ -9,7 +12,7 @@ import { createAuditLog } from '@/lib/audit'
 
 export async function GET(req: NextRequest, props: { params: Promise<{ id: string }> }) {
   const session = await auth()
-  if (!session?.user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+  if (!session?.user) return apiError('unauthorized')
 
   try {
     const { id: projectId } = await props.params
@@ -18,24 +21,22 @@ export async function GET(req: NextRequest, props: { params: Promise<{ id: strin
       orderBy: { createdAt: 'desc' }
     })
     return NextResponse.json({ success: true, data: templates })
-  } catch (error: any) {
-    return NextResponse.json({ success: false, error: 'Internal server error' }, { status: 500 })
+  } catch (err) {
+    return apiServerError(err, 'projects/[id]/templates')
   }
 }
 
 // POST multipart/form-data: name, type, and either `file` (.docx) or `templateHtml`.
 // Everything is validated before anything is stored or any active template is replaced.
 export async function POST(req: NextRequest, props: { params: Promise<{ id: string }> }) {
-  const session = await auth()
-  if (!session?.user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
-  if (session.user.role !== 'SUPER_ADMIN' && session.user.role !== 'ADMIN') {
-    return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
-  }
+  const guard = await requireRole('admin')
+  if ('error' in guard) return guard.error
+  const session = { user: guard.user }
 
   try {
     const { id: projectId } = await props.params
     const project = await prisma.project.findUnique({ where: { id: projectId }, select: { id: true } })
-    if (!project) return NextResponse.json({ error: 'Project not found' }, { status: 404 })
+    if (!project) return apiError('notFound', 'Project not found')
 
     const form = await req.formData()
     const { name, type } = validateTemplateMeta(form.get('name'), form.get('type'))
@@ -56,7 +57,7 @@ export async function POST(req: NextRequest, props: { params: Promise<{ id: stri
     }
 
     // Each upload of a document type is the next version; older versions stay available for rollback
-    const template = await prisma.$transaction(async (tx) => {
+    const template = await transaction(async (tx) => {
       const latest = await tx.template.aggregate({ where: { projectId, type }, _max: { version: true } })
       await tx.template.updateMany({ where: { projectId, type, isActive: true }, data: { isActive: false } })
       return tx.template.create({
@@ -72,9 +73,9 @@ export async function POST(req: NextRequest, props: { params: Promise<{ id: stri
     return NextResponse.json({ success: true, data: template, warnings })
   } catch (error: any) {
     if (error instanceof TemplateValidationError) {
-      return NextResponse.json({ success: false, error: error.message }, { status: 400 })
+      return apiError('invalid', error.message)
     }
-    console.error('[templates POST]', error)
-    return NextResponse.json({ success: false, error: 'Internal server error' }, { status: 500 })
+    logger.error({ err: error }, '[templates POST]')
+    return apiError('server')
   }
 }

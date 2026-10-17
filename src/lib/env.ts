@@ -7,6 +7,7 @@
  */
 
 import { deploymentConfig } from './deployment-config'
+import { getSharedSecret } from './internal-auth'
 
 interface EnvVar {
   key: string
@@ -86,6 +87,11 @@ export function validateEnv(): void {
     }
   }
 
+  // CRON_SECRET guards the scheduler endpoint and lets the app fetch its own documents to attach to emails/WhatsApp
+  if (!getSharedSecret()) {
+    warnings.push('  ⚠ CRON_SECRET is missing, shorter than 16 characters or still a placeholder: scheduled jobs and emailed document attachments will be refused. Generate one with `openssl rand -hex 32`.')
+  }
+
   // NEXTAUTH_SECRET strength check
   const secret = process.env.NEXTAUTH_SECRET
   if (secret && secret.length < 32) {
@@ -134,6 +140,10 @@ export function validateEnv(): void {
     } else if (PLACEHOLDER_PATTERNS.some((p) => licenseToken.toLowerCase().includes(p))) {
       warnings.push('  ⚠ LICENSE_TOKEN looks like a placeholder value — the app will refuse to serve until a real signed token is set.')
     }
+  }
+
+  if (process.env.NODE_ENV === 'production' && !process.env.PII_ENCRYPTION_KEY?.trim()) {
+    errors.push('  ✗ PII_ENCRYPTION_KEY — encrypts PAN and Aadhaar numbers at rest (generate with: openssl rand -base64 32, and back it up separately from the database)')
   }
 
   if (errors.length > 0) {

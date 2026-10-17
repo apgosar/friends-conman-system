@@ -3,7 +3,9 @@
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { SALE_LIFECYCLE, SALE_STATUS } from '@/lib/status'
-import { formatDate } from '@/lib/template-engine'
+import { formatDate } from '@/lib/format'
+import { errorMessage, fetchJson, jsonRequest } from '@/lib/client/api'
+import { Alert, Button, Card, CardHeader, Input, cn, useConfirm } from '@/components/ui'
 
 const todayStr = () => new Date().toISOString().split('T')[0]
 const toInput = (d: string | null) => (d ? d.split('T')[0] : todayStr())
@@ -16,6 +18,7 @@ export default function SaleLifecycleCard({ saleId, status, agreementDate, posse
   canEdit: boolean
 }) {
   const router = useRouter()
+  const confirm = useConfirm()
   const [editing, setEditing] = useState<'agreement' | 'handover' | null>(null)
   const [date, setDate] = useState(todayStr())
   const [saving, setSaving] = useState(false)
@@ -28,13 +31,11 @@ export default function SaleLifecycleCard({ saleId, status, agreementDate, posse
     setSaving(true)
     setError('')
     try {
-      const res = await fetch(`/api/sales/${saleId}/lifecycle`, { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) })
-      const json = await res.json().catch(() => ({}))
-      if (!res.ok) throw new Error(json.error || 'Could not update')
+      await fetchJson(`/api/sales/${saleId}/lifecycle`, jsonRequest('PATCH', body))
       setEditing(null)
       router.refresh()
-    } catch (err: any) {
-      setError(err.message)
+    } catch (err) {
+      setError(errorMessage(err))
     } finally {
       setSaving(false)
     }
@@ -46,61 +47,53 @@ export default function SaleLifecycleCard({ saleId, status, agreementDate, posse
     setError('')
   }
 
-  const linkBtn: React.CSSProperties = { background: 'none', border: 'none', padding: 0, color: 'var(--color-primary)', fontSize: '0.8125rem', fontWeight: 600, cursor: 'pointer' }
+  const clear = async (field: string, label: string) => {
+    const ok = await confirm({ message: `Clear the ${label.toLowerCase()} date? The sale status will be recalculated.`, confirmLabel: 'Clear date', danger: true })
+    if (ok) save({ [field]: null })
+  }
 
   return (
-    <div className="card mb-6">
-      <div className="card-header"><span className="card-title">Sale Lifecycle</span></div>
+    <Card className="mb-6">
+      <CardHeader title="Sale Lifecycle" />
 
-      <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginBottom: 12 }}>
+      <div className="step-chips mb-3">
         {SALE_LIFECYCLE.map((s, i) => {
           const done = !cancelled && i < currentIdx
           const current = !cancelled && i === currentIdx
           return (
-            <div key={s} title={SALE_STATUS[s].description} style={{
-              flex: '1 1 140px', padding: '10px 12px', borderRadius: 8, fontSize: '0.8125rem',
-              border: `1px solid ${current ? 'var(--color-primary)' : 'var(--border-color)'}`,
-              background: current ? 'var(--color-primary-light, rgba(99,102,241,0.1))' : 'var(--bg-surface)',
-              color: done || current ? 'var(--text-primary)' : 'var(--text-muted)',
-              fontWeight: current ? 700 : 500,
-            }}>
+            <div key={s} title={SALE_STATUS[s].description} className={cn('step-chip', done && 'is-done', current && 'is-current')}>
               {done ? '✓ ' : current ? '● ' : ''}{SALE_STATUS[s].label}
             </div>
           )
         })}
       </div>
-      <p style={{ margin: '0 0 12px', fontSize: '0.8125rem', color: 'var(--text-muted)' }}>
+      <p className="text-sm text-muted mt-0 mb-3">
         {cancelled ? SALE_STATUS.CANCELLED.description : SALE_STATUS[status]?.description}
         {' '}The status updates automatically from payments and the dates below.
       </p>
 
       {!cancelled && (
-        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+        <div className="grid grid-2 gap-3">
           {([
-            ['agreement', 'Agreement signed', agreementDate, undefined],
-            ['handover', 'Handover completed', possessionDate, !agreementDate ? 'Record the agreement date first' : undefined],
-          ] as const).map(([key, label, value, blocked]) => (
-            <div key={key} style={{ padding: 12, border: '1px solid var(--border-color)', borderRadius: 8 }}>
-              <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: 4 }}>{label}</div>
+            ['agreement', 'Agreement signed', 'agreementDate', agreementDate, undefined],
+            ['handover', 'Handover completed', 'possessionDate', possessionDate, !agreementDate ? 'Record the agreement date first' : undefined],
+          ] as const).map(([key, label, field, value, blocked]) => (
+            <div key={key} className="detail-tile">
+              <div className="label-caps mb-1">{label}</div>
               {editing === key ? (
-                <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
-                  <input type="date" value={date} max={todayStr()} onChange={(e) => setDate(e.target.value)}
-                    style={{ padding: '6px 10px', borderRadius: 6, border: '1px solid var(--border-color)', background: 'var(--bg-surface)', color: 'var(--text-primary)' }} />
-                  <button className="btn btn-primary btn-sm" disabled={saving || !date}
-                    onClick={() => save({ [key === 'agreement' ? 'agreementDate' : 'possessionDate']: new Date(date).toISOString() })}>
-                    {saving ? 'Saving…' : 'Save'}
-                  </button>
-                  <button style={linkBtn} onClick={() => setEditing(null)}>Cancel</button>
+                <div className="flex gap-2 items-center wrap">
+                  <Input type="date" aria-label={label} value={date} max={todayStr()} onChange={(e) => setDate(e.target.value)} className="w-auto" />
+                  <Button variant="primary" size="sm" loading={saving} disabled={!date} onClick={() => save({ [field]: new Date(date).toISOString() })}>Save</Button>
+                  <button type="button" className="link-btn" onClick={() => setEditing(null)}>Cancel</button>
                 </div>
               ) : (
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 8 }}>
-                  <span style={{ fontWeight: 600 }}>{value ? formatDate(value) : 'Pending'}</span>
+                <div className="flex justify-between items-center gap-2">
+                  <span className="font-semibold">{value ? formatDate(value) : 'Pending'}</span>
                   {canEdit && (
-                    blocked ? <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>{blocked}</span> : (
-                      <span style={{ display: 'flex', gap: 10 }}>
-                        <button style={linkBtn} onClick={() => open(key)}>{value ? 'Change' : 'Record'}</button>
-                        {value && <button style={{ ...linkBtn, color: 'var(--color-danger)' }}
-                          onClick={() => window.confirm(`Clear the ${label.toLowerCase()} date? The sale status will be recalculated.`) && save({ [key === 'agreement' ? 'agreementDate' : 'possessionDate']: null })}>Clear</button>}
+                    blocked ? <span className="text-xs text-muted">{blocked}</span> : (
+                      <span className="flex gap-3">
+                        <button type="button" className="link-btn" onClick={() => open(key)}>{value ? 'Change' : 'Record'}</button>
+                        {value && <button type="button" className="link-btn link-btn-danger" onClick={() => clear(field, label)}>Clear</button>}
                       </span>
                     )
                   )}
@@ -110,7 +103,7 @@ export default function SaleLifecycleCard({ saleId, status, agreementDate, posse
           ))}
         </div>
       )}
-      {error && <div style={{ color: 'var(--color-danger)', fontSize: '0.8125rem', marginTop: 10 }}>{error}</div>}
-    </div>
+      {error && <Alert variant="danger" className="mt-3">{error}</Alert>}
+    </Card>
   )
 }
