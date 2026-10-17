@@ -3,6 +3,7 @@
 import { useState, useEffect, useCallback } from 'react'
 import TopNav from '@/components/layout/TopNav'
 import { Button } from '@/components/ui'
+import { formatDateTime, formatNumber } from '@/lib/format'
 
 const CHANNELS = ['ALL', 'EMAIL', 'WHATSAPP']
 const STATUSES = ['ALL', 'PENDING', 'SENT', 'SIMULATED', 'DELIVERED', 'FAILED']
@@ -100,7 +101,7 @@ export default function CommunicationsPage() {
         <div className="page-header">
           <div>
             <h1 className="page-title">Communications</h1>
-            <p className="page-subtitle">{total.toLocaleString('en-IN')} messages total</p>
+            <p className="page-subtitle">{formatNumber(total)} messages total</p>
           </div>
           <Button
             variant="primary"
@@ -189,7 +190,7 @@ export default function CommunicationsPage() {
                 ) : logs.map((log) => (
                   <tr key={log.id} onClick={() => setSelectedLog(log)} className="hover-row cursor-pointer">
                     <td className="text-sm text-muted nowrap">
-                      {new Date(log.createdAt).toLocaleString('en-IN')}
+                      {formatDateTime(log.createdAt)}
                     </td>
                     <td>
                       <span className="badge badge-info">
@@ -257,7 +258,7 @@ export default function CommunicationsPage() {
               <div>
                 <h3 className="m-0 font-semibold">Message Detail</h3>
                 <p className="text-sm text-muted" style={{ margin: '4px 0 0' }}>
-                  {selectedLog.channel} · {new Date(selectedLog.createdAt).toLocaleString('en-IN')}
+                  {selectedLog.channel} · {formatDateTime(selectedLog.createdAt)}
                 </p>
               </div>
               <button onClick={() => setSelectedLog(null)} className="flex items-center justify-center cursor-pointer text-muted" style={{ background: 'var(--bg-card)', border: '1px solid var(--border-color)', borderRadius: '50%', width: 32, height: 32, fontSize: '1.2rem' }}>×</button>

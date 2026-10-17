@@ -3,6 +3,7 @@
 import { useState, useEffect, useCallback } from 'react'
 import TopNav from '@/components/layout/TopNav'
 import { Button } from '@/components/ui'
+import { formatDateTime, formatNumber } from '@/lib/format'
 
 const ENTITY_TYPES = ['ALL', 'sale', 'payment', 'unit', 'project', 'buyer', 'communication_log']
 const ACTIONS = ['ALL', 'created', 'updated', 'deleted', 'sent', 'verified']
@@ -49,7 +50,7 @@ export default function AuditLogsPage() {
         <div className="page-header">
           <div>
             <h1 className="page-title">Audit Logs</h1>
-            <p className="page-subtitle">{total.toLocaleString('en-IN')} total events recorded</p>
+            <p className="page-subtitle">{formatNumber(total)} total events recorded</p>
           </div>
         </div>
 
@@ -96,7 +97,7 @@ export default function AuditLogsPage() {
                 ) : logs.map((log) => (
                   <tr key={log.id} onClick={() => setSelectedLog(log)} className="hover-row cursor-pointer">
                     <td className="text-sm text-muted nowrap">
-                      {new Date(log.createdAt).toLocaleString('en-IN')}
+                      {formatDateTime(log.createdAt)}
                     </td>
                     <td className="text-sm font-medium">
                       {log.user?.name ?? 'System'}
@@ -139,7 +140,7 @@ export default function AuditLogsPage() {
               <div>
                 <h3 className="m-0 font-semibold">Audit Log Details</h3>
                 <p className="text-sm text-muted" style={{ margin: '4px 0 0' }}>
-                  {new Date(selectedLog.createdAt).toLocaleString('en-IN')} by {selectedLog.user?.name ?? 'System'}
+                  {formatDateTime(selectedLog.createdAt)} by {selectedLog.user?.name ?? 'System'}
                 </p>
               </div>
               <button onClick={() => setSelectedLog(null)} className="flex items-center justify-center cursor-pointer text-muted" style={{ background: 'var(--bg-card)', border: '1px solid var(--border-color)', borderRadius: '50%', width: 32, height: 32, fontSize: '1.2rem' }}>×</button>

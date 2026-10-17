@@ -8,6 +8,7 @@ import {
   PieChart, Pie, Cell, LineChart, Line, Legend, AreaChart, Area,
 } from 'recharts'
 import { Button } from '@/components/ui'
+import { formatDate, formatRupees } from '@/lib/format'
 
 // ─── Colour palette ────────────────────────────────────────────────────────────
 const COLORS = ['#6366f1', '#10b981', '#f59e0b', '#ef4444', '#3b82f6', '#ec4899', '#8b5cf6']
@@ -16,7 +17,7 @@ function fmt(val: number): string {
   if (val >= 10000000) return `₹${(val / 10000000).toFixed(2)}Cr`
   if (val >= 100000)   return `₹${(val / 100000).toFixed(2)}L`
   if (val >= 1000)     return `₹${(val / 1000).toFixed(1)}K`
-  return `₹${val.toLocaleString('en-IN')}`
+  return `${formatRupees(val)}`
 }
 
 const TOOLTIP_STYLE = {
@@ -316,7 +317,7 @@ export default function ReportsPage() {
                       return (
                         <tr key={i} className="hover-row">
                           <td className="nowrap">
-                            <div className="font-medium">{new Date(u.dueDate).toLocaleDateString('en-IN')}</div>
+                            <div className="font-medium">{formatDate(u.dueDate)}</div>
                             <div className="text-xs" style={{ color: days <= 7 ? 'var(--color-warning)' : 'var(--text-muted)' }}>
                               {days <= 0 ? 'Due today' : `In ${days} day${days === 1 ? '' : 's'}`}
                             </div>

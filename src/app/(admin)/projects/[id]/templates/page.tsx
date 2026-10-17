@@ -2,7 +2,7 @@ import { prisma } from '@/lib/db'
 import TopNav from '@/components/layout/TopNav'
 import BackToProject from '@/components/projects/BackToProject'
 import { notFound } from 'next/navigation'
-import { formatDate } from '@/lib/template-engine'
+import { formatDate, formatDateTime, formatNumber } from '@/lib/format'
 import ActivateButton from './ActivateButton'
 import DeleteTemplateButton from './DeleteTemplateButton'
 import TemplateHtmlPreview from '@/components/projects/TemplateHtmlPreview'
@@ -124,7 +124,7 @@ export default async function TemplatesPage(props: PageProps<'/projects/[id]/tem
                       <b>{a.user?.name ?? 'Someone'}</b> {ACTION_LABEL[a.action] ?? a.action} {typeLabel ? <>{typeLabel} </> : null}
                       {v?.name ? <>“{v.name}” </> : null}{v?.version ? <>(v{v.version})</> : null}
                     </span>
-                    <span className="text-muted nowrap">{a.createdAt.toLocaleString('en-IN')}</span>
+                    <span className="text-muted nowrap">{formatDateTime(a.createdAt)}</span>
                   </div>
                 )
               })}

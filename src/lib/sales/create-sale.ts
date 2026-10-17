@@ -8,6 +8,7 @@ import { round2, sumRupees } from '@/lib/money'
 import { activeSale } from '@/lib/soft-delete'
 import { NOT_FOR_SALE_STATUS, UNSOLD_UNIT_STATUSES, unitStatusLabel } from '@/lib/status'
 import { redact } from '@/lib/redact'
+import { formatDate, formatNumber, formatRupees } from '@/lib/format'
 
 export const SALE_TYPES = ['FRESH', 'REDEVELOPMENT', 'RESALE'] as const
 
@@ -107,7 +108,7 @@ export async function createSale(input: SaleCreateInput, actorId: string) {
       const payable = sumRupees([input.agreementValue, stampDuty, registrationCharges, parkingCharge])
       const planned = sumRupees(schedules.map((s) => s.principalAmount))
       if (planned > payable + payable * PLAN_TOLERANCE_RATIO) {
-        throw new SaleError(`The payment plan adds up to more than the buyer owes (plan ${planned.toLocaleString('en-IN')}, payable ${payable.toLocaleString('en-IN')}). Check the milestone amounts.`, 400)
+        throw new SaleError(`The payment plan adds up to more than the buyer owes (plan ${formatNumber(planned)}, payable ${formatNumber(payable)}). Check the milestone amounts.`, 400)
       }
     }
     const overrides: Record<string, { standard: number; used: number }> = {}
@@ -192,14 +193,14 @@ export async function createSale(input: SaleCreateInput, actorId: string) {
           const amount = schedule.principalAmount + schedule.gstAmount
           const description = schedule.description.toLowerCase()
           const isTaxOrParking = description.includes('stamp duty') || description.includes('registration') || description.includes('parking')
-          const dueText = schedule.dueDate ? new Date(schedule.dueDate).toLocaleDateString('en-IN') : 'N/A'
+          const dueText = schedule.dueDate ? formatDate(schedule.dueDate) : 'N/A'
 
           for (const buyer of commBuyers) {
             const greeting = `Dear ${sanitizeInline(buyer.fullName) || 'Customer'},`
             const letter = { label: 'Demand Letter', path: `/api/documents/preview/demand-letter?saleId=${newSale.id}&milestoneName=${encodeURIComponent(isTaxOrParking ? schedule.description : milestone?.name || '')}` }
             const { messageContent, attachments } = isTaxOrParking
-              ? buildCommContent(`${greeting}\nPayment for '${sanitizeInline(schedule.description)}' is now due. Please find the attached Demand Letter for ₹${amount.toLocaleString('en-IN')}.\nDue Date: ${dueText}.`, [letter])
-              : buildCommContent(`${greeting}\nThe milestone '${sanitizeInline(milestone?.name)}' is now complete. Please find the attached Demand Letter for ₹${amount.toLocaleString('en-IN')} and the Architect Completion Certificate.\nDue Date: ${dueText}.`, [{ label: 'Architect Certificate', path: milestone?.architectCertificateUrl || '' }, letter])
+              ? buildCommContent(`${greeting}\nPayment for '${sanitizeInline(schedule.description)}' is now due. Please find the attached Demand Letter for ${formatRupees(amount)}.\nDue Date: ${dueText}.`, [letter])
+              : buildCommContent(`${greeting}\nThe milestone '${sanitizeInline(milestone?.name)}' is now complete. Please find the attached Demand Letter for ${formatRupees(amount)} and the Architect Completion Certificate.\nDue Date: ${dueText}.`, [{ label: 'Architect Certificate', path: milestone?.architectCertificateUrl || '' }, letter])
             for (const [channel, address] of [['EMAIL', buyer.email], ['WHATSAPP', buyer.whatsappNumber]] as const) {
               if (address) logs.push({ saleId: newSale.id, buyerId: buyer.id, channel, type: 'DEMAND_LETTER', messageContent, attachments, status: 'PENDING' })
             }

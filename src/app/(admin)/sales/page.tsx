@@ -1,6 +1,6 @@
 import { prisma } from '@/lib/db'
 import TopNav from '@/components/layout/TopNav'
-import { formatCurrency, formatDate } from '@/lib/template-engine'
+import { formatCurrency, formatDate } from '@/lib/format'
 import ClickableRow from '@/components/sales/ClickableRow'
 import { saleStatusBadge, saleStatusLabel } from '@/lib/status'
 import { ButtonLink } from '@/components/ui'

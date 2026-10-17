@@ -2,7 +2,7 @@ import { prisma } from '@/lib/db'
 import { notFound } from 'next/navigation'
 import TopNav from '@/components/layout/TopNav'
 import BackToProject from '@/components/projects/BackToProject'
-import { formatDate } from '@/lib/template-engine'
+import { formatDate } from '@/lib/format'
 import MilestoneRow from '@/components/projects/MilestoneRow'
 
 export default async function ProjectMilestonesPage(props: PageProps<'/projects/[id]/milestones'>) {

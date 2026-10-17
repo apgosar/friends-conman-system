@@ -1,7 +1,7 @@
 import { prisma } from '@/lib/db'
 import Link from 'next/link'
 import TopNav from '@/components/layout/TopNav'
-import { formatDate } from '@/lib/template-engine'
+import { formatDate } from '@/lib/format'
 import { activeSale } from '@/lib/soft-delete'
 import { ButtonLink } from '@/components/ui'
 

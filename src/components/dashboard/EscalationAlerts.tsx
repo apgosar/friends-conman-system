@@ -1,7 +1,7 @@
 'use client'
 
 import { useState } from 'react'
-import { formatCurrency, formatDate } from '@/lib/template-engine'
+import { formatCurrency, formatDate } from '@/lib/format'
 import { Button } from '@/components/ui'
 
 export default function EscalationAlerts({ escalations }: { escalations: any[] }) {

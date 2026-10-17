@@ -2,7 +2,7 @@
 
 import { useMemo, useState } from 'react'
 import { useRouter } from 'next/navigation'
-import { formatCurrency } from '@/lib/template-engine'
+import { formatCurrency } from '@/lib/format'
 import { Button } from '@/components/ui'
 
 const round2 = (n: number) => Math.round(n * 100) / 100

@@ -40,7 +40,7 @@ const emptyBuyer = (): Buyer => ({ fullName: '', panNumber: '', aadhaarNumber: '
 
 // ─── Step indicator ──────────────────────────────────────────
 import { StepBar } from '@/components/ui/StepBar'
-import { Button, Input, Select, Textarea } from '@/components/ui'
+import { Button, Input, Select, SelectField, TextField, Textarea, TextareaField } from '@/components/ui'
 
 // ─── Main Wizard ─────────────────────────────────────────────
 type Prefill = { inquiryId: string; projectId: string; unitId: string; agreementValue: number; carParking: boolean; buyerName: string; mobileNumber: string } | null
@@ -336,26 +336,14 @@ export default function NewSaleWizard({ projects, prefill = null }: { projects: 
           {/* Project & Unit */}
           <h4 className="mb-3">Project & Unit</h4>
           <div className="grid grid-2 gap-4 mb-4">
-            <div className="form-group">
-              <label className="form-label">Project *</label>
-              <Select value={projectId} required onChange={e => {
-                setProjectId(e.target.value)
-                setUnitId('')
-                const proj = projects.find(p => p.id === e.target.value)
-                if (proj) setSaleType(proj.type === 'MIXED' ? 'FRESH' : proj.type)
-                setCarParking(false)
-              }}>
-                <option value="">-- Select Project --</option>
-                {projects.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
-              </Select>
-            </div>
-            <div className="form-group">
-              <label className="form-label">Sale Type *</label>
-              <Select value={saleType} onChange={e => setSaleType(e.target.value)} disabled={!selectedProject || selectedProject.type !== 'MIXED'}>
-                <option value="FRESH">Fresh Sale</option>
-                <option value="REDEVELOPMENT">Redevelopment (PAAA)</option>
-              </Select>
-            </div>
+            <SelectField label="Project" value={projectId} required onChange={e => {
+ setProjectId(e.target.value)
+ setUnitId('')
+ const proj = projects.find(p => p.id === e.target.value)
+ if (proj) setSaleType(proj.type === 'MIXED' ? 'FRESH' : proj.type)
+ setCarParking(false)
+ }}><option value="">-- Select Project --</option>{projects.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}</SelectField>
+            <SelectField label="Sale Type *" value={saleType} onChange={e => setSaleType(e.target.value)} disabled={!selectedProject || selectedProject.type !== 'MIXED'}><option value="FRESH">Fresh Sale</option><option value="REDEVELOPMENT">Redevelopment (PAAA)</option></SelectField>
             <div className="form-group">
               <label className="form-label">Unit *</label>
               <Select value={unitId} required disabled={!selectedProject} onChange={e => setUnitId(e.target.value)}>
@@ -375,15 +363,9 @@ export default function NewSaleWizard({ projects, prefill = null }: { projects: 
               })()}
             </div>
             {saleType === 'REDEVELOPMENT' && (
-              <div className="form-group">
-                <label className="form-label">Link Tenant *</label>
-                <Select value={tenantId} onChange={e => setTenantId(e.target.value)} required>
-                  <option value="">-- Select Tenant --</option>
-                  {selectedProject?.tenants.map((t: any) => (
-                    <option key={t.id} value={t.id}>{t.name} (Old: {t.oldFlatNumber})</option>
-                  ))}
-                </Select>
-              </div>
+              <SelectField label="Link Tenant" value={tenantId} onChange={e => setTenantId(e.target.value)} required><option value="">-- Select Tenant --</option>{selectedProject?.tenants.map((t: any) => (
+ <option key={t.id} value={t.id}>{t.name} (Old: {t.oldFlatNumber})</option>
+ ))}</SelectField>
             )}
           </div>
 
@@ -437,10 +419,7 @@ export default function NewSaleWizard({ projects, prefill = null }: { projects: 
               </div>
 
               <div className="grid grid-2 gap-4 mb-3">
-                <div className="form-group">
-                  <label className="form-label">Full Name *</label>
-                  <Input value={buyer.fullName} required onChange={e => updateBuyer(idx, 'fullName', e.target.value)} placeholder="John Doe" />
-                </div>
+                <TextField label="Full Name" value={buyer.fullName} required onChange={e => updateBuyer(idx, 'fullName', e.target.value)} placeholder="John Doe" />
                 <div className="form-group">
                   <label className="form-label">PAN Number *</label>
                   <Input
@@ -482,15 +461,9 @@ export default function NewSaleWizard({ projects, prefill = null }: { projects: 
                     <div className="text-xs mt-1" style={{ color: 'var(--color-warning, #f59e0b)' }}>⚠ {validateEmail(buyer.email)}</div>
                   )}
                 </div>
-                <div className="form-group">
-                  <label className="form-label">WhatsApp</label>
-                  <Input value={buyer.whatsappNumber} onChange={e => updateBuyer(idx, 'whatsappNumber', e.target.value)} placeholder="+91 98765 43210" />
-                </div>
+                <TextField label="WhatsApp" value={buyer.whatsappNumber} onChange={e => updateBuyer(idx, 'whatsappNumber', e.target.value)} placeholder="+91 98765 43210" />
               </div>
-              <div className="form-group">
-                <label className="form-label">Address</label>
-                <Textarea rows={2} value={buyer.address} onChange={e => updateBuyer(idx, 'address', e.target.value)} />
-              </div>
+              <TextareaField label="Address" rows={2} value={buyer.address} onChange={e => updateBuyer(idx, 'address', e.target.value)} />
             </div>
           ))}
 
@@ -499,18 +472,9 @@ export default function NewSaleWizard({ projects, prefill = null }: { projects: 
           {/* Financials */}
           <h4 className="mb-3">Financials</h4>
           <div className="grid grid-2 gap-4 mb-4">
-            <div className="form-group">
-              <label className="form-label">Agreement Value (₹) *</label>
-              <Input type="number" min={100000} step={1000} value={agreementValue} onChange={e => setAgreementValue(Number(e.target.value))} />
-            </div>
-            <div className="form-group">
-              <label className="form-label">Booking Amount (₹)</label>
-              <Input type="number" placeholder="Leave blank to use default %" value={bookingAmount} onChange={e => setBookingAmount(e.target.value ? Number(e.target.value) : '')} />
-            </div>
-            <div className="form-group">
-              <label className="form-label">Booking Date *</label>
-              <Input type="date" value={bookingDate} onChange={e => setBookingDate(e.target.value)} />
-            </div>
+            <TextField label="Agreement Value (₹) *" type="number" min={100000} step={1000} value={agreementValue} onChange={e => setAgreementValue(Number(e.target.value))} />
+            <TextField label="Booking Amount (₹)" type="number" placeholder="Leave blank to use default %" value={bookingAmount} onChange={e => setBookingAmount(e.target.value ? Number(e.target.value) : '')} />
+            <TextField label="Booking Date *" type="date" value={bookingDate} onChange={e => setBookingDate(e.target.value)} />
           </div>
 
           {/* Car Parking */}
@@ -530,18 +494,9 @@ export default function NewSaleWizard({ projects, prefill = null }: { projects: 
                   Car parking: <strong>{fmt(parkingCost)}</strong> + Registration: <strong>{fmt(pricing.regParkingCharges)}</strong>
                 </p>
                 <div className="grid grid-3 gap-4">
-                  <div className="form-group">
-                    <label className="form-label">Podium Floor Level</label>
-                    <Input value={parkingPodiumLevel} onChange={e => setParkingPodiumLevel(e.target.value)} placeholder="e.g. Podium 1" />
-                  </div>
-                  <div className="form-group">
-                    <label className="form-label">Floor</label>
-                    <Input value={parkingFloor} onChange={e => setParkingFloor(e.target.value)} placeholder="e.g. Ground" />
-                  </div>
-                  <div className="form-group">
-                    <label className="form-label">Parking No.</label>
-                    <Input value={parkingNumber} onChange={e => setParkingNumber(e.target.value)} placeholder="e.g. P-45" />
-                  </div>
+                  <TextField label="Podium Floor Level" value={parkingPodiumLevel} onChange={e => setParkingPodiumLevel(e.target.value)} placeholder="e.g. Podium 1" />
+                  <TextField label="Floor" value={parkingFloor} onChange={e => setParkingFloor(e.target.value)} placeholder="e.g. Ground" />
+                  <TextField label="Parking No." value={parkingNumber} onChange={e => setParkingNumber(e.target.value)} placeholder="e.g. P-45" />
                 </div>
               </div>
             )}

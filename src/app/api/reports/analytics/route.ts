@@ -3,6 +3,7 @@ import { requireRole } from '@/lib/guard'
 import { prisma } from '@/lib/db'
 import { OUTSTANDING_SCHEDULE_STATUSES, UNIT_STATUS_ORDER, isSaleable, isUnsold } from '@/lib/status'
 import { activeSale } from '@/lib/soft-delete'
+import { formatMonthYear } from '@/lib/format'
 
 export async function GET(req: NextRequest) {
   const guard = await requireRole('admin')
@@ -32,7 +33,7 @@ export async function GET(req: NextRequest) {
     for (let i = 11; i >= 0; i--) {
       const d = new Date(now.getFullYear(), now.getMonth() - i, 1)
       const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`
-      const label = d.toLocaleString('en-IN', { month: 'short', year: '2-digit' })
+      const label = formatMonthYear(d)
       monthlySales[key] = { month: label, count: 0, revenue: 0 }
     }
     for (const sale of allSales) {

@@ -1,7 +1,7 @@
 import { prisma } from '@/lib/db'
 import { notFound } from 'next/navigation'
 import TopNav from '@/components/layout/TopNav'
-import { formatDate, formatCurrency } from '@/lib/template-engine'
+import { formatDate, formatCurrency } from '@/lib/format'
 import { auth } from '@/lib/auth'
 import DeleteSaleButton from '@/components/sales/DeleteSaleButton'
 import PaymentScheduleTable from '@/components/sales/PaymentScheduleTable'

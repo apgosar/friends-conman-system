@@ -1,4 +1,4 @@
-import { formatCurrency, formatDate } from '@/lib/template-engine'
+import { formatCurrency, formatDate } from '@/lib/format'
 import Link from 'next/link'
 
 export default function UpcomingDues({ dues }: { dues: any[] }) {

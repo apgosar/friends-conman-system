@@ -1,7 +1,7 @@
 import { auth } from '@/lib/auth'
 import { prisma } from '@/lib/db'
 import { OUTSTANDING_SCHEDULE_STATUSES } from '@/lib/status'
-import { formatCurrency, formatDate } from '@/lib/template-engine'
+import { formatCurrency, formatDate } from '@/lib/format'
 import TopNav from '@/components/layout/TopNav'
 import { redirect } from 'next/navigation'
 import { activeSale } from '@/lib/soft-delete'

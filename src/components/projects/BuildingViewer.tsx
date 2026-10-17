@@ -10,6 +10,7 @@ import { UNIT_COLORS, unitStatusLabel, unitStatusBadge, isSaleable, isUnsold } f
 import BuildingCanvas, { BuildingSkeleton } from './BuildingCanvas'
 import { STATUS_COLOR, getStatusColor, statusMatches, type UnitData, type WingData } from './building-model'
 import { Button, ButtonLink } from '@/components/ui'
+import { formatDate, formatDateShort, formatRupees } from '@/lib/format'
 
 function floorPlanSrc(unit: { configuration: string; floorPlanUrl?: string | null }) {
   if (unit.floorPlanUrl) return unit.floorPlanUrl
@@ -226,19 +227,19 @@ export default function BuildingViewer({ projectId, view = '3d' }: { projectId: 
       <div key={inq.id} style={{ background: 'var(--bg-surface)', padding: 10, borderRadius: 'var(--radius-md)', border: '1px solid var(--border-color)', opacity: inq.status === 'LOST' ? 0.75 : 1 }}>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 4 }}>
           <span style={{ fontSize: '0.8125rem', fontWeight: 600 }}>{inq.customerName}</span>
-          <span style={{ fontSize: '0.7rem', color: 'var(--text-muted)' }}>{new Date(inq.createdAt).toLocaleDateString('en-IN')}</span>
+          <span style={{ fontSize: '0.7rem', color: 'var(--text-muted)' }}>{formatDate(inq.createdAt)}</span>
         </div>
         <div style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', marginBottom: 6 }}>
-          {inq.mobileNumber} · ₹{inq.totalCost.toLocaleString('en-IN')}
+          {inq.mobileNumber} · {formatRupees(inq.totalCost)}
         </div>
         <div style={{ display: 'flex', flexWrap: 'wrap', gap: 4, marginBottom: 8 }}>
           {repeats > 1 && chip(`Repeat customer · ${repeats} inquiries`, '#d97706')}
           {inq.source && chip(SOURCE_LABEL[inq.source] ?? inq.source, '#64748b')}
           {inq.status === 'OPEN' && inq.validUntil && (expired
             ? chip('Expired', '#dc2626')
-            : chip(`Valid till ${new Date(inq.validUntil).toLocaleDateString('en-IN', { day: 'numeric', month: 'short' })}`, '#16a34a'))}
+            : chip(`Valid till ${formatDateShort(inq.validUntil)}`, '#16a34a'))}
           {inq.status === 'LOST' && chip(`Lost · ${LOST_REASON_LABEL[inq.lostReason ?? ''] ?? inq.lostReason ?? ''}`, '#dc2626')}
-          {inq.lastSharedAt && chip(`Shared ${new Date(inq.lastSharedAt).toLocaleDateString('en-IN', { day: 'numeric', month: 'short' })}`, '#0d9488')}
+          {inq.lastSharedAt && chip(`Shared ${formatDateShort(inq.lastSharedAt)}`, '#0d9488')}
         </div>
         <div style={{ display: 'flex', gap: 6 }}>
           <a
@@ -610,7 +611,7 @@ export default function BuildingViewer({ projectId, view = '3d' }: { projectId: 
                       <div style={{ display: 'flex', justifyContent: 'space-between' }}>
                         <span style={{ fontSize: '0.8125rem', color: 'var(--text-muted)' }}>Agreement Value</span>
                         <span style={{ fontSize: '0.875rem', fontWeight: 600, color: 'var(--color-success)' }}>
-                          ₹{Number(selectedUnit.agreementValue).toLocaleString('en-IN')}
+                          {formatRupees(selectedUnit.agreementValue)}
                         </span>
                       </div>
                     )}

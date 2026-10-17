@@ -2,7 +2,7 @@
 
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
-import { formatDate } from '@/lib/template-engine'
+import { formatDate } from '@/lib/format'
 import { useSession } from 'next-auth/react'
 import { Button } from '@/components/ui'
 

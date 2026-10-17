@@ -2,7 +2,7 @@
 
 import { useState, useEffect, use } from 'react'
 import TopNav from '@/components/layout/TopNav'
-import { formatDate } from '@/lib/template-engine'
+import { formatDate } from '@/lib/format'
 import { useRouter } from 'next/navigation'
 import { Button, ButtonLink } from '@/components/ui'
 

@@ -3,6 +3,7 @@
 import { useState } from 'react'
 import { INQUIRY_SOURCES, LOST_REASONS, SOURCE_LABEL, LOST_REASON_LABEL } from '@/lib/inquiry-constants'
 import { Button } from '@/components/ui'
+import { formatDateTime } from '@/lib/format'
 
 export interface InquiryData {
   id: string
@@ -181,7 +182,7 @@ export function ShareQuoteModal({ unitId, unitNumber, inq, onClose, onDone }: {
       </label>
       {inq.lastSharedAt && (
         <p className="text-xs text-muted" style={{ margin: '0 0 12px' }}>
-          Last shared {new Date(inq.lastSharedAt).toLocaleString('en-IN')} via {inq.lastSharedVia?.replace('+', ' + ')}
+          Last shared {formatDateTime(inq.lastSharedAt)} via {inq.lastSharedVia?.replace('+', ' + ')}
         </p>
       )}
       {error && <div className="text-danger text-sm mb-3">{error}</div>}

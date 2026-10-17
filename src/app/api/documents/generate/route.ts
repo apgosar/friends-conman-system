@@ -6,14 +6,9 @@ import { generatePdf } from '@/lib/pdf'
 import { uploadFile } from '@/lib/storage'
 import { readStoredFile, DOCUMENT_FOLDER } from '@/lib/storage/files'
 import { percentOf } from '@/lib/money'
-import { numberToWords, formatDate } from '@/lib/template-engine'
+import { formatDate, formatMoney, numberToWords } from '@/lib/format'
 import crypto from 'crypto'
 
-// Helper to format currency
-const fmtCur = (amount: number | string | null | undefined) => {
-  if (!amount) return '0.00'
-  return Number(amount).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
-}
 
 export async function POST(req: NextRequest) {
   const guard = await requireRole('admin')
@@ -70,9 +65,9 @@ export async function POST(req: NextRequest) {
         index: index + 1,
         description: ps.description,
         percentOfAV: pctLabel,
-        principalAmount: fmtCur(principal),
-        gstAmount: fmtCur(gst),
-        totalAmount: fmtCur(principal + gst)
+        principalAmount: formatMoney(principal),
+        gstAmount: formatMoney(gst),
+        totalAmount: formatMoney(principal + gst)
       }
     })
 
@@ -118,20 +113,20 @@ export async function POST(req: NextRequest) {
           isPrimary: b.isPrimary ? 'Yes' : 'No',
         }
       }),
-      agreementValue: fmtCur(sale.agreementValue),
+      agreementValue: formatMoney(sale.agreementValue),
       agreementValueWords: numberToWords(Number(sale.agreementValue)),
-      gstAmount: fmtCur(sale.gstAmount),
-      stampDuty: fmtCur(sale.stampDuty),
-      registrationCharges: fmtCur(sale.registrationCharges),
-      carParkingCharges: fmtCur(sale.carParkingCharges),
+      gstAmount: formatMoney(sale.gstAmount),
+      stampDuty: formatMoney(sale.stampDuty),
+      registrationCharges: formatMoney(sale.registrationCharges),
+      carParkingCharges: formatMoney(sale.carParkingCharges),
       parkingPodiumLevel: sale.parkingPodiumLevel ?? '',
       parkingFloor: sale.parkingFloor ?? '',
       parkingNumber: sale.parkingNumber ?? '',
-      bookingAmount: fmtCur(actualBookingAmount),
+      bookingAmount: formatMoney(actualBookingAmount),
       bookingAmountWords: numberToWords(actualBookingAmount),
-      balanceAmount: fmtCur(sale.agreementValue - actualBookingAmount),
+      balanceAmount: formatMoney(sale.agreementValue - actualBookingAmount),
       balanceAmountWords: numberToWords(sale.agreementValue - actualBookingAmount),
-      tdsAmount: fmtCur(tds),
+      tdsAmount: formatMoney(tds),
       tdsAmountWords: numberToWords(tds),
       bookingDate: formatDate(sale.bookingDate),
       todayDate: formatDate(new Date()),
@@ -140,16 +135,16 @@ export async function POST(req: NextRequest) {
       extraArea: sale.tenant?.extraAreaSqft?.toString() ?? '',
       // Array for tables
       paymentPlan: paymentPlan,
-      paymentPlanTotalAmount: fmtCur(sale.paymentSchedules.reduce((s, ps) => s + Number(ps.principalAmount), 0)),
-      paymentPlanTotalGst: fmtCur(sale.paymentSchedules.reduce((s, ps) => s + Number(ps.gstAmount), 0)),
-      paymentPlanGrandTotal: fmtCur(sale.paymentSchedules.reduce((s, ps) => s + Number(ps.principalAmount) + Number(ps.gstAmount), 0)),
+      paymentPlanTotalAmount: formatMoney(sale.paymentSchedules.reduce((s, ps) => s + Number(ps.principalAmount), 0)),
+      paymentPlanTotalGst: formatMoney(sale.paymentSchedules.reduce((s, ps) => s + Number(ps.gstAmount), 0)),
+      paymentPlanGrandTotal: formatMoney(sale.paymentSchedules.reduce((s, ps) => s + Number(ps.principalAmount) + Number(ps.gstAmount), 0)),
 
       // Payment specific (for demand letters)
       milestone: payment ? { name: payment.milestone?.name ?? payment.description } : null,
       payment: payment ? {
-        principalAmount: fmtCur(payment.principalAmount),
-        gstAmount: fmtCur(payment.gstAmount),
-        totalDue: fmtCur(Number(payment.principalAmount) + Number(payment.gstAmount)),
+        principalAmount: formatMoney(payment.principalAmount),
+        gstAmount: formatMoney(payment.gstAmount),
+        totalDue: formatMoney(Number(payment.principalAmount) + Number(payment.gstAmount)),
         amountInWords: numberToWords(Number(payment.principalAmount) + Number(payment.gstAmount))
       } : null
     }

@@ -1,7 +1,7 @@
 'use client'
 
 import { useState } from 'react'
-import { formatCurrency, formatDate } from '@/lib/template-engine'
+import { formatCurrency, formatDate } from '@/lib/format'
 import { scheduleStatusBadge, scheduleStatusLabel } from '@/lib/status'
 
 export default function PaymentScheduleTable({ schedules }: { schedules: any[] }) {

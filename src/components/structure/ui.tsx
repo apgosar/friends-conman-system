@@ -1,6 +1,7 @@
 'use client'
 
 import type { CSSProperties, ReactNode } from 'react'
+import { formatNumber } from '@/lib/format'
 
 export interface UnitTypeRow {
   id: string
@@ -59,7 +60,7 @@ export async function api<T = any>(url: string, init?: RequestInit): Promise<T> 
 
 export const jsonInit = (method: string, body: unknown): RequestInit => ({ method, headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) })
 
-export const fmtNum = (n: number | null | undefined) => (n === null || n === undefined ? '—' : n.toLocaleString('en-IN'))
+export const fmtNum = (n: number | null | undefined) => (n === null || n === undefined ? '—' : formatNumber(n))
 
 /** Name (required) and mobile (optional) of the person who booked a unit. */
 export function BookerFields({ name, mobile, onName, onMobile }: { name: string; mobile: string; onName: (v: string) => void; onMobile: (v: string) => void }) {

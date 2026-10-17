@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { requireRole } from '@/lib/guard'
 import { prisma } from '@/lib/db'
 import { floorPlanDataUri } from '@/lib/floor-plan-image'
-import { formatCurrency, formatDate } from '@/lib/template-engine'
+import { formatCurrency, formatDate } from '@/lib/format'
 
 export async function GET(
   req: NextRequest,

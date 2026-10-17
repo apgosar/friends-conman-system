@@ -1,6 +1,6 @@
 'use client'
 
-import { formatCurrency, formatDate } from '@/lib/template-engine'
+import { formatCurrency, formatDate } from '@/lib/format'
 import { useRouter } from 'next/navigation'
 
 const MODE_LABELS: Record<string, string> = {

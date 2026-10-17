@@ -4,7 +4,7 @@ import { useState } from 'react'
 import { useRouter } from 'next/navigation'
 import BackToProject from '@/components/projects/BackToProject'
 import PricingFields from '@/components/projects/PricingFields'
-import { Button, ButtonLink, Input, Select, Textarea } from '@/components/ui'
+import { Button, ButtonLink, Input, Select, SelectField, TextField, Textarea, TextareaField } from '@/components/ui'
 
 export default function EditProjectForm({ project }: { project: any }) {
   const router = useRouter()
@@ -75,73 +75,26 @@ export default function EditProjectForm({ project }: { project: any }) {
         <form onSubmit={handleSubmit}>
           {/* ── Basic Info ── */}
           <div className="grid grid-2 gap-4 mb-4">
-            <div className="form-group">
-              <label className="form-label">Project Name *</label>
-              <Input name="name" required defaultValue={project.name} />
-            </div>
-            <div className="form-group">
-              <label className="form-label">Project Type *</label>
-              <Select name="type" defaultValue={project.type}>
-                <option value="FRESH">Fresh Sale</option>
-                <option value="REDEVELOPMENT">Redevelopment</option>
-                <option value="MIXED">Mixed</option>
-              </Select>
-            </div>
-            <div className="form-group">
-              <label className="form-label">RERA Number</label>
-              <Input name="reraNumber" defaultValue={project.reraNumber ?? ''} placeholder="P52100012345" />
-            </div>
-            <div className="form-group">
-              <label className="form-label">Status</label>
-              <Select name="status" defaultValue={project.status}>
-                <option value="PLANNING">Planning</option>
-                <option value="UNDER_CONSTRUCTION">Under Construction</option>
-                <option value="READY">Ready</option>
-                <option value="COMPLETED">Completed</option>
-              </Select>
-            </div>
-            <div className="form-group">
-              <label className="form-label">City *</label>
-              <Input name="city" required defaultValue={project.city} />
-            </div>
-            <div className="form-group">
-              <label className="form-label">State</label>
-              <Input name="state" defaultValue={project.state} />
-            </div>
-            <div className="form-group">
-              <label className="form-label">Launch Date</label>
-              <Input name="launchDate" type="date"
-                defaultValue={project.launchDate ? new Date(project.launchDate).toISOString().split('T')[0] : ''} />
-            </div>
-            <div className="form-group">
-              <label className="form-label">Expected Completion</label>
-              <Input name="expectedCompletion" type="date"
-                defaultValue={project.expectedCompletion ? new Date(project.expectedCompletion).toISOString().split('T')[0] : ''} />
-            </div>
+            <TextField label="Project Name" name="name" required defaultValue={project.name} />
+            <SelectField label="Project Type *" name="type" defaultValue={project.type}><option value="FRESH">Fresh Sale</option><option value="REDEVELOPMENT">Redevelopment</option><option value="MIXED">Mixed</option></SelectField>
+            <TextField label="RERA Number" name="reraNumber" defaultValue={project.reraNumber ?? ''} placeholder="P52100012345" />
+            <SelectField label="Status" name="status" defaultValue={project.status}><option value="PLANNING">Planning</option><option value="UNDER_CONSTRUCTION">Under Construction</option><option value="READY">Ready</option><option value="COMPLETED">Completed</option></SelectField>
+            <TextField label="City" name="city" required defaultValue={project.city} />
+            <TextField label="State" name="state" defaultValue={project.state} />
+            <TextField label="Launch Date" name="launchDate" type="date" defaultValue={project.launchDate ? new Date(project.launchDate).toISOString().split('T')[0] : ''} />
+            <TextField label="Expected Completion" name="expectedCompletion" type="date" defaultValue={project.expectedCompletion ? new Date(project.expectedCompletion).toISOString().split('T')[0] : ''} />
           </div>
 
-          <div className="form-group mb-4">
-            <label className="form-label">Project Address *</label>
-            <Textarea name="address" required rows={2} defaultValue={project.address} />
-          </div>
+          <TextareaField label="Project Address" wrapperClassName="mb-4" name="address" required rows={2} defaultValue={project.address} />
 
           <div className="divider" />
           <h4 className="mb-4">Company / Developer Details</h4>
 
           <div className="grid grid-2 gap-4 mb-4">
-            <div className="form-group">
-              <label className="form-label">Company Name *</label>
-              <Input name="companyName" required defaultValue={project.companyName} />
-            </div>
-            <div className="form-group">
-              <label className="form-label">GSTIN</label>
-              <Input name="companyGstin" defaultValue={project.companyGstin ?? ''} placeholder="27AAAAA0000A1Z5" />
-            </div>
+            <TextField label="Company Name" name="companyName" required defaultValue={project.companyName} />
+            <TextField label="GSTIN" name="companyGstin" defaultValue={project.companyGstin ?? ''} placeholder="27AAAAA0000A1Z5" />
           </div>
-          <div className="form-group mb-4">
-            <label className="form-label">Company Address *</label>
-            <Textarea name="companyAddress" required rows={2} defaultValue={project.companyAddress} />
-          </div>
+          <TextareaField label="Company Address" wrapperClassName="mb-4" name="companyAddress" required rows={2} defaultValue={project.companyAddress} />
 
           <div className="divider" />
           <h4 className="mb-1">Tax and pricing</h4>

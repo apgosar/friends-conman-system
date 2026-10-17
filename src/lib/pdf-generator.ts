@@ -1,7 +1,7 @@
 import { prisma } from '@/lib/db'
 import { floorPlanDataUri } from '@/lib/floor-plan-image'
 import puppeteer from 'puppeteer'
-import { formatCurrency, formatDate } from '@/lib/template-engine'
+import { formatCurrency, formatDate, formatRupees } from '@/lib/format'
 import { uploadFile } from '@/lib/storage'
 import { QUOTE_FOLDER } from '@/lib/storage/files'
 
@@ -116,7 +116,7 @@ export async function generateAndSaveQuotePdf(quoteId: string) {
           </tr>
           <tr>
             <td>Rate</td>
-            <td class="amount">₹${rate.toLocaleString('en-IN')}/sqft</td>
+            <td class="amount">${formatRupees(rate)}/sqft</td>
           </tr>
           ${inquiry.parkingIncluded ? (
           '<tr>' +

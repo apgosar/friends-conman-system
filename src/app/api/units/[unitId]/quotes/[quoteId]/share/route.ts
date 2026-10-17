@@ -7,7 +7,7 @@ import { sendWhatsApp } from '@/lib/whatsapp'
 import { generateAndSaveQuotePdf } from '@/lib/pdf-generator'
 import { downloadFile } from '@/lib/storage'
 import { QUOTE_FOLDER, isNotFoundError, publishPublicCopy } from '@/lib/storage/files'
-import { formatCurrency, formatDate } from '@/lib/template-engine'
+import { formatCurrency, formatDate, formatNumber } from '@/lib/format'
 
 const ShareSchema = z.object({
   channels: z.array(z.enum(['EMAIL', 'WHATSAPP'])).min(1, 'Choose at least one channel'),
@@ -102,7 +102,7 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ uni
           inquiry.unit.configuration,                 // {{4}} configuration
           'Property Quotation',                       // {{5}} purpose
           'Quotation',                                // {{6}} document type
-          inquiry.totalCost.toLocaleString('en-IN'),  // {{7}} amount
+          formatNumber(inquiry.totalCost),  // {{7}} amount
           `Valid until ${validText}`,                 // {{8}} additional info
           process.env.COMPANY_NAME || 'Neev CMS',     // {{9}} sender
         ],

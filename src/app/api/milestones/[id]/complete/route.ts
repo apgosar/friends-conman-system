@@ -5,6 +5,7 @@ import { syncSaleLifecycle } from '@/lib/sale-lifecycle'
 import { dispatchAllPending } from '@/lib/comms-dispatcher'
 import { buildCommContent, sanitizeInline } from '@/lib/comms-content'
 import type { Prisma } from '@prisma/client'
+import { formatDate, formatRupees } from '@/lib/format'
 
 export async function POST(req: NextRequest, props: { params: Promise<{ id: string }> }) {
   const guard = await requireRole('admin')
@@ -65,7 +66,7 @@ export async function POST(req: NextRequest, props: { params: Promise<{ id: stri
     // Generate Communication Logs
     if (affectedSchedules.length > 0) {
       const commLogs: Prisma.CommunicationLogCreateManyInput[] = []
-      const dueText = sanitizeInline(dueDate.toLocaleDateString('en-IN'))
+      const dueText = sanitizeInline(formatDate(dueDate))
 
       affectedSchedules.forEach(schedule => {
         const amount = Number(schedule.principalAmount) + Number(schedule.gstAmount)
@@ -75,8 +76,8 @@ export async function POST(req: NextRequest, props: { params: Promise<{ id: stri
           const greeting = `Dear ${sanitizeInline(buyer.fullName) || 'Customer'},`
           const letter = { label: 'Demand Letter', path: `/api/documents/preview/demand-letter?saleId=${schedule.saleId}&milestoneName=${encodeURIComponent(isTaxOrParking ? schedule.description : milestone.name)}` }
           const { messageContent, attachments } = isTaxOrParking
-            ? buildCommContent(`${greeting}\nPayment for '${sanitizeInline(schedule.description)}' is now due. Please find the attached Demand Letter for ₹${amount.toLocaleString('en-IN')}.\nDue Date: ${dueText}.`, [letter])
-            : buildCommContent(`${greeting}\nThe milestone '${sanitizeInline(milestone.name)}' is now complete. Please find the attached Demand Letter for ₹${amount.toLocaleString('en-IN')} and the Architect Completion Certificate.\nDue Date: ${dueText}.`, [{ label: 'Architect Certificate', path: architectCertificateUrl }, letter])
+            ? buildCommContent(`${greeting}\nPayment for '${sanitizeInline(schedule.description)}' is now due. Please find the attached Demand Letter for ${formatRupees(amount)}.\nDue Date: ${dueText}.`, [letter])
+            : buildCommContent(`${greeting}\nThe milestone '${sanitizeInline(milestone.name)}' is now complete. Please find the attached Demand Letter for ${formatRupees(amount)} and the Architect Completion Certificate.\nDue Date: ${dueText}.`, [{ label: 'Architect Certificate', path: architectCertificateUrl }, letter])
 
           for (const [channel, address] of [['EMAIL', buyer.email], ['WHATSAPP', buyer.whatsappNumber]] as const) {
             if (!address) continue

@@ -6,6 +6,7 @@ import { Modal } from '@/components/structure/ui'
 import { ROLES, ROLE_DESCRIPTIONS, ROLE_LABELS, type Role } from '@/lib/roles'
 import { PASSWORD_RULES } from '@/lib/password-rules'
 import { Button, Input } from '@/components/ui'
+import { formatDate } from '@/lib/format'
 
 export default function UsersPage() {
   const [users, setUsers] = useState<any[]>([])
@@ -146,7 +147,7 @@ export default function UsersPage() {
                       </span>
                     </td>
                     <td className="text-sm text-muted">
-                      {new Date(user.createdAt).toLocaleDateString('en-IN')}
+                      {formatDate(user.createdAt)}
                     </td>
                     <td>
                       <button 

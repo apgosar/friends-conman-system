@@ -1,7 +1,7 @@
 import { prisma } from '@/lib/db'
 import { notFound } from 'next/navigation'
 import TopNav from '@/components/layout/TopNav'
-import { formatDate } from '@/lib/template-engine'
+import { formatDate } from '@/lib/format'
 import KycDocumentRow from '@/components/sales/KycDocumentRow'
 import { plain } from '@/lib/plain'
 import { ButtonLink } from '@/components/ui'

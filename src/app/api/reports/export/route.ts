@@ -2,6 +2,7 @@ import { NextRequest } from 'next/server'
 import { requireRole } from '@/lib/guard'
 import { prisma } from '@/lib/db'
 import { activeSale } from '@/lib/soft-delete'
+import { formatDate } from '@/lib/format'
 
 function escapeCsv(val: any): string {
   if (val === null || val === undefined) return ''
@@ -41,7 +42,7 @@ export async function GET(req: NextRequest) {
       const headers = ['Sale #', 'Date', 'Project', 'Unit', 'Configuration', 'Buyer Name', 'Buyer Email', 'Buyer Phone', 'Agreement Value', 'GST', 'Total', 'Booking Amount', 'Status']
       const rows = sales.map(s => [
         s.saleNumber,
-        new Date(s.createdAt).toLocaleDateString('en-IN'),
+        formatDate(s.createdAt),
         s.project.name,
         s.unit?.unitNumber ?? '',
         s.unit?.configuration ?? '',
@@ -78,7 +79,7 @@ export async function GET(req: NextRequest) {
       const headers = ['Receipt #', 'Payment Date', 'Project', 'Unit', 'Buyer', 'Milestone', 'Amount', 'GST Paid', 'Total', 'Mode', 'Reference #', 'Bank']
       const rows = payments.map(p => [
         p.receiptNumber ?? '',
-        new Date(p.paymentDate).toLocaleDateString('en-IN'),
+        formatDate(p.paymentDate),
         p.sale.project.name,
         p.sale.unit?.unitNumber ?? '',
         p.sale.buyers[0]?.fullName ?? '',

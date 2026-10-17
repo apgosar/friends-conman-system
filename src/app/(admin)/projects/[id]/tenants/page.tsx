@@ -2,7 +2,7 @@ import { prisma } from '@/lib/db'
 import { notFound } from 'next/navigation'
 import TopNav from '@/components/layout/TopNav'
 import BackToProject from '@/components/projects/BackToProject'
-import { formatCurrency } from '@/lib/template-engine'
+import { formatCurrency } from '@/lib/format'
 
 export default async function ProjectTenantsPage(props: PageProps<'/projects/[id]/tenants'>) {
   const { id } = await props.params

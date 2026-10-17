@@ -1,15 +1,12 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/db'
 import { generateDocx } from '@/lib/docx'
-import { numberToWords, formatDate, renderTemplate } from '@/lib/template-engine'
+import { formatDate, formatMoney, numberToWords } from '@/lib/format'
+import { renderTemplate } from '@/lib/template-engine'
 import { readStoredFile } from '@/lib/storage/files'
 import { requireRole } from '@/lib/guard'
 import { isInternalRequest } from '@/lib/internal-auth'
 
-const fmtCur = (amount: number | string | null | undefined) => {
-  if (!amount) return '0.00'
-  return Number(amount).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
-}
 
 export async function GET(req: NextRequest) {
   // The dispatcher fetches these server-to-server with the shared secret; people need the admin role.
@@ -80,9 +77,9 @@ export async function GET(req: NextRequest) {
         index: index + 1,
         description: ps.description,
         percentOfAV: pctLabel,
-        principalAmount: fmtCur(principal),
-        gstAmount: fmtCur(gst),
-        totalAmount: fmtCur(principal + gst)
+        principalAmount: formatMoney(principal),
+        gstAmount: formatMoney(gst),
+        totalAmount: formatMoney(principal + gst)
       }
     })
 
@@ -137,12 +134,12 @@ export async function GET(req: NextRequest) {
           isPrimary: b.isPrimary ? 'Yes' : 'No',
         }
       }),
-      agreementValue: fmtCur(sale.agreementValue),
+      agreementValue: formatMoney(sale.agreementValue),
       agreementValueWords: numberToWords(Number(sale.agreementValue)),
-      gstAmount: fmtCur(sale.gstAmount),
-      bookingAmount: fmtCur(actualBookingAmount),
+      gstAmount: formatMoney(sale.gstAmount),
+      bookingAmount: formatMoney(actualBookingAmount),
       bookingAmountWords: numberToWords(actualBookingAmount),
-      balanceAmount: fmtCur(sale.agreementValue - actualBookingAmount),
+      balanceAmount: formatMoney(sale.agreementValue - actualBookingAmount),
       balanceAmountWords: numberToWords(sale.agreementValue - actualBookingAmount),
       bookingDate: formatDate(sale.bookingDate),
       todayDate: formatDate(new Date()),
@@ -150,23 +147,23 @@ export async function GET(req: NextRequest) {
       // Payment specific (for receipts)
       milestone: { name: payment.schedule.description },
       payment: {
-        principalAmount: fmtCur(payment.schedule.principalAmount),
-        gstAmount: fmtCur(payment.schedule.gstAmount),
-        totalDue: fmtCur(Number(payment.schedule.principalAmount) + Number(payment.schedule.gstAmount)),
+        principalAmount: formatMoney(payment.schedule.principalAmount),
+        gstAmount: formatMoney(payment.schedule.gstAmount),
+        totalDue: formatMoney(Number(payment.schedule.principalAmount) + Number(payment.schedule.gstAmount)),
         amountInWords: numberToWords(Number(payment.schedule.principalAmount) + Number(payment.schedule.gstAmount))
       },
       receipt: {
         number: payment.receiptNumber ?? `REC-${payment.id.substring(0,6).toUpperCase()}`,
         date: formatDate(payment.paymentDate),
-        principalPaid: fmtCur(payment.amount),
-        gstPaid: fmtCur(payment.gstPaid),
-        amount: fmtCur(Number(payment.amount) + Number(payment.gstPaid ?? 0)),
+        principalPaid: formatMoney(payment.amount),
+        gstPaid: formatMoney(payment.gstPaid),
+        amount: formatMoney(Number(payment.amount) + Number(payment.gstPaid ?? 0)),
         amountWords: numberToWords(Number(payment.amount) + Number(payment.gstPaid ?? 0)),
         mode: payment.mode,
         reference: payment.referenceNumber ?? 'N/A',
         bankName: payment.bankName ?? 'N/A',
-        cumulativePaid: fmtCur(cumulativePaid),
-        balanceOutstanding: fmtCur(totalSaleValue - cumulativePaid)
+        cumulativePaid: formatMoney(cumulativePaid),
+        balanceOutstanding: formatMoney(totalSaleValue - cumulativePaid)
       }
     }
 

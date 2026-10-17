@@ -1,6 +1,7 @@
 'use client'
 
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Cell } from 'recharts'
+import { formatRupees } from '@/lib/format'
 
 interface AgingData {
   label: string
@@ -37,7 +38,7 @@ export default function AgingChart({ data }: { data: AgingData[] }) {
             tickFormatter={formatVal}
           />
           <Tooltip
-            formatter={(val: any) => [`₹${Number(val).toLocaleString('en-IN')}`, 'Amount'] as any}
+            formatter={(val: any) => [`${formatRupees(val)}`, 'Amount'] as any}
             contentStyle={{
               background: '#18181b',
               border: '1px solid rgba(255,255,255,0.1)',

@@ -2,6 +2,7 @@ import { NextRequest } from 'next/server'
 import { requireRole } from '@/lib/guard'
 import { sendEmail } from '@/lib/email'
 import { sendWhatsApp } from '@/lib/whatsapp'
+import { formatDateTime } from '@/lib/format'
 
 // POST /api/settings/test-email
 export async function POST(req: NextRequest) {
@@ -28,7 +29,7 @@ export async function POST(req: NextRequest) {
               Demand letters, receipts, and notifications will be delivered to buyer email addresses automatically.
             </p>
             <p style="color: #666; font-size: 13px; margin-top: 24px;">
-              Sent at: ${new Date().toLocaleString('en-IN')}
+              Sent at: ${formatDateTime(new Date())}
             </p>
           </div>
         </div>

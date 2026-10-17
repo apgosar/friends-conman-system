@@ -1,7 +1,7 @@
 'use client'
 
 import { useState } from 'react'
-import { formatCurrency } from '@/lib/template-engine'
+import { formatCurrency } from '@/lib/format'
 import { saleStatusBadge, saleStatusLabel } from '@/lib/status'
 import { ButtonLink } from '@/components/ui'
 

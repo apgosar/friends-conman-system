@@ -6,6 +6,7 @@ import TopNav from '@/components/layout/TopNav'
 import { TEMPLATE_TYPES, TEMPLATE_LIMITS, LETTERHEAD_TYPES, formatBytes } from '@/lib/template-constants'
 import TemplateTagReference from '@/components/projects/TemplateTagReference'
 import { Button, ButtonLink } from '@/components/ui'
+import { formatNumber } from '@/lib/format'
 
 export default function NewTemplatePage(props: { params: Promise<{ id: string }> }) {
   const params = use(props.params)
@@ -39,7 +40,7 @@ export default function NewTemplatePage(props: { params: Promise<{ id: string }>
     } else {
       const html = String(formData.get('templateHtml') ?? '')
       if (!html.trim()) return setError('HTML content is required')
-      if (html.length > TEMPLATE_LIMITS.htmlMaxChars) return setError(`HTML is too long. Maximum is ${TEMPLATE_LIMITS.htmlMaxChars.toLocaleString('en-IN')} characters`)
+      if (html.length > TEMPLATE_LIMITS.htmlMaxChars) return setError(`HTML is too long. Maximum is ${formatNumber(TEMPLATE_LIMITS.htmlMaxChars)} characters`)
       formData.delete('file')
     }
 

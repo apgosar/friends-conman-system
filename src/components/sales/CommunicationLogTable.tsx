@@ -1,14 +1,14 @@
 'use client'
 
 import { useState } from 'react'
-import { formatDate } from '@/lib/template-engine'
+import { formatDate, formatDateTime } from '@/lib/format'
 import { COMM_STATUS } from '@/lib/status'
 
 const statusBadge = (s: string) => COMM_STATUS[s]?.badge ?? 'badge-muted'
 const statusLabel = (s: string) => COMM_STATUS[s]?.label ?? s
 const GROUP_WINDOW_MS = 60_000
 const CHANNEL_ORDER = ['EMAIL', 'WHATSAPP']
-const fmt = (d: any) => (d ? new Date(d).toLocaleString('en-IN') : '—')
+const fmt = (d: any) => (d ? formatDateTime(d) : '—')
 
 type LogGroup = { key: string; createdAt: any; type: string; saleId: string; messageContent: string | null; logs: any[] }
 
@@ -69,7 +69,7 @@ export default function CommunicationLogTable({ logs }: { logs: any[] }) {
                   onClick={() => setSelectedLog(log)}
                   className="hover-row cursor-pointer"
                 >
-                  <td>{log.createdAt ? new Date(log.createdAt).toLocaleString('en-IN') : '—'}</td>
+                  <td>{log.createdAt ? formatDateTime(log.createdAt) : '—'}</td>
                   <td>
                     <div className="flex" style={{ gap: 6 }}>
                       {log.logs.map((l: any) => (

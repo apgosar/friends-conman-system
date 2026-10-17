@@ -1,6 +1,7 @@
 import React from 'react'
 import { INQUIRY_SOURCES, SOURCE_LABEL } from '@/lib/inquiry-constants'
 import { Button } from '@/components/ui'
+import { formatDate, formatRupees } from '@/lib/format'
 
 export function QuoteModal({
   showQuoteForm,
@@ -61,7 +62,7 @@ export function QuoteModal({
               <div className="font-semibold mb-1">⚠ Repeat customer — {repeats.length} earlier inquir{repeats.length === 1 ? 'y' : 'ies'} on this number</div>
               {repeats.slice(0, 4).map((q: any) => (
                 <div key={q.id} className="text-secondary">
-                  {q.customerName} · Unit {q.unitNumber} · ₹{Number(q.totalCost).toLocaleString('en-IN')} · {new Date(q.createdAt).toLocaleDateString('en-IN')}{q.status !== 'OPEN' ? ` (${q.status.toLowerCase()})` : ''}
+                  {q.customerName} · Unit {q.unitNumber} · {formatRupees(q.totalCost)} · {formatDate(q.createdAt)}{q.status !== 'OPEN' ? ` (${q.status.toLowerCase()})` : ''}
                 </div>
               ))}
               {repeats.length > 4 && <div className="text-muted">…and {repeats.length - 4} more</div>}
@@ -132,12 +133,12 @@ export function QuoteModal({
             <div className="text-base p-4 mb-5" style={{ background: 'var(--bg-surface)', borderRadius: 'var(--radius-md)', border: '1px solid var(--border-color)' }}>
               <div className="flex justify-between" style={{ marginBottom: 6 }}>
                 <span className="text-muted">Agreement Value</span>
-                <span>₹{Number(quoteData.agreementValue).toLocaleString('en-IN')}</span>
+                <span>{formatRupees(quoteData.agreementValue)}</span>
               </div>
               {quoteData.parkingIncluded && (
                 <div className="flex justify-between" style={{ marginBottom: 6 }}>
                   <span className="text-muted">Parking Charges</span>
-                  <span>₹{projectParkingCharge.toLocaleString('en-IN')}</span>
+                  <span>{formatRupees(projectParkingCharge)}</span>
                 </div>
               )}
               <div className="flex justify-between" style={{ marginBottom: 6 }}>

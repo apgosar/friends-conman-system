@@ -1,6 +1,6 @@
 import { prisma } from '@/lib/db'
 import TopNav from '@/components/layout/TopNav'
-import { formatCurrency, formatDate } from '@/lib/template-engine'
+import { formatCurrency, formatDate } from '@/lib/format'
 import { activeSale } from '@/lib/soft-delete'
 import { ButtonLink } from '@/components/ui'
 

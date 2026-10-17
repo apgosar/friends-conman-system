@@ -2,7 +2,7 @@
 
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
-import { formatDate } from '@/lib/template-engine'
+import { formatDate } from '@/lib/format'
 import { Button } from '@/components/ui'
 
 export default function KycDocumentRow({ doc }: { doc: any }) {

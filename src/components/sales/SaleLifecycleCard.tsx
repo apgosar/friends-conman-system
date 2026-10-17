@@ -3,7 +3,7 @@
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { SALE_LIFECYCLE, SALE_STATUS } from '@/lib/status'
-import { formatDate } from '@/lib/template-engine'
+import { formatDate } from '@/lib/format'
 import { Button } from '@/components/ui'
 
 const todayStr = () => new Date().toISOString().split('T')[0]

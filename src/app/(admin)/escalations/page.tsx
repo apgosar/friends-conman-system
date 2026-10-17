@@ -1,7 +1,7 @@
 import { prisma } from '@/lib/db'
 import TopNav from '@/components/layout/TopNav'
 import EscalationAlerts from '@/components/dashboard/EscalationAlerts'
-import { formatCurrency } from '@/lib/template-engine'
+import { formatCurrency } from '@/lib/format'
 import { activeSale } from '@/lib/soft-delete'
 
 async function getEscalations() {
