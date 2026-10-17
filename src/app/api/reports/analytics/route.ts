@@ -1,5 +1,4 @@
-import { apiError, apiServerError } from '@/lib/api-error'
-import { NextRequest } from 'next/server'
+import { apiServerError } from '@/lib/api-error'
 import { requireRole } from '@/lib/guard'
 import { prisma } from '@/lib/db'
 import { OUTSTANDING_SCHEDULE_STATUSES, UNIT_STATUS_ORDER, isSaleable, isUnsold } from '@/lib/status'

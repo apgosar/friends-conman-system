@@ -1,7 +1,7 @@
 import { it, expect, beforeEach, afterEach, vi } from 'vitest'
 import { describeDb, resetDb, getPrisma, seedProject } from './helpers/db'
 
-const sendEmail = vi.fn(async (_opts: any) => ({ messageId: 'm-1' }))
+const sendEmail = vi.fn(async (opts: any) => { void opts; return { messageId: 'm-1' } })
 vi.mock('@/lib/email', () => ({ sendEmail: (opts: any) => sendEmail(opts) }))
 vi.mock('@/lib/whatsapp', () => ({ sendWhatsApp: vi.fn(async () => ({ status: 'simulated', messageId: 'w-1' })) }))
 
@@ -113,5 +113,37 @@ describeDb('communications dispatcher', () => {
     const prisma = await getPrisma()
     expect((await prisma.communicationLog.findUniqueOrThrow({ where: { id: stale.id } })).status).toBe('SENT')
     expect((await prisma.communicationLog.findUniqueOrThrow({ where: { id: fresh.id } })).status).toBe('SENDING')
+  })
+
+  it('shares a backlog between overlapping runs: every message goes out once, and never more than three at a time', async () => {
+    const { dispatchAllPending } = await import('@/lib/comms-dispatcher')
+    for (let i = 0; i < 12; i++) await seedLog(`Dear Asha,\nMessage ${i}.`)
+
+    let inFlight = 0
+    let peak = 0
+    sendEmail.mockImplementation(async () => {
+      inFlight++
+      peak = Math.max(peak, inFlight)
+      await new Promise((r) => setTimeout(r, 20))
+      inFlight--
+      return { messageId: 'm' }
+    })
+
+    const [a, b] = await Promise.all([dispatchAllPending(), dispatchAllPending()])
+    expect(a.length + b.length).toBe(12) // the two runs split the queue between them
+    expect(sendEmail).toHaveBeenCalledTimes(12)
+    expect(new Set([...a, ...b].map((r) => r.id)).size).toBe(12)
+    expect(peak).toBeLessThanOrEqual(6) // 3 workers per run, 2 runs
+    const sent = await (await getPrisma()).communicationLog.count({ where: { status: 'SENT' } })
+    expect(sent).toBe(12)
+    sendEmail.mockImplementation(async () => ({ messageId: 'm-1' }))
+  })
+
+  it('leaves a message that has already failed three times alone until someone retries it', async () => {
+    const { dispatchAllPending, dispatchCommunicationLog } = await import('@/lib/comms-dispatcher')
+    const log = await seedLog('Dear Asha,\nBroken.', undefined, { status: 'PENDING', retryCount: 3 })
+    expect(await dispatchAllPending()).toHaveLength(0)
+    expect(sendEmail).not.toHaveBeenCalled()
+    expect((await dispatchCommunicationLog(log.id)).status).toBe('sent') // the retry button still works
   })
 })

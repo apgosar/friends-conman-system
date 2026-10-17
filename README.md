@@ -64,7 +64,11 @@ A comprehensive Real Estate Construction & Sales Management platform built for m
    DATABASE_URL="postgresql://user:password@localhost:5432/friends_db"
    NEXTAUTH_SECRET="your-secret-key"
    NEXTAUTH_URL="http://localhost:3000"
+   # Encrypts buyers' PAN and Aadhaar numbers. Optional for local development, REQUIRED in production.
+   # Generate with `openssl rand -base64 32` and back it up apart from the database (without it those numbers cannot be read).
+   PII_ENCRYPTION_KEY="..."
    ```
+   Upgrading a database that already holds buyers? Run `npm run db:encrypt-pii` once after setting the key (safe to repeat).
 
 4. **Initialize Database**
    ```bash
@@ -78,7 +82,7 @@ A comprehensive Real Estate Construction & Sales Management platform built for m
    ```bash
    npm run dev
    ```
-   Open [http://localhost:3000](http://localhost:3000) in your browser. Default login: `admin@friends.com` / `Admin@123`
+   Open [http://localhost:3000](http://localhost:3000) in your browser. The demo seed creates `admin@friends.com` and prints a generated password once (set `SEED_PASSWORD` to choose it); there is no default password.
 
 ## 🎨 UI / UX Philosophy
 

@@ -1,5 +1,7 @@
-import { TemplateContext } from '@/types'
 import { escapeHtml } from '@/lib/html-escape'
+
+/** The data a template is filled with (see lib/documents/payload.ts); values are looked up by {{path.to.value}}. */
+export type TemplateContext = Record<string, unknown>
 
 /**
  * Replaces all {{variable.path}} placeholders in a template string

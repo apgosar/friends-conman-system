@@ -22,6 +22,10 @@ import { PDFDocument } from 'pdf-lib'
 
 // How many messages are prepared at once. Each can start a PDF conversion, so this is deliberately small.
 const DISPATCH_CONCURRENCY = 3
+// A message that failed this many times stays failed until someone presses Retry
+const MAX_ATTEMPTS = 3
+// One run takes at most this many messages, so a huge backlog is worked off over several runs
+const MAX_PER_RUN = 200
 // A worker that died mid-send leaves its rows SENDING; after this long they go back to PENDING.
 const STALE_CLAIM_MS = 10 * 60 * 1000
 const ATTACHMENT_TIMEOUT_MS = 90_000
@@ -138,6 +142,27 @@ async function finish(logId: string, data: { status: string; failureReason?: str
   })
 }
 
+/**
+ * Take the oldest message that is waiting and mark it SENDING, or return null when none is. `FOR UPDATE SKIP LOCKED`
+ * lets any number of workers (this process, another instance, the cron call) pull from the same queue: each gets a
+ * different row and nobody waits on, or double-sends, a row another worker holds. `retryCount < MAX_ATTEMPTS` keeps
+ * messages that keep failing out of the queue until someone retries them by hand.
+ */
+async function claimNext(): Promise<string | null> {
+  const rows = await prisma.$queryRaw<{ id: string }[]>`
+    UPDATE communication_logs
+       SET status = 'SENDING', "claimedAt" = now()
+     WHERE id = (
+       SELECT id FROM communication_logs
+        WHERE status IN ('PENDING', 'QUEUED') AND "retryCount" < ${MAX_ATTEMPTS}
+        ORDER BY "createdAt"
+        FOR UPDATE SKIP LOCKED
+        LIMIT 1)
+    RETURNING id`
+  return rows[0]?.id ?? null
+}
+
+/** Dispatch one message by id (the retry button, or right after it is created). */
 export async function dispatchCommunicationLog(logId: string): Promise<DispatchResult> {
   const existing = await prisma.communicationLog.findUnique({ where: { id: logId }, select: { channel: true } })
   if (!existing) return { id: logId, channel: 'UNKNOWN', status: 'failed', reason: 'Log not found' }
@@ -145,7 +170,11 @@ export async function dispatchCommunicationLog(logId: string): Promise<DispatchR
   if (!(await claim(logId))) {
     return { id: logId, channel: existing.channel, status: 'skipped', reason: 'Already sent or being sent' }
   }
+  return sendClaimed(logId)
+}
 
+/** Send a message this worker has already claimed, and record the outcome. */
+async function sendClaimed(logId: string): Promise<DispatchResult> {
   const log = await prisma.communicationLog.findUniqueOrThrow({
     where: { id: logId },
     include: {
@@ -338,22 +367,11 @@ export async function dispatchCommunicationLog(logId: string): Promise<DispatchR
   }
 }
 
-async function mapLimit<T, R>(items: T[], limit: number, fn: (item: T) => Promise<R>): Promise<R[]> {
-  const results: R[] = new Array(items.length)
-  let next = 0
-  const worker = async () => {
-    while (next < items.length) {
-      const i = next++
-      results[i] = await fn(items[i])
-    }
-  }
-  await Promise.all(Array.from({ length: Math.min(limit, items.length) }, worker))
-  return results
-}
-
 /**
- * Dispatch ALL pending logs (called after milestone complete / new sale / the manual button).
- * Safe to run concurrently with itself: each message is claimed before it is sent.
+ * Dispatch everything that is waiting (called after a milestone completes / a new sale / the manual button / cron).
+ * DISPATCH_CONCURRENCY workers each pull one message at a time until the queue is empty or MAX_PER_RUN is reached, so
+ * only as many messages are SENDING as are actually being worked on. Safe to run alongside itself, here or in another
+ * instance: see claimNext().
  */
 export async function dispatchAllPending(): Promise<DispatchResult[]> {
   // Messages whose worker died mid-send go back in the queue
@@ -362,11 +380,16 @@ export async function dispatchAllPending(): Promise<DispatchResult[]> {
     data: { status: 'PENDING', claimedAt: null },
   })
 
-  const pending = await prisma.communicationLog.findMany({
-    where: { status: { in: CLAIMABLE }, retryCount: { lt: 3 } },
-    select: { id: true },
-    orderBy: { createdAt: 'asc' },
-    take: 200,
-  })
-  return mapLimit(pending, DISPATCH_CONCURRENCY, (log) => dispatchCommunicationLog(log.id))
+  const results: DispatchResult[] = []
+  let taken = 0
+  const worker = async () => {
+    while (taken < MAX_PER_RUN) {
+      taken++
+      const id = await claimNext()
+      if (!id) return
+      results.push(await sendClaimed(id))
+    }
+  }
+  await Promise.all(Array.from({ length: DISPATCH_CONCURRENCY }, worker))
+  return results
 }

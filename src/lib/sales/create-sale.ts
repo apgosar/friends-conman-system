@@ -4,7 +4,7 @@ import { z } from '@/lib/validate'
 import { nextSaleNumber } from '@/lib/numbering'
 import { buildCommContent, sanitizeInline } from '@/lib/comms-content'
 import { computeCharges, pricingFromProject } from '@/lib/pricing'
-import { round2, sumRupees } from '@/lib/money'
+import { sumRupees } from '@/lib/money'
 import { activeSale } from '@/lib/soft-delete'
 import { NOT_FOR_SALE_STATUS, UNSOLD_UNIT_STATUSES, unitStatusLabel } from '@/lib/status'
 import { redact } from '@/lib/redact'
@@ -237,4 +237,3 @@ export async function createSale(input: SaleCreateInput, actorId: string) {
 export const isDuplicateActiveSale = (err: unknown): boolean =>
   err instanceof Prisma.PrismaClientKnownRequestError && err.code === 'P2002'
 
-export const roundMoney = round2

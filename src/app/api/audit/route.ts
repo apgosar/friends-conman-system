@@ -1,4 +1,4 @@
-import { apiError, apiServerError } from '@/lib/api-error'
+import { apiServerError } from '@/lib/api-error'
 import { NextRequest } from 'next/server'
 import { requireRole } from '@/lib/guard'
 import { prisma } from '@/lib/db'

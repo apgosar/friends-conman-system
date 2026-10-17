@@ -142,6 +142,10 @@ export function validateEnv(): void {
     }
   }
 
+  if (process.env.NODE_ENV === 'production' && !process.env.PII_ENCRYPTION_KEY?.trim()) {
+    errors.push('  ✗ PII_ENCRYPTION_KEY — encrypts PAN and Aadhaar numbers at rest (generate with: openssl rand -base64 32, and back it up separately from the database)')
+  }
+
   if (errors.length > 0) {
     console.error('\n[ENV] ❌ Missing required environment variables:\n')
     errors.forEach((e) => console.error(e))

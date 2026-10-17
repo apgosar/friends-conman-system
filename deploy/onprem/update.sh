@@ -97,6 +97,24 @@ set_env_tag() {
   mv "$tmp" .env
 }
 
+# PAN and Aadhaar numbers are encrypted with PII_ENCRYPTION_KEY (see .env.onprem.example). An existing server will not
+# have one yet, so make one now, once. It is kept in .env, which is already in the server's backup; the operator is
+# told to keep a copy elsewhere too, because the numbers cannot be read again without it.
+ensure_pii_key() {
+  local current key
+  current="$(grep -E '^PII_ENCRYPTION_KEY=' .env | tail -1 | tr -d '\r' | sed -E "s/^PII_ENCRYPTION_KEY=//; s/^[\"']//; s/[\"']\$//")"
+  case "$current" in ""|CHANGE_ME*) ;; *) return 0 ;; esac
+  if command -v openssl >/dev/null 2>&1; then key="$(openssl rand -base64 32)"; else key="$(head -c 32 /dev/urandom | base64)"; fi
+  [ -n "$key" ] || fail "Could not create the key that protects ID numbers. The app was not changed."
+  # drop an empty or placeholder line, then add the real one
+  grep -vE '^PII_ENCRYPTION_KEY=' .env > ".env.pii.$$" || true
+  printf 'PII_ENCRYPTION_KEY="%s"\n' "$key" >> ".env.pii.$$"
+  chmod --reference=.env ".env.pii.$$" 2>/dev/null || chmod 600 ".env.pii.$$"
+  mv ".env.pii.$$" .env
+  ok "Created PII_ENCRYPTION_KEY in .env (protects PAN and Aadhaar numbers)"
+  warn "Keep a copy of PII_ENCRYPTION_KEY from $APP_DIR/.env somewhere safe, apart from the server. Without it those numbers cannot be read."
+}
+
 is_downgrade() {
   local o n
   o="$(printf '%s' "$1" | sed -E 's/^v//; s/[-+].*$//')"
@@ -304,6 +322,7 @@ main() {
   step 6 "Switching to $TAG"
   ENV_COPY=".env.before-$STAMP"
   cp -p .env "$ENV_COPY" && chmod 600 "$ENV_COPY"
+  ensure_pii_key
   set_env_tag "$TAG" || fail "Could not update .env. The app was not changed."
   if docker compose up -d --no-deps web 2>&1 && wait_healthy "$HEALTH_TIMEOUT"; then
     ok "$TAG is running and healthy"

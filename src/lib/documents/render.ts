@@ -15,7 +15,7 @@ export async function renderToFile(template: TemplateRow, data: DocumentPayload)
     return { buffer: generateDocx(await readStoredFile(template.fileUrl), data), mimeType: DOCX_MIME, extension: 'docx' }
   }
   if (template.templateHtml) {
-    return { buffer: await generatePdf(template.templateHtml, data as never), mimeType: 'application/pdf', extension: 'pdf' }
+    return { buffer: await generatePdf(template.templateHtml, data), mimeType: 'application/pdf', extension: 'pdf' }
   }
   throw fail('invalid', 'This template has no file and no HTML')
 }
@@ -41,8 +41,8 @@ export async function renderPreview(template: TemplateRow, data: DocumentPayload
     return inline(`${opts.baseName}.docx`, DOCX_MIME, docx)
   }
   if (template.templateHtml) {
-    if (wantsPdf) return inline(`${opts.baseName}.pdf`, 'application/pdf', await generatePdf(template.templateHtml, data as never))
-    return new Response(renderTemplate(template.templateHtml, data as never), {
+    if (wantsPdf) return inline(`${opts.baseName}.pdf`, 'application/pdf', await generatePdf(template.templateHtml, data))
+    return new Response(renderTemplate(template.templateHtml, data), {
       headers: {
         'Content-Type': 'text/html; charset=utf-8',
         'Content-Security-Policy': "sandbox; default-src 'none'; style-src 'unsafe-inline'; img-src data: https:",

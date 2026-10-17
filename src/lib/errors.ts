@@ -29,9 +29,6 @@ export function kindForStatus(status: number): ErrorKind {
 /** "Sale not found" */
 export const notFoundMessage = (what: string) => `${what} not found`
 
-/** "Could not save the unit type. Please try again" */
-export const failedMessage = (action: string) => `Could not ${action}. Please try again`
-
 /** "1 unit" / "3 units": no more "unit(s)" */
 export const plural = (n: number, singular: string, pluralForm = `${singular}s`) => `${n} ${n === 1 ? singular : pluralForm}`
 

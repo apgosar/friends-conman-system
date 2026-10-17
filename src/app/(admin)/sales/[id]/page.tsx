@@ -11,6 +11,9 @@ import CommunicationLogTable from '@/components/sales/CommunicationLogTable'
 import SaleLifecycleCard from '@/components/sales/SaleLifecycleCard'
 
 import { plain } from '@/lib/plain'
+import { maskedAadhaar, maskedPan } from '@/lib/pii'
+import { isAnonymized } from '@/lib/dpdp-compliance'
+import AnonymizeBuyerButton from '@/components/sales/AnonymizeBuyerButton'
 import { Badge, ButtonLink, Card, CardHeader, PageHeader, StatusBadge } from '@/components/ui'
 
 async function getSale(id: string) {
@@ -96,9 +99,10 @@ export default async function SaleDetailPage(props: PageProps<'/sales/[id]'>) {
                 <div className="text-sm text-muted">
                   {buyer.email && <div>✉ {buyer.email}</div>}
                   {buyer.whatsappNumber && <div>📱 {buyer.whatsappNumber}</div>}
-                  {buyer.panNumber && <div>PAN: {buyer.panNumber}</div>}
-                  {buyer.aadhaarNumber && <div>Aadhaar: {buyer.aadhaarNumber}</div>}
+                  {buyer.panNumber && <div>PAN: {maskedPan(buyer.panNumber)}</div>}
+                  {buyer.aadhaarNumber && <div>Aadhaar: {maskedAadhaar(buyer.aadhaarNumber)}</div>}
                 </div>
+                {isSuperAdmin && !isAnonymized(buyer.fullName) && <div className="mt-2"><AnonymizeBuyerButton buyerId={buyer.id} buyerName={buyer.fullName} /></div>}
               </div>
             ))}
           </div>

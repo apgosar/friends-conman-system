@@ -1,5 +1,6 @@
 import { formatDate, formatMoney, numberToWords } from '@/lib/format'
 import { percentOf } from '@/lib/money'
+import { revealPii } from '@/lib/pii' // agreements carry the real numbers; nothing else does
 
 /**
  * The data every document template can use ({{tags}}), built in ONE place for sale agreements, demand letters and
@@ -65,14 +66,14 @@ export function buildSalePayload(sale: SaleForDocument) {
     carpetAreaSqm: (unit.carpetAreaSqft * SQFT_TO_SQM).toFixed(2),
     buyer1Name: first?.fullName ?? '',
     buyer1Address: first?.address ?? '',
-    buyer1Pan: first?.panNumber ?? '',
-    buyer1Aadhaar: first?.aadhaarNumber ?? '',
+    buyer1Pan: revealPii(first?.panNumber),
+    buyer1Aadhaar: revealPii(first?.aadhaarNumber),
     buyers: buyers.map((b, i) => ({
       index: i + 1,
       ordinal: ordinal(i + 1),
       fullName: b.fullName ?? '',
-      panNumber: b.panNumber ?? '',
-      aadhaarNumber: b.aadhaarNumber ?? '',
+      panNumber: revealPii(b.panNumber),
+      aadhaarNumber: revealPii(b.aadhaarNumber),
       email: b.email ?? '',
       whatsappNumber: b.whatsappNumber ?? '',
       address: b.address ?? '',

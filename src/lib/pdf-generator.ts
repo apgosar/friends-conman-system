@@ -1,8 +1,9 @@
 import { logger } from '@/lib/logger'
 import { prisma } from '@/lib/db'
 import { floorPlanDataUri } from '@/lib/floor-plan-image'
-import puppeteer from 'puppeteer'
-import { formatCurrency, formatDate, formatRupees } from '@/lib/format'
+import { renderHtmlToPdf } from '@/lib/pdf/renderer'
+import { escapeHtml } from '@/lib/html-escape'
+import { formatCurrency, formatDate, formatNumber, formatRupees } from '@/lib/format'
 import { uploadFile } from '@/lib/storage'
 import { QUOTE_FOLDER } from '@/lib/storage/files'
 
@@ -33,6 +34,10 @@ export async function generateAndSaveQuotePdf(quoteId: string) {
     const { unit } = inquiry
     const project = unit.floor.wing.project
     const rate = Math.round(inquiry.agreementValue / unit.carpetAreaSqft)
+    // Everything typed by a person goes through e(): the page is rendered by a browser
+    const e = (v: unknown) => escapeHtml(String(v ?? ''))
+    // The rate this quote was actually computed at (the project's rates may have changed since)
+    const pct = (amount: number) => `${formatNumber((amount / inquiry.agreementValue) * 100)}%`
 
     // Get floor plan image as base64
     const base64FloorPlan = await floorPlanDataUri(unit)
@@ -42,7 +47,7 @@ export async function generateAndSaveQuotePdf(quoteId: string) {
     <html>
     <head>
       <meta charset="utf-8">
-      <title>Quote - ${unit.unitNumber}</title>
+      <title>Quote - ${e(unit.unitNumber)}</title>
       <style>
         body { font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif; color: #333; line-height: 1.5; padding: 40px; margin: 0; }
         .header { display: flex; justify-content: space-between; border-bottom: 2px solid #0f172a; padding-bottom: 20px; margin-bottom: 30px; }
@@ -78,27 +83,27 @@ export async function generateAndSaveQuotePdf(quoteId: string) {
           <p class="subtitle">Quote Ref: ${inquiry.id.slice(-8).toUpperCase()} | Date: ${formatDate(inquiry.createdAt)}</p>
         </div>
         <div class="project-details">
-          <p class="project-name">${project.name}</p>
-          <p class="subtitle">${project.address}<br/>${project.city}</p>
+          <p class="project-name">${e(project.name)}</p>
+          <p class="subtitle">${e(project.address)}<br/>${e(project.city)}</p>
         </div>
       </div>
 
       <div class="grid">
         <div class="col">
           <div class="label">Customer Name</div>
-          <div class="val">${inquiry.customerName}</div>
+          <div class="val">${e(inquiry.customerName)}</div>
         </div>
         <div class="col">
           <div class="label">Mobile Number</div>
-          <div class="val">${inquiry.mobileNumber}</div>
+          <div class="val">${e(inquiry.mobileNumber)}</div>
         </div>
         <div class="col">
           <div class="label">Unit Number</div>
-          <div class="val">${unit.unitNumber}</div>
+          <div class="val">${e(unit.unitNumber)}</div>
         </div>
         <div class="col">
           <div class="label">Configuration</div>
-          <div class="val">${unit.configuration} (${unit.carpetAreaSqft} sqft)</div>
+          <div class="val">${e(unit.configuration)} (${unit.carpetAreaSqft} sqft)</div>
         </div>
       </div>
 
@@ -126,11 +131,11 @@ export async function generateAndSaveQuotePdf(quoteId: string) {
           '</tr>'
           ) : ''}
           <tr>
-            <td>Stamp Duty (6%)</td>
+            <td>Stamp Duty (${pct(inquiry.stampDuty)})</td>
             <td class="amount">${formatCurrency(inquiry.stampDuty)}</td>
           </tr>
           <tr>
-            <td>GST (5%)</td>
+            <td>GST (${pct(inquiry.gst)})</td>
             <td class="amount">${formatCurrency(inquiry.gst)}</td>
           </tr>
           <tr>
@@ -146,7 +151,7 @@ export async function generateAndSaveQuotePdf(quoteId: string) {
 
       ${base64FloorPlan ? (
       '<div class="floorplan-container">' +
-        '<div class="section-title" style="text-align: left; margin-bottom: 8px;">Floor Plan (' + unit.configuration + ')</div>' +
+        '<div class="section-title" style="text-align: left; margin-bottom: 8px;">Floor Plan (' + e(unit.configuration) + ')</div>' +
         '<img class="floorplan-img" src="' + base64FloorPlan + '" />' +
       '</div>'
       ) : ''}
@@ -158,22 +163,10 @@ export async function generateAndSaveQuotePdf(quoteId: string) {
     </html>
     `
 
-    const browser = await puppeteer.launch({
-      headless: true,
-      executablePath: process.env.PUPPETEER_EXECUTABLE_PATH || undefined,
-      args: ['--no-sandbox', '--disable-setuid-sandbox'],
-    })
-    const page = await browser.newPage()
-    await page.setContent(html, { waitUntil: 'load' })
-    const pdfBuffer = await page.pdf({
-      format: 'A4',
-      printBackground: true,
-      margin: { top: '0', right: '0', bottom: '0', left: '0' },
-    })
-    await browser.close()
+    const pdfBuffer = await renderHtmlToPdf(html, { margin: '0' })
 
     // Keep the PDF in storage under a fixed key so it can be re-sent and regenerated in place
-    await uploadFile({ buffer: Buffer.from(pdfBuffer), mimeType: 'application/pdf', folder: QUOTE_FOLDER, fileName: `${quoteId}.pdf` })
+    await uploadFile({ buffer: pdfBuffer, mimeType: 'application/pdf', folder: QUOTE_FOLDER, fileName: `${quoteId}.pdf` })
 
     return true
   } catch (error) {

@@ -189,10 +189,5 @@ export const PROJECT_TYPE: Record<string, StatusStyle> = {
 const humanize = (s: string) => s.replace(/_/g, ' ').toLowerCase().replace(/\b\w/g, (c) => c.toUpperCase())
 
 export const unitStatusLabel = (s: string) => UNIT_STATUS[s]?.label ?? humanize(s)
-export const saleStatusLabel = (s: string) => SALE_STATUS[s]?.label ?? humanize(s)
-export const scheduleStatusLabel = (s: string) => SCHEDULE_STATUS[s]?.label ?? humanize(s)
-export const unitStatusBadge = (s: string) => UNIT_STATUS[s]?.badge ?? 'badge-muted'
-export const saleStatusBadge = (s: string) => SALE_STATUS[s]?.badge ?? 'badge-muted'
 export const commStatusBadge = (s: string) => COMM_STATUS[s]?.badge ?? 'badge-muted'
 export const commStatusLabel = (s: string) => COMM_STATUS[s]?.label ?? humanize(s)
-export const scheduleStatusBadge = (s: string) => SCHEDULE_STATUS[s]?.badge ?? 'badge-muted'

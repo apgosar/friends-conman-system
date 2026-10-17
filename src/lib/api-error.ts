@@ -1,4 +1,4 @@
-import { ERROR_KINDS, notFoundMessage, type ErrorKind } from '@/lib/errors'
+import { ERROR_KINDS, type ErrorKind } from '@/lib/errors'
 import { logger } from '@/lib/logger'
 
 /**
@@ -12,8 +12,6 @@ export function apiError(kind: ErrorKind, message?: string, extra?: Record<strin
   const text = (message ?? fallback).replace(/\.\s*$/, '')
   return Response.json({ error: text, ...extra }, { status })
 }
-
-export const apiNotFound = (what: string) => apiError('notFound', notFoundMessage(what))
 
 /**
  * For `catch (err)`: logs the real error (with `context` saying what was being done) and answers with the generic

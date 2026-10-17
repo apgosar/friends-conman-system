@@ -8,11 +8,6 @@ import { logger } from '@/lib/logger'
  *   WHATSAPP_ACCESS_TOKEN     — permanent system user token from Meta Business Manager
  */
 
-export interface WhatsAppTemplateParam {
-  type: 'text' | 'currency' | 'date_time'
-  text?: string
-}
-
 export interface WhatsAppMessage {
   to: string           // phone with country code, no +  e.g. "919876543210"
   message: string      // plain-text body (used as fallback / logging)
