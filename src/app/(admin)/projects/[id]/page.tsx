@@ -7,6 +7,7 @@ import UnitsView from '@/components/projects/UnitsView'
 import ProjectSalesTable from '@/components/projects/ProjectSalesTable'
 import TemplateCoverage from '@/components/projects/TemplateCoverage'
 import { isSaleable, isUnsold, saleStatusBadge, saleStatusLabel } from '@/lib/status'
+import { activeSale } from '@/lib/soft-delete'
 
 async function getProject(id: string) {
   return prisma.project.findUnique({
@@ -20,10 +21,11 @@ async function getProject(id: string) {
       templates: { where: { isActive: true } },
       tenants: { include: { newUnit: true }, orderBy: { name: 'asc' } },
       sales: {
+        where: { deletedAt: null },
         include: { buyers: { orderBy: { sequence: 'asc' } }, unit: true },
         orderBy: { createdAt: 'desc' },
       },
-      _count: { select: { sales: true } },
+      _count: { select: { sales: { where: activeSale } } },
     },
   })
 }

@@ -22,7 +22,8 @@ export type {
   AuditLog,
 } from '@prisma/client'
 
-export type UserRole = 'SUPER_ADMIN' | 'ADMIN' | 'SALES'
+import type { Role } from '@/lib/roles'
+export type UserRole = Role
 export type ProjectType = 'FRESH' | 'REDEVELOPMENT' | 'MIXED'
 export type ProjectStatus = 'UPCOMING' | 'ONGOING' | 'COMPLETED'
 export type UnitStatus = 'AVAILABLE' | 'INQUIRY_RECEIVED' | 'BOOKED' | 'AGREEMENT_DONE' | 'IN_PROGRESS' | 'ALL_PAID' | 'HANDOVER_COMPLETED'

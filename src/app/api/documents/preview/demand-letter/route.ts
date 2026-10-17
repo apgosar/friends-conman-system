@@ -3,7 +3,7 @@ import { prisma } from '@/lib/db'
 import { generateDocx } from '@/lib/docx'
 import { numberToWords, formatDate, renderTemplate } from '@/lib/template-engine'
 import { readStoredFile } from '@/lib/storage/files'
-import { auth } from '@/lib/auth'
+import { requireRole } from '@/lib/guard'
 import { isInternalRequest } from '@/lib/internal-auth'
 
 const fmtCur = (amount: number | string | null | undefined) => {
@@ -12,8 +12,11 @@ const fmtCur = (amount: number | string | null | undefined) => {
 }
 
 export async function GET(req: NextRequest) {
-  const session = await auth()
-  if (!session?.user && !isInternalRequest(req)) return new Response('Unauthorized', { status: 401 })
+  // The dispatcher fetches these server-to-server with the shared secret; people need the admin role.
+  if (!isInternalRequest(req)) {
+    const guard = await requireRole('admin')
+    if ('error' in guard) return guard.error
+  }
 
   try {
     const { searchParams } = new URL(req.url)

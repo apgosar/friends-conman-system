@@ -2,6 +2,7 @@ import { prisma } from '@/lib/db'
 import TopNav from '@/components/layout/TopNav'
 import { formatCurrency, formatDate } from '@/lib/template-engine'
 import Link from 'next/link'
+import { activeSale } from '@/lib/soft-delete'
 
 const MODE_LABELS: Record<string, string> = {
   CHEQUE: 'Cheque', RTGS_NEFT: 'RTGS/NEFT', UPI: 'UPI',
@@ -10,6 +11,7 @@ const MODE_LABELS: Record<string, string> = {
 
 async function getPayments() {
   return prisma.payment.findMany({
+    where: { deletedAt: null, sale: activeSale },
     orderBy: { paymentDate: 'desc' },
     take: 100,
     include: {

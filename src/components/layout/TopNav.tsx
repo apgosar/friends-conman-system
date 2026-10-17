@@ -1,23 +1,10 @@
 'use client'
 
 import { useSession } from 'next-auth/react'
+import { ROLE_BADGES, ROLE_LABELS, normalizeRole } from '@/lib/roles'
 
 export default function TopNav({ title, subtitle }: { title?: string; subtitle?: string }) {
   const { data: session } = useSession()
-  const roleColors: Record<string, string> = {
-    SUPER_ADMIN: 'badge-primary',
-    SALES_MANAGER: 'badge-info',
-    ACCOUNTS: 'badge-success',
-    MANAGEMENT: 'badge-warning',
-    VIEWER: 'badge-muted',
-  }
-  const roleLabel: Record<string, string> = {
-    SUPER_ADMIN: 'Super Admin',
-    SALES_MANAGER: 'Sales Manager',
-    ACCOUNTS: 'Accounts',
-    MANAGEMENT: 'Management',
-    VIEWER: 'Viewer',
-  }
 
   const toggleSidebar = () => {
     document.querySelector('.sidebar')?.classList.toggle('open')
@@ -40,8 +27,8 @@ export default function TopNav({ title, subtitle }: { title?: string; subtitle?:
       <div className="topnav-right">
         {session?.user && (
           <div className="flex items-center gap-3">
-            <span className={`badge ${roleColors[session.user.role] ?? 'badge-muted'}`}>
-              {roleLabel[session.user.role] ?? session.user.role}
+            <span className={`badge ${ROLE_BADGES[normalizeRole(session.user.role)]}`}>
+              {ROLE_LABELS[normalizeRole(session.user.role)]}
             </span>
             <div style={{ textAlign: 'right' }}>
               <div style={{ fontSize: '0.875rem', fontWeight: 500 }}>{session.user.name}</div>

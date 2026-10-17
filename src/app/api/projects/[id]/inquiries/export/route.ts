@@ -1,6 +1,6 @@
 import { NextRequest } from 'next/server'
 import ExcelJS from 'exceljs'
-import { auth } from '@/lib/auth'
+import { requireRole } from '@/lib/guard'
 import { prisma } from '@/lib/db'
 import { SOURCE_LABEL, LOST_REASON_LABEL } from '@/lib/inquiry-constants'
 
@@ -18,8 +18,9 @@ function csvEscape(val: unknown): string {
 
 // GET /api/projects/[id]/inquiries/export?format=xlsx|csv&status=OPEN|CONVERTED|ALL
 export async function GET(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
-  const session = await auth()
-  if (!session?.user) return new Response('Unauthorized', { status: 401 })
+  const guard = await requireRole('staff')
+  if ('error' in guard) return guard.error
+  const session = { user: guard.user }
 
   const { id } = await params
   const sp = new URL(req.url).searchParams

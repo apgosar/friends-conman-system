@@ -2,12 +2,14 @@ import { prisma } from '@/lib/db'
 import TopNav from '@/components/layout/TopNav'
 import EscalationAlerts from '@/components/dashboard/EscalationAlerts'
 import { formatCurrency } from '@/lib/template-engine'
+import { activeSale } from '@/lib/soft-delete'
 
 async function getEscalations() {
   return prisma.paymentSchedule.findMany({
     where: {
       managementEscalated: true,
       status: { notIn: ['PAID'] },
+      sale: activeSale,
     },
     include: {
       sale: {

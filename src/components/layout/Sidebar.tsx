@@ -4,6 +4,8 @@ import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 import { signOut, useSession } from 'next-auth/react'
 import { buildTitle, versionLabel } from '@/lib/version'
+import { canAccessPath } from '@/lib/authz'
+import { normalizeRole } from '@/lib/roles'
 
 const NAV_ITEMS = [
   {
@@ -48,24 +50,14 @@ const NAV_ITEMS = [
 export default function Sidebar() {
   const pathname = usePathname()
   const { data: session } = useSession()
-  const role = session?.user?.role || 'SALES'
+  const role = normalizeRole(session?.user?.role)
 
-  // Filter NAV_ITEMS based on role
-  const visibleNavItems = NAV_ITEMS.map(section => {
-    let items = section.items
-    
-    // SALES cannot view Dashboard
-    if (role === 'SALES' && section.section === 'Overview') {
-      items = items.filter(i => i.href !== '/dashboard')
-    }
-    
-    // Only SUPER_ADMIN can view Audit, Users, Settings
-    if (role !== 'SUPER_ADMIN' && section.section === 'System') {
-      items = items.filter(i => !['/audit', '/users', '/settings'].includes(i.href))
-    }
-    
-    return { ...section, items }
-  }).filter(section => section.items.length > 0)
+  // Show exactly what the role may open (same policy table the proxy enforces), plus the long-standing rule
+  // that the finance dashboard is not shown to the sales role.
+  const visibleNavItems = NAV_ITEMS.map((section) => ({
+    ...section,
+    items: section.items.filter((i) => canAccessPath(role, i.href) && !(role === 'SALES' && i.href === '/dashboard')),
+  })).filter((section) => section.items.length > 0)
 
   const closeSidebar = () => {
     document.querySelector('.sidebar')?.classList.remove('open')

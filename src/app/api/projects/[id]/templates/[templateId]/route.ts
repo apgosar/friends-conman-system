@@ -1,14 +1,12 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/db'
-import { auth } from '@/lib/auth'
+import { requireRole } from '@/lib/guard'
 import { createAuditLog } from '@/lib/audit'
 
 export async function DELETE(req: NextRequest, props: { params: Promise<{ id: string; templateId: string }> }) {
-  const session = await auth()
-  if (!session?.user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
-  if (session.user.role !== 'SUPER_ADMIN' && session.user.role !== 'ADMIN') {
-    return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
-  }
+  const guard = await requireRole('admin')
+  if ('error' in guard) return guard.error
+  const session = { user: guard.user }
 
   const { id: projectId, templateId } = await props.params
 

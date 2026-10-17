@@ -1,16 +1,9 @@
 import type { Prisma } from '@prisma/client'
 import { prisma } from '@/lib/db'
-import { auth } from '@/lib/auth'
+import { requireRole } from '@/lib/guard'
 
 /** Admin-only guard for the Building Setup APIs. Returns the user, or a ready-made error response. */
-export async function requireAdmin() {
-  const session = await auth()
-  if (!session?.user) return { error: Response.json({ error: 'Unauthorized' }, { status: 401 }) }
-  if (!['SUPER_ADMIN', 'ADMIN'].includes(session.user.role)) {
-    return { error: Response.json({ error: 'Forbidden: insufficient permissions' }, { status: 403 }) }
-  }
-  return { user: session.user }
-}
+export const requireAdmin = () => requireRole('admin')
 
 export interface UnitRow {
   category?: 'FLAT' | 'SHOP' | 'OFFICE' | 'COMMON'

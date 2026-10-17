@@ -8,6 +8,7 @@ import AgingChart from '@/components/dashboard/AgingChart'
 import RecentPayments from '@/components/dashboard/RecentPayments'
 import UpcomingDues from '@/components/dashboard/UpcomingDues'
 import EscalationAlerts from '@/components/dashboard/EscalationAlerts'
+import { activeSale } from '@/lib/soft-delete'
 
 async function getDashboardData() {
   const now = new Date()
@@ -16,7 +17,7 @@ async function getDashboardData() {
   const [schedules, recentPayments, escalations] = await Promise.all([
     // All unpaid, non-upcoming schedules (DUE + OVERDUE)
     prisma.paymentSchedule.findMany({
-      where: { status: { in: OUTSTANDING_SCHEDULE_STATUSES } },
+      where: { status: { in: OUTSTANDING_SCHEDULE_STATUSES }, sale: activeSale },
       select: {
         principalAmount: true,
         gstAmount: true,
@@ -26,6 +27,7 @@ async function getDashboardData() {
       },
     }),
     prisma.payment.findMany({
+      where: { deletedAt: null, sale: activeSale },
       orderBy: { createdAt: 'desc' },
       take: 10,
       include: {
@@ -39,7 +41,7 @@ async function getDashboardData() {
       },
     }),
     prisma.paymentSchedule.findMany({
-      where: { managementEscalated: true, managementApprovedStern: false, status: { notIn: ['PAID'] } },
+      where: { managementEscalated: true, managementApprovedStern: false, status: { notIn: ['PAID'] }, sale: activeSale },
       include: {
         sale: {
           include: {
@@ -76,14 +78,14 @@ async function getDashboardData() {
 
   const [collectedThisMonth, tdsPending] = await Promise.all([
     prisma.payment.aggregate({
-      where: { paymentDate: { gte: monthStart } },
+      where: { paymentDate: { gte: monthStart }, deletedAt: null, sale: activeSale },
       _sum: { amount: true },
     }),
     prisma.tdsRecord.count({ where: { status: { not: 'CERTIFICATE_RECEIVED' } } }),
   ])
 
   const totalDueThisMonth = await prisma.paymentSchedule.aggregate({
-    where: { dueDate: { gte: monthStart, lte: now }, status: { not: 'UPCOMING' } },
+    where: { dueDate: { gte: monthStart, lte: now }, status: { not: 'UPCOMING' }, sale: activeSale },
     _sum: { principalAmount: true, gstAmount: true },
   })
   const dueAmt       = Number(totalDueThisMonth._sum.principalAmount ?? 0) + Number(totalDueThisMonth._sum.gstAmount ?? 0)
@@ -95,6 +97,7 @@ async function getDashboardData() {
     where: {
       status: { in: ['UPCOMING', ...OUTSTANDING_SCHEDULE_STATUSES] },
       dueDate: { lte: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000) },
+      sale: activeSale,
     },
     include: {
       sale: {

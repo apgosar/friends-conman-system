@@ -1,11 +1,12 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { auth } from '@/lib/auth'
+import { requireRole } from '@/lib/guard'
 import { prisma } from '@/lib/db'
 
 // GET ?mobile=9876543210 — earlier inquiries from this number in the project (repeat-customer warning in the quote form)
 export async function GET(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
-  const session = await auth()
-  if (!session?.user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+  const guard = await requireRole('staff')
+  if ('error' in guard) return guard.error
+  const session = { user: guard.user }
 
   const { id } = await params
   const mobile = new URL(req.url).searchParams.get('mobile') ?? ''

@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { auth } from '@/lib/auth'
+import { requireRole } from '@/lib/guard'
 import { prisma } from '@/lib/db'
 import { parseBody, z } from '@/lib/validate'
 import { sendEmail } from '@/lib/email'
@@ -18,8 +18,9 @@ const esc = (s: string) => s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replac
 
 // POST — send the quote PDF to the customer by email and/or WhatsApp
 export async function POST(req: NextRequest, { params }: { params: Promise<{ unitId: string; quoteId: string }> }) {
-  const session = await auth()
-  if (!session?.user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+  const guard = await requireRole('staff')
+  if ('error' in guard) return guard.error
+  const session = { user: guard.user }
 
   const { unitId, quoteId } = await params
   const { data, error } = await parseBody(req, ShareSchema)

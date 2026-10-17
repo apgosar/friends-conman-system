@@ -1,16 +1,15 @@
 import { NextResponse } from 'next/server'
 import { prisma } from '@/lib/db'
-import { auth } from '@/lib/auth'
+import { requireRole } from '@/lib/guard'
 
 export async function DELETE(
   req: Request,
   context: { params: Promise<{ id: string }> | { id: string } }
 ) {
   try {
-    const session = await auth()
-    if (!session || session.user.role !== 'SUPER_ADMIN') {
-      return NextResponse.json({ success: false, error: 'Unauthorized' }, { status: 401 })
-    }
+    const guard = await requireRole('superadmin')
+    if ('error' in guard) return guard.error
+    const session = { user: guard.user }
 
     // Verify user actually exists in the DB (prevents FK errors if DB was reset but session cookie remained)
     const userExists = await prisma.user.findUnique({ where: { id: session.user.id } })

@@ -4,6 +4,7 @@ import { z, parseBody } from '@/lib/validate'
 import { createAuditLog } from '@/lib/audit'
 import { requireAdmin } from '@/lib/building-create'
 import { MANUAL_UNIT_STATUSES, parseBooker } from '@/lib/status'
+import { activeSale } from '@/lib/soft-delete'
 
 const Schema = z.object({
   unitIds: z.array(z.string()).min(1, 'Select at least one unit').max(2000),
@@ -27,7 +28,7 @@ export async function POST(req: NextRequest, props: { params: Promise<{ id: stri
 
   const units = await prisma.unit.findMany({
     where: { id: { in: data.unitIds }, floor: { wing: { projectId } } },
-    select: { id: true, category: true, _count: { select: { sales: true } } },
+    select: { id: true, category: true, _count: { select: { sales: { where: activeSale } } } },
   })
   const editable = units.filter((u) => u._count.sales === 0).map((u) => u.id)
   const skippedWithSale = units.length - editable.length

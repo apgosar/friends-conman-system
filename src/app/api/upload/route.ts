@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import crypto from 'crypto'
 import { uploadFile } from '@/lib/storage'
-import { auth } from '@/lib/auth'
+import { requireRole } from '@/lib/guard'
 import { uploadRateLimit, rateLimitExceeded } from '@/lib/rate-limit'
 
 const ALLOWED_TYPES = new Set([
@@ -17,10 +17,8 @@ const MAX_SIZE_BYTES = 10 * 1024 * 1024 // 10 MB
 
 export async function POST(req: NextRequest) {
   // 1. Auth
-  const session = await auth()
-  if (!session?.user) {
-    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
-  }
+  const guard = await requireRole('staff')
+  if ('error' in guard) return guard.error
 
   // 2. Rate limit: 30 uploads per hour per IP
   const rl = await uploadRateLimit(req)

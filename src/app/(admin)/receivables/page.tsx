@@ -5,6 +5,7 @@ import { formatCurrency, formatDate } from '@/lib/template-engine'
 import TopNav from '@/components/layout/TopNav'
 import Link from 'next/link'
 import { redirect } from 'next/navigation'
+import { activeSale } from '@/lib/soft-delete'
 
 export default async function ReceivablesPage({ searchParams }: { searchParams: { bucket?: string } }) {
   const session = await auth()
@@ -14,7 +15,7 @@ export default async function ReceivablesPage({ searchParams }: { searchParams: 
 
   // 1. Fetch all unpaid schedules
   const allSchedules = await prisma.paymentSchedule.findMany({
-    where: { status: { in: OUTSTANDING_SCHEDULE_STATUSES } },
+    where: { status: { in: OUTSTANDING_SCHEDULE_STATUSES }, sale: activeSale },
     include: {
       sale: {
         include: {

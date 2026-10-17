@@ -7,6 +7,7 @@ import { saleStatusBadge, saleStatusLabel } from '@/lib/status'
 
 async function getSales() {
   return prisma.sale.findMany({
+    where: { deletedAt: null },
     include: {
       project: { select: { name: true } },
       unit: { select: { unitNumber: true, configuration: true } },

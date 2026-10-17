@@ -6,6 +6,7 @@
 
 import { prisma } from '@/lib/db'
 import { calculateInterest, getOverdueBucket } from '@/lib/interest'
+import { activeSale } from '@/lib/soft-delete'
 
 /**
  * Run daily: Update overdue statuses and accrue interest.
@@ -15,6 +16,7 @@ export async function runDailyInterestAndStatus() {
     where: {
       status: { notIn: ['PAID', 'UPCOMING'] },
       demandGeneratedDate: { not: null },
+      sale: activeSale,
     },
     include: { sale: { include: { project: true } } },
   })
@@ -52,6 +54,7 @@ export async function getSchedulesDueForReminder(daysBucket: 7 | 15 | 30) {
   return prisma.paymentSchedule.findMany({
     where: {
       status: targetStatus,
+      sale: activeSale,
       // Don't re-remind within 12 hours
       OR: [
         { lastReminderAt: null },

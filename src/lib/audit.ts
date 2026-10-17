@@ -1,5 +1,7 @@
 import { Prisma } from '@prisma/client'
 import { prisma } from '@/lib/db'
+import { redact } from '@/lib/redact'
+import { logger } from '@/lib/logger'
 
 export async function createAuditLog({
   userId,
@@ -30,13 +32,13 @@ export async function createAuditLog({
         entityType,
         entityId,
         action,
-        oldValues: oldValues ? (oldValues as Prisma.InputJsonValue) : Prisma.JsonNull,
-        newValues: newValues ? (newValues as Prisma.InputJsonValue) : Prisma.JsonNull,
+        oldValues: oldValues ? (redact(oldValues) as Prisma.InputJsonValue) : Prisma.JsonNull,
+        newValues: newValues ? (redact(newValues) as Prisma.InputJsonValue) : Prisma.JsonNull,
         ipAddress,
         userAgent,
       },
     })
   } catch (err) {
-    console.error('Failed to create audit log:', err)
+    logger.error({ err, entityType, entityId, action }, 'Failed to create audit log')
   }
 }

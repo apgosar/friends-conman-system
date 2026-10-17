@@ -9,6 +9,7 @@ import StructureBuilder from '@/components/structure/StructureBuilder'
 import ExcelImport from '@/components/structure/ExcelImport'
 import UnitsTable from '@/components/structure/UnitsTable'
 import type { StructureUnit, UnitTypeRow, WingRow } from '@/components/structure/ui'
+import { activeSale } from '@/lib/soft-delete'
 
 export default async function ProjectStructurePage(props: PageProps<'/projects/[id]/structure'>) {
   const { id } = await props.params
@@ -28,7 +29,7 @@ export default async function ProjectStructurePage(props: PageProps<'/projects/[
               include: {
                 units: {
                   orderBy: { unitNumber: 'asc' },
-                  include: { unitType: { select: { name: true } }, _count: { select: { sales: true, inquiries: true } } },
+                  include: { unitType: { select: { name: true } }, _count: { select: { sales: { where: activeSale }, inquiries: true } } },
                 },
               },
             },

@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import crypto from 'crypto'
 import { prisma } from '@/lib/db'
 import { auth } from '@/lib/auth'
+import { requireRole } from '@/lib/guard'
 import { uploadFile } from '@/lib/storage'
 import { DOCX_MIME } from '@/lib/template-constants'
 import { TemplateValidationError, extractDocxText, templateWarnings, validateDocx, validateHtmlTemplate, validateTemplateMeta } from '@/lib/template-validation'
@@ -26,11 +27,9 @@ export async function GET(req: NextRequest, props: { params: Promise<{ id: strin
 // POST multipart/form-data: name, type, and either `file` (.docx) or `templateHtml`.
 // Everything is validated before anything is stored or any active template is replaced.
 export async function POST(req: NextRequest, props: { params: Promise<{ id: string }> }) {
-  const session = await auth()
-  if (!session?.user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
-  if (session.user.role !== 'SUPER_ADMIN' && session.user.role !== 'ADMIN') {
-    return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
-  }
+  const guard = await requireRole('admin')
+  if ('error' in guard) return guard.error
+  const session = { user: guard.user }
 
   try {
     const { id: projectId } = await props.params

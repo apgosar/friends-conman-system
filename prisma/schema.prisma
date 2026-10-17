@@ -18,6 +18,8 @@ model User {
   password      String
   role String @default("VIEWER")
   isActive      Boolean   @default(true)
+  tokenVersion  Int       @default(0) // bumped on password change / deactivation / role change: invalidates every open session
+  passwordChangedAt DateTime?
   createdAt     DateTime  @default(now())
   updatedAt     DateTime  @updatedAt
   auditLogs     AuditLog[]
@@ -34,12 +36,12 @@ model Inquiry {
   unitId          String
   customerName    String
   mobileNumber    String
-  agreementValue  Float
+  agreementValue  Decimal @db.Decimal(15, 2)
   parkingIncluded Boolean  @default(false)
-  stampDuty       Float
-  gst             Float
-  registration    Float
-  totalCost       Float
+  stampDuty       Decimal @db.Decimal(15, 2)
+  gst             Decimal @db.Decimal(15, 2)
+  registration    Decimal @db.Decimal(15, 2)
+  totalCost       Decimal @db.Decimal(15, 2)
   email           String?
   source          String?  // WALK_IN | REFERRAL | WEBSITE | BROKER | OTHER
   sourceDetail    String?  // referrer / broker name
@@ -77,9 +79,14 @@ model Project {
   companyName         String
   companyAddress      String
   companyGstin        String?
-  stampDutyPercent    Float         @default(5) 
+  stampDutyPercent    Float         @default(6)
   regChargesPercent   Float         @default(1) 
-  carParkingCharges   Float         @default(500000)  // Default car parking price from project template
+  regChargesCap       Decimal?        @db.Decimal(15, 2) @default(30000) // registration fee is regChargesPercent of the agreement value, but never more than this (empty = no cap)
+  regParkingCharges   Decimal         @db.Decimal(15, 2) @default(20000) // extra registration fee when a car park is included
+  gstRatePercent      Float         @default(5)
+  tdsRatePercent      Float         @default(1)
+  interestRatePercent Float         @default(12) // simple interest per annum on overdue demands
+  carParkingCharges   Decimal @db.Decimal(15, 2)         @default(500000)  // Default car parking price from project template
   createdAt           DateTime        @default(now())
   updatedAt           DateTime        @updatedAt
 
@@ -216,16 +223,16 @@ model Sale {
   unitId                String
   tenantId              String?     @unique
   saleType              String      @default("FRESH")
-  agreementValue        Float     
-  gstAmount             Float      // 5% of agreementValue
-  stampDuty             Float?    
-  registrationCharges   Float?    
+  agreementValue        Decimal @db.Decimal(15, 2)     
+  gstAmount             Decimal @db.Decimal(15, 2)      // 5% of agreementValue
+  stampDuty             Decimal? @db.Decimal(15, 2)    
+  registrationCharges   Decimal? @db.Decimal(15, 2)    
   carParking            Boolean     @default(false)
-  carParkingCharges     Float?      // Actual car parking amount charged
+  carParkingCharges     Decimal? @db.Decimal(15, 2)      // Actual car parking amount charged
   parkingPodiumLevel    String?
   parkingFloor          String?
   parkingNumber         String?
-  bookingAmount         Float?      // Custom booking amount received
+  bookingAmount         Decimal? @db.Decimal(15, 2)      // Custom booking amount received
   bookingDate           DateTime
   agreementDate         DateTime?
   possessionDate        DateTime?
@@ -337,11 +344,11 @@ model PaymentSchedule {
   saleId                  String
   milestoneId             String?
   description             String          // On Booking, On Plinth
-  principalAmount         Float         
-  gstAmount               Float         @default(0) 
+  principalAmount         Decimal @db.Decimal(15, 2)         
+  gstAmount               Decimal @db.Decimal(15, 2)         @default(0) 
   dueDate                 DateTime?
   demandGeneratedDate     DateTime?
-  interestAmount          Float         @default(0) 
+  interestAmount          Decimal @db.Decimal(15, 2)         @default(0) 
   status String @default("UPCOMING")
   reminderCount           Int             @default(0)
   lastReminderAt          DateTime?
@@ -358,6 +365,7 @@ model PaymentSchedule {
 
   @@index([saleId])
   @@index([status])
+  @@index([status, dueDate])
   @@map("payment_schedules")
 }
 
@@ -367,8 +375,8 @@ model Payment {
   id              String        @id @default(cuid())
   scheduleId      String
   saleId          String
-  amount          Float       
-  gstPaid         Float       @default(0) 
+  amount          Decimal @db.Decimal(15, 2)       
+  gstPaid         Decimal @db.Decimal(15, 2)       @default(0) 
   mode String
   referenceNumber String?       // UTR, cheque number
   bankName        String?
@@ -398,7 +406,7 @@ model TdsRecord {
   id                  String    @id @default(cuid())
   paymentId           String    @unique
   saleId              String
-  tdsAmount           Float    // 1% of payment
+  tdsAmount           Decimal @db.Decimal(15, 2)    // 1% of payment
   form26QBAckNumber   String?
   tdsDepositedDate    DateTime?
   certificateUrl      String?
@@ -421,9 +429,9 @@ model Loan {
   id                  String      @id @default(cuid())
   saleId              String
   bankName            String
-  sanctionedAmount    Float     
+  sanctionedAmount    Decimal @db.Decimal(15, 2)     
   sanctionLetterUrl   String?
-  totalDisbursed      Float     @default(0) 
+  totalDisbursed      Decimal @db.Decimal(15, 2)     @default(0) 
   status String @default("APPLIED")
   disbursements       LoanDisbursement[]
   createdAt           DateTime    @default(now())
@@ -440,7 +448,7 @@ model Loan {
 model LoanDisbursement {
   id          String    @id @default(cuid())
   loanId      String
-  amount      Float   
+  amount      Decimal @db.Decimal(15, 2)   
   date        DateTime
   referenceNo String?
   notes       String?
@@ -515,6 +523,7 @@ model CommunicationLog {
   channel String
   type String
   messageContent      String?   @db.Text
+  attachments         Json?       // [{ label, path }] documents to attach; path is an app-relative /api/... URL
   status String @default("QUEUED")
   providerMessageId   String?
   sentAt              DateTime?
@@ -522,6 +531,7 @@ model CommunicationLog {
   readAt              DateTime?
   failureReason       String?
   retryCount          Int         @default(0)
+  claimedAt           DateTime?   // set while a dispatcher worker owns the row (status SENDING)
   createdAt           DateTime    @default(now())
 
   sale                Sale        @relation(fields: [saleId], references: [id], onDelete: Cascade)
@@ -530,6 +540,7 @@ model CommunicationLog {
 
   @@index([saleId])
   @@index([status])
+  @@index([status, retryCount])
   @@map("communication_logs")
 }
 
@@ -562,4 +573,27 @@ model AuditLog {
   @@index([entityType, entityId])
   @@index([createdAt])
   @@map("audit_logs")
+}
+
+
+// ─────────────────────────────────────────────
+// INFRASTRUCTURE
+// ─────────────────────────────────────────────
+
+/// Gap-free counters for sale and receipt numbers. Incremented inside the same transaction as the record it numbers.
+model NumberSequence {
+  key   String @id // e.g. "sale:NC", "receipt:NC"
+  value Int
+
+  @@map("number_sequences")
+}
+
+/// Fixed-window rate-limit counters shared by every app instance (login, uploads, OCR, comms).
+model RateLimitBucket {
+  key     String   @id
+  count   Int
+  resetAt DateTime
+
+  @@index([resetAt])
+  @@map("rate_limits")
 }

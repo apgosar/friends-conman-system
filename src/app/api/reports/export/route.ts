@@ -1,6 +1,7 @@
 import { NextRequest } from 'next/server'
-import { auth } from '@/lib/auth'
+import { requireRole } from '@/lib/guard'
 import { prisma } from '@/lib/db'
+import { activeSale } from '@/lib/soft-delete'
 
 function escapeCsv(val: any): string {
   if (val === null || val === undefined) return ''
@@ -17,11 +18,9 @@ function toCsv(headers: string[], rows: string[][]): string {
 
 // GET /api/reports/export?type=sales|payments|inventory
 export async function GET(req: NextRequest) {
-  const session = await auth()
-  if (!session) return new Response('Unauthorized', { status: 401 })
-  if (session.user.role !== 'SUPER_ADMIN' && session.user.role !== 'ADMIN') {
-    return new Response('Forbidden', { status: 403 })
-  }
+  const guard = await requireRole('admin')
+  if ('error' in guard) return guard.error
+  const session = { user: guard.user }
 
   const type = new URL(req.url).searchParams.get('type') ?? 'sales'
 
@@ -32,6 +31,7 @@ export async function GET(req: NextRequest) {
     if (type === 'sales') {
       filename = 'sales_book.csv'
       const sales = await prisma.sale.findMany({
+        where: activeSale,
         include: {
           project: { select: { name: true } },
           unit: { select: { unitNumber: true, configuration: true } },
@@ -63,6 +63,7 @@ export async function GET(req: NextRequest) {
       // Payment model has: scheduleId, saleId, amount, gstPaid, mode, referenceNumber, bankName, remark, paymentDate, receiptNumber
       // We join with sale and schedule via separate queries for simplicity
       const payments = await prisma.payment.findMany({
+        where: { deletedAt: null, sale: activeSale },
         include: {
           sale: {
             include: {

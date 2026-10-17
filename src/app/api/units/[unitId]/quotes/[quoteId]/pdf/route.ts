@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { auth } from '@/lib/auth'
+import { requireRole } from '@/lib/guard'
 import { prisma } from '@/lib/db'
 import { floorPlanDataUri } from '@/lib/floor-plan-image'
 import { formatCurrency, formatDate } from '@/lib/template-engine'
@@ -8,8 +8,9 @@ export async function GET(
   req: NextRequest,
   { params }: { params: Promise<{ unitId: string; quoteId: string }> }
 ) {
-  const session = await auth()
-  if (!session) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+  const guard = await requireRole('staff')
+  if ('error' in guard) return guard.error
+  const session = { user: guard.user }
 
   const { quoteId } = await params
 

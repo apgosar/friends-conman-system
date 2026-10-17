@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { auth } from '@/lib/auth'
+import { requireRole } from '@/lib/guard'
 import { prisma } from '@/lib/db'
 import { parseBody, z } from '@/lib/validate'
 import { createAuditLog } from '@/lib/audit'
@@ -15,11 +15,9 @@ const LifecycleSchema = z.object({
 // PATCH — record (or correct) the agreement-signed and handover dates.
 // The sale and unit status are then re-derived; nothing sets those statuses by hand.
 export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
-  const session = await auth()
-  if (!session?.user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
-  if (!['SUPER_ADMIN', 'ADMIN'].includes(session.user.role)) {
-    return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
-  }
+  const guard = await requireRole('admin')
+  if ('error' in guard) return guard.error
+  const session = { user: guard.user }
 
   const { id } = await params
   const { data, error } = await parseBody(req, LifecycleSchema)

@@ -1,10 +1,12 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/db'
-import { auth } from '@/lib/auth'
+import { requireRole } from '@/lib/guard'
 import { softDelete } from '@/lib/soft-delete'
 
 export async function GET(req: NextRequest, props: { params: Promise<{ id: string }> }) {
-  const session = await auth(); if (!session?.user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+  const guard = await requireRole('staff')
+  if ('error' in guard) return guard.error
+  const session = { user: guard.user }
   try {
     const { id } = await props.params
     const sale = await prisma.sale.findUnique({
@@ -27,11 +29,9 @@ export async function GET(req: NextRequest, props: { params: Promise<{ id: strin
 }
 
 export async function DELETE(req: NextRequest, props: { params: Promise<{ id: string }> }) {
-  const session = await auth()
-  if (!session?.user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
-  if (session.user.role !== 'SUPER_ADMIN') {
-    return NextResponse.json({ error: 'Only Super Admins can delete sales' }, { status: 403 })
-  }
+  const guard = await requireRole('superadmin')
+  if ('error' in guard) return guard.error
+  const session = { user: guard.user }
 
   const { id } = await props.params
   try {

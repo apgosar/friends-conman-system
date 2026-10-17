@@ -4,6 +4,7 @@ import { z, parseBody } from '@/lib/validate'
 import { createAuditLog } from '@/lib/audit'
 import { requireAdmin } from '@/lib/building-create'
 import { NOT_FOR_SALE_STATUS } from '@/lib/status'
+import { activeSale } from '@/lib/soft-delete'
 
 const Schema = z.discriminatedUnion('kind', [
   // Turn flats into common areas (refuge area, society office...). The label is what the area is called.
@@ -24,7 +25,7 @@ export async function POST(req: NextRequest, props: { params: Promise<{ id: stri
 
   const units = await prisma.unit.findMany({
     where: { id: { in: data.unitIds }, floor: { wing: { projectId } } },
-    select: { id: true, category: true, _count: { select: { sales: true, inquiries: true } } },
+    select: { id: true, category: true, _count: { select: { sales: { where: activeSale }, inquiries: true } } },
   })
 
   // To common area: only flats. Back to flat: only common areas.

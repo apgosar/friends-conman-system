@@ -2,11 +2,12 @@ import { prisma } from '@/lib/db'
 import Link from 'next/link'
 import TopNav from '@/components/layout/TopNav'
 import { formatDate } from '@/lib/template-engine'
+import { activeSale } from '@/lib/soft-delete'
 
 async function getProjects() {
   return prisma.project.findMany({
     include: {
-      _count: { select: { sales: true } },
+      _count: { select: { sales: { where: activeSale } } },
       wings: true,
     },
     orderBy: { createdAt: 'desc' },

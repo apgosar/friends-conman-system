@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { auth } from '@/lib/auth'
+import { requireRole } from '@/lib/guard'
 import { prisma } from '@/lib/db'
 import { generateAndSaveQuotePdf } from '@/lib/pdf-generator'
 import { INQUIRY_SOURCES, DEFAULT_QUOTE_VALIDITY_DAYS, addDays, computeQuoteCosts } from '@/lib/inquiry'
@@ -8,8 +8,9 @@ export async function POST(
   req: NextRequest,
   { params }: { params: Promise<{ unitId: string }> }
 ) {
-  const session = await auth()
-  if (!session) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+  const guard = await requireRole('staff')
+  if ('error' in guard) return guard.error
+  const session = { user: guard.user }
 
   const { unitId } = await params
   

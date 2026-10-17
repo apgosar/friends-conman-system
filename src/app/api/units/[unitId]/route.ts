@@ -6,6 +6,7 @@ import { requireAdmin } from '@/lib/building-create'
 import { MANUAL_UNIT_STATUSES, parseBooker } from '@/lib/status'
 import { syncUnitInquiryStatus } from '@/lib/inquiry'
 import { NOT_FOR_SALE_STATUS } from '@/lib/status'
+import { activeSale } from '@/lib/soft-delete'
 
 const PatchSchema = z.object({
   unitNumber: z.string().trim().min(1).max(30).optional(),
@@ -23,7 +24,7 @@ const PatchSchema = z.object({
 const projectOf = (unitId: string) =>
   prisma.unit.findUnique({
     where: { id: unitId },
-    include: { floor: { include: { wing: true } }, _count: { select: { sales: true, inquiries: true } } },
+    include: { floor: { include: { wing: true } }, _count: { select: { sales: { where: activeSale }, inquiries: true } } },
   })
 
 // PATCH — correct a single unit. Once a unit has a sale, its number, type and areas are locked
@@ -109,6 +110,8 @@ export async function DELETE(_req: NextRequest, props: { params: Promise<{ unitI
   const unit = await projectOf(unitId)
   if (!unit) return Response.json({ error: 'Unit not found' }, { status: 404 })
   if (unit._count.sales > 0) return Response.json({ error: 'This unit has a sale and cannot be deleted.' }, { status: 409 })
+  // A cancelled sale stays on the books and still points at the unit, so the unit cannot be removed either
+  if ((await prisma.sale.count({ where: { unitId } })) > 0) return Response.json({ error: 'This unit has a cancelled sale on record, so it cannot be deleted.' }, { status: 409 })
   if (unit._count.inquiries > 0) return Response.json({ error: `This unit has ${unit._count.inquiries} inquiry(ies). Delete those first.` }, { status: 409 })
 
   await prisma.unit.delete({ where: { id: unitId } })

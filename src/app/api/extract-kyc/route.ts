@@ -1,10 +1,11 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { auth } from '@/lib/auth'
+import { requireRole } from '@/lib/guard'
 import { kycRateLimit, rateLimitExceeded } from '@/lib/rate-limit'
 
 export async function POST(req: NextRequest) {
-  const session = await auth()
-  if (!session) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+  const guard = await requireRole('staff')
+  if ('error' in guard) return guard.error
+  const session = { user: guard.user }
 
   // Rate limit: 20 OCR calls per hour per IP (protects paid AZAPI token)
   const rl = await kycRateLimit(req)

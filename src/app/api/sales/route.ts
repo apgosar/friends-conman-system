@@ -1,58 +1,20 @@
 import { NextRequest } from 'next/server'
 import { prisma } from '@/lib/db'
-import { auth } from '@/lib/auth'
+import { requireRole } from '@/lib/guard'
 import { dispatchAllPending } from '@/lib/comms-dispatcher'
-import { generateSaleNumber } from '@/lib/receipt-number'
-import { createAuditLog } from '@/lib/audit'
-import { parseBody, z } from '@/lib/validate'
-
-const SaleBuyerSchema = z.object({
-  fullName: z.string().min(1, 'Buyer full name is required'),
-  email: z.string().email('Invalid email').optional().nullable(),
-  whatsappNumber: z.string().optional().nullable(),
-  panNumber: z.string().optional().nullable(),
-  aadhaarNumber: z.string().optional().nullable(),
-  address: z.string().optional().nullable(),
-  receiveComms: z.boolean().optional(),
-})
-
-const PaymentScheduleSchema = z.object({
-  milestoneId: z.string().optional().nullable(),
-  description: z.string().min(1, 'Milestone description is required'),
-  principalAmount: z.number().or(z.string().transform(v => parseFloat(v))),
-  gstAmount: z.number().or(z.string().transform(v => parseFloat(v))).optional().nullable(),
-  dueDate: z.string().optional().nullable(),
-})
-
-const SaleCreateSchema = z.object({
-  projectId: z.string().min(1, 'projectId is required'),
-  unitId: z.string().min(1, 'unitId is required'),
-  tenantId: z.string().optional().nullable(),
-  saleType: z.enum(['FRESH', 'RESALE']).optional().default('FRESH'),
-  agreementValue: z.number().or(z.string().transform(v => parseFloat(v))),
-  gstAmount: z.number().or(z.string().transform(v => parseFloat(v))).optional().nullable(),
-  stampDuty: z.number().or(z.string().transform(v => parseFloat(v))).optional().nullable(),
-  registrationCharges: z.number().or(z.string().transform(v => parseFloat(v))).optional().nullable(),
-  carParking: z.boolean().or(z.string().transform(v => v === 'true')).optional(),
-  carParkingCharges: z.number().or(z.string().transform(v => parseFloat(v))).optional().nullable(),
-  parkingPodiumLevel: z.string().optional().nullable(),
-  parkingFloor: z.string().optional().nullable(),
-  parkingNumber: z.string().optional().nullable(),
-  bookingAmount: z.number().or(z.string().transform(v => parseFloat(v))).optional().nullable(),
-  bookingDate: z.string().refine(v => !isNaN(Date.parse(v)), 'Invalid bookingDate'),
-  buyers: z.array(SaleBuyerSchema).min(1, 'At least one buyer is required'),
-  paymentSchedules: z.array(PaymentScheduleSchema).optional(),
-  inquiryId: z.string().optional().nullable(), // set when the sale is converted from an inquiry
-})
+import { parseBody } from '@/lib/validate'
+import { logger } from '@/lib/logger'
+import { createSale, SaleCreateSchema, SaleError, isDuplicateActiveSale } from '@/lib/sales/create-sale'
 
 export async function GET(req: NextRequest) {
-  const session = await auth()
-  if (!session?.user) return Response.json({ error: 'Unauthorized' }, { status: 401 })
+  const guard = await requireRole('staff')
+  if ('error' in guard) return guard.error
+  const session = { user: guard.user }
   const { searchParams } = new URL(req.url)
   const projectId = searchParams.get('projectId')
   const status = searchParams.get('status')
   const sales = await prisma.sale.findMany({
-    where: { ...(projectId ? { projectId } : {}), ...(status ? { status: status as any } : {}) },
+    where: { deletedAt: null, ...(projectId ? { projectId } : {}), ...(status ? { status: status as any } : {}) },
     include: {
       project: { select: { name: true } },
       unit: { select: { unitNumber: true, configuration: true } },
@@ -65,151 +27,21 @@ export async function GET(req: NextRequest) {
 }
 
 export async function POST(req: NextRequest) {
-  const session = await auth()
-  if (!session?.user) return Response.json({ error: 'Unauthorized' }, { status: 401 })
-  if (!['SUPER_ADMIN', 'ADMIN'].includes(session.user.role)) { return Response.json({ error: 'Forbidden' }, { status: 403 }) }
-  
+  const guard = await requireRole('admin')
+  if ('error' in guard) return guard.error
+
   const { data, error } = await parseBody(req, SaleCreateSchema)
   if (error) return error
 
-  const { projectId, unitId, tenantId, saleType, agreementValue, gstAmount, stampDuty, registrationCharges, carParking, carParkingCharges, parkingPodiumLevel, parkingFloor, parkingNumber, bookingAmount, bookingDate, buyers, paymentSchedules, inquiryId } = data
-  const computedGst = gstAmount !== undefined && gstAmount !== null ? gstAmount : agreementValue * 0.05
-  const saleNumber = await generateSaleNumber(projectId)
-  const sale = await prisma.$transaction(async (tx) => {
-    const newSale = await tx.sale.create({
-      data: {
-        saleNumber, projectId, unitId, tenantId: tenantId || null,
-        saleType: saleType || 'FRESH',
-        agreementValue: agreementValue, gstAmount: computedGst,
-        stampDuty: stampDuty ? stampDuty : null,
-        registrationCharges: registrationCharges ? registrationCharges : null,
-        carParking: carParking === true,
-        carParkingCharges: carParkingCharges ? carParkingCharges : null,
-        parkingPodiumLevel: parkingPodiumLevel || null,
-        parkingFloor: parkingFloor || null,
-        parkingNumber: parkingNumber || null,
-        bookingAmount: bookingAmount ? bookingAmount : null,
-        bookingDate: new Date(bookingDate), status: 'BOOKED',
-      },
-    })
-    await tx.buyer.createMany({
-      data: buyers.map((b: any, i: number) => ({
-        saleId: newSale.id, fullName: b.fullName, email: b.email || null,
-        whatsappNumber: b.whatsappNumber || null, panNumber: b.panNumber || null,
-        aadhaarNumber: b.aadhaarNumber || null, address: b.address || null,
-        isPrimary: i === 0, sequence: i + 1, receiveComms: b.receiveComms !== false,
-      })),
-    })
-    
-    // Fetch all buyers we just created to attach to comm logs
-    const createdBuyers = await tx.buyer.findMany({ where: { saleId: newSale.id, receiveComms: true } })
-
-    if (paymentSchedules?.length) {
-      // Fetch milestone statuses to see if they are already completed
-      const milestoneIds = paymentSchedules.map((ps: any) => ps.milestoneId).filter(Boolean)
-      const completedMilestoneDates = new Map<string, Date | null>()
-      
-      if (milestoneIds.length > 0) {
-        const milestones = await tx.constructionMilestone.findMany({
-          where: { id: { in: milestoneIds }, status: 'COMPLETED' },
-          select: { id: true, actualDate: true }
-        })
-        milestones.forEach(m => completedMilestoneDates.set(m.id, m.actualDate))
-      }
-
-      const createdSchedules = await tx.paymentSchedule.createManyAndReturn({
-        data: paymentSchedules.map((ps: any) => {
-          const isCompleted = ps.milestoneId && completedMilestoneDates.has(ps.milestoneId)
-          const actualDate = isCompleted ? (completedMilestoneDates.get(ps.milestoneId!) || new Date()) : null
-          
-          let computedDueDate = ps.dueDate ? new Date(ps.dueDate) : null
-          if (isCompleted && actualDate) {
-             computedDueDate = new Date(actualDate)
-             computedDueDate.setDate(computedDueDate.getDate() + 14)
-          }
-
-          return {
-            saleId: newSale.id, 
-            milestoneId: ps.milestoneId || null,
-            description: ps.description, 
-            principalAmount: parseFloat(ps.principalAmount),
-            gstAmount: ps.gstAmount ? parseFloat(ps.gstAmount) : 0,
-            dueDate: computedDueDate, 
-            status: isCompleted ? 'DUE' : 'UPCOMING',
-            demandGeneratedDate: isCompleted ? new Date() : null,
-          }
-        }),
-      })
-
-      // Generate Communication Logs for already DUE schedules (past milestones)
-      const dueSchedules = createdSchedules.filter((s: any) => s.status === 'DUE' && s.milestoneId)
-      if (dueSchedules.length > 0) {
-        // Fetch the milestone names and architect certificates
-        const dueMilestones = await tx.constructionMilestone.findMany({
-          where: { id: { in: dueSchedules.map((s: any) => s.milestoneId) } },
-          select: { id: true, name: true, architectCertificateUrl: true }
-        })
-        const milestoneMap = new Map(dueMilestones.map((m: any) => [m.id, m]))
-        
-        const commLogs: any[] = []
-        
-        dueSchedules.forEach((schedule: any) => {
-          const milestone = milestoneMap.get(schedule.milestoneId!)
-          const amount = Number(schedule.principalAmount) + Number(schedule.gstAmount)
-          const isTaxOrParking = schedule.description.toLowerCase().includes('stamp duty') || schedule.description.toLowerCase().includes('registration') || schedule.description.toLowerCase().includes('parking')
-          
-          createdBuyers.forEach((buyer: any) => {
-            let content = ''
-            if (isTaxOrParking) {
-               content = `Dear ${buyer.fullName || 'Customer'},\nPayment for '${schedule.description}' is now due. Please find the attached Demand Letter for ₹${amount.toLocaleString('en-IN')}.\nDue Date: ${schedule.dueDate ? new Date(schedule.dueDate).toLocaleDateString('en-IN') : 'N/A'}.\n\nATTACHMENTS:\nDemand Letter|/api/documents/preview/demand-letter?saleId=${newSale.id}&milestoneName=${encodeURIComponent(schedule.description)}`
-            } else {
-               content = `Dear ${buyer.fullName || 'Customer'},\nThe milestone '${milestone?.name}' is now complete. Please find the attached Demand Letter for ₹${amount.toLocaleString('en-IN')} and the Architect Completion Certificate.\nDue Date: ${schedule.dueDate ? new Date(schedule.dueDate).toLocaleDateString('en-IN') : 'N/A'}.\n\nATTACHMENTS:\nArchitect Certificate|${milestone?.architectCertificateUrl || ''}\nDemand Letter|/api/documents/preview/demand-letter?saleId=${newSale.id}&milestoneName=${encodeURIComponent(milestone?.name || '')}`
-            }
-            
-            // Email Log
-            if (buyer.email) {
-              commLogs.push({
-                saleId: newSale.id,
-                buyerId: buyer.id,
-                channel: 'EMAIL',
-                type: 'DEMAND_LETTER',
-                messageContent: content,
-                status: 'PENDING',
-              })
-            }
-
-            // WhatsApp Log
-            if (buyer.whatsappNumber) {
-              commLogs.push({
-                saleId: newSale.id,
-                buyerId: buyer.id,
-                channel: 'WHATSAPP',
-                type: 'DEMAND_LETTER',
-                messageContent: content,
-                status: 'PENDING',
-              })
-            }
-          })
-        })
-        
-        await tx.communicationLog.createMany({
-          data: commLogs
-        })
-
-        // Dispatch immediately after the transaction completes — done outside tx below
-      }
-    }
-    await tx.unit.update({ where: { id: unitId }, data: { status: 'BOOKED' } })
-    if (inquiryId) {
-      await tx.inquiry.updateMany({
-        where: { id: inquiryId, unitId, status: 'OPEN' },
-        data: { status: 'CONVERTED', convertedSaleId: newSale.id },
-      })
-    }
-    return newSale
-  })
-  await createAuditLog({ userId: session.user.id, projectId, entityType: 'sale', entityId: sale.id, action: 'created', newValues: { saleNumber, saleType, agreementValue } })
-  // Dispatch pending comm logs (booking demand notifications)
-  dispatchAllPending().catch(console.error) // fire-and-forget so it doesn't block the response
-  return Response.json({ success: true, data: sale }, { status: 201 })
+  try {
+    const sale = await createSale(data, guard.user.id)
+    // Send the booking demand notices; fire-and-forget so the response is not held up by email / WhatsApp.
+    dispatchAllPending().catch((err) => logger.error({ err }, 'Dispatch after sale failed'))
+    return Response.json({ success: true, data: sale }, { status: 201 })
+  } catch (err) {
+    if (err instanceof SaleError) return Response.json({ error: err.message }, { status: err.status })
+    if (isDuplicateActiveSale(err)) return Response.json({ error: 'This unit was just booked by someone else. Choose another unit.' }, { status: 409 })
+    logger.error({ err }, 'Sale creation failed')
+    return Response.json({ error: 'Could not create the sale' }, { status: 500 })
+  }
 }

@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { auth } from '@/lib/auth'
+import { requireRole } from '@/lib/guard'
 import { prisma } from '@/lib/db'
 import { parseBody, z } from '@/lib/validate'
 import { generateAndSaveQuotePdf } from '@/lib/pdf-generator'
@@ -33,8 +33,9 @@ async function loadInquiry(unitId: string, quoteId: string) {
 
 // PATCH — fix details, change validity, mark as lost or reopen
 export async function PATCH(req: NextRequest, { params }: Ctx) {
-  const session = await auth()
-  if (!session?.user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+  const guard = await requireRole('staff')
+  if ('error' in guard) return guard.error
+  const session = { user: guard.user }
 
   const { unitId, quoteId } = await params
   const { data, error } = await parseBody(req, PatchSchema)
@@ -85,11 +86,9 @@ export async function PATCH(req: NextRequest, { params }: Ctx) {
 
 // DELETE — remove a wrongly entered inquiry (admins only; converted inquiries are kept)
 export async function DELETE(_req: NextRequest, { params }: Ctx) {
-  const session = await auth()
-  if (!session?.user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
-  if (!['SUPER_ADMIN', 'ADMIN'].includes(session.user.role)) {
-    return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
-  }
+  const guard = await requireRole('admin')
+  if ('error' in guard) return guard.error
+  const session = { user: guard.user }
 
   const { unitId, quoteId } = await params
   const inquiry = await prisma.inquiry.findFirst({ where: { id: quoteId, unitId } })

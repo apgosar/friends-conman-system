@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { auth } from '@/lib/auth'
 import { prisma } from '@/lib/db'
+import { activeSale } from '@/lib/soft-delete'
 
 const EXPIRY_WARNING_DAYS = 3
 
@@ -31,7 +32,7 @@ export async function GET(
                   include: {
                     unitType: { select: { floorPlanUrl: true } },
                     sales: {
-                      where: { status: { not: 'CANCELLED' } },
+                      where: activeSale,
                       select: {
                         id: true,
                         saleNumber: true,

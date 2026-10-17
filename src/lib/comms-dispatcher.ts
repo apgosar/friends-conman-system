@@ -15,97 +15,85 @@ import { sendEmail } from '@/lib/email'
 import { sendWhatsApp } from '@/lib/whatsapp'
 import { internalAuthHeaders } from '@/lib/internal-auth'
 import { publishPublicCopy } from '@/lib/storage/files'
+import { escapeHtml } from '@/lib/html-escape'
+import { logger } from '@/lib/logger'
+import { getAttachments, resolveAttachmentUrl, stripAttachmentBlock, type CommAttachment } from '@/lib/comms-content'
 import { PDFDocument } from 'pdf-lib'
+
+// How many messages are prepared at once. Each can start a PDF conversion, so this is deliberately small.
+const DISPATCH_CONCURRENCY = 3
+// A worker that died mid-send leaves its rows SENDING; after this long they go back to PENDING.
+const STALE_CLAIM_MS = 10 * 60 * 1000
+const ATTACHMENT_TIMEOUT_MS = 90_000
+const MAX_ATTACHMENT_BYTES = 25 * 1024 * 1024
+
+const companyName = () => process.env.COMPANY_NAME?.trim() || 'Neev CMS'
 
 // ── Helpers ─────────────────────────────────────────────────────────────────
 
-async function fetchAllAttachments(content: string) {
-  let fetchedAttachments: Array<{ filename: string; content: Buffer; contentType: string }> = []
-  
-  const attachmentsIdx = content.indexOf('ATTACHMENTS:')
-  if (attachmentsIdx !== -1) {
-    const attachBlock = content.substring(attachmentsIdx + 'ATTACHMENTS:'.length).trim()
-    const lines = attachBlock.split('\n').map(l => l.trim()).filter(Boolean)
-    
-    for (const line of lines) {
-      if (!line.includes('|')) continue
-      const [docLabel, docPath] = line.split('|')
-      if (!docPath) continue
-      
-      let docFullUrl = docPath.startsWith('http') ? docPath : `${process.env.APP_URL}${docPath}`
-      
-      // Force server-side PDF generation for document previews
-      if (docFullUrl.includes('/preview/') && !docFullUrl.includes('format=pdf')) {
-        docFullUrl += docFullUrl.includes('?') ? '&format=pdf' : '?format=pdf'
-      }
+interface FetchedAttachment { filename: string; content: Buffer; contentType: string }
 
-      try {
-        const isOwnEndpoint = docFullUrl.startsWith(process.env.APP_URL ?? '\u0000')
-        const docRes = await fetch(docFullUrl, { headers: isOwnEndpoint ? internalAuthHeaders() : {}, redirect: 'manual' })
-        if (!docRes.ok) {
-          // Better to fail (and be retried / visible in the log) than to send a message missing its document
-          throw new Error(`Could not prepare attachment "${docLabel}" (HTTP ${docRes.status}). If this is a DOCX template, check LibreOffice is installed for PDF conversion.`)
-        }
-        if ((docRes.headers.get('content-type') ?? '').includes('text/html')) {
-          throw new Error(`Attachment "${docLabel}" came back as a web page instead of a document`)
-        }
-        {
-          const contentType = docRes.headers.get('content-type') ?? 'application/pdf'
-          const isDocx = contentType.includes('wordprocessingml') || docFullUrl.includes('.docx')
-          const ext = isDocx ? 'docx' : 'pdf'
-          const filename = `${docLabel.replace(/[^a-zA-Z0-9 ]/g, '').trim()}.${ext}`
-          const arrayBuffer = await docRes.arrayBuffer()
-          fetchedAttachments.push({
-            filename,
-            content: Buffer.from(arrayBuffer),
-            contentType,
-          })
-        }
-      } catch (fetchErr) {
-        console.warn(`[Dispatcher] Could not fetch attachment ${docLabel}:`, fetchErr)
-        throw fetchErr
-      }
+/**
+ * Download the documents of a message from this app. Every attachment must resolve to this app's own origin
+ * (see resolveAttachmentUrl); the shared secret is only ever sent to that origin.
+ */
+async function fetchAllAttachments(attachments: CommAttachment[]): Promise<FetchedAttachment[]> {
+  const fetched: FetchedAttachment[] = []
+  for (const attachment of attachments) {
+    let url = resolveAttachmentUrl(attachment.path)
+    // Force server-side PDF generation for document previews
+    if (url.includes('/preview/') && !url.includes('format=pdf')) url += url.includes('?') ? '&format=pdf' : '?format=pdf'
+
+    const res = await fetch(url, { headers: internalAuthHeaders(), redirect: 'manual', signal: AbortSignal.timeout(ATTACHMENT_TIMEOUT_MS) })
+    if (!res.ok) {
+      // Better to fail (and be retried / visible in the log) than to send a message missing its document
+      throw new Error(`Could not prepare attachment "${attachment.label}" (HTTP ${res.status}). If this is a DOCX template, check LibreOffice is installed for PDF conversion.`)
     }
+    const contentType = res.headers.get('content-type') ?? 'application/pdf'
+    if (contentType.includes('text/html')) {
+      throw new Error(`Attachment "${attachment.label}" came back as a web page instead of a document`)
+    }
+    const body = Buffer.from(await res.arrayBuffer())
+    if (body.length > MAX_ATTACHMENT_BYTES) throw new Error(`Attachment "${attachment.label}" is too large to send`)
+    const isDocx = contentType.includes('wordprocessingml') || url.includes('.docx')
+    fetched.push({ filename: `${attachment.label.replace(/[^a-zA-Z0-9 ]/g, '').trim() || 'Document'}.${isDocx ? 'docx' : 'pdf'}`, content: body, contentType })
   }
-  return fetchedAttachments
+  return fetched
 }
 
-function formatMessageAsHtml(text: string): string {
-  const lines = text.split('\n')
-  let html = `
+function formatMessageAsHtml(text: string, attachments: CommAttachment[]): string {
+  const company = escapeHtml(companyName())
+  const paragraphs = text
+    .split('\n')
+    .filter((line) => line.trim())
+    .map((line) => `<p style="margin:0 0 12px;color:#333;line-height:1.6;">${escapeHtml(line)}</p>`)
+    .join('')
+
+  let links = ''
+  if (attachments.length > 0) {
+    const items = attachments.map((a) => {
+      let href = ''
+      try { href = resolveAttachmentUrl(a.path) } catch { /* shown as plain text below */ }
+      const label = `📎 ${escapeHtml(a.label)}`
+      return href
+        ? `<li style="margin-bottom:8px"><a href="${escapeHtml(href)}" style="display:inline-block;padding:8px 16px;background:#0F2A4A;color:#fff;text-decoration:none;border-radius:4px;font-size:13px">${label}</a></li>`
+        : `<li style="margin-bottom:8px">${label}</li>`
+    }).join('')
+    links = `<hr style="border:none;border-top:1px solid #eee;margin:24px 0"/><p style="font-weight:600;color:#666;font-size:12px;text-transform:uppercase;letter-spacing:1px;">Attachments</p><ul style="padding:0;list-style:none;margin:0">${items}</ul>`
+  }
+
+  return `
     <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; background: #f9f9f9; padding: 0;">
       <div style="background: #0F2A4A; padding: 24px 32px;">
-        <h1 style="color: #fff; margin: 0; font-size: 20px;">PARADIGM FRIENDS REALTORS LLP</h1>
+        <h1 style="color: #fff; margin: 0; font-size: 20px;">${company}</h1>
         <p style="color: #a0bbd8; margin: 4px 0 0; font-size: 13px;">Neev CMS Property Management</p>
       </div>
-      <div style="padding: 32px; background: #fff;">
-  `
-  let inAttachments = false
-  for (const line of lines) {
-    if (line.startsWith('ATTACHMENTS:')) {
-      inAttachments = true
-      html += `<hr style="border:none;border-top:1px solid #eee;margin:24px 0"/><p style="font-weight:600;color:#666;font-size:12px;text-transform:uppercase;letter-spacing:1px;">Attachments</p><ul style="padding:0;list-style:none;margin:0">`
-      continue
-    }
-    if (inAttachments && line.includes('|')) {
-      const [label, url] = line.split('|')
-      const fullUrl = url.startsWith('/') ? `${process.env.APP_URL}${url}` : url
-      html += `<li style="margin-bottom:8px"><a href="${fullUrl}" style="display:inline-block;padding:8px 16px;background:#0F2A4A;color:#fff;text-decoration:none;border-radius:4px;font-size:13px">📎 ${label}</a></li>`
-      continue
-    }
-    if (!inAttachments && line.trim()) {
-      html += `<p style="margin:0 0 12px;color:#333;line-height:1.6;">${line}</p>`
-    }
-  }
-  if (inAttachments) html += `</ul>`
-  html += `
-      </div>
+      <div style="padding: 32px; background: #fff;">${paragraphs}${links}</div>
       <div style="padding:16px 32px;background:#f0f0f0;text-align:center">
-        <p style="font-size:11px;color:#999;margin:0">This is an automated message from Neev CMS. Please do not reply to this email.</p>
+        <p style="font-size:11px;color:#999;margin:0">This is an automated message from ${company}. Please do not reply to this email.</p>
       </div>
     </div>
   `
-  return html
 }
 
 function extractSubject(content: string, type: string): string {
@@ -116,7 +104,7 @@ function extractSubject(content: string, type: string): string {
     return `Demand Letter — ${name}`
   }
   if (type === 'RECEIPT') return 'Payment Receipt — Thank You!'
-  return 'Important Update from Paradigm Friends Realtors LLP'
+  return `Important Update from ${companyName()}`
 }
 
 // ── Core dispatcher ──────────────────────────────────────────────────────────
@@ -128,8 +116,37 @@ export interface DispatchResult {
   reason?: string
 }
 
+const CLAIMABLE = ['PENDING', 'QUEUED']
+
+/**
+ * Take ownership of a message. Only one caller can win: the status flips PENDING -> SENDING in a single conditional
+ * UPDATE, so two overlapping dispatch runs (a new sale, a milestone, the manual button...) can never both send it.
+ */
+async function claim(logId: string): Promise<boolean> {
+  const { count } = await prisma.communicationLog.updateMany({
+    where: { id: logId, status: { in: CLAIMABLE } },
+    data: { status: 'SENDING', claimedAt: new Date() },
+  })
+  return count === 1
+}
+
+async function finish(logId: string, data: { status: string; failureReason?: string | null; providerMessageId?: string; sentAt?: Date; retryIncrement?: boolean }) {
+  const { retryIncrement, ...rest } = data
+  await prisma.communicationLog.update({
+    where: { id: logId },
+    data: { ...rest, claimedAt: null, ...(retryIncrement ? { retryCount: { increment: 1 } } : {}) },
+  })
+}
+
 export async function dispatchCommunicationLog(logId: string): Promise<DispatchResult> {
-  const log = await prisma.communicationLog.findUnique({
+  const existing = await prisma.communicationLog.findUnique({ where: { id: logId }, select: { channel: true } })
+  if (!existing) return { id: logId, channel: 'UNKNOWN', status: 'failed', reason: 'Log not found' }
+
+  if (!(await claim(logId))) {
+    return { id: logId, channel: existing.channel, status: 'skipped', reason: 'Already sent or being sent' }
+  }
+
+  const log = await prisma.communicationLog.findUniqueOrThrow({
     where: { id: logId },
     include: {
       buyer: true,
@@ -141,56 +158,44 @@ export async function dispatchCommunicationLog(logId: string): Promise<DispatchR
     },
   })
 
-  if (!log) return { id: logId, channel: 'UNKNOWN', status: 'failed', reason: 'Log not found' }
-
   const buyer = log.buyer ?? log.sale?.buyers?.[0]
-  const content = log.messageContent ?? ''
+  const rawContent = log.messageContent ?? ''
+  const text = stripAttachmentBlock(rawContent)
 
   try {
+    const attachments = getAttachments(log)
+
     if (log.channel === 'EMAIL') {
       const email = buyer?.email
       if (!email) {
-        await prisma.communicationLog.update({
-          where: { id: logId },
-          data: { status: 'FAILED', failureReason: 'No email address on file for buyer' },
-        })
+        await finish(logId, { status: 'FAILED', failureReason: 'No email address on file for buyer' })
         return { id: logId, channel: 'EMAIL', status: 'skipped', reason: 'No email address' }
       }
 
-      const emailAttachments = await fetchAllAttachments(content)
+      const emailAttachments = await fetchAllAttachments(attachments)
 
       const result = await sendEmail({
         to: email,
-        subject: extractSubject(content, log.type),
-        html: formatMessageAsHtml(content),
+        subject: extractSubject(text, log.type),
+        html: formatMessageAsHtml(text, attachments),
         attachments: emailAttachments.length > 0 ? emailAttachments : undefined,
       })
 
-      await prisma.communicationLog.update({
-        where: { id: logId },
-        data: {
-          status: 'SENT',
-          providerMessageId: result.messageId,
-          sentAt: new Date(),
-        },
-      })
+      await finish(logId, { status: 'SENT', providerMessageId: result.messageId, sentAt: new Date() })
       return { id: logId, channel: 'EMAIL', status: 'sent' }
     }
 
     if (log.channel === 'WHATSAPP') {
       const phone = buyer?.whatsappNumber
       if (!phone) {
-        await prisma.communicationLog.update({
-          where: { id: logId },
-          data: { status: 'FAILED', failureReason: 'No WhatsApp number on file for buyer' },
-        })
+        await finish(logId, { status: 'FAILED', failureReason: 'No WhatsApp number on file for buyer' })
         return { id: logId, channel: 'WHATSAPP', status: 'skipped', reason: 'No WhatsApp number' }
       }
 
       let finalDocUrl: string | undefined = undefined
       let finalDocFilename = 'Document.pdf'
-      
-      const fetchedAttachments = await fetchAllAttachments(content)
+
+      const fetchedAttachments = await fetchAllAttachments(attachments)
 
       if (fetchedAttachments.length >= 1 && fetchedAttachments.every(a => a.contentType.includes('application/pdf'))) {
         try {
@@ -201,40 +206,26 @@ export async function dispatchCommunicationLog(logId: string): Promise<DispatchR
             copiedPages.forEach((page) => mergedPdf.addPage(page))
           }
           const mergedPdfBytes = await mergedPdf.save()
-          
+
           finalDocUrl = await publishPublicCopy(Buffer.from(mergedPdfBytes), 'pdf', 'application/pdf')
           finalDocFilename = fetchedAttachments.length === 1 ? fetchedAttachments[0].filename : 'Demand_and_Certificates.pdf'
         } catch (mergeErr) {
-          console.error('[Dispatcher] Error merging PDFs for WhatsApp:', mergeErr)
+          logger.error({ err: mergeErr, logId }, 'Could not merge PDFs for WhatsApp')
         }
-      }
-
-      if (!finalDocUrl) {
-        const attachMatch = content.match(/ATTACHMENTS:[\s\S]*?\n([^|]+)\|(\S+)/)
-        finalDocUrl = attachMatch?.[2]
-          ? (attachMatch[2].startsWith('/') ? `${process.env.APP_URL}${attachMatch[2]}` : attachMatch[2])
-          : undefined
-
-        if (finalDocUrl && finalDocUrl.includes('/preview/') && !finalDocUrl.includes('format=pdf')) {
-          finalDocUrl += finalDocUrl.includes('?') ? '&format=pdf' : '?format=pdf'
-        }
-        finalDocFilename = attachMatch?.[1] ? `${attachMatch[1].replace(/[^a-zA-Z0-9]/g, '_')}.pdf` : 'Document.pdf'
       }
 
       if (finalDocUrl && finalDocUrl.includes('localhost')) {
-        finalDocUrl = undefined
+        finalDocUrl = undefined // Meta cannot download from localhost
       }
 
-      // Build clean plain-text message (strip ATTACHMENTS section for WhatsApp)
-      let plainText = content.split('ATTACHMENTS:')[0].trim()
-      
-      // If we had a document but couldn't attach it natively (e.g. localhost), just append the link
-      if (!finalDocUrl) {
-        const attachMatch = content.match(/ATTACHMENTS:[\s\S]*?\n([^|]+)\|(\S+)/)
-        if (attachMatch?.[2]) {
-          const fullUrl = attachMatch[2].startsWith('/') ? `${process.env.APP_URL}${attachMatch[2]}` : attachMatch[2]
-          plainText += `\n\nLink to ${attachMatch[1]}: ${fullUrl}`
-        }
+      // Plain-text body for WhatsApp (the attachment block is not part of the message)
+      let plainText = text
+
+      // A document we could not attach natively is offered as a link instead
+      if (!finalDocUrl && attachments.length > 0) {
+        try {
+          plainText += `\n\nLink to ${attachments[0].label}: ${resolveAttachmentUrl(attachments[0].path)}`
+        } catch { /* no link rather than a wrong one */ }
       }
 
       // Fetch sale + unit details for template parameters
@@ -248,7 +239,7 @@ export async function dispatchCommunicationLog(logId: string): Promise<DispatchR
           })
         : null
 
-      // ── Build all 7 template parameters ────────────────────────────────────
+      // ── Build all template parameters ──────────────────────────────────────
       // {{1}} Buyer Name
       const buyerName = buyer?.fullName ?? 'Valued Customer'
 
@@ -314,7 +305,7 @@ export async function dispatchCommunicationLog(logId: string): Promise<DispatchR
         templateName: 'demands_and_receipts',
         templateLanguage: 'en',
         // Pass document as header only when URL is available and publicly accessible
-        documentHeaderUrl: (finalDocUrl && !finalDocUrl.includes('localhost')) ? finalDocUrl : undefined,
+        documentHeaderUrl: finalDocUrl,
         documentHeaderFilename: finalDocFilename,
         templateBodyParams: [
           buyerName,                               // {{1}}
@@ -325,42 +316,57 @@ export async function dispatchCommunicationLog(logId: string): Promise<DispatchR
           documentType,                            // {{6}}
           amount,                                  // {{7}}
           additionalInfo,                          // {{8}}
-          process.env.COMPANY_NAME || 'Neev CMS',// {{9}}
+          companyName(),                           // {{9}}
         ],
       })
 
-      await prisma.communicationLog.update({
-        where: { id: logId },
-        data: {
-          status: result.status === 'simulated' ? 'SIMULATED' : 'SENT',
-          providerMessageId: result.messageId,
-          sentAt: new Date(),
-        },
+      await finish(logId, {
+        status: result.status === 'simulated' ? 'SIMULATED' : 'SENT',
+        providerMessageId: result.messageId,
+        sentAt: new Date(),
       })
       return { id: logId, channel: 'WHATSAPP', status: result.status === 'simulated' ? 'simulated' : 'sent' }
     }
 
+    await finish(logId, { status: 'FAILED', failureReason: 'Unknown channel' })
     return { id: logId, channel: log.channel, status: 'skipped', reason: 'Unknown channel' }
-  } catch (err: any) {
-    await prisma.communicationLog.update({
-      where: { id: logId },
-      data: {
-        status: 'FAILED',
-        failureReason: err.message,
-        retryCount: { increment: 1 },
-      },
-    })
-    return { id: logId, channel: log.channel, status: 'failed', reason: err.message }
+  } catch (err) {
+    const reason = err instanceof Error ? err.message : String(err)
+    logger.warn({ logId, reason }, 'Message could not be sent')
+    await finish(logId, { status: 'FAILED', failureReason: reason, retryIncrement: true })
+    return { id: logId, channel: log.channel, status: 'failed', reason }
   }
 }
 
+async function mapLimit<T, R>(items: T[], limit: number, fn: (item: T) => Promise<R>): Promise<R[]> {
+  const results: R[] = new Array(items.length)
+  let next = 0
+  const worker = async () => {
+    while (next < items.length) {
+      const i = next++
+      results[i] = await fn(items[i])
+    }
+  }
+  await Promise.all(Array.from({ length: Math.min(limit, items.length) }, worker))
+  return results
+}
+
 /**
- * Dispatch ALL pending logs (called after milestone complete / new sale / cron)
+ * Dispatch ALL pending logs (called after milestone complete / new sale / the manual button).
+ * Safe to run concurrently with itself: each message is claimed before it is sent.
  */
 export async function dispatchAllPending(): Promise<DispatchResult[]> {
-  const pending = await prisma.communicationLog.findMany({
-    where: { status: 'PENDING', retryCount: { lt: 3 } },
-    select: { id: true },
+  // Messages whose worker died mid-send go back in the queue
+  await prisma.communicationLog.updateMany({
+    where: { status: 'SENDING', claimedAt: { lt: new Date(Date.now() - STALE_CLAIM_MS) } },
+    data: { status: 'PENDING', claimedAt: null },
   })
-  return Promise.all(pending.map((log) => dispatchCommunicationLog(log.id)))
+
+  const pending = await prisma.communicationLog.findMany({
+    where: { status: { in: CLAIMABLE }, retryCount: { lt: 3 } },
+    select: { id: true },
+    orderBy: { createdAt: 'asc' },
+    take: 200,
+  })
+  return mapLimit(pending, DISPATCH_CONCURRENCY, (log) => dispatchCommunicationLog(log.id))
 }

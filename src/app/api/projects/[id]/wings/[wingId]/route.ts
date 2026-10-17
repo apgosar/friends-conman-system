@@ -17,7 +17,7 @@ export async function DELETE(_req: NextRequest, props: { params: Promise<{ id: s
     prisma.inquiry.count({ where: { unit: { floor: { wingId } } } }),
     prisma.unit.count({ where: { floor: { wingId } } }),
   ])
-  if (sales > 0) return Response.json({ error: `Wing ${wing.name} has ${sales} sale(s), so it can't be deleted.` }, { status: 409 })
+  if (sales > 0) return Response.json({ error: `Wing ${wing.name} has ${sales} sale record(s), including cancelled ones that are kept on the books, so it can't be deleted.` }, { status: 409 })
   if (inquiries > 0) return Response.json({ error: `Wing ${wing.name} has ${inquiries} inquiry(ies). Delete those first.` }, { status: 409 })
 
   await prisma.wing.delete({ where: { id: wingId } }) // floors and units cascade

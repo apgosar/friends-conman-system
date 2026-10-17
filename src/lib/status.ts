@@ -122,6 +122,7 @@ export const OUTSTANDING_SCHEDULE_STATUSES = ['DUE', 'PARTIALLY_PAID', ...OVERDU
 export const COMM_STATUS: Record<string, StatusStyle> = {
   QUEUED:    { label: 'Queued',    badge: 'badge-warning' },
   PENDING:   { label: 'Pending',   badge: 'badge-warning' },
+  SENDING:   { label: 'Sending',   badge: 'badge-info' },
   SENT:      { label: 'Sent',      badge: 'badge-info' },
   SIMULATED: { label: 'Simulated', badge: 'badge-muted' },
   DELIVERED: { label: 'Delivered', badge: 'badge-success' },

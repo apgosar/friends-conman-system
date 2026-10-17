@@ -1,12 +1,13 @@
 import { NextRequest } from 'next/server'
-import { auth } from '@/lib/auth'
+import { requireRole } from '@/lib/guard'
 import { sendEmail } from '@/lib/email'
 import { sendWhatsApp } from '@/lib/whatsapp'
 
 // POST /api/settings/test-email
 export async function POST(req: NextRequest) {
-  const session = await auth()
-  if (!session) return Response.json({ error: 'Unauthorized' }, { status: 401 })
+  const guard = await requireRole('superadmin')
+  if ('error' in guard) return guard.error
+  const session = { user: guard.user }
 
   try {
     const { to } = await req.json()

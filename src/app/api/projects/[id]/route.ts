@@ -1,7 +1,9 @@
 import { NextRequest } from 'next/server'
 import { prisma } from '@/lib/db'
 import { auth } from '@/lib/auth'
+import { requireRole } from '@/lib/guard'
 import { createAuditLog } from '@/lib/audit'
+import { activeSale } from '@/lib/soft-delete'
 
 export async function GET(req: NextRequest, props: { params: Promise<{ id: string }> }) {
   const session = await auth()
@@ -14,7 +16,7 @@ export async function GET(req: NextRequest, props: { params: Promise<{ id: strin
       wings: { include: { floors: { include: { units: true } } } },
       milestones: { orderBy: { sequence: 'asc' } },
       templates: { where: { isActive: true } },
-      _count: { select: { sales: true } },
+      _count: { select: { sales: { where: activeSale } } },
     },
   })
   if (!project) return Response.json({ error: 'Not found' }, { status: 404 })
@@ -22,11 +24,9 @@ export async function GET(req: NextRequest, props: { params: Promise<{ id: strin
 }
 
 export async function PATCH(req: NextRequest, props: { params: Promise<{ id: string }> }) {
-  const session = await auth()
-  if (!session) return Response.json({ error: 'Unauthorized' }, { status: 401 })
-  if (session.user.role !== 'SUPER_ADMIN' && session.user.role !== 'ADMIN') {
-    return Response.json({ error: 'Forbidden' }, { status: 403 })
-  }
+  const guard = await requireRole('admin')
+  if ('error' in guard) return guard.error
+  const session = { user: guard.user }
 
   const { id } = await props.params
   const body = await req.json()

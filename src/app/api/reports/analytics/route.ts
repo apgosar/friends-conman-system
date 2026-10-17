@@ -1,20 +1,20 @@
 import { NextRequest } from 'next/server'
-import { auth } from '@/lib/auth'
+import { requireRole } from '@/lib/guard'
 import { prisma } from '@/lib/db'
 import { OUTSTANDING_SCHEDULE_STATUSES, UNIT_STATUS_ORDER, isSaleable, isUnsold } from '@/lib/status'
+import { activeSale } from '@/lib/soft-delete'
 
 export async function GET(req: NextRequest) {
-  const session = await auth()
-  if (!session) return Response.json({ error: 'Unauthorized' }, { status: 401 })
-  if (session.user.role !== 'SUPER_ADMIN' && session.user.role !== 'ADMIN') {
-    return Response.json({ error: 'Forbidden' }, { status: 403 })
-  }
+  const guard = await requireRole('admin')
+  if ('error' in guard) return guard.error
+  const session = { user: guard.user }
 
   try {
     const now = new Date()
 
     // ─── 1. Sales & Revenue ────────────────────────────────────────────────────
     const allSales = await prisma.sale.findMany({
+      where: activeSale,
       select: {
         id: true,
         agreementValue: true,
@@ -84,6 +84,7 @@ export async function GET(req: NextRequest) {
     // ─── 3. Collections & Finance ──────────────────────────────────────────────
     const today = new Date()
     const payments = await prisma.payment.findMany({
+      where: { deletedAt: null, sale: activeSale },
       select: { amount: true, paymentDate: true, mode: true }
     })
 
@@ -98,7 +99,7 @@ export async function GET(req: NextRequest) {
 
     // Overdue schedules — use principalAmount + gstAmount as the "amount" field
     const overdueSchedules = await prisma.paymentSchedule.findMany({
-      where: { status: { in: OUTSTANDING_SCHEDULE_STATUSES }, dueDate: { lt: today } },
+      where: { status: { in: OUTSTANDING_SCHEDULE_STATUSES }, dueDate: { lt: today }, sale: activeSale },
       select: { principalAmount: true, gstAmount: true, dueDate: true },
     })
 
@@ -115,7 +116,7 @@ export async function GET(req: NextRequest) {
     // Upcoming receivables (next 90 days)
     const next90 = new Date(today.getTime() + 90 * 86400000)
     const upcoming = await prisma.paymentSchedule.findMany({
-      where: { status: 'UPCOMING', dueDate: { gte: today, lte: next90 } },
+      where: { status: 'UPCOMING', dueDate: { gte: today, lte: next90 }, sale: activeSale },
       select: { principalAmount: true, gstAmount: true, dueDate: true, description: true },
       orderBy: { dueDate: 'asc' },
       take: 10,

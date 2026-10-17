@@ -1,13 +1,11 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { auth } from '@/lib/auth'
+import { requireRole } from '@/lib/guard'
 import { downloadFile } from '@/lib/storage'
 import path from 'path'
 
 export async function GET(req: NextRequest, props: { params: Promise<{ path: string[] }> }) {
-  const session = await auth()
-  if (!session?.user) {
-    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
-  }
+  const guard = await requireRole('staff')
+  if ('error' in guard) return guard.error
 
   const { path: pathArray } = await props.params
   

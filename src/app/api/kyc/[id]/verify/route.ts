@@ -1,11 +1,11 @@
 import { NextRequest } from 'next/server'
 import { prisma } from '@/lib/db'
-import { auth } from '@/lib/auth'
+import { requireRole } from '@/lib/guard'
 
 export async function POST(req: NextRequest, props: { params: Promise<{ id: string }> }) {
-  const session = await auth()
-  if (!session?.user) return Response.json({ error: 'Unauthorized' }, { status: 401 })
-  if (!['SUPER_ADMIN', 'ADMIN'].includes(session.user.role)) { return Response.json({ error: 'Forbidden' }, { status: 403 }) }
+  const guard = await requireRole('admin')
+  if ('error' in guard) return guard.error
+  const session = { user: guard.user }
   
   const { id } = await props.params
 

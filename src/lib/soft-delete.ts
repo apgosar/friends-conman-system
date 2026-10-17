@@ -142,3 +142,9 @@ export const softDelete = {
  *   await prisma.sale.findMany({ where: { ...notDeleted, projectId } })
  */
 export const notDeleted = { deletedAt: null } as const
+
+/**
+ * A sale that counts: not soft-deleted and not cancelled. Use it (as `sale: activeSale`, or spread into a Sale query)
+ * for everything that adds up money or inventory, so cancelled bookings never show as revenue, receivables or a locked unit.
+ */
+export const activeSale = { deletedAt: null, status: { not: 'CANCELLED' } } as const
