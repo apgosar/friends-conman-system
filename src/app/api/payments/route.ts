@@ -5,6 +5,7 @@ import { paymentsRateLimit, rateLimitExceeded } from '@/lib/rate-limit'
 import { PaymentError, recordPayment } from '@/lib/payments/record-payment'
 import { dispatchAllPending } from '@/lib/comms-dispatcher'
 import { logger } from '@/lib/logger'
+import { PAYMENT_MODE_VALUES } from '@/lib/status'
 
 const amount = z.number().finite().min(0, 'Amount cannot be negative').max(100_000_000_000)
 
@@ -13,7 +14,7 @@ const PaymentSchema = z.object({
   saleId: z.string().min(1, 'saleId is required'),
   amount,
   gstPaid: amount.optional().default(0),
-  mode: z.enum(['CHEQUE', 'NEFT', 'RTGS', 'IMPS', 'UPI', 'CASH', 'DD', 'OTHER']),
+  mode: z.enum(PAYMENT_MODE_VALUES, { message: 'Choose a payment mode' }),
   referenceNumber: z.string().max(100).optional(),
   bankName: z.string().max(100).optional(),
   remark: z.string().max(500).optional(),

@@ -117,6 +117,25 @@ export const OVERDUE_SCHEDULE_STATUSES = ['OVERDUE_7', 'OVERDUE_15', 'OVERDUE_30
 /** Demands that have been raised and still have money owed. */
 export const OUTSTANDING_SCHEDULE_STATUSES = ['DUE', 'PARTIALLY_PAID', ...OVERDUE_SCHEDULE_STATUSES]
 
+// ── Payment modes ──────────────────────────────────────────────────────────────
+
+/** How a payment was made. The API validates against these values; every dialog and list shows these labels. */
+export const PAYMENT_MODES = [
+  { value: 'NEFT', label: 'NEFT' },
+  { value: 'RTGS', label: 'RTGS' },
+  { value: 'IMPS', label: 'IMPS' },
+  { value: 'UPI', label: 'UPI' },
+  { value: 'CHEQUE', label: 'Cheque' },
+  { value: 'DD', label: 'Demand Draft' },
+  { value: 'CASH', label: 'Cash' },
+  { value: 'OTHER', label: 'Other' },
+] as const
+export type PaymentMode = (typeof PAYMENT_MODES)[number]['value']
+export const PAYMENT_MODE_VALUES = PAYMENT_MODES.map((m) => m.value) as unknown as readonly [PaymentMode, ...PaymentMode[]]
+export const paymentModeLabel = (mode: string) => PAYMENT_MODES.find((m) => m.value === mode)?.label ?? humanize(mode)
+/** Modes where the bank matters (cheque / draft). */
+export const MODES_NEEDING_BANK: readonly string[] = ['CHEQUE', 'DD']
+
 // ── Communications & documents ─────────────────────────────────────────────────
 
 export const COMM_STATUS: Record<string, StatusStyle> = {
@@ -145,4 +164,6 @@ export const saleStatusLabel = (s: string) => SALE_STATUS[s]?.label ?? humanize(
 export const scheduleStatusLabel = (s: string) => SCHEDULE_STATUS[s]?.label ?? humanize(s)
 export const unitStatusBadge = (s: string) => UNIT_STATUS[s]?.badge ?? 'badge-muted'
 export const saleStatusBadge = (s: string) => SALE_STATUS[s]?.badge ?? 'badge-muted'
+export const commStatusBadge = (s: string) => COMM_STATUS[s]?.badge ?? 'badge-muted'
+export const commStatusLabel = (s: string) => COMM_STATUS[s]?.label ?? humanize(s)
 export const scheduleStatusBadge = (s: string) => SCHEDULE_STATUS[s]?.badge ?? 'badge-muted'
