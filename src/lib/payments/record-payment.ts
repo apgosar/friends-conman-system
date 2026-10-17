@@ -6,6 +6,7 @@ import { fromPaise, toPaise } from '@/lib/money'
 import { syncSaleLifecycle } from '@/lib/sale-lifecycle'
 import { OVERDUE_SCHEDULE_STATUSES } from '@/lib/status'
 import { activeSale } from '@/lib/soft-delete'
+import { formatMoney } from '@/lib/format'
 
 export interface RecordPaymentInput {
   scheduleId: string
@@ -25,7 +26,7 @@ export class PaymentError extends Error {
   }
 }
 
-const rupees = (paise: number) => fromPaise(paise).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
+const rupees = (paise: number) => formatMoney(fromPaise(paise))
 
 /**
  * Record a payment against a demand. One transaction: validate against what is still outstanding (under a lock on the

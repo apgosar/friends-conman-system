@@ -7,7 +7,7 @@ import { DEFAULT_PRICING, computeCharges, gstOn, type PricingConfig } from '@/li
 // Tax and pricing rules come from the selected project's settings (see lib/pricing.ts)
 
 function fmt(n: number) {
-  return new Intl.NumberFormat('en-IN', { style: 'currency', currency: 'INR', maximumFractionDigits: 0 }).format(n)
+  return formatCurrency(n, 0)
 }
 
 // ─── Validation helpers ──────────────────────────────────────
@@ -41,6 +41,7 @@ const emptyBuyer = (): Buyer => ({ fullName: '', panNumber: '', aadhaarNumber: '
 // ─── Step indicator ──────────────────────────────────────────
 import { StepBar } from '@/components/ui/StepBar'
 import { Button, Input, Select, SelectField, TextField, Textarea, TextareaField } from '@/components/ui'
+import { formatCurrency } from '@/lib/format'
 
 // ─── Main Wizard ─────────────────────────────────────────────
 type Prefill = { inquiryId: string; projectId: string; unitId: string; agreementValue: number; carParking: boolean; buyerName: string; mobileNumber: string } | null
