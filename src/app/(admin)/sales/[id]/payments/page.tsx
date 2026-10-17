@@ -4,6 +4,7 @@ import Link from 'next/link'
 import TopNav from '@/components/layout/TopNav'
 import { formatCurrency, formatDate } from '@/lib/template-engine'
 import PaymentScheduleRow from '@/components/sales/PaymentScheduleRow'
+import { plain } from '@/lib/plain'
 
 export default async function SalePaymentsPage(props: PageProps<'/sales/[id]/payments'>) {
   const { id } = await props.params
@@ -59,7 +60,7 @@ export default async function SalePaymentsPage(props: PageProps<'/sales/[id]/pay
                     const totalDue = Number(schedule.principalAmount) + Number(schedule.gstAmount ?? 0)
                     
                     return (
-                      <PaymentScheduleRow key={schedule.id} schedule={schedule} saleId={sale.id} />
+                      <PaymentScheduleRow key={schedule.id} schedule={plain(schedule)} saleId={sale.id} />
                     )
                   })}
                 </tbody>

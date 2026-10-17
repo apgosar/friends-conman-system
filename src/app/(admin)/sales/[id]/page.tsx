@@ -10,6 +10,7 @@ import RecordPaymentModal from '@/components/sales/RecordPaymentModal'
 import CommunicationLogTable from '@/components/sales/CommunicationLogTable'
 import SaleLifecycleCard from '@/components/sales/SaleLifecycleCard'
 import { saleStatusBadge, saleStatusLabel, DOCUMENT_STATUS } from '@/lib/status'
+import { plain } from '@/lib/plain'
 
 async function getSale(id: string) {
   return prisma.sale.findUnique({
@@ -188,9 +189,9 @@ export default async function SaleDetailPage(props: PageProps<'/sales/[id]'>) {
         <div className="card mb-6">
           <div className="card-header">
             <span className="card-title">Payment Schedule</span>
-            <RecordPaymentModal schedules={sale.paymentSchedules} saleId={id} />
+            <RecordPaymentModal schedules={plain(sale.paymentSchedules)} saleId={id} />
           </div>
-          <PaymentScheduleTable schedules={sale.paymentSchedules} />
+          <PaymentScheduleTable schedules={plain(sale.paymentSchedules)} />
         </div>
 
         {/* Documents */}
@@ -229,7 +230,7 @@ export default async function SaleDetailPage(props: PageProps<'/sales/[id]'>) {
             <div className="card-header">
               <span className="card-title">Communication Log</span>
             </div>
-            <CommunicationLogTable logs={sale.communicationLogs} />
+            <CommunicationLogTable logs={plain(sale.communicationLogs)} />
           </div>
         )}
       </div>

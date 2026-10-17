@@ -41,3 +41,14 @@ describeDb('NUMERIC money columns are read back as plain numbers', () => {
     expect(sale.agreementValue).toBe(100.13)
   })
 })
+
+describeDb('aggregates', () => {
+  beforeEach(resetDb)
+  it('aggregates come back as numbers too', async () => {
+    const prisma = await getPrisma()
+    const { project, units } = await seedProject({ units: 1 })
+    await prisma.sale.create({ data: { saleNumber: 'P-002', projectId: project.id, unitId: units[0].id, agreementValue: 100.5, gstAmount: 5, bookingDate: new Date() } })
+    const agg = await prisma.sale.aggregate({ _sum: { agreementValue: true } })
+    expect(Number(agg._sum.agreementValue)).toBe(100.5)
+  })
+})

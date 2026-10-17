@@ -4,6 +4,7 @@ import Link from 'next/link'
 import TopNav from '@/components/layout/TopNav'
 import { formatDate } from '@/lib/template-engine'
 import KycDocumentRow from '@/components/sales/KycDocumentRow'
+import { plain } from '@/lib/plain'
 
 export default async function SaleKycPage(props: PageProps<'/sales/[id]/kyc'>) {
   const { id } = await props.params
@@ -56,7 +57,7 @@ export default async function SaleKycPage(props: PageProps<'/sales/[id]/kyc'>) {
                   </thead>
                   <tbody>
                     {buyer.kycDocuments.map(doc => (
-                      <KycDocumentRow key={doc.id} doc={doc} />
+                      <KycDocumentRow key={doc.id} doc={plain(doc)} />
                     ))}
                   </tbody>
                 </table>
