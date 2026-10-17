@@ -2,8 +2,9 @@
 
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
-import { api, inputStyle } from './ui'
-import { Button } from '@/components/ui'
+import { Alert, Button, ButtonLink, Input } from '@/components/ui'
+import { ApiError, errorMessage, fetchJson } from '@/lib/client/api'
+import { plural } from '@/lib/errors'
 
 export default function ExcelImport({ projectId }: { projectId: string }) {
   const router = useRouter()
@@ -18,14 +19,16 @@ export default function ExcelImport({ projectId }: { projectId: string }) {
     try {
       const body = new FormData()
       body.append('file', file)
-      const res = await api(`/api/projects/${projectId}/structure/import`, { method: 'POST', body })
-      const skipped = res.skipped.length ? ` ${res.skipped.length} unit number(s) already existed and were skipped.` : ''
-      setResult({ ok: true, text: `Imported ${res.created} unit(s).${skipped}` })
+      const res = await fetchJson(`/api/projects/${projectId}/structure/import`, { method: 'POST', body })
+      const skipped = res.skipped.length ? ` ${plural(res.skipped.length, 'unit number')} already existed and ${res.skipped.length === 1 ? 'was' : 'were'} skipped.` : ''
+      setResult({ ok: true, text: `Imported ${plural(res.created, 'unit')}.${skipped}` })
       setFile(null)
       router.refresh()
-    } catch (err: any) {
-      const more = err.totalErrors && err.totalErrors > (err.errors?.length ?? 0) ? [`…and ${err.totalErrors - err.errors.length} more`] : []
-      setResult({ ok: false, text: 'Nothing was imported. Fix these and upload again:', details: [...(err.errors ?? [err.message]), ...more] })
+    } catch (err) {
+      const errors = err instanceof ApiError ? ((err.body.errors as string[] | undefined) ?? []) : []
+      const total = err instanceof ApiError ? Number(err.body.totalErrors ?? 0) : 0
+      const more = total > errors.length ? [`…and ${total - errors.length} more`] : []
+      setResult({ ok: false, text: 'Nothing was imported. Fix these and upload again:', details: [...(errors.length ? errors : [errorMessage(err)]), ...more] })
     } finally {
       setBusy(false)
     }
@@ -36,19 +39,19 @@ export default function ExcelImport({ projectId }: { projectId: string }) {
       <div className="card-header">
         <div>
           <span className="card-title">Or import from Excel</span>
-          <p className="text-sm text-muted" style={{ margin: '4px 0 0' }}>For irregular buildings, or to bring in an existing unit list. One row per unit.</p>
+          <p className="text-sm text-muted mt-1 mb-0">For irregular buildings, or to bring in an existing unit list. One row per unit.</p>
         </div>
-        <a href={`/api/projects/${projectId}/structure/template`} className="btn btn-secondary btn-sm">⬇ Download template</a>
+        <ButtonLink href={`/api/projects/${projectId}/structure/template`} size="sm" download>⬇ Download template</ButtonLink>
       </div>
       <div className="flex gap-3 items-center wrap">
-        <input type="file" accept=".xlsx,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" onChange={(e) => { setFile(e.target.files?.[0] ?? null); setResult(null) }} style={{ ...inputStyle, maxWidth: 380 }} />
-        <Button variant="primary" disabled={!file || busy} onClick={upload}>{busy ? 'Importing…' : 'Import'}</Button>
+        <Input type="file" className="max-w-md" accept=".xlsx,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" aria-label="Filled Excel template" onChange={(e) => { setFile(e.target.files?.[0] ?? null); setResult(null) }} />
+        <Button variant="primary" disabled={!file} loading={busy} onClick={upload}>{busy ? 'Importing…' : 'Import'}</Button>
       </div>
       {result && (
-        <div role={result.ok ? 'status' : 'alert'} className="mt-3 text-base" style={{ color: result.ok ? 'var(--color-success)' : 'var(--color-danger)' }}>
+        <Alert variant={result.ok ? 'success' : 'danger'} className="mt-3">
           {result.text}
-          {result.details && <ul style={{ margin: '6px 0 0', paddingLeft: 18 }}>{result.details.map((d) => <li key={d}>{d}</li>)}</ul>}
-        </div>
+          {result.details && <ul className="mt-2 mb-0" style={{ paddingLeft: 18 }}>{result.details.map((d) => <li key={d}>{d}</li>)}</ul>}
+        </Alert>
       )}
     </div>
   )

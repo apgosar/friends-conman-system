@@ -14,7 +14,7 @@ export function Table({ children, stack, flush, className, ...rest }: { children
   )
 }
 
-/** A body cell. Pass `label` when the table is `stack`ed; use label="" to hide a cell (an action column) in card mode. */
+/** A body cell. Pass `label` (the column name) when the table is `stack`ed; use label="" for a cell with no name, such as the action buttons. */
 export function Td({ label, className, ...rest }: TdHTMLAttributes<HTMLTableCellElement> & { label?: string }) {
   return <td data-label={label} className={className} {...rest} />
 }

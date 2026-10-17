@@ -612,7 +612,8 @@ tbody td {
 .form-input[aria-invalid='true'], .form-select[aria-invalid='true'], .form-textarea[aria-invalid='true'] { border-color: var(--color-danger); }
 .form-required { color: var(--color-danger); margin-left: 2px; }
 .form-input:disabled, .form-select:disabled, .form-textarea:disabled { opacity: 0.55; cursor: not-allowed; }
-.form-input-sm, .form-select-sm { padding: 6px 10px; font-size: var(--text-sm); }
+.form-input-sm { padding: 6px 10px; font-size: var(--text-sm); }
+.form-select-sm { padding: 6px 32px 6px 10px; font-size: var(--text-sm); background-position: right 10px center; }
 
 /* Two (or more) fields side by side that stack on a phone */
 .form-grid { display: grid; gap: var(--space-4); grid-template-columns: repeat(2, minmax(0, 1fr)); }
@@ -674,3 +675,21 @@ tbody td {
 .check-hint { display: block; }
 
 .table-wrapper-flush { border: none; border-radius: 0; margin: 0; }
+
+/* Building setup & similar "builder" screens */
+.panel { border: 1px solid var(--border-color); border-radius: var(--radius-md); background: var(--bg-surface); padding: var(--space-4); }
+.section-label { font-size: var(--text-xs); font-weight: 700; text-transform: uppercase; letter-spacing: 0.05em; color: var(--text-muted); }
+.section-label small { text-transform: none; font-weight: 400; letter-spacing: 0; }
+.pattern-row { display: flex; align-items: center; flex-wrap: wrap; gap: 10px; padding: 10px 0; border-top: 1px dashed var(--border-color); }
+.pattern-row:first-child { border-top: none; }
+.num-input { width: 72px; text-align: center; }
+.select-inline { width: auto; min-width: 8rem; }
+.w-auto { width: auto; }
+.max-w-sm { max-width: 320px; }
+.max-w-md { max-width: 480px; }
+.max-w-lg { max-width: 760px; }
+.dashed-box { border: 1px dashed var(--border-color); border-radius: var(--radius-md); padding: var(--space-4); color: var(--text-muted); font-size: var(--text-base); }
+
+.thumb { display: block; max-width: 100%; max-height: 160px; border-radius: 6px; border: 1px solid var(--border-color); background: #fff; }
+.thumb-sm { width: 56px; height: 40px; object-fit: cover; border-radius: 4px; border: 1px solid var(--border-color); background: #fff; }
+.note-box { display: flex; gap: var(--space-2); align-items: flex-start; padding: 10px; border-radius: var(--radius-md); background: var(--bg-surface); font-size: var(--text-base); }
