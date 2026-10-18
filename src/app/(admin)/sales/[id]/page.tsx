@@ -130,11 +130,11 @@ export default async function SaleDetailPage(props: PageProps<'/sales/[id]'>) {
             <CardHeader title="Payment Summary" />
             <div className="kv-list mb-3">
               <div className="kv-row"><span>Total Collected</span><span className="kv-value text-success">{formatCurrency(totalPaid)}</span></div>
+              <div className="kv-row kv-row-sub"><span>Principal</span><span className="kv-value">{formatCurrency(principalPaid)}</span></div>
+              <div className="kv-row kv-row-sub"><span>GST</span><span className="kv-value">{formatCurrency(gstReceived)}</span></div>
               <div className="kv-row"><span>Total Due</span><span className="kv-value">{formatCurrency(totalDue)}</span></div>
-              <div className="kv-row text-sm text-muted wrap">
-                <span>Principal: {formatCurrency(principalPaid)} / {formatCurrency(principalDue)}</span>
-                <span>GST: {formatCurrency(gstReceived)} / {formatCurrency(gstDue)}</span>
-              </div>
+              <div className="kv-row kv-row-sub"><span>Principal</span><span className="kv-value">{formatCurrency(principalDue)}</span></div>
+              <div className="kv-row kv-row-sub"><span>GST</span><span className="kv-value">{formatCurrency(gstDue)}</span></div>
               <div className="kv-row">
                 <span>Outstanding</span>
                 <span className={`kv-value ${totalDue - totalPaid > 0 ? 'text-danger' : 'text-success'}`}>{formatCurrency(Math.max(0, totalDue - totalPaid))}</span>

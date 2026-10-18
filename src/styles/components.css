@@ -656,6 +656,12 @@ tbody td {
 }
 .kv-row:last-child { border-bottom: none; }
 .kv-label { color: var(--text-muted); }
+/* A detail line that belongs to the row above it (Principal / GST under a total): smaller, no divider of its own.
+   The divider moves to the end of the group. */
+.kv-row-sub { padding: var(--space-1) 0 var(--space-1) var(--space-5); border-bottom: none; font-size: var(--text-sm); color: var(--text-muted); }
+.kv-row-sub .kv-value { font-weight: 500; }
+.kv-row:has(+ .kv-row-sub) { border-bottom: none; padding-bottom: var(--space-2); }
+.kv-row-sub:has(+ .kv-row:not(.kv-row-sub)) { border-bottom: 1px solid var(--border-color); padding-bottom: var(--space-3); }
 .kv-value { font-weight: 600; text-align: right; overflow-wrap: anywhere; }
 
 /* Toolbar above a list: search / filters on the left, actions on the right */
