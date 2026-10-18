@@ -88,7 +88,7 @@ Verify `https://<customer-slug>.<your-domain>/api/health` responds before consid
 
 ## Updating a customer's server (one click)
 
-Two small files do this, and neither contains anything secret. They live in **two different places** — the launcher on Windows, the script inside WSL — and the launcher only *starts* the script, so a missing `update.sh` is the most common first-run error.
+Two small files do this, and neither contains anything secret. The launcher (`Update-NeevCMS.bat`) lives on Windows and is the only file you install by hand. It **downloads `update.sh` for the version being installed** into the app folder every time, so the server always runs the updater that belongs to that release (the previous copy is kept as `update.sh.previous`). If the download fails it uses the copy already on the server and says so.
 
 **Set it up once, on the customer's server:**
 
@@ -97,19 +97,21 @@ Two small files do this, and neither contains anything secret. They live in **tw
    docker compose ls
    ```
    The `CONFIG FILES` column shows something like `/home/ankur/neev-cms/docker-compose.yml`; the app folder is everything before `/docker-compose.yml`.
-2. **Put `update.sh` in that folder** *(Ubuntu window)*. Download it, or copy it in from Windows through `\\wsl$\Ubuntu\home\<linux-user>\neev-cms` in File Explorer:
+2. **`update.sh` needs no manual step** — the launcher fetches it. (Only if the server has no internet access to GitHub: copy it in from Windows through `\\wsl$\Ubuntu\home\<linux-user>\neev-cms` in File Explorer, or download it yourself:
    ```bash
    cd /home/ankur/neev-cms        # the folder from step 1
    curl -fsSL -o update.sh https://raw.githubusercontent.com/apgosar/friends-conman-system/<tag-or-commit>/deploy/onprem/update.sh
    bash -n update.sh && ls -l update.sh .env docker-compose.yml   # all three must be listed
    ```
-   (The download only works while the repository is public; otherwise copy the file over. Use a release tag or commit rather than `main`, so the customer always runs a version you've reviewed.)
+   The automatic download only works while the repository is public; otherwise copy the file over. It always comes from the release tag, never from `main`, so the customer runs a version you've reviewed.)
 3. **Put `Update-NeevCMS.bat` on the Windows side** (`C:\NeevCMS\`, with a Desktop shortcut called "Update Neev CMS"). Open it in Notepad once and set `DISTRO` (the name from `wsl -l -v`) and `APPDIR` (the folder from step 1; an absolute path such as `/home/ankur/neev-cms` is safest). Leave `WSLUSER` empty unless the app was installed under a different Linux user than the distro's default (then set it, for example to `root`).
 4. **Dry-run it** (see below), then hand it over.
 
-The launcher prints a specific message if `APPDIR` can't be opened or `update.sh` isn't in it, so a wrong setup is obvious rather than silent.
+The launcher prints a specific message if `APPDIR` can't be opened, the version isn't valid, or `update.sh` can't be found or downloaded, so a wrong setup is obvious rather than silent.
 
-The customer double-clicks the `.bat`, types the release tag you gave them (for example `v1.2.0`), confirms, and waits a few minutes. The script:
+**Existing servers:** the launcher itself is not self-updating. After a release that changes `Update-NeevCMS.bat`, replace the copy on the server once; from then on `update.sh` stays current by itself.
+
+The customer double-clicks the `.bat` (or runs `Update-NeevCMS.bat v1.2.0`), types the release tag you gave them (for example `v1.2.0`; `1.2.0` works too), confirms, and waits a few minutes. The script:
 
 1. checks Docker, `.env` and that the database container is running;
 2. asks for the tag, and refuses a downgrade unless they type `DOWNGRADE`;
@@ -124,7 +126,7 @@ The customer double-clicks the `.bat`, types the release tag you gave them (for 
 Every run writes a log to `update-logs/` that the customer can send you. The app is unavailable for about a minute during step 6.
 
 **What it deliberately does not do**
-- It doesn't change `docker-compose.yml` or add settings to `.env`. If a release needs either, tell the customer separately (and send a new `update.sh` the same way). A missing required setting makes the new version fail its health check, so the script rolls back rather than leaving a broken app.
+- It doesn't change `docker-compose.yml` or add settings to `.env`. If a release needs either, tell the customer separately (the new `update.sh` is fetched automatically). A missing required setting makes the new version fail its health check, so the script rolls back rather than leaving a broken app.
 - It doesn't update Postgres, MinIO or `cloudflared`.
 - Database changes are Prisma migrations (`prisma/migrations`). **Never edit a migration that has shipped**; add a new one (`npx prisma migrate dev --name what_changed`). Anything Prisma cannot express in `schema.prisma` (partial indexes, CHECK constraints) goes in the migration SQL.
 
