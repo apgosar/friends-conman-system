@@ -178,6 +178,14 @@ export default function BuildingViewer({ projectId, view = '3d' }: { projectId: 
     }
   }
 
+  // Changing a filter also drops the selected unit if the new filters would hide it, so the side panel never shows a unit
+  // that is not in the list
+  const applyFilters = (status: string, type: string) => {
+    setFilterStatus(status)
+    setFilterType(type)
+    if (selectedUnit && !(statusMatches(status, selectedUnit.status) && (type === 'ALL' || selectedUnit.configuration === type))) setSelectedUnit(null)
+  }
+
   // ── Render ──
   if (loading) return <BuildingSkeleton />
   if (error) return <Alert variant="danger">{error}</Alert>
@@ -222,8 +230,8 @@ export default function BuildingViewer({ projectId, view = '3d' }: { projectId: 
         onSelectWing={(idx) => { setSelectedWingIdx(idx); setSelectedUnit(null); setFilterType('ALL') }}
         types={availableTypes}
         filters={{ status: filterStatus, type: filterType }}
-        onStatus={setFilterStatus}
-        onType={setFilterType}
+        onStatus={(status) => applyFilters(status, typeFilter)}
+        onType={(type) => applyFilters(filterStatus, type)}
         typeCount={typeCount}
         statusCount={statusCount}
       />

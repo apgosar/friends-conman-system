@@ -70,7 +70,7 @@ export default function UnitFilters({ wings, selectedWingIdx, onSelectWing, type
             style={{ '--chip-bg': UNIT_COLORS.AVAILABLE.top, '--chip-border': UNIT_COLORS.AVAILABLE.stroke, '--chip-ink': UNIT_COLORS.AVAILABLE.top, '--chip-active-ink': 'var(--bv-on-available)' } as CSSProperties}
             onClick={() => onStatus('UNSOLD')}
           >
-            Unsold only<Count n={statusCount('UNSOLD')} />
+            Available<Count n={statusCount('UNSOLD')} />
           </button>
           {Object.keys(STATUS_COLOR).filter((s) => s !== 'AVAILABLE' && s !== 'NOT_FOR_SALE').map((status) => (
             <button
