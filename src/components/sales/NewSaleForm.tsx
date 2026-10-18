@@ -67,7 +67,7 @@ const joinSlots = (slots: ParkingSlot[], field: keyof ParkingSlot) => Array.from
 
 type Prefill = { inquiryId: string; projectId: string; unitId: string; agreementValue: number; carParking: boolean; buyerName: string; mobileNumber: string } | null
 
-export default function NewSaleWizard({ projects, prefill = null }: { projects: any[]; prefill?: Prefill }) {
+export default function NewSaleWizard({ projects, prefill = null, preselect = null }: { projects: any[]; prefill?: Prefill; preselect?: { projectId: string; unitId: string } | null }) {
   const router = useRouter()
   const [step, setStep] = useState(1)
   const [error, setError] = useState('')
@@ -76,12 +76,12 @@ export default function NewSaleWizard({ projects, prefill = null }: { projects: 
   const clearFieldError = (key: string) => setFieldErrors(prev => (key in prev ? Object.fromEntries(Object.entries(prev).filter(([k]) => k !== key)) : prev))
 
   // Step 1 state
-  const [projectId, setProjectId] = useState(prefill?.projectId ?? '')
+  const [projectId, setProjectId] = useState(prefill?.projectId ?? preselect?.projectId ?? '')
   const selectedProject = projects.find(p => p.id === projectId)
   const unitsByWing = unitsGroupedByWing(selectedProject?.units ?? [])
-  const prefillProjectType = projects.find(p => p.id === prefill?.projectId)?.type
+  const prefillProjectType = projects.find(p => p.id === (prefill?.projectId ?? preselect?.projectId))?.type
   const [saleType, setSaleType] = useState(prefillProjectType && prefillProjectType !== 'MIXED' ? prefillProjectType : 'FRESH')
-  const [unitId, setUnitId] = useState(prefill?.unitId ?? '')
+  const [unitId, setUnitId] = useState(prefill?.unitId ?? preselect?.unitId ?? '')
   const [tenantId, setTenantId] = useState('')
   const [agreementValue, setAgreementValue] = useState(prefill?.agreementValue ?? 10000000)
   const [bookingAmount, setBookingAmount] = useState<number | ''>('')

@@ -79,7 +79,10 @@ export default function UnitDetailPanel(p: Props) {
             <ButtonLink href={`/sales/${unit.saleId}`} variant="primary" block className="mt-3">View Sale →</ButtonLink>
           </div>
         ) : isUnsold(unit.status) ? (
-          <Button variant="primary" block onClick={p.onCreateQuote}>+ Create Quote</Button>
+          <div className="flex dir-col gap-2">
+            <Button variant="primary" block onClick={p.onCreateQuote}>+ New Inquiry</Button>
+            <ButtonLink href={`/sales/new?unitId=${unit.id}`} variant="secondary" block>+ New Sale</ButtonLink>
+          </div>
         ) : (
           <div className="bv-box text-sm text-secondary">
             {unit.status === 'BOOKED' && unit.bookedByName && (

@@ -4,7 +4,7 @@ import NewSaleForm from '@/components/sales/NewSaleForm'
 import { pricingFromProject } from '@/lib/pricing'
 
 export default async function NewSalePage(props: PageProps<'/sales/new'>) {
-  const { inquiryId } = await props.searchParams
+  const { inquiryId, unitId } = await props.searchParams
   const inquiry = typeof inquiryId === 'string'
     ? await prisma.inquiry.findUnique({
         where: { id: inquiryId },
@@ -76,11 +76,20 @@ export default async function NewSalePage(props: PageProps<'/sales/new'>) {
       }
     : null
 
+  // From a unit on the project page: start with its project and the unit already chosen (only while it is still unsold)
+  const chosenUnit = !prefill && typeof unitId === 'string'
+    ? await prisma.unit.findFirst({
+        where: { id: unitId, status: { in: ['AVAILABLE', 'INQUIRY_RECEIVED'] } },
+        select: { id: true, floor: { select: { wing: { select: { projectId: true } } } } },
+      })
+    : null
+  const preselect = chosenUnit ? { projectId: chosenUnit.floor.wing.projectId, unitId: chosenUnit.id } : null
+
   return (
     <>
       <TopNav title="New Sale" subtitle={prefill ? `Converting inquiry from ${convertible!.customerName}` : 'Create a fresh or redevelopment sale'} />
       <div className="admin-content">
-        <NewSaleForm projects={projectData} prefill={prefill} />
+        <NewSaleForm projects={projectData} prefill={prefill} preselect={preselect} />
       </div>
     </>
   )
