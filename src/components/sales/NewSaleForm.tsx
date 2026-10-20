@@ -1,11 +1,13 @@
 'use client'
 
 import { useState } from 'react'
+import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { DEFAULT_PRICING, GST_RATE_OPTIONS, computeCharges, gstOn, type PricingConfig } from '@/lib/pricing'
 import { percentOf, round2 } from '@/lib/money'
 import { PHONE_ERROR, normalizePhone } from '@/lib/phone'
 import { wingLabel } from '@/lib/building-structure'
+import { SALE_TYPE_LABEL, UNIT_TYPE_LABEL, comboLabel, plansFor, schemeOf, unitTypeOfCategory, type PlanSaleType, type PlanSummary } from '@/lib/payment-plans'
 import { scrollToFirstInvalid } from '@/lib/client/forms'
 
 // Tax and pricing rules come from the selected project's settings (see lib/pricing.ts)
@@ -39,6 +41,7 @@ function formatAadhaar(value: string) {
   return digits.replace(/(\d{4})(?=\d)/g, '$1 ').trim()
 }
 
+type PlanOption = PlanSummary & { items: { milestoneId: string; name: string; sequence: number; percentOfAV: number; status: string }[] }
 type ParkingSlot = { podium: string; floor: string; number: string }
 type Buyer = { fullName: string; panNumber: string; aadhaarNumber: string; address: string; email: string; whatsappNumber: string }
 // principalAmount already includes stamp duty + registration for the plinth row
@@ -79,9 +82,15 @@ export default function NewSaleWizard({ projects, prefill = null, preselect = nu
   const [projectId, setProjectId] = useState(prefill?.projectId ?? preselect?.projectId ?? '')
   const selectedProject = projects.find(p => p.id === projectId)
   const unitsByWing = unitsGroupedByWing(selectedProject?.units ?? [])
+  // The payment plan follows the sale type and the kind of unit: its default is chosen, and the user can switch to another plan
+  const [planChoice, setPlanChoice] = useState('')
   const prefillProjectType = projects.find(p => p.id === (prefill?.projectId ?? preselect?.projectId))?.type
   const [saleType, setSaleType] = useState(prefillProjectType && prefillProjectType !== 'MIXED' ? prefillProjectType : 'FRESH')
   const [unitId, setUnitId] = useState(prefill?.unitId ?? preselect?.unitId ?? '')
+  const chosenUnit = selectedProject?.units.find((u: { id: string }) => u.id === unitId) as { category: string; carpetAreaSqft: number } | undefined
+  const planCombo = chosenUnit ? { saleType: (saleType === 'REDEVELOPMENT' ? 'REDEVELOPMENT' : 'FRESH') as PlanSaleType, unitType: unitTypeOfCategory(chosenUnit.category) } : null
+  const comboPlans = planCombo ? plansFor<PlanOption>(selectedProject?.paymentPlans ?? [], planCombo) : []
+  const paymentPlan = comboPlans.find((p) => p.id === planChoice) ?? comboPlans[0] ?? null
   const [tenantId, setTenantId] = useState('')
   const [agreementValue, setAgreementValue] = useState(prefill?.agreementValue ?? 10000000)
   const [bookingAmount, setBookingAmount] = useState<number | ''>('')
@@ -163,24 +172,11 @@ export default function NewSaleWizard({ projects, prefill = null, preselect = nu
   const removeBuyer = (idx: number) => setBuyers(prev => prev.filter((_, i) => i !== idx))
 
   // ── Step 1 → 2: Build payment schedule from project milestones ──
-  const goToStep2 = () => {
-    setError('')
-    // Check everything at once, mark each wrong field red under its own message, and scroll to the first one
-    const errs: Record<string, string> = {}
-    if (!projectId) errs.project = 'Please select a project'
-    if (!unitId) errs.unit = 'Please select a unit'
-    if (saleType === 'REDEVELOPMENT' && !tenantId) errs.tenant = 'Please link a tenant'
-    buyers.forEach((b, i) => {
-      if (!b.fullName.trim()) errs[`buyer-${i}-fullName`] = 'Please enter full name'
-      if (validatePan(b.panNumber) || !b.panNumber) errs[`buyer-${i}-panNumber`] = 'Please enter valid PAN number'
-      if (validateAadhaar(b.aadhaarNumber)) errs[`buyer-${i}-aadhaarNumber`] = 'Please enter valid Aadhar number'
-      if (validateEmail(b.email)) errs[`buyer-${i}-email`] = 'Please enter a valid email address'
-      if (validatePhone(b.whatsappNumber)) errs[`buyer-${i}-whatsappNumber`] = PHONE_ERROR
-    })
-    setFieldErrors(errs)
-    if (Object.keys(errs).length > 0) { scrollToFirstInvalid(); return }
-
-    const milestones = selectedProject?.milestones ?? []
+  // The payment schedule for a plan: its milestones with the % of the agreement value due at each, adjusted for a custom
+  // booking amount and for milestones already completed, plus stamp duty / registration and parking rows
+  const buildSchedule = (plan: PlanOption | null): ScheduleRow[] => {
+    // The milestones and percentages come from the chosen payment plan
+    const milestones = (plan?.items ?? []).map((i) => ({ id: i.milestoneId, name: i.name, sequence: i.sequence, percentOfAV: i.percentOfAV, status: i.status }))
 
     // Find the possession milestone for car parking
     const possessionMilestone = milestones.find((m: any) =>
@@ -273,7 +269,28 @@ export default function NewSaleWizard({ projects, prefill = null, preselect = nu
       })
     }
 
-    setSchedules(rows)
+    return rows
+  }
+
+  const goToStep2 = () => {
+    setError('')
+    // Check everything at once, mark each wrong field red under its own message, and scroll to the first one
+    const errs: Record<string, string> = {}
+    if (!projectId) errs.project = 'Please select a project'
+    if (!unitId) errs.unit = 'Please select a unit'
+    if (saleType === 'REDEVELOPMENT' && !tenantId) errs.tenant = 'Please link a tenant'
+    buyers.forEach((b, i) => {
+      if (!b.fullName.trim()) errs[`buyer-${i}-fullName`] = 'Please enter full name'
+      if (validatePan(b.panNumber) || !b.panNumber) errs[`buyer-${i}-panNumber`] = 'Please enter valid PAN number'
+      if (validateAadhaar(b.aadhaarNumber)) errs[`buyer-${i}-aadhaarNumber`] = 'Please enter valid Aadhar number'
+      if (validateEmail(b.email)) errs[`buyer-${i}-email`] = 'Please enter a valid email address'
+      if (validatePhone(b.whatsappNumber)) errs[`buyer-${i}-whatsappNumber`] = PHONE_ERROR
+    })
+    setFieldErrors(errs)
+    if (Object.keys(errs).length > 0) { scrollToFirstInvalid(); return }
+    if (!paymentPlan) { setError('There is no payment plan for this sale type and unit type. Add one under Payment Plans first'); return }
+
+    setSchedules(buildSchedule(paymentPlan))
     setStep(2)
   }
 
@@ -398,7 +415,7 @@ export default function NewSaleWizard({ projects, prefill = null, preselect = nu
                 ))}
               </SelectField>
               {unitId && (() => {
-                const selectedUnit = selectedProject?.units.find((u: any) => u.id === unitId)
+                const selectedUnit = chosenUnit
                 return selectedUnit ? (
                   <div className="text-muted flex gap-3 text-sm mt-2">
                     <span>📐 Carpet Area: <strong>{selectedUnit.carpetAreaSqft} sqft</strong></span>
@@ -525,6 +542,11 @@ export default function NewSaleWizard({ projects, prefill = null, preselect = nu
             <TextField label="Booking Amount (₹)" type="number" placeholder="Leave blank to use default %" value={bookingAmount} onChange={e => setBookingAmount(e.target.value ? Number(e.target.value) : '')} />
             <TextField label="Booking Date" required type="date" value={bookingDate} onChange={e => setBookingDate(e.target.value)} />
           </div>
+          {unitId && comboPlans.length === 0 && planCombo && (
+            <Alert variant="warning" className="mb-4" title={`No payment plan for ${SALE_TYPE_LABEL[planCombo.saleType]} · ${UNIT_TYPE_LABEL[planCombo.unitType]}`}>
+              Add one under <Link href={`/projects/${projectId}/payment-plan`} className="text-brand">Payment Plans</Link> before creating this sale.
+            </Alert>
+          )}
           <p className="text-sm text-muted mb-5">Stamp duty starts at the project rate. Type an amount and the % updates, or type a %.</p>
 
           {/* Car parking */}
@@ -590,6 +612,18 @@ export default function NewSaleWizard({ projects, prefill = null, preselect = nu
           <p className="text-base text-muted mb-5">
             Review the milestone-based payment schedule below. Amounts are pre-calculated from the project&apos;s payment plan and your Agreement Value. You may adjust them before confirming.
           </p>
+
+          <div className="mb-5">
+            <SelectField
+              label="Payment Plan"
+              required
+              value={paymentPlan?.id ?? ''}
+              hint={paymentPlan ? `${schemeOf(paymentPlan.items.map((i) => i.percentOfAV))}${planCombo ? ` · ${comboLabel(planCombo)}` : ''}${paymentPlan.isDefault ? ' · default' : ''}. Changing the plan recalculates the schedule below` : undefined}
+              onChange={e => { setPlanChoice(e.target.value); setSchedules(buildSchedule(comboPlans.find((p) => p.id === e.target.value) ?? null)) }}
+            >
+              {comboPlans.map((p) => <option key={p.id} value={p.id}>{p.name}{p.isDefault ? ' (default)' : ''}</option>)}
+            </SelectField>
+          </div>
 
           <div className="mb-4"><Table flush>
               <thead>

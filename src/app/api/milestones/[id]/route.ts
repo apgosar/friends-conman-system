@@ -43,6 +43,13 @@ export async function DELETE(
       return apiError('invalid', 'Cannot delete milestone because payments have already been recorded against it')
     }
 
+    // A milestone that a payment plan uses can't go: the plan would lose a line (and its percentages would no longer add up)
+    const plansUsing = await prisma.paymentPlanItem.findMany({ where: { milestoneId: id }, select: { plan: { select: { name: true } } } })
+    if (plansUsing.length > 0) {
+      const names = [...new Set(plansUsing.map((p) => p.plan.name))]
+      return apiError('invalid', `This milestone is used in the payment plan${names.length > 1 ? 's' : ''} ${names.map((n) => `"${n}"`).join(', ')}. Remove it from ${names.length > 1 ? 'them' : 'it'} first`)
+    }
+
     // 3. Deletion Transaction
     await transaction(async (tx) => {
       // Delete all pending payment schedules for this milestone

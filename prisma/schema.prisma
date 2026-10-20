@@ -94,6 +94,7 @@ model Project {
   wings               Wing[]
   unitTypes           UnitType[]
   milestones          ConstructionMilestone[]
+  paymentPlans        PaymentPlan[]
   templates           Template[]
   tenants             Tenant[]
   sales               Sale[]
@@ -324,7 +325,7 @@ model ConstructionMilestone {
   projectId               String
   name                    String              // Plinth Complete, 5th Slab
   sequence                Int
-  percentOfAV             Float               @default(0)   // % of Agreement Value for payment plan
+  percentOfAV             Float               @default(0)   // legacy: before payment plans, the one plan's % lived here. Plans hold the percentages now (PaymentPlanItem)
   plannedDate             DateTime?
   actualDate              DateTime?
   status String @default("UPCOMING")
@@ -335,9 +336,46 @@ model ConstructionMilestone {
 
   project                 Project             @relation(fields: [projectId], references: [id], onDelete: Cascade)
   paymentSchedules        PaymentSchedule[]
+  paymentPlanItems        PaymentPlanItem[]
 
   @@index([projectId])
   @@map("construction_milestones")
+}
+
+/// A way of paying for a unit: which milestones fall due and what % of the agreement value is due at each.
+/// A project has several (for example 20/80 and 20/30/50), one default per sale type and unit type.
+model PaymentPlan {
+  id        String   @id @default(cuid())
+  projectId String
+  name      String
+  saleType  String   // FRESH (New Sale) | REDEVELOPMENT (Rehab)
+  unitType  String   // RESIDENTIAL | COMMERCIAL
+  isDefault Boolean  @default(false) // at most one default per project + saleType + unitType (database index)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  project   Project           @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  items     PaymentPlanItem[]
+
+  @@unique([projectId, saleType, unitType, name])
+  @@index([projectId])
+  @@map("payment_plans")
+}
+
+/// One line of a plan. The project's milestone list is every milestone used by any of its plans.
+model PaymentPlanItem {
+  id          String @id @default(cuid())
+  planId      String
+  milestoneId String
+  sequence    Int
+  percentOfAV Float
+
+  plan        PaymentPlan           @relation(fields: [planId], references: [id], onDelete: Cascade)
+  milestone   ConstructionMilestone @relation(fields: [milestoneId], references: [id])
+
+  @@unique([planId, milestoneId])
+  @@index([milestoneId])
+  @@map("payment_plan_items")
 }
 
 

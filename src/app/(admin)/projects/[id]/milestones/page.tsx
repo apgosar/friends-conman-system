@@ -21,11 +21,11 @@ export default async function ProjectMilestonesPage(props: PageProps<'/projects/
     <>
       <TopNav title="Milestones" subtitle={`Construction stages for ${project.name}`} />
       <div className="admin-content">
-        <PageHeader title="Construction Milestones" subtitle={`${project.milestones.length} milestones defined`} actions={<BackToProject projectId={id} />} />
+        <PageHeader title="Construction Milestones" subtitle={`${project.milestones.length} milestones, from the project's payment plans`} actions={<BackToProject projectId={id} />} />
 
         <Card flush>
           {project.milestones.length === 0 ? (
-            <EmptyState title="No milestones yet">This project has no construction milestones defined.</EmptyState>
+            <EmptyState title="No milestones yet">This project has no construction milestones yet. They are added automatically when you create payment plans.</EmptyState>
           ) : (
             <Table flush stack>
               <thead>

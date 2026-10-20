@@ -945,7 +945,7 @@ a.list-row:hover { background: var(--bg-card-hover); }
   font-size: var(--text-base, 0.875rem);
 }
 .form-floating .form-group:has(select option[value='']:checked) > .form-label .form-required { margin-left: 2px; }
-.form-floating select:has(option[value='']:checked) { color: transparent; }
+.form-floating .form-group select:has(option[value='']:checked) { color: transparent; }
 .form-floating .form-select option { color: var(--text-primary); }
 /* the transparent "nothing chosen" text above must not hide group headings in the open list */
 .form-floating .form-select optgroup { color: var(--text-secondary); font-weight: 600; background: var(--bg-card); }
@@ -986,3 +986,7 @@ a.list-row:hover { background: var(--bg-card-hover); }
 
 /* A mobile field's label belongs to the number box, not the country code box */
 .form-floating .form-group:has(.phone-row) > .form-label { left: calc(76px + var(--space-2) + var(--space-3)); }
+
+/* Payment plan editor: milestone, percentage, remove */
+.plan-row { display: grid; grid-template-columns: minmax(0, 1fr) 120px 36px; gap: var(--space-2); align-items: start; }
+@media (max-width: 520px) { .plan-row { grid-template-columns: minmax(0, 1fr) 100px 36px; } }

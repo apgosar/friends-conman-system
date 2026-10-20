@@ -29,9 +29,10 @@ export default async function NewSalePage(props: PageProps<'/sales/new'>) {
         }
       },
       tenants: true,
-      milestones: {
-        orderBy: { sequence: 'asc' }
-      }
+      paymentPlans: {
+        orderBy: { name: 'asc' },
+        include: { items: { orderBy: { sequence: 'asc' }, include: { milestone: { select: { id: true, name: true, status: true } } } } },
+      },
     },
     orderBy: { createdAt: 'desc' }
   })
@@ -44,6 +45,7 @@ export default async function NewSalePage(props: PageProps<'/sales/new'>) {
       wingName: w.name,
       floorNumber: f.floorNumber,
       carpetAreaSqft: u.carpetAreaSqft,
+      category: u.category,
     }))))
     return {
       id: p.id,
@@ -54,12 +56,14 @@ export default async function NewSalePage(props: PageProps<'/sales/new'>) {
       pricing: pricingFromProject(p),
       units,
       tenants: p.tenants.map(t => ({ id: t.id, name: t.name, oldFlatNumber: t.oldFlatNumber })),
-      milestones: p.milestones.map(m => ({
-        id: m.id,
-        name: m.name,
-        sequence: m.sequence,
-        percentOfAV: m.percentOfAV,
-        status: m.status,
+      // The plans a sale can follow: the form picks the default for the sale type and unit type, and lets the user switch
+      paymentPlans: p.paymentPlans.map(plan => ({
+        id: plan.id,
+        name: plan.name,
+        saleType: plan.saleType,
+        unitType: plan.unitType,
+        isDefault: plan.isDefault,
+        items: plan.items.map(i => ({ milestoneId: i.milestone.id, name: i.milestone.name, sequence: i.sequence, percentOfAV: i.percentOfAV, status: i.milestone.status })),
       }))
     }
   })

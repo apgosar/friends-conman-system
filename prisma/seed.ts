@@ -165,6 +165,22 @@ async function main() {
     }
   })
 
+  // Payment plans: a default for each sale type the (mixed) project sells, for its residential units
+  const seededMilestones = await prisma.constructionMilestone.findMany({ where: { projectId: project1.id }, orderBy: { sequence: 'asc' } })
+  const seededPercents = [10, 35, 20, 25, 10]
+  for (const saleType of ['FRESH', 'REDEVELOPMENT']) {
+    await prisma.paymentPlan.create({
+      data: {
+        projectId: project1.id,
+        name: 'Standard plan',
+        saleType,
+        unitType: 'RESIDENTIAL',
+        isDefault: true,
+        items: { create: seededMilestones.map((m, i) => ({ milestoneId: m.id, sequence: m.sequence, percentOfAV: seededPercents[i] ?? 0 })) },
+      },
+    })
+  }
+
   // Fetch the first available unit in Sea View Heights to book
   const unitToBook = await prisma.unit.findFirst({
     where: { floor: { wing: { projectId: project1.id } }, status: 'AVAILABLE' }

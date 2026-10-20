@@ -7,7 +7,8 @@ import ProjectSalesTable from '@/components/projects/ProjectSalesTable'
 import TemplateCoverage from '@/components/projects/TemplateCoverage'
 import { isSaleable, isUnsold } from '@/lib/status'
 import { activeSale } from '@/lib/soft-delete'
-import { Badge, ButtonLink, Card, CardHeader, EmptyState, PageHeader, StatusBadge } from '@/components/ui'
+import { comboLabel, missingCombos, requiredCombos, type Combo } from '@/lib/payment-plans'
+import { Alert, Badge, ButtonLink, Card, CardHeader, EmptyState, PageHeader, StatusBadge } from '@/components/ui'
 
 async function getProject(id: string) {
   return prisma.project.findUnique({
@@ -18,6 +19,7 @@ async function getProject(id: string) {
         orderBy: { name: 'asc' },
       },
       milestones: { orderBy: { sequence: 'asc' } },
+      paymentPlans: { select: { saleType: true, unitType: true } },
       templates: { where: { isActive: true } },
       tenants: { include: { newUnit: true }, orderBy: { name: 'asc' } },
       sales: {
@@ -53,6 +55,8 @@ export default async function ProjectDetailPage(props: PageProps<'/projects/[id]
   const salesSplit = hasCommercial
     ? `Residential ${project.sales.filter((s) => s.unit && !isCommercial(s.unit.category)).length} · Commercial ${project.sales.filter((s) => s.unit && isCommercial(s.unit.category)).length}`
     : undefined
+  // Every sale type and unit type the project sells needs at least one payment plan
+  const missingPlans = missingCombos(project.paymentPlans as Combo[], requiredCombos(project.type, allUnits.some((u) => u.category === 'SHOP' || u.category === 'OFFICE')))
   const soldPct = saleable.length > 0 ? Math.round((sold / saleable.length) * 100) : 0
 
   return (
@@ -73,13 +77,22 @@ export default async function ProjectDetailPage(props: PageProps<'/projects/[id]
             <>
               <ButtonLink href={`/projects/${id}/edit`} variant="primary">Edit Project</ButtonLink>
               <ButtonLink href={`/projects/${id}/structure`}>Building Setup</ButtonLink>
-              <ButtonLink href={`/projects/${id}/payment-plan`}>Payment Plan</ButtonLink>
+              <ButtonLink href={`/projects/${id}/payment-plan`}>Payment Plans</ButtonLink>
               <ButtonLink href={`/projects/${id}/milestones`}>Milestones</ButtonLink>
               <ButtonLink href={`/projects/${id}/templates`}>Templates</ButtonLink>
               {(project.type === 'REDEVELOPMENT' || project.type === 'MIXED') && <ButtonLink href={`/projects/${id}/tenants`}>Tenants</ButtonLink>}
             </>
           }
         />
+
+        {missingPlans.length > 0 && (
+          <Alert variant="warning" className="mb-6" title={`Missing payment plan${missingPlans.length > 1 ? 's' : ''}: ${missingPlans.map(comboLabel).join(', ')}`}>
+            <div className="flex justify-between items-center gap-3 wrap">
+              <div className="text-sm">A sale of this kind can&apos;t be created until a payment plan is added for it.</div>
+              <ButtonLink href={`/projects/${id}/payment-plan`} variant="secondary" size="sm">Add payment plans</ButtonLink>
+            </div>
+          </Alert>
+        )}
 
         <TemplateCoverage projectId={id} projectType={project.type} templates={project.templates} variant="banner" />
 
