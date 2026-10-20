@@ -306,8 +306,14 @@ main() {
     return "${PIPESTATUS[0]}"
   }
   if ! prisma_run migrate deploy; then
-    if grep -q 'P3005' "$mig_out"; then
-      # A database created before migrations existed (by the old `db push` updater): record it as the starting point, then update it.
+    # A database created before migrations existed (by the old `db push` updater) has the tables but no record that 0_init was applied.
+    # Prisma reports that as P3005 (no migration history at all), or, when an earlier attempt already left a failed 0_init record behind,
+    # as P3018 "relation ... already exists" / P3009 naming 0_init. All of them mean the same thing: record 0_init as the starting point.
+    baseline_needed() {
+      grep -q 'P3005' "$mig_out" && return 0
+      grep -qE 'P3018|P3009' "$mig_out" && grep -q '0_init' "$mig_out" && grep -qiE 'already exists|failed' "$mig_out"
+    }
+    if baseline_needed; then
       say "  First update since database migrations were introduced: recording the current structure as the starting point."
       prisma_run migrate resolve --applied 0_init || fail "Could not record the starting point of the database. The app was not changed and is still running $OLD_TAG. Your backup: $APP_DIR/$BACKUP. Contact $SUPPORT."
       prisma_run migrate deploy || { grep -q 'more than one active sale' "$mig_out" && fail "Some units have more than one active sale: $(grep -o 'more than one active sale: [^.]*' "$mig_out" | head -1). Cancel the extra sales in the app, then run this update again. The app was not changed and is still running $OLD_TAG."; fail "The database update did not complete. The app was not changed and is still running $OLD_TAG. Your backup: $APP_DIR/$BACKUP. Contact $SUPPORT."; }
