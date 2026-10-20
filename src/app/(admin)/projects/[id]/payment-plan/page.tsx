@@ -5,14 +5,17 @@ import BackToProject from '@/components/projects/BackToProject'
 import PaymentPlans from '@/components/projects/PaymentPlans'
 import { PageHeader } from '@/components/ui'
 import { plain } from '@/lib/plain'
-import { type PlanSaleType, type PlanUnitType } from '@/lib/payment-plans'
+import { auth } from '@/lib/auth'
+import { can } from '@/lib/authz'
+import { orderMilestones, type PlanSaleType, type PlanUnitType } from '@/lib/payment-plans'
 
 export default async function ProjectPaymentPlanPage(props: PageProps<'/projects/[id]/payment-plan'>) {
   const { id } = await props.params
+  const session = await auth()
   const project = await prisma.project.findUnique({
     where: { id },
     include: {
-      milestones: { orderBy: { sequence: 'asc' }, select: { name: true } },
+      milestones: { orderBy: { sequence: 'asc' }, select: { id: true, name: true, sequence: true } },
       paymentPlans: {
         orderBy: { name: 'asc' },
         include: { items: { orderBy: { sequence: 'asc' }, include: { milestone: { select: { name: true } } } } },
@@ -41,8 +44,10 @@ export default async function ProjectPaymentPlanPage(props: PageProps<'/projects
           projectId={id}
           projectType={project.type}
           hasCommercial={commercialUnits > 0}
+          notNeeded={project.paymentPlanOptOuts}
+          canSetNotNeeded={can(session?.user?.role, 'superadmin')}
           plans={plain(plans)}
-          milestoneNames={project.milestones.map((m) => m.name)}
+          milestoneNames={(project.milestoneOrderManual ? project.milestones : orderMilestones(project.milestones, project.paymentPlans)).map((m) => m.name)}
         />
       </div>
     </>

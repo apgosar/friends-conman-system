@@ -5,7 +5,7 @@ import { useRouter } from 'next/navigation'
 import { Alert, Badge, Button, Card, CardHeader, Table, Td, useConfirm, useToast } from '@/components/ui'
 import { errorMessage, fetchJson, jsonRequest } from '@/lib/client/api'
 import {
-  comboLabel, missingCombos, plansFor, requiredCombos, sameCombo, schemeOf,
+  comboKey, comboLabel, missingCombos, plansFor, requiredCombos, sameCombo, schemeOf,
   PLAN_SALE_TYPES, PLAN_UNIT_TYPES, type Combo,
 } from '@/lib/payment-plans'
 import PaymentPlanModal, { type PlanData } from './PaymentPlanModal'
@@ -16,10 +16,14 @@ type Editing = { plan: PlanData | null; start?: Combo }
  * A project's payment plans, grouped by sale type and unit type. Every combination the project sells needs at least one
  * plan (a warning shows until it has one) and exactly one of them is the default that a new sale starts with.
  */
-export default function PaymentPlans({ projectId, projectType, hasCommercial, plans, milestoneNames }: {
+export default function PaymentPlans({ projectId, projectType, hasCommercial, notNeeded, canSetNotNeeded, plans, milestoneNames }: {
   projectId: string
   projectType: string
   hasCommercial: boolean
+  /** Combinations ("REDEVELOPMENT:COMMERCIAL") the project said it will not sell, so no plan is asked for. */
+  notNeeded: string[]
+  /** Only a super-admin can mark a combination as not needed (and bring it back), and only they see the list of those. */
+  canSetNotNeeded: boolean
   plans: PlanData[]
   milestoneNames: string[]
 }) {
@@ -28,7 +32,8 @@ export default function PaymentPlans({ projectId, projectType, hasCommercial, pl
   const confirm = useConfirm()
   const [editing, setEditing] = useState<Editing | null>(null)
 
-  const required = requiredCombos(projectType, hasCommercial)
+  const required = requiredCombos(projectType, hasCommercial, notNeeded)
+  const optedOut = requiredCombos(projectType, hasCommercial).filter((c) => notNeeded.includes(comboKey(c)))
   const missing = missingCombos(plans, required)
   // Show the required combinations, plus any other combination that has plans (for example a commercial plan added early)
   const shown: Combo[] = [
@@ -37,6 +42,16 @@ export default function PaymentPlans({ projectId, projectType, hasCommercial, pl
       (c) => !required.some((r) => sameCombo(r, c)) && plans.some((p) => sameCombo(p, c)),
     ),
   ]
+
+  const setNeeded = async (combo: Combo, needed: boolean) => {
+    try {
+      await fetchJson(`/api/projects/${projectId}/payment-plans/applicability`, jsonRequest('PUT', { ...combo, needed }))
+      toast.success(needed ? `${comboLabel(combo)} needs a payment plan again` : `${comboLabel(combo)} is not needed for this project`)
+      router.refresh()
+    } catch (err) {
+      toast.error(errorMessage(err))
+    }
+  }
 
   const makeDefault = async (plan: PlanData) => {
     try {
@@ -90,7 +105,15 @@ export default function PaymentPlans({ projectId, projectType, hasCommercial, pl
         return (
           <Card flush key={`${combo.saleType}-${combo.unitType}`} className="mb-4">
             <div className="p-5 pb-0">
-              <CardHeader title={comboLabel(combo)} actions={<Button size="sm" onClick={() => setEditing({ plan: null, start: combo })}>+ Add plan</Button>} />
+              <CardHeader
+                title={comboLabel(combo)}
+                actions={
+                  <>
+                    {canSetNotNeeded && list.length === 0 && <Button size="sm" variant="ghost" onClick={() => setNeeded(combo, false)} title="This project will not sell this kind of unit, so no payment plan is needed">Not needed</Button>}
+                    <Button size="sm" onClick={() => setEditing({ plan: null, start: combo })}>+ Add plan</Button>
+                  </>
+                }
+              />
             </div>
             {list.length === 0 ? (
               <div className="p-5 pt-0">
@@ -124,6 +147,18 @@ export default function PaymentPlans({ projectId, projectType, hasCommercial, pl
           </Card>
         )
       })}
+
+      {canSetNotNeeded && optedOut.length > 0 && (
+        <Card className="mb-4">
+          <div className="text-sm text-muted mb-2">Not needed for this project (no payment plan is asked for these)</div>
+          {optedOut.map((combo) => (
+            <div key={comboKey(combo)} className="flex justify-between items-center gap-3 py-1">
+              <span className="text-secondary">{comboLabel(combo)}</span>
+              <Button size="sm" variant="ghost" onClick={() => setNeeded(combo, true)}>Needed after all</Button>
+            </div>
+          ))}
+        </Card>
+      )}
 
       {editing && (
         <PaymentPlanModal

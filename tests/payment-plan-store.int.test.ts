@@ -84,6 +84,58 @@ describeDb('payment plan store', () => {
     expect(milestones.map((m) => m.sequence)).toEqual([1, 2, 3])
   })
 
+  it('keeps the milestones of the project in the order the plans imply when a later plan adds some', async () => {
+    const { prisma, project, save } = await setup()
+    await save(null, input({ name: 'Residential', items: [{ name: 'Token', percentOfAV: 10 }, { name: 'Plinth', percentOfAV: 30 }, { name: '4th Slab', percentOfAV: 30 }, { name: 'Possession', percentOfAV: 30 }] }))
+    await save(null, input({ name: 'Commercial', unitType: 'COMMERCIAL', items: [{ name: 'Token', percentOfAV: 10 }, { name: 'Plinth', percentOfAV: 30 }, { name: '1st Slab', percentOfAV: 30 }, { name: 'Possession', percentOfAV: 30 }] }))
+    const milestones = await prisma.constructionMilestone.findMany({ where: { projectId: project.id }, orderBy: { sequence: 'asc' } })
+    expect(milestones.map((m) => m.name)).toEqual(['Token', 'Plinth', '1st Slab', '4th Slab', 'Possession'])
+  })
+
+  it('keeps a milestone order set by hand until the automatic order is chosen again', async () => {
+    const { prisma, project, save } = await setup()
+    const { setMilestoneOrder, setAutomaticMilestoneOrder } = await import('@/lib/payment-plan-store')
+    const { transaction } = await import('@/lib/db')
+    await save(null, input({ name: 'Res', items: [{ name: 'Token', percentOfAV: 10 }, { name: 'Plinth', percentOfAV: 30 }, { name: 'Possession', percentOfAV: 60 }] }))
+    const names = async () => (await prisma.constructionMilestone.findMany({ where: { projectId: project.id }, orderBy: { sequence: 'asc' } })).map((m) => m.name)
+    const byName = async () => Object.fromEntries((await prisma.constructionMilestone.findMany({ where: { projectId: project.id } })).map((m) => [m.name, m.id]))
+
+    const ids = await byName()
+    await transaction((tx) => setMilestoneOrder(tx, project.id, [ids.Possession, ids.Plinth, ids.Token]))
+    expect(await names()).toEqual(['Possession', 'Plinth', 'Token'])
+
+    // a plan change does not re-sort it; a new milestone goes to the end
+    await save(null, input({ name: 'Com', unitType: 'COMMERCIAL', items: [{ name: 'Token', percentOfAV: 10 }, { name: '1st Slab', percentOfAV: 30 }, { name: 'Possession', percentOfAV: 60 }] }))
+    expect(await names()).toEqual(['Possession', 'Plinth', 'Token', '1st Slab'])
+
+    await transaction((tx) => setAutomaticMilestoneOrder(tx, project.id))
+    expect(await names()).toEqual(['Token', 'Plinth', '1st Slab', 'Possession'])
+  })
+
+  it('refuses a manual order that is not exactly the project milestones', async () => {
+    const { prisma, project, save } = await setup()
+    const { setMilestoneOrder } = await import('@/lib/payment-plan-store')
+    const { transaction } = await import('@/lib/db')
+    await save(null, input({}))
+    const ms = await prisma.constructionMilestone.findMany({ where: { projectId: project.id } })
+    await expect(transaction((tx) => setMilestoneOrder(tx, project.id, [ms[0].id]))).rejects.toThrow(/does not match/)
+    await expect(transaction((tx) => setMilestoneOrder(tx, project.id, [ms[0].id, ms[0].id]))).rejects.toThrow(/does not match/)
+    await expect(transaction((tx) => setMilestoneOrder(tx, project.id, [ms[0].id, 'nope']))).rejects.toThrow(/does not match/)
+  })
+
+  it('records a combination as not needed, but not while it has plans', async () => {
+    const { prisma, project, save } = await setup()
+    const { setComboNeeded } = await import('@/lib/payment-plan-store')
+    const { transaction } = await import('@/lib/db')
+    const combo = { saleType: 'REDEVELOPMENT', unitType: 'COMMERCIAL' } as const
+    await transaction((tx) => setComboNeeded(tx, project.id, combo, false))
+    expect((await prisma.project.findUniqueOrThrow({ where: { id: project.id } })).paymentPlanOptOuts).toEqual(['REDEVELOPMENT:COMMERCIAL'])
+    await transaction((tx) => setComboNeeded(tx, project.id, combo, true))
+    expect((await prisma.project.findUniqueOrThrow({ where: { id: project.id } })).paymentPlanOptOuts).toEqual([])
+    await save(null, input({ ...combo }))
+    await expect(transaction((tx) => setComboNeeded(tx, project.id, combo, false))).rejects.toThrow(/Delete the payment plans/)
+  })
+
   it('does not let a second default exist (the unique index is the last line of defence)', async () => {
     const { prisma, project, save } = await setup()
     await save(null, input({ name: 'A' }))

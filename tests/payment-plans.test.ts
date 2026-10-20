@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import {
-  PaymentPlanSchema, comboLabel, missingCombos, plansFor, requiredCombos, saleTypesOfProject, schemeOf, unitTypeOfCategory,
+  PaymentPlanSchema, comboKey, comboLabel, missingCombos, orderMilestones, plansFor, requiredCombos, saleTypesOfProject, schemeOf, unitTypeOfCategory,
 } from '@/lib/payment-plans'
 
 const plan = (over: Record<string, unknown> = {}) => ({
@@ -27,6 +27,12 @@ describe('which plans a project needs', () => {
     expect(requiredCombos('MIXED', true).map(comboLabel)).toEqual([
       'New Sale · Residential', 'New Sale · Commercial', 'Rehab · Residential', 'Rehab · Commercial',
     ])
+  })
+
+  it('leaves out the combinations the project marked as not needed', () => {
+    const notNeeded = [comboKey({ saleType: 'REDEVELOPMENT', unitType: 'COMMERCIAL' })]
+    expect(requiredCombos('MIXED', true, notNeeded).map(comboLabel)).toEqual(['New Sale · Residential', 'New Sale · Commercial', 'Rehab · Residential'])
+    expect(requiredCombos('MIXED', true, [])).toHaveLength(4)
   })
 
   it('lists the combinations that have no plan yet', () => {
@@ -80,5 +86,34 @@ describe('PaymentPlanSchema', () => {
   it('rejects an unknown sale type or unit type', () => {
     expect(PaymentPlanSchema.safeParse(plan({ saleType: 'RESALE' })).success).toBe(false)
     expect(PaymentPlanSchema.safeParse(plan({ unitType: 'PARKING' })).success).toBe(false)
+  })
+})
+
+describe('orderMilestones', () => {
+  const ms = (names: string[]) => names.map((name, i) => ({ id: name, name, sequence: i + 1 }))
+  const plan = (names: string[]) => ({ items: names.map((milestoneId, i) => ({ milestoneId, sequence: i + 1 })) })
+
+  it('puts milestones one plan added later where they belong, not at the end', () => {
+    // The residential plan came first; the commercial plan added 1st Slab, 2nd Slab and Commercial OC afterwards
+    const milestones = ms(['Token', 'Plinth', '4th Slab', '6th Slab', '8th Slab', 'On Completion of OHT', 'Possession', '1st Slab', '2nd Slab', 'Commercial OC'])
+    const residential = plan(['Token', 'Plinth', '4th Slab', '6th Slab', '8th Slab', 'On Completion of OHT', 'Possession'])
+    const commercial = plan(['Token', 'Plinth', '1st Slab', '2nd Slab', 'Commercial OC', 'Possession'])
+    expect(orderMilestones(milestones, [residential, commercial]).map((m) => m.name)).toEqual([
+      'Token', 'Plinth', '1st Slab', '2nd Slab', '4th Slab', '6th Slab', '8th Slab', 'On Completion of OHT', 'Commercial OC', 'Possession',
+    ])
+  })
+
+  it('keeps the order inside every plan', () => {
+    const milestones = ms(['B', 'A', 'C'])
+    const out = orderMilestones(milestones, [plan(['A', 'B']), plan(['B', 'C'])]).map((m) => m.name)
+    expect(out.indexOf('A')).toBeLessThan(out.indexOf('B'))
+    expect(out.indexOf('B')).toBeLessThan(out.indexOf('C'))
+  })
+
+  it('survives plans that contradict each other and keeps milestones that no plan uses', () => {
+    const milestones = ms(['A', 'B', 'Loose'])
+    const out = orderMilestones(milestones, [plan(['A', 'B']), plan(['B', 'A'])])
+    expect(out).toHaveLength(3)
+    expect(new Set(out.map((m) => m.name))).toEqual(new Set(['A', 'B', 'Loose']))
   })
 })

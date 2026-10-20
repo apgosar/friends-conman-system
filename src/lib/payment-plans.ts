@@ -31,10 +31,19 @@ export function saleTypesOfProject(projectType: string): PlanSaleType[] {
   return ['FRESH', 'REDEVELOPMENT']
 }
 
-/** Every sale type x unit type combination this project needs a plan for (commercial only when it has shops or offices). */
-export function requiredCombos(projectType: string, hasCommercial: boolean): Combo[] {
+/** How a "not needed" combination is stored on the project (Project.paymentPlanOptOuts). */
+export const comboKey = (c: Combo) => `${c.saleType}:${c.unitType}`
+
+/**
+ * Every sale type x unit type combination this project needs a plan for: the sale types its type allows, commercial only
+ * when it has shops or offices, and not the combinations the user marked "not needed" (a mixed project may never sell Rehab
+ * shops, or only add them mid-way).
+ */
+export function requiredCombos(projectType: string, hasCommercial: boolean, notNeeded: string[] = []): Combo[] {
   const unitTypes: PlanUnitType[] = hasCommercial ? ['RESIDENTIAL', 'COMMERCIAL'] : ['RESIDENTIAL']
-  return saleTypesOfProject(projectType).flatMap((saleType) => unitTypes.map((unitType) => ({ saleType, unitType })))
+  return saleTypesOfProject(projectType)
+    .flatMap((saleType) => unitTypes.map((unitType) => ({ saleType, unitType })))
+    .filter((c) => !notNeeded.includes(comboKey(c)))
 }
 
 export interface PlanSummary extends Combo {
@@ -83,3 +92,55 @@ export const PaymentPlanSchema = z.object({
 })
 
 export type PaymentPlanInput = z.infer<typeof PaymentPlanSchema>
+
+// ── Milestone order ────────────────────────────────────────────────────────────────────────────────
+
+const slabNumber = (name: string): number | null => {
+  const m = name.match(/(\d+)\s*(?:st|nd|rd|th)?\s*slab/i) ?? name.match(/slab\s*(\d+)/i)
+  return m ? Number(m[1]) : null
+}
+
+/** A rough stage of the build, used to choose between milestones that the plans do not order relative to each other. */
+function stageOf(name: string): number {
+  if (/\b(token|booking)\b/i.test(name)) return 0
+  if (/plinth/i.test(name)) return 1
+  if (slabNumber(name) !== null) return 2
+  if (/possession|handover|hand over|keys/i.test(name)) return 9
+  return 5
+}
+
+/**
+ * The order a project's milestones read in: one list that agrees with the order inside every plan, so a milestone that
+ * one plan adds later (a commercial "1st Slab") still sits where it belongs instead of at the end. Where the plans do not
+ * say, earlier stages come first (token, plinth, slabs by number, other stages as they were, possession last).
+ */
+export function orderMilestones<T extends { id: string; name: string; sequence: number }>(
+  milestones: T[],
+  plans: { items: { milestoneId: string; sequence: number }[] }[],
+): T[] {
+  const byId = new Map(milestones.map((m) => [m.id, m]))
+  const waitingFor = new Map<string, Set<string>>(milestones.map((m) => [m.id, new Set()]))
+  for (const plan of plans) {
+    const ids = [...plan.items].sort((a, b) => a.sequence - b.sequence).map((i) => i.milestoneId).filter((id) => byId.has(id))
+    for (let i = 1; i < ids.length; i++) {
+      waitingFor.get(ids[i])!.add(ids[i - 1])
+    }
+  }
+  const rank = (m: T): [number, number, number] => [stageOf(m.name), slabNumber(m.name) ?? 0, m.sequence]
+  const before = (a: T, b: T) => {
+    const [ra, rb] = [rank(a), rank(b)]
+    return ra[0] - rb[0] || ra[1] - rb[1] || ra[2] - rb[2]
+  }
+
+  const remaining = new Set(milestones.map((m) => m.id))
+  const out: T[] = []
+  while (remaining.size > 0) {
+    const all = [...remaining].map((id) => byId.get(id)!)
+    const ready = all.filter((m) => [...waitingFor.get(m.id)!].every((id) => !remaining.has(id)))
+    // If the plans contradict each other (a cycle), fall back to the stage order for what is left
+    const next = (ready.length > 0 ? ready : all).sort(before)[0]
+    out.push(next)
+    remaining.delete(next.id)
+  }
+  return out
+}

@@ -1,6 +1,6 @@
 import type { DbTransaction } from '@/lib/db'
 import { fail } from '@/lib/errors'
-import { comboLabel, type PaymentPlanInput } from '@/lib/payment-plans'
+import { comboKey, comboLabel, orderMilestones, type Combo, type PaymentPlanInput } from '@/lib/payment-plans'
 
 type Tx = DbTransaction
 
@@ -23,6 +23,20 @@ async function ensureMilestones(tx: Tx, projectId: string, names: string[]): Pro
     byName.set(key, created.id)
   }
   return byName
+}
+
+/** Puts the project's milestones in the order the plans imply (see orderMilestones), renumbering only the ones that moved. */
+export async function resequenceMilestones(tx: Tx, projectId: string): Promise<void> {
+  const project = await tx.project.findUnique({ where: { id: projectId }, select: { milestoneOrderManual: true } })
+  if (project?.milestoneOrderManual) return // set by hand: new milestones simply go to the end
+  const [milestones, plans] = await Promise.all([
+    tx.constructionMilestone.findMany({ where: { projectId }, select: { id: true, name: true, sequence: true } }),
+    tx.paymentPlan.findMany({ where: { projectId }, select: { items: { select: { milestoneId: true, sequence: true } } } }),
+  ])
+  const ordered = orderMilestones(milestones, plans)
+  for (const [index, m] of ordered.entries()) {
+    if (m.sequence !== index + 1) await tx.constructionMilestone.update({ where: { id: m.id }, data: { sequence: index + 1 } })
+  }
 }
 
 /** After a plan leaves a combination (moved or deleted) make sure the plans still there have a default. */
@@ -66,6 +80,7 @@ export async function savePaymentPlan(tx: Tx, projectId: string, planId: string 
     const created = await tx.paymentPlan.create({ data: { projectId, name: input.name, ...combo, isDefault, items: { create: items } }, select: { id: true } })
     id = created.id
   }
+  await resequenceMilestones(tx, projectId)
   return id
 }
 
@@ -75,4 +90,35 @@ export async function deletePaymentPlan(tx: Tx, projectId: string, planId: strin
   if (!plan) throw fail('notFound', 'Payment plan not found')
   await tx.paymentPlan.delete({ where: { id: planId } })
   if (plan.isDefault) await promoteDefaultIfMissing(tx, projectId, plan.saleType, plan.unitType)
+  await resequenceMilestones(tx, projectId)
+}
+
+/** Sets the milestone order by hand (super-admin). `ids` must be every milestone of the project, once each. Plan changes no longer re-sort it. */
+export async function setMilestoneOrder(tx: Tx, projectId: string, ids: string[]): Promise<void> {
+  const milestones = await tx.constructionMilestone.findMany({ where: { projectId }, select: { id: true } })
+  const known = new Set(milestones.map((m) => m.id))
+  if (ids.length !== known.size || new Set(ids).size !== ids.length || !ids.every((id) => known.has(id))) {
+    throw fail('invalid', 'The list does not match the milestones of this project. Reload the page and try again')
+  }
+  for (const [index, id] of ids.entries()) await tx.constructionMilestone.update({ where: { id }, data: { sequence: index + 1 } })
+  await tx.project.update({ where: { id: projectId }, data: { milestoneOrderManual: true } })
+}
+
+/** Goes back to the order the payment plans imply. */
+export async function setAutomaticMilestoneOrder(tx: Tx, projectId: string): Promise<void> {
+  await tx.project.update({ where: { id: projectId }, data: { milestoneOrderManual: false } })
+  await resequenceMilestones(tx, projectId)
+}
+
+/** Says whether a sale type + unit type is something this project sells. A combination that already has plans is always needed. */
+export async function setComboNeeded(tx: Tx, projectId: string, combo: Combo, needed: boolean): Promise<void> {
+  const project = await tx.project.findUnique({ where: { id: projectId }, select: { paymentPlanOptOuts: true } })
+  if (!project) throw fail('notFound', 'Project not found')
+  const key = comboKey(combo)
+  if (!needed) {
+    const plans = await tx.paymentPlan.count({ where: { projectId, ...combo } })
+    if (plans > 0) throw fail('invalid', `Delete the payment plans for ${comboLabel(combo)} first`)
+  }
+  const rest = project.paymentPlanOptOuts.filter((k) => k !== key)
+  await tx.project.update({ where: { id: projectId }, data: { paymentPlanOptOuts: needed ? rest : [...rest, key] } })
 }

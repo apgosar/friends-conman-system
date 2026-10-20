@@ -56,7 +56,7 @@ export default async function ProjectDetailPage(props: PageProps<'/projects/[id]
     ? `Residential ${project.sales.filter((s) => s.unit && !isCommercial(s.unit.category)).length} · Commercial ${project.sales.filter((s) => s.unit && isCommercial(s.unit.category)).length}`
     : undefined
   // Every sale type and unit type the project sells needs at least one payment plan
-  const missingPlans = missingCombos(project.paymentPlans as Combo[], requiredCombos(project.type, allUnits.some((u) => u.category === 'SHOP' || u.category === 'OFFICE')))
+  const missingPlans = missingCombos(project.paymentPlans as Combo[], requiredCombos(project.type, allUnits.some((u) => u.category === 'SHOP' || u.category === 'OFFICE'), project.paymentPlanOptOuts))
   const soldPct = saleable.length > 0 ? Math.round((sold / saleable.length) * 100) : 0
 
   return (

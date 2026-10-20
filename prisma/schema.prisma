@@ -88,6 +88,8 @@ model Project {
   interestRatePercent Float         @default(12) // simple interest per annum on overdue demands
   carParkingCharges   Decimal @db.Decimal(15, 2)         @default(500000)  // Default car parking price from project template
   carParkingIncluded  Boolean                            @default(false)   // parking is part of the agreement value: new sales carry no parking charge
+  milestoneOrderManual Boolean                           @default(false)   // a super-admin set the milestone order by hand: plan changes no longer re-sort it
+  paymentPlanOptOuts  String[]                           @default([])      // sale type + unit type combinations this project will not sell ("REDEVELOPMENT:COMMERCIAL"), so no payment plan is asked for
   createdAt           DateTime        @default(now())
   updatedAt           DateTime        @updatedAt
 
