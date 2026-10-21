@@ -1,3 +1,4 @@
+import { tmpdir } from 'node:os'
 import puppeteer, { type Browser, type HTTPRequest } from 'puppeteer'
 import { logger } from '@/lib/logger'
 
@@ -24,7 +25,8 @@ function launch(): Promise<Browser> {
       .launch({
         headless: true,
         executablePath: process.env.PUPPETEER_EXECUTABLE_PATH || undefined,
-        // No crash reporter: its handler needs a writable home folder, which a read-only container does not have
+        // Chromium writes to its home folder at start-up; a read-only container has none, so give it the temp folder
+        env: { ...process.env, HOME: tmpdir(), XDG_CONFIG_HOME: tmpdir(), XDG_CACHE_HOME: tmpdir() },
         args: ['--no-sandbox', '--disable-setuid-sandbox', '--disable-dev-shm-usage', '--disable-crash-reporter', '--disable-breakpad'],
       })
       .then((browser) => {
