@@ -24,7 +24,8 @@ function launch(): Promise<Browser> {
       .launch({
         headless: true,
         executablePath: process.env.PUPPETEER_EXECUTABLE_PATH || undefined,
-        args: ['--no-sandbox', '--disable-setuid-sandbox', '--disable-dev-shm-usage'],
+        // No crash reporter: its handler needs a writable home folder, which a read-only container does not have
+        args: ['--no-sandbox', '--disable-setuid-sandbox', '--disable-dev-shm-usage', '--disable-crash-reporter', '--disable-breakpad'],
       })
       .then((browser) => {
         browser.on('disconnected', () => { browserPromise = null }) // crashed or closed: the next render starts a fresh one

@@ -42,8 +42,8 @@ export const TAG_GROUPS: TagGroup[] = [
     { tag: 'configuration', desc: '1BHK, 2BHK…' },
     { tag: 'carpetArea', desc: 'Carpet area (sqft)' },
     { tag: 'carpetAreaSqm', desc: 'Carpet area (sq m)' },
-    { tag: 'unitKind', desc: 'Flat, Shop or Office', types: NOT_RECEIPT },
-    { tag: 'premisesType', desc: 'Residential or Commercial', types: NOT_RECEIPT },
+    { tag: 'unitKind', desc: 'Flat, Shop or Office' },
+    { tag: 'premisesType', desc: 'Residential or Commercial' },
     { tag: 'carParkingCount', desc: 'Number of car parks sold', types: NOT_RECEIPT },
     { tag: 'hasParking', desc: 'Section: {{#hasParking}} … {{/hasParking}} shows its content only when a car park is sold', types: NOT_RECEIPT },
     { tag: 'parkingPodiumLevel', desc: 'Parking podium level', types: NOT_RECEIPT },
@@ -181,7 +181,10 @@ export function findTagIssues(text: string, type: string, format: 'DOCX' | 'HTML
     if (kind === '#' || kind === '^' || kind === '/') {
       if (format === 'HTML') { htmlSections.add(raw); continue }
       if (kind === '/') { stack.pop(); continue }
-      if (loopNames.has(name)) {
+      const surrounding = stack.length ? stack[stack.length - 1] : null
+      if (surrounding && loopFields.get(surrounding)?.has(name)) {
+        stack.push(name) // a section on a field of the surrounding loop, e.g. {{#hasNext}} in {{#buyers}}
+      } else if (loopNames.has(name)) {
         if (!availableLoops.has(name)) wrongType.add(name)
         stack.push(name)
       } else if (roots.has(name) || allPaths.has(name)) {
