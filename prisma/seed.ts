@@ -22,6 +22,17 @@ async function main() {
   ))
 
   // 2. Create Project 1 (Mixed Sale)
+  // The developer company of this installation, with the partners who sign agreements
+  const company = await prisma.company.create({
+    data: {
+      name: 'PARADIGM FRIENDS REALTORS LLP',
+      panNumber: 'AADCB2230M',
+      gstin: '27AADCB2230M1Z2',
+      address: '45 Builder Tower, Mumbai',
+      partners: { create: [{ name: 'Rajesh Shah', address: 'Mumbai' }, { name: 'Meena Patel', address: 'Mumbai' }, { name: 'Anil Mehta', address: 'Pune' }] },
+    },
+  })
+
   const project1 = await prisma.project.create({
     data: {
       name: 'Sea View Heights',
@@ -30,9 +41,7 @@ async function main() {
       city: 'Mumbai',
       type: 'MIXED',
       status: 'UNDER_CONSTRUCTION',
-      companyName: 'PARADIGM FRIENDS REALTORS LLP',
-      companyAddress: '45 Builder Tower, Mumbai',
-      companyGstin: '27AADCB2230M1Z2',
+      companyId: company.id,
       stampDutyPercent: 5.0,
       regChargesPercent: 1.0,
       wings: {
@@ -56,11 +65,11 @@ async function main() {
       },
       milestones: {
         create: [
-          { sequence: 1, name: 'Booking', status: 'COMPLETED' },
-          { sequence: 2, name: 'Plinth Completion', status: 'COMPLETED' },
-          { sequence: 3, name: '1st Slab', status: 'IN_PROGRESS', plannedDate: new Date() },
-          { sequence: 4, name: 'Brickwork', status: 'PENDING' },
-          { sequence: 5, name: 'Possession', status: 'PENDING' },
+          // The booking is not a construction milestone: every payment plan carries it (bookingPercent)
+          { sequence: 1, name: 'Plinth Completion', status: 'COMPLETED' },
+          { sequence: 2, name: '1st Slab', status: 'IN_PROGRESS', plannedDate: new Date() },
+          { sequence: 3, name: 'Brickwork', status: 'PENDING' },
+          { sequence: 4, name: 'Possession', status: 'PENDING' },
         ]
       },
       templates: {
@@ -133,8 +142,7 @@ async function main() {
       city: 'Mumbai',
       type: 'MIXED',
       status: 'PLANNING',
-      companyName: 'PARADIGM FRIENDS REALTORS LLP',
-      companyAddress: '45 Builder Tower, Mumbai',
+      companyId: company.id,
       wings: {
         create: [
           {
@@ -167,7 +175,7 @@ async function main() {
 
   // Payment plans: a default for each sale type the (mixed) project sells, for its residential units
   const seededMilestones = await prisma.constructionMilestone.findMany({ where: { projectId: project1.id }, orderBy: { sequence: 'asc' } })
-  const seededPercents = [10, 35, 20, 25, 10]
+  const seededPercents = [35, 20, 25, 10] // plus 10% booking = 100
   for (const saleType of ['FRESH', 'REDEVELOPMENT']) {
     await prisma.paymentPlan.create({
       data: {
@@ -176,6 +184,7 @@ async function main() {
         saleType,
         unitType: 'RESIDENTIAL',
         isDefault: true,
+        bookingPercent: 10,
         items: { create: seededMilestones.map((m, i) => ({ milestoneId: m.id, sequence: m.sequence, percentOfAV: seededPercents[i] ?? 0 })) },
       },
     })
@@ -186,9 +195,8 @@ async function main() {
     where: { floor: { wing: { projectId: project1.id } }, status: 'AVAILABLE' }
   })
   const milestone1 = await prisma.constructionMilestone.findFirst({ where: { projectId: project1.id, sequence: 1 } })
-  const milestone2 = await prisma.constructionMilestone.findFirst({ where: { projectId: project1.id, sequence: 2 } })
   
-  if (unitToBook && milestone1 && milestone2) {
+  if (unitToBook && milestone1) {
     await prisma.unit.update({ where: { id: unitToBook.id }, data: { status: 'BOOKED' } })
     
     await prisma.sale.create({
@@ -218,8 +226,7 @@ async function main() {
         paymentSchedules: {
           create: [
             {
-              milestoneId: milestone1.id,
-              description: 'Booking Amount (10%)',
+              description: 'Booking Amount (10%)', // the booking has no construction milestone
               principalAmount: 1500000,
               gstAmount: 75000,
               status: 'DUE',
@@ -227,7 +234,7 @@ async function main() {
               demandGeneratedDate: new Date()
             },
             {
-              milestoneId: milestone2.id,
+              milestoneId: milestone1.id,
               description: 'Plinth Completion (20%)',
               principalAmount: 3000000,
               gstAmount: 150000,

@@ -52,6 +52,7 @@ function body(type: string) {
         }),
         p(''),
         p('For {{companyName}}'),
+        p('{{#partners}}{{ordinal}} Partner: {{name}}{{/partners}}'),
       ]
   }
 }

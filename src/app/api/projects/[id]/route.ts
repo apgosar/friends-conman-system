@@ -35,11 +35,12 @@ export async function PATCH(req: NextRequest, props: { params: Promise<{ id: str
 
   const {
     name, reraNumber, address, city, state, type, status,
-    companyName, companyAddress, companyGstin,
+    companyId,
     carParkingCharges, carParkingIncluded,
     launchDate, expectedCompletion,
   } = body
 
+  if (companyId && !(await prisma.company.findUnique({ where: { id: String(companyId) }, select: { id: true } }))) return apiError('invalid', 'Choose a company from the list')
   const pricing = parsePricingSettings(body)
   if (pricing.error) return apiError('invalid', pricing.error)
 
@@ -54,9 +55,7 @@ export async function PATCH(req: NextRequest, props: { params: Promise<{ id: str
         ...(state && { state }),
         ...(type && { type }),
         ...(status && { status }),
-        ...(companyName && { companyName }),
-        ...(companyAddress && { companyAddress }),
-        companyGstin: companyGstin ?? null,
+        ...(companyId && { companyId: String(companyId) }),
         ...pricing.data,
         ...(carParkingCharges !== undefined && { carParkingCharges: parseFloat(carParkingCharges) }),
         ...(typeof carParkingIncluded === 'boolean' && { carParkingIncluded }),

@@ -4,6 +4,7 @@ import { z } from '@/lib/validate'
 import { nextSaleNumber } from '@/lib/numbering'
 import { buildCommContent, sanitizeInline } from '@/lib/comms-content'
 import { GST_RATE_OPTIONS, computeCharges, pricingFromProject } from '@/lib/pricing'
+import { BOOKING_DUE_DAYS } from '@/lib/payment-plans'
 import { sumRupees } from '@/lib/money'
 import { PHONE_ERROR, normalizePhone } from '@/lib/phone'
 import { activeSale } from '@/lib/soft-delete'
@@ -38,6 +39,7 @@ const PaymentScheduleSchema = z.object({
   principalAmount: zMoney,
   gstAmount: zMoney.optional().nullable(),
   dueDate: z.string().optional().nullable(),
+  isBooking: z.boolean().optional(), // the booking line of the plan: its demand goes out with the sale, due BOOKING_DUE_DAYS later
 })
 
 export const SaleCreateSchema = z.object({
@@ -157,7 +159,7 @@ export async function createSale(input: SaleCreateInput, actorId: string) {
     })
     const commBuyers = await tx.buyer.findMany({ where: { saleId: newSale.id, receiveComms: true } })
 
-    // 4. Payment schedule (+ a demand notice for milestones already completed)
+    // 4. Payment schedule (+ a demand notice for the booking, and for milestones already completed)
     if (schedules.length > 0) {
       const milestoneIds = schedules.map((ps) => ps.milestoneId).filter((id): id is string => !!id)
       const completed = new Map<string, Date | null>()
@@ -172,8 +174,14 @@ export async function createSale(input: SaleCreateInput, actorId: string) {
       const created = await tx.paymentSchedule.createManyAndReturn({
         data: schedules.map((ps) => {
           const isCompleted = !!ps.milestoneId && completed.has(ps.milestoneId)
+          // The booking is not a construction milestone: its demand goes out with the sale, and it is due BOOKING_DUE_DAYS later
+          const isBooking = ps.isBooking === true && !ps.milestoneId
           const actualDate = isCompleted ? (completed.get(ps.milestoneId!) || new Date()) : null
           let dueDate = ps.dueDate ? new Date(ps.dueDate) : null
+          if (isBooking) {
+            dueDate = new Date()
+            dueDate.setDate(dueDate.getDate() + BOOKING_DUE_DAYS)
+          }
           if (isCompleted && actualDate) {
             dueDate = new Date(actualDate)
             dueDate.setDate(dueDate.getDate() + 14)
@@ -185,23 +193,25 @@ export async function createSale(input: SaleCreateInput, actorId: string) {
             principalAmount: ps.principalAmount,
             gstAmount: ps.gstAmount ?? 0,
             dueDate,
-            status: isCompleted ? 'DUE' : 'UPCOMING',
-            demandGeneratedDate: isCompleted ? new Date() : null,
+            status: isCompleted || isBooking ? 'DUE' : 'UPCOMING',
+            demandGeneratedDate: isCompleted || isBooking ? new Date() : null,
           }
         }),
       })
 
-      const due = created.filter((s) => s.status === 'DUE' && s.milestoneId)
+      // A demand with no milestone is the booking (a demand for a completed milestone always has one)
+      const due = created.filter((s) => s.status === 'DUE')
       if (due.length > 0 && commBuyers.length > 0) {
         const milestones = await tx.constructionMilestone.findMany({
-          where: { id: { in: due.map((s) => s.milestoneId!) } },
+          where: { id: { in: due.flatMap((s) => (s.milestoneId ? [s.milestoneId] : [])) } },
           select: { id: true, name: true, architectCertificateUrl: true },
         })
         const byId = new Map(milestones.map((m) => [m.id, m]))
         const logs: Prisma.CommunicationLogCreateManyInput[] = []
 
         for (const schedule of due) {
-          const milestone = byId.get(schedule.milestoneId!)
+          const milestone = schedule.milestoneId ? byId.get(schedule.milestoneId) : undefined
+          const isBookingDemand = !schedule.milestoneId
           const amount = schedule.principalAmount + schedule.gstAmount
           const description = schedule.description.toLowerCase()
           const isTaxOrParking = description.includes('stamp duty') || description.includes('registration') || description.includes('parking')
@@ -209,8 +219,10 @@ export async function createSale(input: SaleCreateInput, actorId: string) {
 
           for (const buyer of commBuyers) {
             const greeting = `Dear ${sanitizeInline(buyer.fullName) || 'Customer'},`
-            const letter = { label: 'Demand Letter', path: `/api/documents/preview/demand-letter?saleId=${newSale.id}&milestoneName=${encodeURIComponent(isTaxOrParking ? schedule.description : milestone?.name || '')}` }
-            const { messageContent, attachments } = isTaxOrParking
+            const letter = { label: 'Demand Letter', path: `/api/documents/preview/demand-letter?saleId=${newSale.id}&milestoneName=${encodeURIComponent(isTaxOrParking || isBookingDemand ? schedule.description : milestone?.name || '')}` }
+            const { messageContent, attachments } = isBookingDemand
+              ? buildCommContent(`${greeting}\nThank you for booking unit ${sanitizeInline(unit.unitNumber)} in ${sanitizeInline(project.name)}. Please find the attached Demand Letter for ${formatRupees(amount)} towards the booking amount.\nDue Date: ${dueText}.`, [letter])
+              : isTaxOrParking
               ? buildCommContent(`${greeting}\nPayment for '${sanitizeInline(schedule.description)}' is now due. Please find the attached Demand Letter for ${formatRupees(amount)}.\nDue Date: ${dueText}.`, [letter])
               : buildCommContent(`${greeting}\nThe milestone '${sanitizeInline(milestone?.name)}' is now complete. Please find the attached Demand Letter for ${formatRupees(amount)} and the Architect Completion Certificate.\nDue Date: ${dueText}.`, [{ label: 'Architect Certificate', path: milestone?.architectCertificateUrl || '' }, letter])
             for (const [channel, address] of [['EMAIL', buyer.email], ['WHATSAPP', buyer.whatsappNumber]] as const) {

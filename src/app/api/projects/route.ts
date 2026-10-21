@@ -23,16 +23,17 @@ export async function POST(req: NextRequest) {
   if ('error' in guard) return guard.error
   const session = { user: guard.user }
   const body = await req.json()
-  const { name, reraNumber, address, city, state, type, status, companyName, companyAddress, companyGstin, launchDate, expectedCompletion } = body
-  if (!name || !address || !city || !companyName || !companyAddress) {
-    return apiError('invalid', 'Name, address, city, company name and company address are required')
+  const { name, reraNumber, address, city, state, type, status, companyId, launchDate, expectedCompletion } = body
+  if (!name || !address || !city || !companyId) {
+    return apiError('invalid', 'Name, address, city and company are required')
   }
+  if (!(await prisma.company.findUnique({ where: { id: String(companyId) }, select: { id: true } }))) return apiError('invalid', 'Choose a company from the list')
   const pricing = parsePricingSettings(body)
   if (pricing.error) return apiError('invalid', pricing.error)
   const project = await prisma.project.create({
     data: {
       name, address, city, state: state || 'Maharashtra', type: type || 'FRESH', status: status || 'PLANNING',
-      reraNumber: reraNumber || null, companyName, companyAddress, companyGstin: companyGstin || null,
+      reraNumber: reraNumber || null, companyId: String(companyId),
       launchDate: launchDate ? new Date(launchDate) : null,
       expectedCompletion: expectedCompletion ? new Date(expectedCompletion) : null,
       ...pricing.data, // anything left out takes the column default (see lib/pricing.ts)

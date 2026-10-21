@@ -3,7 +3,7 @@ import { describeDb, getPrisma, resetDb, seedProject } from './helpers/db'
 import type { PaymentPlanInput } from '@/lib/payment-plans'
 
 const input = (over: Partial<PaymentPlanInput> = {}): PaymentPlanInput => ({
-  name: '20/80', saleType: 'FRESH', unitType: 'RESIDENTIAL', isDefault: false,
+  name: '20/80', saleType: 'FRESH', unitType: 'RESIDENTIAL', isDefault: false, bookingPercent: 0,
   items: [{ name: 'Booking', percentOfAV: 20 }, { name: 'Possession', percentOfAV: 80 }],
   ...over,
 })
@@ -121,6 +121,14 @@ describeDb('payment plan store', () => {
     await expect(transaction((tx) => setMilestoneOrder(tx, project.id, [ms[0].id]))).rejects.toThrow(/does not match/)
     await expect(transaction((tx) => setMilestoneOrder(tx, project.id, [ms[0].id, ms[0].id]))).rejects.toThrow(/does not match/)
     await expect(transaction((tx) => setMilestoneOrder(tx, project.id, [ms[0].id, 'nope']))).rejects.toThrow(/does not match/)
+  })
+
+  it('keeps the booking percentage on the plan, not as a milestone', async () => {
+    const { prisma, project, save } = await setup()
+    const id = await save(null, input({ name: 'With booking', bookingPercent: 20, items: [{ name: 'Plinth', percentOfAV: 30 }, { name: 'Possession', percentOfAV: 50 }] }))
+    expect((await prisma.paymentPlan.findUniqueOrThrow({ where: { id } })).bookingPercent).toBe(20)
+    const milestones = await prisma.constructionMilestone.findMany({ where: { projectId: project.id } })
+    expect(milestones.map((m) => m.name).sort()).toEqual(['Plinth', 'Possession'])
   })
 
   it('records a combination as not needed, but not while it has plans', async () => {

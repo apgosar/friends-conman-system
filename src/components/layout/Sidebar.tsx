@@ -44,6 +44,7 @@ const NAV_ITEMS = [
       { href: '/communications', label: 'Communications', icon: '💬' },
       { href: '/audit', label: 'Audit Log', icon: '🔍' },
       { href: '/users', label: 'Users', icon: '👥' },
+      { href: '/companies', label: 'Companies', icon: '🏛' },
       { href: '/settings', label: 'Settings', icon: '⚙' },
     ],
   },

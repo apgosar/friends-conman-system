@@ -2,6 +2,8 @@
 // Mirrors the data built in the document routes (documents/generate, preview/demand-letter, preview/receipt).
 // If you add a field to those routes, add it here too so the reference panel and warnings stay accurate.
 
+import { PARTNER_DOCUMENT_TYPES } from '@/lib/companies'
+
 export interface TemplateTag {
   tag: string
   desc: string
@@ -13,14 +15,24 @@ export interface LoopDef { name: string; desc: string; fields: TemplateTag[] }
 
 const NOT_RECEIPT = ['SALE_AGREEMENT', 'PAAA', 'DEMAND_LETTER', 'POSSESSION_LETTER']
 const PAYMENT_DOCS = ['DEMAND_LETTER', 'RECEIPT']
+const PARTNER_DOCS = PARTNER_DOCUMENT_TYPES
 
 export const TAG_GROUPS: TagGroup[] = [
   { group: 'Company & project', tags: [
     { tag: 'companyName', desc: 'Company name' },
     { tag: 'companyAddress', desc: 'Company address' },
     { tag: 'companyGstin', desc: 'Company GSTIN' },
+    { tag: 'companyPan', desc: 'Company PAN' },
     { tag: 'projectName', desc: 'Project name' },
     { tag: 'reraNumber', desc: 'RERA registration number' },
+  ] },
+  { group: 'Partners signing the agreement', tags: [
+    { tag: 'partner1Name', desc: 'First partner: name', types: PARTNER_DOCS },
+    { tag: 'partner1Address', desc: 'First partner: address', types: PARTNER_DOCS },
+    { tag: 'partner1Pan', desc: 'First partner: PAN', types: PARTNER_DOCS },
+    { tag: 'partner2Name', desc: 'Second partner: name', types: PARTNER_DOCS },
+    { tag: 'partner2Address', desc: 'Second partner: address', types: PARTNER_DOCS },
+    { tag: 'partner2Pan', desc: 'Second partner: PAN', types: PARTNER_DOCS },
   ] },
   { group: 'Unit', tags: [
     { tag: 'wingName', desc: 'Wing' },
@@ -93,6 +105,10 @@ export const LOOPS: LoopDef[] = [
     { tag: 'panNumber', desc: 'PAN' }, { tag: 'aadhaarNumber', desc: 'Aadhaar' }, { tag: 'email', desc: 'Email' },
     { tag: 'whatsappNumber', desc: 'WhatsApp number' }, { tag: 'address', desc: 'Address' }, { tag: 'isPrimary', desc: 'Yes / No' },
   ] },
+  { name: 'partners', desc: 'One block per partner chosen for the agreement', fields: [
+    { tag: 'index', desc: 'Number (1, 2)' }, { tag: 'ordinal', desc: '1st, 2nd' }, { tag: 'name', desc: 'Name' },
+    { tag: 'address', desc: 'Address' }, { tag: 'panNumber', desc: 'PAN' },
+  ] },
   { name: 'paymentPlan', desc: 'One row per payment plan instalment', fields: [
     { tag: 'index', desc: 'Number' }, { tag: 'description', desc: 'Milestone' }, { tag: 'percentOfAV', desc: '% of agreement value' },
     { tag: 'principalAmount', desc: 'Principal' }, { tag: 'gstAmount', desc: 'GST' }, { tag: 'totalAmount', desc: 'Total' },
@@ -102,7 +118,7 @@ export const LOOPS: LoopDef[] = [
 export const tagsForType = (type: string): TagGroup[] =>
   TAG_GROUPS.map((g) => ({ ...g, tags: g.tags.filter((t) => !t.types || t.types.includes(type)) })).filter((g) => g.tags.length > 0)
 
-const LOOPS_FOR = (type: string) => (type === 'RECEIPT' ? [LOOPS[0]] : LOOPS)
+const LOOPS_FOR = (type: string) => (type === 'RECEIPT' ? [LOOPS[0]] : LOOPS.filter((l) => l.name !== 'partners' || PARTNER_DOCUMENT_TYPES.includes(type)))
 
 // ── Checker ──────────────────────────────────────────────────────────────────
 

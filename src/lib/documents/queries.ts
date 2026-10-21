@@ -2,7 +2,7 @@ import { prisma } from '@/lib/db'
 
 /** What the document builders (payload.ts) need loaded for a sale. */
 export const saleForDocument = {
-  project: true,
+  project: { include: { company: true } },
   unit: { include: { floor: { include: { wing: true } } } },
   buyers: true,
   tenant: true,

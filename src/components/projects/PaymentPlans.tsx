@@ -5,7 +5,7 @@ import { useRouter } from 'next/navigation'
 import { Alert, Badge, Button, Card, CardHeader, Table, Td, useConfirm, useToast } from '@/components/ui'
 import { errorMessage, fetchJson, jsonRequest } from '@/lib/client/api'
 import {
-  comboKey, comboLabel, missingCombos, plansFor, requiredCombos, sameCombo, schemeOf,
+  BOOKING_LABEL, comboKey, comboLabel, missingCombos, plansFor, requiredCombos, sameCombo, schemeOf,
   PLAN_SALE_TYPES, PLAN_UNIT_TYPES, type Combo,
 } from '@/lib/payment-plans'
 import PaymentPlanModal, { type PlanData } from './PaymentPlanModal'
@@ -56,7 +56,7 @@ export default function PaymentPlans({ projectId, projectType, hasCommercial, no
   const makeDefault = async (plan: PlanData) => {
     try {
       await fetchJson(`/api/projects/${projectId}/payment-plans/${plan.id}`, jsonRequest('PUT', {
-        name: plan.name, saleType: plan.saleType, unitType: plan.unitType, isDefault: true, items: plan.items,
+        name: plan.name, saleType: plan.saleType, unitType: plan.unitType, isDefault: true, bookingPercent: plan.bookingPercent, items: plan.items,
       }))
       toast.success(`"${plan.name}" is now the default for ${comboLabel(plan)}`)
       router.refresh()
@@ -130,9 +130,9 @@ export default function PaymentPlans({ projectId, projectType, hasCommercial, no
                       <Td label="Plan">
                         <span className="font-semibold">{plan.name}</span> {plan.isDefault && <Badge variant="success">Default</Badge>}
                       </Td>
-                      <Td label="Payment scheme" className="text-secondary">{schemeOf(plan.items.map((i) => i.percentOfAV))}</Td>
+                      <Td label="Payment scheme" className="text-secondary">{schemeOf([plan.bookingPercent, ...plan.items.map((i) => i.percentOfAV)])}</Td>
                       <Td label="Milestones" className="text-secondary">
-                        {plan.items.map((i) => `${i.name} (${schemeOf([i.percentOfAV])}%)`).join(' → ')}
+                        {[`${BOOKING_LABEL} (${schemeOf([plan.bookingPercent])}%)`, ...plan.items.map((i) => `${i.name} (${schemeOf([i.percentOfAV])}%)`)].join(' → ')}
                       </Td>
                       <Td label="Actions" className="text-right nowrap">
                         {!plan.isDefault && <Button variant="ghost" size="sm" onClick={() => makeDefault(plan)}>Make default</Button>}

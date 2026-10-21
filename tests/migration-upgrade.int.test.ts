@@ -47,6 +47,8 @@ describeDb('upgrading an existing database', () => {
     expect(psql('neev_upgrade_ok', `SELECT data_type || '(' || numeric_precision || ',' || numeric_scale || ')' FROM information_schema.columns WHERE table_name='payments' AND column_name='amount'`)).toBe('numeric(15,2)')
     expect(psql('neev_upgrade_ok', `SELECT role FROM users ORDER BY id`)).toBe('VIEWER\nSUPER_ADMIN')
     expect(psql('neev_upgrade_ok', `SELECT "stampDutyPercent" || ',' || "gstRatePercent" || ',' || "regChargesCap" FROM projects`)).toBe('6,5,30000.00')
+    // The project's company details became a company, which the project is linked to
+    expect(psql('neev_upgrade_ok', `SELECT c.name || ':' || c.address FROM projects p JOIN companies c ON c.id = p."companyId"`)).toBe('Co:Addr')
     expect(psql('neev_upgrade_ok', `SELECT count(*) FROM pg_indexes WHERE indexname = 'sales_one_active_per_unit'`)).toBe('1')
     // the new guards really bite
     expect(() => psql('neev_upgrade_ok', `INSERT INTO users (id, name, email, password, role, "updatedAt") VALUES ('u3','x','x@example.com','x','GOD',now())`)).toThrow(/users_role_check/)

@@ -71,11 +71,22 @@ const percent = z.union([z.number(), z.string().trim().min(1).transform(Number)]
   z.number().finite('Enter a percentage').gt(0, 'Each milestone needs a percentage above 0').max(100, 'A percentage cannot be more than 100'),
 )
 
+/** The booking is the first line of every plan: its demand goes out the moment a sale is created. It is not a construction milestone. */
+export const BOOKING_LABEL = 'Booking'
+/** The booking amount is due this many days after the sale is created. */
+export const BOOKING_DUE_DAYS = 15
+const bookingPercent = z.union([z.number(), z.string().trim().min(1).transform(Number)]).pipe(
+  z.number().finite('Enter the booking percentage').min(0, 'The booking percentage cannot be negative').max(100, 'A percentage cannot be more than 100'),
+)
+/** Names that mean the booking, which a plan has built in: they cannot be added as a construction milestone as well. */
+export const isBookingName = (name: string) => /^\s*(booking|token)\s*$/i.test(name)
+
 export const PaymentPlanSchema = z.object({
   name: z.string().trim().min(1, 'Enter a plan name').max(PLAN_NAME_MAX, `The plan name is too long (maximum ${PLAN_NAME_MAX} characters)`),
   saleType: z.enum(PLAN_SALE_TYPES),
   unitType: z.enum(PLAN_UNIT_TYPES),
   isDefault: z.boolean(),
+  bookingPercent,
   items: z.array(z.object({
     name: z.string().trim().min(1, 'Every row needs a milestone').max(120, 'A milestone name is too long (maximum 120 characters)'),
     percentOfAV: percent,
@@ -84,10 +95,11 @@ export const PaymentPlanSchema = z.object({
   const seen = new Set<string>()
   plan.items.forEach((item, i) => {
     const key = item.name.trim().toLowerCase()
+    if (isBookingName(item.name)) ctx.addIssue({ code: 'custom', path: ['items', i, 'name'], message: 'The booking is added to every plan automatically: set its percentage at the top, not as a milestone' })
     if (seen.has(key)) ctx.addIssue({ code: 'custom', path: ['items', i, 'name'], message: `"${item.name}" is in this plan twice` })
     seen.add(key)
   })
-  const total = plan.items.reduce((sum, item) => sum + item.percentOfAV, 0)
+  const total = plan.bookingPercent + plan.items.reduce((sum, item) => sum + item.percentOfAV, 0)
   if (Math.abs(total - 100) > 0.01) ctx.addIssue({ code: 'custom', path: ['items'], message: `The percentages must add up to 100 (they add up to ${Math.round(total * 100) / 100})` })
 })
 

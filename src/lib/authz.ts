@@ -28,7 +28,7 @@ export const can = (role: unknown, permission: Permission): boolean =>
  */
 const PAGE_RULES: ReadonlyArray<readonly [RegExp, Permission]> = [
   [/^\/(users|audit|settings)(\/|$)/, 'superadmin'],
-  [/^\/(reports|communications|escalations|documents)(\/|$)/, 'admin'],
+  [/^\/(reports|communications|escalations|documents|companies)(\/|$)/, 'admin'],
   [/^\/(sales|projects)\/new(\/|$)/, 'admin'],
   [/^\/projects\/[^/]+\/(edit|templates\/new|payment-plan)(\/|$)/, 'admin'],
   [/^\/sales\/[^/]+\/(kyc|documents)(\/|$)/, 'staff'],

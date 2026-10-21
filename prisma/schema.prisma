@@ -76,9 +76,7 @@ model Project {
   status String @default("PLANNING")
   launchDate          DateTime?
   expectedCompletion  DateTime?
-  companyName         String
-  companyAddress      String
-  companyGstin        String?
+  companyId           String
   stampDutyPercent    Float         @default(6)
   regChargesPercent   Float         @default(1) 
   regChargesCap       Decimal?        @db.Decimal(15, 2) @default(30000) // registration fee is regChargesPercent of the agreement value, but never more than this (empty = no cap)
@@ -97,6 +95,7 @@ model Project {
   unitTypes           UnitType[]
   milestones          ConstructionMilestone[]
   paymentPlans        PaymentPlan[]
+  company             Company       @relation(fields: [companyId], references: [id])
   templates           Template[]
   tenants             Tenant[]
   sales               Sale[]
@@ -353,6 +352,7 @@ model PaymentPlan {
   saleType  String   // FRESH (New Sale) | REDEVELOPMENT (Rehab)
   unitType  String   // RESIDENTIAL | COMMERCIAL
   isDefault Boolean  @default(false) // at most one default per project + saleType + unitType (database index)
+  bookingPercent Float @default(0)   // % of the agreement value due the moment a sale is created: the booking, not a construction milestone
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
@@ -527,12 +527,46 @@ model Template {
 
 
 
+/// The developer company of this installation: its details appear on agreements and letters. Projects pick one.
+model Company {
+  id        String   @id @default(cuid())
+  name      String   @unique
+  panNumber String?
+  gstin     String?
+  address   String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  partners  Partner[]
+  projects  Project[]
+
+  @@map("companies")
+}
+
+/// A partner of a company. A sale agreement is signed by two of them, chosen when the agreement is generated.
+model Partner {
+  id        String   @id @default(cuid())
+  companyId String
+  name      String
+  panNumber String?  // encrypted at rest like a buyer's (see lib/pii.ts)
+  address   String?
+  isActive  Boolean  @default(true) // a partner who left is switched off, not deleted: old agreements still name them
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  company   Company  @relation(fields: [companyId], references: [id], onDelete: Cascade)
+
+  @@index([companyId])
+  @@map("partners")
+}
+
 model Document {
   id              String        @id @default(cuid())
   saleId          String
   templateId      String?
   type String
   pdfUrl          String?
+  partnerIds      String[]      @default([]) // the partners named in a sale agreement (see Partner)
   status String @default("DRAFT")
   generatedAt     DateTime?
   sentAt          DateTime?

@@ -26,8 +26,13 @@ export function pickDemand(sale: SaleForDocument, milestoneName?: string | null)
   return named ?? sale.paymentSchedules.find((ps) => DUE_STATUSES.includes(ps.status)) ?? null
 }
 
-export function buildSalePayload(sale: SaleForDocument) {
+/** A partner as a document needs them (the PAN is still encrypted here: revealPii turns it into the real number). */
+export interface PartnerForDocument { name: string; address: string | null; panNumber: string | null }
+
+/** `partners`: the partners chosen for a sale agreement (none for other documents). */
+export function buildSalePayload(sale: SaleForDocument, partners: PartnerForDocument[] = []) {
   const { project, unit, buyers, paymentSchedules: schedules } = sale
+  const { company } = project
   const agreement = Number(sale.agreementValue)
 
   const paymentPlan = schedules.filter((ps) => Number(ps.principalAmount) > 0).map((ps, index) => {
@@ -52,9 +57,17 @@ export function buildSalePayload(sale: SaleForDocument) {
   const first = buyers[0]
 
   return {
-    companyName: project.companyName,
-    companyAddress: project.companyAddress,
-    companyGstin: project.companyGstin ?? '',
+    companyName: company.name,
+    companyAddress: company.address,
+    companyGstin: company.gstin ?? '',
+    companyPan: company.panNumber ?? '',
+    partners: partners.map((p, i) => ({ index: i + 1, ordinal: ordinal(i + 1), name: p.name, address: p.address ?? '', panNumber: revealPii(p.panNumber) })),
+    partner1Name: partners[0]?.name ?? '',
+    partner1Address: partners[0]?.address ?? '',
+    partner1Pan: revealPii(partners[0]?.panNumber),
+    partner2Name: partners[1]?.name ?? '',
+    partner2Address: partners[1]?.address ?? '',
+    partner2Pan: revealPii(partners[1]?.panNumber),
     projectName: project.name,
     reraNumber: project.reraNumber ?? '',
     wingName: unit.floor.wing.name,
@@ -112,9 +125,9 @@ const demandFigures = (s: Pick<Schedule, 'principalAmount' | 'gstAmount'>) => {
 }
 
 /** A sale document about one demand (a demand letter). `schedule` null = nothing is due, the payment tags are left empty. */
-export function buildDemandPayload(sale: SaleForDocument, schedule: Schedule | null) {
+export function buildDemandPayload(sale: SaleForDocument, schedule: Schedule | null, partners: PartnerForDocument[] = []) {
   return {
-    ...buildSalePayload(sale),
+    ...buildSalePayload(sale, partners),
     milestone: schedule ? { name: schedule.milestone?.name ?? schedule.description } : null,
     payment: schedule ? demandFigures(schedule) : null,
   }

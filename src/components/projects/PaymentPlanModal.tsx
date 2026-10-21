@@ -6,7 +6,7 @@ import { errorMessage, fetchJson, jsonRequest } from '@/lib/client/api'
 import { scrollToFirstInvalid } from '@/lib/client/forms'
 import { formatNumber } from '@/lib/format'
 import {
-  PLAN_UNIT_TYPES, PaymentPlanSchema, SALE_TYPE_LABEL, UNIT_TYPE_LABEL, saleTypesOfProject, sameCombo,
+  BOOKING_DUE_DAYS, BOOKING_LABEL, PLAN_UNIT_TYPES, PaymentPlanSchema, SALE_TYPE_LABEL, UNIT_TYPE_LABEL, saleTypesOfProject, sameCombo,
   type PlanSaleType, type PlanUnitType,
 } from '@/lib/payment-plans'
 
@@ -17,6 +17,8 @@ export interface PlanData {
   saleType: PlanSaleType
   unitType: PlanUnitType
   isDefault: boolean
+  /** % of the agreement value for the booking: demanded the moment a sale is created (not a construction milestone). */
+  bookingPercent: number
   items: PlanRow[]
 }
 
@@ -43,6 +45,7 @@ export default function PaymentPlanModal({ projectId, projectType, milestoneName
   const [unitType, setUnitType] = useState<PlanUnitType>(plan?.unitType ?? start?.unitType ?? 'RESIDENTIAL')
   const [name, setName] = useState(plan?.name ?? '')
   const [isDefault, setIsDefault] = useState(plan?.isDefault ?? false)
+  const [booking, setBooking] = useState(plan ? String(plan.bookingPercent) : '')
   const [rows, setRows] = useState<Row[]>(
     plan ? plan.items.map((i) => ({ name: i.name, isNew: false, percent: String(i.percentOfAV) })) : [{ name: '', isNew: false, percent: '' }],
   )
@@ -56,7 +59,7 @@ export default function PaymentPlanModal({ projectId, projectType, milestoneName
   const lockedDefault = !!plan && plan.isDefault && sameCombo(plan, { saleType, unitType }) // stays default until another is chosen
   const defaultValue = mustBeDefault || lockedDefault ? true : isDefault
 
-  const total = rows.reduce((sum, r) => sum + (Number(r.percent) || 0), 0)
+  const total = (Number(booking) || 0) + rows.reduce((sum, r) => sum + (Number(r.percent) || 0), 0)
   const totalOk = Math.abs(total - 100) < 0.01
   const setRow = (i: number, patch: Partial<Row>) => setRows((prev) => prev.map((r, k) => (k === i ? { ...r, ...patch } : r)))
 
@@ -65,7 +68,7 @@ export default function PaymentPlanModal({ projectId, projectType, milestoneName
     setError('')
     setNameError('')
     const input = {
-      name, saleType, unitType, isDefault: defaultValue,
+      name, saleType, unitType, isDefault: defaultValue, bookingPercent: booking,
       items: rows.map((r) => ({ name: r.name, percentOfAV: r.percent })),
     }
     const parsed = PaymentPlanSchema.safeParse(input)
@@ -126,9 +129,21 @@ export default function PaymentPlanModal({ projectId, projectType, milestoneName
 
         <div>
           <div className="flex justify-between items-center mb-3">
-            <h4 className="m-0">Milestones</h4>
+            <h4 className="m-0">Payment schedule</h4>
             <span className={totalOk ? 'text-success font-semibold' : 'text-danger font-semibold'}>Total {formatNumber(total)}%</span>
           </div>
+          <div className="plan-row mb-3">
+            <div className="flex dir-col">
+              <span className="font-semibold">{BOOKING_LABEL}</span>
+              <span className="text-sm text-muted">{`Demanded as soon as the sale is created, due ${BOOKING_DUE_DAYS} days later. Not a construction milestone`}</span>
+            </div>
+            <div className="flex items-center gap-1">
+              <Input aria-label="Booking percentage" type="number" inputMode="decimal" min={0} max={100} step={0.5} className="text-right" value={booking} onChange={(e) => setBooking(e.target.value)} placeholder="0" />
+              <span className="text-muted">%</span>
+            </div>
+            <span />
+          </div>
+          <div className="text-sm text-muted mb-2">Then the construction milestones:</div>
           <div className="flex dir-col gap-2">
             {rows.map((row, i) => {
               const known = milestoneNames.some((m) => m.toLowerCase() === row.name.trim().toLowerCase())

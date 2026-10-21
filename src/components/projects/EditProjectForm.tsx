@@ -4,10 +4,11 @@ import { useState } from 'react'
 import { useRouter } from 'next/navigation'
 import BackToProject from '@/components/projects/BackToProject'
 import PricingFields from '@/components/projects/PricingFields'
+import CompanyField from '@/components/projects/CompanyField'
 import { Alert, Button, ButtonLink, Input, SelectField, TextField, TextareaField } from '@/components/ui'
 import { errorMessage, fetchJson, jsonRequest } from '@/lib/client/api'
 
-export default function EditProjectForm({ project }: { project: any }) {
+export default function EditProjectForm({ project, companies }: { project: any; companies: { id: string; name: string }[] }) {
   const router = useRouter()
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
@@ -28,9 +29,7 @@ export default function EditProjectForm({ project }: { project: any }) {
       state: form.get('state'),
       type: form.get('type'),
       status: form.get('status'),
-      companyName: form.get('companyName'),
-      companyAddress: form.get('companyAddress'),
-      companyGstin: form.get('companyGstin') || null,
+      companyId: form.get('companyId'),
       gstRatePercent: form.get('gstRatePercent'),
       stampDutyPercent: form.get('stampDutyPercent'),
       regChargesPercent: form.get('regChargesPercent'),
@@ -84,13 +83,8 @@ export default function EditProjectForm({ project }: { project: any }) {
           <TextareaField label="Project Address" wrapperClassName="mb-4" name="address" required rows={2} defaultValue={project.address} />
 
           <div className="divider" />
-          <h4 className="mb-4">Company / Developer Details</h4>
-
-          <div className="grid grid-2 gap-4 mb-4">
-            <TextField label="Company Name" name="companyName" required defaultValue={project.companyName} />
-            <TextField label="GSTIN" name="companyGstin" defaultValue={project.companyGstin ?? ''} placeholder="27AAAAA0000A1Z5" />
-          </div>
-          <TextareaField label="Company Address" wrapperClassName="mb-4" name="companyAddress" required rows={2} defaultValue={project.companyAddress} />
+          <h4 className="mb-4">Company</h4>
+          <CompanyField companies={companies} defaultValue={project.companyId} />
 
           <div className="divider" />
           <h4 className="mb-1">Tax and pricing</h4>

@@ -13,7 +13,7 @@ const payments = [
 const sale: any = {
   id: 'sale1', saleNumber: 'SVH-001', agreementValue: 1000000, gstAmount: 50000, stampDuty: 60000, registrationCharges: 30000,
   carParkingCharges: 0, bookingAmount: 100000, bookingDate: at('2026-01-05'), parkingPodiumLevel: null, parkingFloor: null, parkingNumber: null, tenant: null,
-  project: { companyName: 'Neev', companyAddress: 'Pune', companyGstin: null, name: 'Sea View', reraNumber: null, tdsRatePercent: 1 },
+  project: { company: { name: 'Neev', address: 'Pune', gstin: null, panNumber: 'AAAPL1234C' }, name: 'Sea View', reraNumber: null, tdsRatePercent: 1 },
   unit: { floor: { floorNumber: 2, wing: { name: 'A' } }, unitNumber: 'A-201', configuration: '2BHK', carpetAreaSqft: 750 },
   buyers: [
     { fullName: 'Asha', address: 'x', panNumber: 'ABCDE1234F', aadhaarNumber: null, email: 'a@x.com', whatsappNumber: null, isPrimary: true },

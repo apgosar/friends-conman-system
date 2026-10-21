@@ -48,6 +48,7 @@ The cost of breaking this is paid later and in bulk: a hand-styled button here, 
 | A mobile / WhatsApp number (starts with +91, any country allowed) | `PhoneField` (bare: `PhoneInput`); check with `normalizePhone`, show with `formatPhone` | `src/components/ui/Field.tsx`, `src/lib/phone.ts` |
 | Show a validation error where the user is looking | pass `error` to the field, then `scrollToFirstInvalid()`; for a one-off check `highlightField(id)`. A danger `Alert` and the browser's own validation scroll and highlight by themselves | `src/lib/client/forms.ts`, `FormEffects.tsx` |
 | Change or read a project's payment plans (milestones + % per sale type and unit type, one default each) | `savePaymentPlan` / `deletePaymentPlan`; rules and labels in `lib/payment-plans.ts` | `src/lib/payment-plan-store.ts`, `src/lib/payment-plans.ts` |
+| Company details and partners (a project picks a company; a sale agreement names 2 partners) | `CompanySchema` / `PartnerSchema` / `checkAgreementPartners`; writes through `company-store`; the picker is `AgreementPartnerPicker` | `src/lib/companies.ts`, `src/lib/company-store.ts`, `src/components/sales/AgreementPartnerPicker.tsx` |
 | A − / + counter for a small whole number (car parks...) | `Stepper` | `src/components/ui/Stepper.tsx` |
 | Show field labels as the placeholder / on the border (like the new-sale form) | wrap the form in `.form-floating`; the fields themselves are unchanged | `src/styles/components.css` |
 | Show "page failed" / "not found" | `ErrorState` | `src/components/ui/ErrorState.tsx` |

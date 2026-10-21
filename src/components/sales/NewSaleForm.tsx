@@ -7,7 +7,9 @@ import { DEFAULT_PRICING, GST_RATE_OPTIONS, computeCharges, gstOn, type PricingC
 import { percentOf, round2 } from '@/lib/money'
 import { PHONE_ERROR, normalizePhone } from '@/lib/phone'
 import { wingLabel } from '@/lib/building-structure'
-import { SALE_TYPE_LABEL, UNIT_TYPE_LABEL, comboLabel, plansFor, schemeOf, unitTypeOfCategory, type PlanSaleType, type PlanSummary } from '@/lib/payment-plans'
+import { checkAgreementPartners } from '@/lib/companies'
+import AgreementPartnerPicker, { defaultPartnerIds, type PartnerChoice } from './AgreementPartnerPicker'
+import { BOOKING_LABEL, SALE_TYPE_LABEL, UNIT_TYPE_LABEL, comboLabel, plansFor, schemeOf, unitTypeOfCategory, type PlanSaleType, type PlanSummary } from '@/lib/payment-plans'
 import { scrollToFirstInvalid } from '@/lib/client/forms'
 
 // Tax and pricing rules come from the selected project's settings (see lib/pricing.ts)
@@ -41,11 +43,11 @@ function formatAadhaar(value: string) {
   return digits.replace(/(\d{4})(?=\d)/g, '$1 ').trim()
 }
 
-type PlanOption = PlanSummary & { items: { milestoneId: string; name: string; sequence: number; percentOfAV: number; status: string }[] }
+type PlanOption = PlanSummary & { bookingPercent: number; items: { milestoneId: string; name: string; sequence: number; percentOfAV: number; status: string }[] }
 type ParkingSlot = { podium: string; floor: string; number: string }
 type Buyer = { fullName: string; panNumber: string; aadhaarNumber: string; address: string; email: string; whatsappNumber: string }
 // principalAmount already includes stamp duty + registration for the plinth row
-type ScheduleRow = { milestoneId: string; description: string; principalAmount: number; gstAmount: number; isPlinth?: boolean; sequence: number; percentOfAV?: number }
+type ScheduleRow = { milestoneId: string; description: string; principalAmount: number; gstAmount: number; isPlinth?: boolean; isBooking?: boolean; sequence: number; percentOfAV?: number }
 
 const emptyBuyer = (): Buyer => ({ fullName: '', panNumber: '', aadhaarNumber: '', address: '', email: '', whatsappNumber: '' })
 
@@ -129,6 +131,11 @@ export default function NewSaleWizard({ projects, prefill = null, preselect = nu
   // Step 3 state
   const [createdSaleId, setCreatedSaleId] = useState('')
   const [generatedDoc, setGeneratedDoc] = useState<any>(null)
+  // The partners named in the agreement: chosen on this step (all of them when there are no more than an agreement names)
+  const agreementPartners: PartnerChoice[] = selectedProject?.partners ?? []
+  const [partnerChoice, setPartnerChoice] = useState<string[] | null>(null)
+  const partnerIds = partnerChoice ?? defaultPartnerIds(agreementPartners)
+  const [partnerError, setPartnerError] = useState('')
   const [generating, setGenerating] = useState(false)
 
   // ── Buyer helpers ────────────────────────────────────────
@@ -176,7 +183,11 @@ export default function NewSaleWizard({ projects, prefill = null, preselect = nu
   // booking amount and for milestones already completed, plus stamp duty / registration and parking rows
   const buildSchedule = (plan: PlanOption | null): ScheduleRow[] => {
     // The milestones and percentages come from the chosen payment plan
-    const milestones = (plan?.items ?? []).map((i) => ({ id: i.milestoneId, name: i.name, sequence: i.sequence, percentOfAV: i.percentOfAV, status: i.status }))
+    // The booking comes first: it is not a construction milestone and is demanded the moment the sale is created. The plan's milestones follow
+    const milestones = [
+      { id: '', name: BOOKING_LABEL, sequence: 0, percentOfAV: plan?.bookingPercent ?? 0, status: 'UPCOMING', isBooking: true },
+      ...(plan?.items ?? []).map((i) => ({ id: i.milestoneId, name: i.name, sequence: i.sequence, percentOfAV: i.percentOfAV, status: i.status, isBooking: false })),
+    ]
 
     // Find the possession milestone for car parking
     const possessionMilestone = milestones.find((m: any) =>
@@ -241,6 +252,7 @@ export default function NewSaleWizard({ projects, prefill = null, preselect = nu
           principalAmount: basePrincipal,
           gstAmount: gstAmt,
           isPlinth: false,
+          isBooking: m.isBooking,
           sequence: m.sequence,
           percentOfAV: pct,
         })
@@ -340,6 +352,7 @@ export default function NewSaleWizard({ projects, prefill = null, preselect = nu
         buyers: buyers.map((b, i) => ({ ...b, whatsappNumber: normalizePhone(b.whatsappNumber).ok ? (normalizePhone(b.whatsappNumber) as { value: string | null }).value ?? '' : '', isPrimary: i === 0, sequence: i + 1 })),
         paymentSchedules: schedules.filter(s => s.principalAmount > 0).map(s => ({
           milestoneId: s.milestoneId || undefined,
+          isBooking: s.isBooking || undefined,
           description: s.description,
           principalAmount: s.principalAmount,  // already includes stamp duty + reg for plinth row
           gstAmount: s.gstAmount,
@@ -357,11 +370,14 @@ export default function NewSaleWizard({ projects, prefill = null, preselect = nu
 
   // ── Step 3: Generate agreement ───────────────────────────
   const generateAgreement = async () => {
+    const problem = checkAgreementPartners(agreementPartners.map((p) => p.id), partnerIds)
+    setPartnerError(problem ?? '')
+    if (problem) { scrollToFirstInvalid(); return }
     setGenerating(true)
     setError('')
     try {
       const docType = saleType === 'FRESH' ? 'SALE_AGREEMENT' : 'PAAA'
-      const data = await fetchJson('/api/documents/generate', jsonRequest('POST', { saleId: createdSaleId, type: docType }))
+      const data = await fetchJson('/api/documents/generate', jsonRequest('POST', { saleId: createdSaleId, type: docType, partnerIds }))
       setGeneratedDoc(data.data)
     } catch (err) {
       setError(errorMessage(err))
@@ -728,6 +744,7 @@ export default function NewSaleWizard({ projects, prefill = null, preselect = nu
               <p className="text-muted mb-8">
                 The sale has been recorded with all {schedules.length} payment milestones. Now generate the agreement document.
               </p>
+              <AgreementPartnerPicker partners={agreementPartners} value={partnerIds} error={partnerError} onChange={(ids) => { setPartnerError(''); setPartnerChoice(ids) }} />
               <Button
                 type="button"
                 size="lg" variant="primary"

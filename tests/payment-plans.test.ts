@@ -5,7 +5,8 @@ import {
 
 const plan = (over: Record<string, unknown> = {}) => ({
   name: '20/80', saleType: 'FRESH', unitType: 'RESIDENTIAL', isDefault: true,
-  items: [{ name: 'Booking', percentOfAV: 20 }, { name: 'Possession', percentOfAV: 80 }],
+  bookingPercent: 20,
+  items: [{ name: 'Plinth', percentOfAV: 30 }, { name: 'Possession', percentOfAV: 50 }],
   ...over,
 })
 
@@ -67,20 +68,33 @@ describe('PaymentPlanSchema', () => {
 
   it('accepts a plan that adds up to 100', () => {
     expect(PaymentPlanSchema.safeParse(plan()).success).toBe(true)
-    expect(PaymentPlanSchema.safeParse(plan({ items: [{ name: 'A', percentOfAV: '20' }, { name: 'B', percentOfAV: '30' }, { name: 'C', percentOfAV: '50' }] })).success).toBe(true)
+    expect(PaymentPlanSchema.safeParse(plan({ bookingPercent: 0, items: [{ name: 'A', percentOfAV: '20' }, { name: 'B', percentOfAV: '30' }, { name: 'C', percentOfAV: '50' }] })).success).toBe(true)
   })
 
   it('rejects a plan that does not add up to 100', () => {
-    expect(message(plan({ items: [{ name: 'A', percentOfAV: 20 }, { name: 'B', percentOfAV: 70 }] }))).toMatch(/add up to 100/)
-    expect(message(plan({ items: [{ name: 'A', percentOfAV: 60 }, { name: 'B', percentOfAV: 60 }] }))).toMatch(/add up to 100/)
+    expect(message(plan({ bookingPercent: 0, items: [{ name: 'A', percentOfAV: 20 }, { name: 'B', percentOfAV: 70 }] }))).toMatch(/add up to 100/)
+    expect(message(plan({ bookingPercent: 0, items: [{ name: 'A', percentOfAV: 60 }, { name: 'B', percentOfAV: 60 }] }))).toMatch(/add up to 100/)
   })
 
   it('rejects a missing name, an empty plan, a zero percentage and a repeated milestone', () => {
     expect(message(plan({ name: '  ' }))).toMatch(/plan name/)
     expect(message(plan({ items: [] }))).toMatch(/at least one milestone/)
-    expect(message(plan({ items: [{ name: 'A', percentOfAV: 0 }, { name: 'B', percentOfAV: 100 }] }))).toMatch(/above 0/)
-    expect(message(plan({ items: [{ name: 'A', percentOfAV: 50 }, { name: ' a ', percentOfAV: 50 }] }))).toMatch(/twice/)
-    expect(message(plan({ items: [{ name: '', percentOfAV: 100 }] }))).toMatch(/milestone/)
+    expect(message(plan({ bookingPercent: 0, items: [{ name: 'A', percentOfAV: 0 }, { name: 'B', percentOfAV: 100 }] }))).toMatch(/above 0/)
+    expect(message(plan({ bookingPercent: 0, items: [{ name: 'A', percentOfAV: 50 }, { name: ' a ', percentOfAV: 50 }] }))).toMatch(/twice/)
+    expect(message(plan({ bookingPercent: 0, items: [{ name: '', percentOfAV: 100 }] }))).toMatch(/milestone/)
+  })
+
+  it('counts the booking towards the 100%', () => {
+    expect(PaymentPlanSchema.safeParse(plan({ bookingPercent: 10, items: [{ name: 'Plinth', percentOfAV: 90 }] })).success).toBe(true)
+    expect(message(plan({ bookingPercent: 20, items: [{ name: 'Plinth', percentOfAV: 100 }] }))).toMatch(/add up to 100/)
+    expect(message(plan({ bookingPercent: -5, items: [{ name: 'Plinth', percentOfAV: 105 }] }))).toMatch(/cannot be negative/)
+  })
+
+  it('does not accept the booking as a construction milestone as well', () => {
+    for (const name of ['Booking', ' token ', 'BOOKING']) {
+      expect(message(plan({ bookingPercent: 0, items: [{ name, percentOfAV: 100 }] })), name).toMatch(/booking is added to every plan/)
+    }
+    expect(PaymentPlanSchema.safeParse(plan({ bookingPercent: 0, items: [{ name: 'Booking balance', percentOfAV: 100 }] })).success).toBe(true)
   })
 
   it('rejects an unknown sale type or unit type', () => {

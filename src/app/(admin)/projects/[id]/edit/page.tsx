@@ -8,12 +8,13 @@ export default async function EditProjectPage(props: PageProps<'/projects/[id]/e
   const { id } = await props.params
   const project = await prisma.project.findUnique({ where: { id } })
   if (!project) notFound()
+  const companies = await prisma.company.findMany({ orderBy: { name: 'asc' }, select: { id: true, name: true } })
 
   return (
     <>
       <TopNav title="Edit Project" subtitle={project.name} />
       <div className="admin-content">
-        <EditProjectForm project={plain(project)} />
+        <EditProjectForm project={plain(project)} companies={companies} />
       </div>
     </>
   )

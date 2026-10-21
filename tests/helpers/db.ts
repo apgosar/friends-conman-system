@@ -28,10 +28,11 @@ const n = () => ++counter
 /** Minimal project > wing > floor > units tree, enough to attach sales to. */
 export async function seedProject(opts: { name?: string; units?: number } = {}) {
   const prisma = await getPrisma()
+  const company = await prisma.company.create({ data: { name: `Test Co ${n()}`, address: 'Somewhere', panNumber: 'AAAPL1234C' } })
   const project = await prisma.project.create({
     data: {
       name: opts.name ?? `Neev Heights ${n()}`,
-      address: 'Road 1', city: 'Mumbai', companyName: 'Test Co', companyAddress: 'Somewhere',
+      address: 'Road 1', city: 'Mumbai', companyId: company.id,
     },
   })
   const wing = await prisma.wing.create({ data: { projectId: project.id, name: 'A', totalFloors: 1 } })

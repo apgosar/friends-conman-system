@@ -29,6 +29,7 @@ export default async function NewSalePage(props: PageProps<'/sales/new'>) {
         }
       },
       tenants: true,
+      company: { select: { partners: { where: { isActive: true }, orderBy: { name: 'asc' }, select: { id: true, name: true } } } },
       paymentPlans: {
         orderBy: { name: 'asc' },
         include: { items: { orderBy: { sequence: 'asc' }, include: { milestone: { select: { id: true, name: true, status: true } } } } },
@@ -53,6 +54,7 @@ export default async function NewSalePage(props: PageProps<'/sales/new'>) {
       type: p.type,
       carParkingCharges: p.carParkingCharges,
       carParkingIncluded: p.carParkingIncluded,
+      partners: p.company.partners, // the active partners a sale agreement can name
       pricing: pricingFromProject(p),
       units,
       tenants: p.tenants.map(t => ({ id: t.id, name: t.name, oldFlatNumber: t.oldFlatNumber })),
@@ -63,6 +65,7 @@ export default async function NewSalePage(props: PageProps<'/sales/new'>) {
         saleType: plan.saleType,
         unitType: plan.unitType,
         isDefault: plan.isDefault,
+        bookingPercent: plan.bookingPercent,
         items: plan.items.map(i => ({ milestoneId: i.milestone.id, name: i.milestone.name, sequence: i.sequence, percentOfAV: i.percentOfAV, status: i.milestone.status })),
       }))
     }

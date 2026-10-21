@@ -97,5 +97,10 @@ export const piiExtension = Prisma.defineExtension({
       updateMany: ({ args, query }) => query({ ...args, data: protectRow(args.data) }),
       upsert: ({ args, query }) => query({ ...args, create: protectRow(args.create), update: protectRow(args.update) }),
     },
+    // A company's partners are people: their PAN is protected the same way (the company's own PAN is a business number and is not)
+    partner: {
+      create: ({ args, query }) => query({ ...args, data: protectRow(args.data) }),
+      update: ({ args, query }) => query({ ...args, data: protectRow(args.data) }),
+    },
   },
 })

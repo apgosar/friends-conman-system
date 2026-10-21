@@ -32,6 +32,7 @@ export default async function ProjectPaymentPlanPage(props: PageProps<'/projects
     saleType: p.saleType as PlanSaleType,
     unitType: p.unitType as PlanUnitType,
     isDefault: p.isDefault,
+    bookingPercent: p.bookingPercent,
     items: p.items.map((i) => ({ name: i.milestone.name, percentOfAV: i.percentOfAV })),
   }))
 

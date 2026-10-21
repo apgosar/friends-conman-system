@@ -71,13 +71,13 @@ export async function savePaymentPlan(tx: Tx, projectId: string, planId: string 
 
   let id: string
   if (existing) {
-    await tx.paymentPlan.update({ where: { id: existing.id }, data: { name: input.name, ...combo, isDefault } })
+    await tx.paymentPlan.update({ where: { id: existing.id }, data: { name: input.name, ...combo, isDefault, bookingPercent: input.bookingPercent } })
     await tx.paymentPlanItem.deleteMany({ where: { planId: existing.id } })
     await tx.paymentPlanItem.createMany({ data: items.map((i) => ({ ...i, planId: existing.id })) })
     id = existing.id
     if (!stayingInCombo) await promoteDefaultIfMissing(tx, projectId, existing.saleType, existing.unitType)
   } else {
-    const created = await tx.paymentPlan.create({ data: { projectId, name: input.name, ...combo, isDefault, items: { create: items } }, select: { id: true } })
+    const created = await tx.paymentPlan.create({ data: { projectId, name: input.name, ...combo, isDefault, bookingPercent: input.bookingPercent, items: { create: items } }, select: { id: true } })
     id = created.id
   }
   await resequenceMilestones(tx, projectId)

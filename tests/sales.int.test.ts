@@ -43,6 +43,38 @@ describeDb('creating a sale', () => {
     expect(sale.registrationCharges).toBe(30_000)
   })
 
+  it('sends the booking demand at once, due 15 days later, while the other instalments wait for their milestones', async () => {
+    const { createSale } = await import('@/lib/sales/create-sale')
+    const prisma = await getPrisma()
+    const user = await seedUser('ADMIN')
+    const { project, units } = await seedProject({ name: 'Booking Heights', units: 1 })
+    const plinth = await prisma.constructionMilestone.create({ data: { projectId: project.id, name: 'Plinth', sequence: 1 } })
+    const sale = await createSale(baseInput(project.id, units[0].id, {
+      paymentSchedules: [
+        { description: 'Booking', principalAmount: 1_000_000, gstAmount: 50_000, isBooking: true },
+        { description: 'Plinth', milestoneId: plinth.id, principalAmount: 9_000_000, gstAmount: 450_000 },
+      ],
+    }), user.id)
+
+    const schedules = await prisma.paymentSchedule.findMany({ where: { saleId: sale.id }, orderBy: { principalAmount: 'asc' } })
+    const [booking, later] = schedules
+    expect(booking).toMatchObject({ description: 'Booking', milestoneId: null, status: 'DUE' })
+    expect(booking.demandGeneratedDate).not.toBeNull()
+    // due 15 days after the sale is created (the demand itself goes out now)
+    const days = ((booking.dueDate?.getTime() ?? 0) - Date.now()) / 86_400_000
+    expect(days).toBeGreaterThan(14.9)
+    expect(days).toBeLessThan(15.1)
+    expect(later).toMatchObject({ description: 'Plinth', status: 'UPCOMING', demandGeneratedDate: null })
+
+    // The buyer is told about the booking demand (email and WhatsApp), with the demand letter and no architect certificate
+    const logs = await prisma.communicationLog.findMany({ where: { saleId: sale.id, type: 'DEMAND_LETTER' } })
+    expect(logs.map((l) => l.channel).sort()).toEqual(['EMAIL', 'WHATSAPP'])
+    expect(logs[0].messageContent).toMatch(/Thank you for booking unit/)
+    expect(logs[0].messageContent).toMatch(/towards the booking amount/)
+    expect(JSON.stringify(logs[0].attachments)).toContain('demand-letter')
+    expect(JSON.stringify(logs[0].attachments)).not.toContain('Architect')
+  })
+
   it('lets exactly one of several simultaneous bookings of the same unit through', async () => {
     const { createSale, SaleError } = await import('@/lib/sales/create-sale')
     const user = await seedUser('ADMIN')

@@ -2,7 +2,9 @@
 
 import { useState, useEffect, useCallback, use } from 'react'
 import TopNav from '@/components/layout/TopNav'
-import { Alert, Badge, Button, ButtonLink, Card, CardHeader, EmptyState, PageHeader, Spinner, StatusBadge, Table, Td, useConfirm, useToast } from '@/components/ui'
+import { Alert, Badge, Button, ButtonLink, Card, CardHeader, EmptyState, Modal, PageHeader, Spinner, StatusBadge, Table, Td, useConfirm, useToast } from '@/components/ui'
+import AgreementPartnerPicker, { type PartnerChoice } from '@/components/sales/AgreementPartnerPicker'
+import { AGREEMENT_PARTNERS, checkAgreementPartners, namesPartners } from '@/lib/companies'
 import { errorMessage, fetchJson, jsonRequest } from '@/lib/client/api'
 import { formatDate } from '@/lib/format'
 
@@ -16,6 +18,7 @@ export default function SaleDocumentsPage(props: { params: Promise<{ id: string 
   const [loading, setLoading] = useState(true)
   const [loadError, setLoadError] = useState('')
   const [generating, setGenerating] = useState<string | null>(null)
+  const [partnerAsk, setPartnerAsk] = useState<{ type: string; ids: string[]; error: string } | null>(null)
 
   const fetchDocuments = useCallback(async () => {
     try {
@@ -32,10 +35,12 @@ export default function SaleDocumentsPage(props: { params: Promise<{ id: string 
 
   useEffect(() => { fetchDocuments() }, [fetchDocuments])
 
-  const handleGenerate = async (type: string) => {
+  const partners: PartnerChoice[] = sale?.project?.company?.partners ?? []
+
+  const generate = async (type: string, partnerIds?: string[]) => {
     setGenerating(type)
     try {
-      await fetchJson('/api/documents/generate', jsonRequest('POST', { saleId: id, type }))
+      await fetchJson('/api/documents/generate', jsonRequest('POST', { saleId: id, type, ...(partnerIds ? { partnerIds } : {}) }))
       toast.success('Document generated')
       fetchDocuments()
     } catch (err) {
@@ -43,6 +48,26 @@ export default function SaleDocumentsPage(props: { params: Promise<{ id: string 
     } finally {
       setGenerating(null)
     }
+  }
+
+  // A sale agreement names two of the company's partners: ask which, unless there is nothing to choose
+  const handleGenerate = (type: string) => {
+    if (!namesPartners(type)) return generate(type)
+    if (partners.length > AGREEMENT_PARTNERS) {
+      const last = documents.find((d) => d.type === type)?.partnerIds ?? [] // start from the partners of the last agreement
+      setPartnerAsk({ type, ids: last.filter((pid: string) => partners.some((p) => p.id === pid)), error: '' })
+      return
+    }
+    return generate(type, partners.map((p) => p.id))
+  }
+
+  const confirmPartners = async () => {
+    if (!partnerAsk) return
+    const problem = checkAgreementPartners(partners.map((p) => p.id), partnerAsk.ids)
+    if (problem) { setPartnerAsk({ ...partnerAsk, error: problem }); return }
+    const { type, ids } = partnerAsk
+    setPartnerAsk(null)
+    await generate(type, ids)
   }
 
   const handleDeleteDocument = async (docId: string) => {
@@ -142,6 +167,22 @@ export default function SaleDocumentsPage(props: { params: Promise<{ id: string 
           </Card>
         </div>
       </div>
+
+      {partnerAsk && (
+        <Modal
+          title={partnerAsk.type === 'PAAA' ? 'Generate PAAA' : 'Generate Sale Agreement'}
+          subtitle={`Choose ${AGREEMENT_PARTNERS} partners to name in it`}
+          onClose={() => setPartnerAsk(null)}
+          footer={
+            <>
+              <Button onClick={() => setPartnerAsk(null)}>Cancel</Button>
+              <Button variant="primary" onClick={confirmPartners}>Generate</Button>
+            </>
+          }
+        >
+          <AgreementPartnerPicker partners={partners} value={partnerAsk.ids} error={partnerAsk.error} onChange={(ids) => setPartnerAsk({ ...partnerAsk, ids, error: '' })} />
+        </Modal>
+      )}
     </>
   )
 }

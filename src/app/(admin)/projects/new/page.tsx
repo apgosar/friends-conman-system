@@ -1,9 +1,10 @@
 'use client'
 
-import { useState, FormEvent } from 'react'
+import { useEffect, useState, FormEvent } from 'react'
 import { useRouter } from 'next/navigation'
 import TopNav from '@/components/layout/TopNav'
 import PricingFields from '@/components/projects/PricingFields'
+import CompanyField from '@/components/projects/CompanyField'
 import { Alert, Button, SelectField, TextField, TextareaField } from '@/components/ui'
 import { errorMessage, fetchJson, jsonRequest } from '@/lib/client/api'
 
@@ -11,6 +12,10 @@ export default function NewProjectPage() {
   const router = useRouter()
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
+  const [companies, setCompanies] = useState<{ id: string; name: string }[] | null>(null)
+  useEffect(() => {
+    fetchJson('/api/companies').then((json) => setCompanies(json.data)).catch((err) => setError(errorMessage(err)))
+  }, [])
 
   async function handleSubmit(e: FormEvent<HTMLFormElement>) {
     e.preventDefault()
@@ -52,18 +57,14 @@ export default function NewProjectPage() {
                 <TextField label="Expected Completion" name="expectedCompletion" type="date" />
               </div>
               <div className="divider" />
-              <h4 className="mb-4">Company / Developer Details</h4>
-              <div className="grid grid-2 gap-4 mb-4">
-                <TextField label="Company Name" name="companyName" required placeholder="Your company's registered name" />
-                <TextField label="GSTIN" name="companyGstin" placeholder="27AAAAA0000A1Z5" />
-              </div>
+              <h4 className="mb-4">Company</h4>
+              {companies && <CompanyField companies={companies} />}
               <h4 className="mt-2 mb-1">Tax and pricing</h4>
               <p className="form-hint mb-3">Defaults suit Maharashtra. Change them if this project&apos;s state or year differs; you can edit them later.</p>
               <PricingFields />
-              <TextareaField label="Company Address" wrapperClassName="mb-6" name="companyAddress" required placeholder="Office No. 501, XYZ Building..." rows={3} />
               <div className="flex justify-end gap-3">
                 <Button type="button" variant="secondary" onClick={() => router.back()}>Cancel</Button>
-                <Button type="submit" variant="primary" disabled={loading} id="create-project-btn">
+                <Button type="submit" variant="primary" disabled={loading || !companies || companies.length === 0} id="create-project-btn">
                   {loading ? 'Creating...' : 'Create Project'}
                 </Button>
               </div>
