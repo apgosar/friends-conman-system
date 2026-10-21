@@ -67,6 +67,7 @@ The cost of breaking this is paid later and in bulk: a hand-styled button here, 
 | Number a sale or receipt | `nextSaleNumber`, `nextReceiptNumber` | `src/lib/numbering.ts` |
 | Show or use a PAN / Aadhaar number | `maskedPan`, `maskedAadhaar`, `revealPii` | `src/lib/pii.ts` |
 | Build the data for a document | `buildSalePayload` / `buildDemandPayload` / `buildReceiptPayload` | `src/lib/documents/payload.ts` |
+| Sale agreement PAYABLES (MCGM charge per sq ft, common area charge, fixed amounts) | `agreementPayables` | `src/lib/documents/payables.ts` |
 | Turn HTML into a PDF | `renderHtmlToPdf` | `src/lib/pdf/renderer.ts` |
 | Log something | `logger` | `src/lib/logger.ts` |
 | Rate limit an endpoint | `rateLimit` helpers | `src/lib/rate-limit.ts` |

@@ -1,4 +1,5 @@
 import { describe, it, expect } from 'vitest'
+import { agreementPayables, COMMON_AREA_CHARGE_RESIDENTIAL } from '@/lib/documents/payables'
 import { buildDemandPayload, buildReceiptPayload, buildSalePayload, pickDemand } from '@/lib/documents/payload'
 
 const at = (d: string) => new Date(d)
@@ -69,5 +70,53 @@ describe('receipts', () => {
   })
   it('falls back to a short receipt number built from the payment id', () => {
     expect(buildReceiptPayload(sale, { ...first, receiptNumber: null } as any, sale.paymentSchedules[0]).receipt.number).toBe('REC-P1')
+  })
+})
+
+describe('sale agreement figures', () => {
+  const paid = [
+    { id: 'p1', amount: 40000, gstPaid: 2000, paymentDate: at('2026-02-01'), createdAt: at('2026-02-01'), bankName: 'HDFC', referenceNumber: 'U1', deletedAt: null },
+    { id: 'p0', amount: 30000, gstPaid: 1500, paymentDate: at('2026-01-10'), createdAt: at('2026-01-10'), bankName: 'ICICI', referenceNumber: 'C2', deletedAt: null },
+    { id: 'px', amount: 99999, gstPaid: 0, paymentDate: at('2026-03-01'), createdAt: at('2026-03-01'), bankName: 'X', referenceNumber: 'DEL', deletedAt: at('2026-03-02') },
+  ]
+  const flat: any = {
+    ...sale, carParkingCount: 2, unit: { ...sale.unit, category: 'FLAT' },
+    paymentSchedules: [schedule({ id: 'a', description: 'Booking', principalAmount: 70000, gstAmount: 3500, payments: paid }), ...sale.paymentSchedules.slice(1)],
+  }
+  const p = buildSalePayload(flat)
+
+  it('lists every buyer on one line and marks the last', () => {
+    expect(p.buyerNames).toBe('Asha and Ravi')
+    expect(p.buyers.map((b) => b.hasNext)).toEqual([true, false])
+    expect(p.buyer1Email).toBe('a@x.com')
+  })
+  it('counts recorded payments (not deleted ones) as the advance and lists them oldest first', () => {
+    expect(p.advancePaid).toBe('70,000.00')
+    expect(p.receivedTotal).toBe('73,500.00')
+    expect(p.receipts.map((r) => [r.bank, r.reference, r.amount])).toEqual([['ICICI', 'C2', '31,500.00'], ['HDFC', 'U1', '42,000.00']])
+    expect(p.balanceAfterAdvance).toBe('9,30,000.00')
+    expect(p.balancePayable).toBe('9,20,000.00') // less the 10,000 TDS
+  })
+  it('has no receipt rows when nothing is paid', () => {
+    expect(buildSalePayload({ ...flat, paymentSchedules: sale.paymentSchedules.slice(1) }).receipts).toEqual([])
+  })
+  it('keeps charges out of the instalment table and numbers the rest', () => {
+    expect(p.instalments.map((r) => [r.index, r.description])).toEqual([[1, 'Booking'], [2, 'Plinth']])
+  })
+  it('works out the payables: 600 a sq ft, and the common area charge only for homes', () => {
+    expect(p).toMatchObject({ unitKind: 'Flat', premisesType: 'Residential', hasParking: true, mcgmCharges: 'Rs. 4,50,000/-', commonAreaCharges: 'Rs. 1,00,000/-' })
+    const shop = buildSalePayload({ ...flat, unit: { ...flat.unit, category: 'SHOP' }, carParkingCount: 0 })
+    expect(shop).toMatchObject({ unitKind: 'Shop', premisesType: 'Commercial', hasParking: false, commonAreaCharges: 'Nil' })
+    expect(agreementPayables(750, false).total - agreementPayables(750, true).total).toBe(COMMON_AREA_CHARGE_RESIDENTIAL)
+  })
+})
+
+describe('demand letter position', () => {
+  it('shows the demand as a share of the price and what is still to pay', () => {
+    const paid = [{ id: 'p', amount: 100000, gstPaid: 5000, paymentDate: at('2026-01-06'), createdAt: at('2026-01-06'), deletedAt: null }]
+    const s: any = { ...sale, paymentSchedules: [schedule({ id: 'a', description: 'Booking', principalAmount: 100000, gstAmount: 5000, payments: paid }), sale.paymentSchedules[1]] }
+    expect(buildDemandPayload(s, s.paymentSchedules[1]).payment).toMatchObject({
+      percentOfAV: '35%', receivedTillDate: '1,00,000.00', totalOutstanding: '9,00,000.00', gstOutstanding: '17,500.00',
+    })
   })
 })

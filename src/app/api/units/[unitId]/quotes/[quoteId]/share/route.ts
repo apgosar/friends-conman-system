@@ -93,7 +93,7 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ uni
       const result = await sendWhatsApp({
         to: mobile,
         message: `Quotation for ${project.name} — ${unitLabel}. Total ${formatCurrency(inquiry.totalCost)}. Valid until ${validText}.`,
-        templateName: 'demands_and_receipts',
+        templateName: 'quotation_share',
         templateLanguage: 'en',
         documentHeaderUrl: docUrl.includes('localhost') ? undefined : docUrl,
         documentHeaderFilename: filename,
@@ -102,11 +102,9 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ uni
           project.name,                               // {{2}} project
           inquiry.unit.unitNumber,                    // {{3}} unit
           inquiry.unit.configuration,                 // {{4}} configuration
-          'Property Quotation',                       // {{5}} purpose
-          'Quotation',                                // {{6}} document type
-          formatNumber(inquiry.totalCost),  // {{7}} amount
-          `Valid until ${validText}`,                 // {{8}} additional info
-          process.env.COMPANY_NAME || 'Neev CMS',     // {{9}} sender
+          formatNumber(inquiry.totalCost),            // {{5}} total cost
+          validText,                                  // {{6}} valid until
+          process.env.COMPANY_NAME || 'Neev CMS',     // {{7}} sender
         ],
       })
       results.push({ channel: 'WHATSAPP', ok: true, detail: result.status === 'simulated' ? 'simulated (WhatsApp not configured)' : undefined })
