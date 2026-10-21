@@ -29,9 +29,10 @@ export async function POST(req: NextRequest) {
         'Sea View Heights',                   // {{2}} Project Name
         'A-101',                              // {{3}} Unit Number
         '2 BHK',                              // {{4}} Configuration
-        'Demand Letter - Test',               // {{5}} Document Type
-        '1,00,000',                           // {{6}} Amount
-        'Due Date: 31/07/2026',               // {{7}} Additional Info
+        'Plinth Completion',                  // {{5}} Purpose
+        'Demand Letter',                      // {{6}} Document Type
+        '1,00,000',                           // {{7}} Amount
+        'Due Date: 31/07/2026',               // {{8}} Additional Info
         process.env.COMPANY_NAME || 'Neev CMS', // {{9}} Company Name
       ],
     })
