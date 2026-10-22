@@ -1,7 +1,7 @@
 // The UI kit. Import from '@/components/ui' so every screen uses the same implementation of each piece.
 export { cn } from './cn'
 export { Button, ButtonLink, type ButtonProps, type ButtonVariant, type ButtonSize } from './Button'
-export { Input, Select, Textarea, TextField, PhoneField, PhoneInput, SelectField, TextareaField, CheckboxField } from './Field'
+export { Input, Select, Textarea, TextField, PhoneField, PhoneInput, SelectField, TextareaField, CheckboxField, RadioGroupField, SwitchField } from './Field'
 export { FormEffects } from './FormEffects'
 export { Modal, type ModalProps, type ModalSize } from './Modal'
 export { Alert, type AlertVariant } from './Alert'

@@ -13,6 +13,7 @@
 import { prisma } from '@/lib/db'
 import { sendEmail } from '@/lib/email'
 import { sendWhatsApp } from '@/lib/whatsapp'
+import { whatsappDigits } from '@/lib/phone'
 import { internalAuthHeaders } from '@/lib/internal-auth'
 import { publishPublicCopy } from '@/lib/storage/files'
 import { escapeHtml } from '@/lib/html-escape'
@@ -322,7 +323,7 @@ async function sendClaimed(logId: string): Promise<DispatchResult> {
           : 'Please pay at the earliest to avoid interest charges.'
       }
 
-      const cleanPhone = phone.replace(/\D/g, '')
+      const cleanPhone = whatsappDigits(phone) // with the country code: Meta accepts a bare 10-digit number but never delivers it
 
       // Send the approved template with the PDF attached as a document header.
       // NOTE: This requires the demands_and_receipts template to have a DOCUMENT header

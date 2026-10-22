@@ -14,6 +14,8 @@ import { plain } from '@/lib/plain'
 import { maskedAadhaar, maskedPan } from '@/lib/pii'
 import { isAnonymized } from '@/lib/dpdp-compliance'
 import AnonymizeBuyerButton from '@/components/sales/AnonymizeBuyerButton'
+import BuyerCard from '@/components/sales/BuyerCard'
+import { SCHEDULE_ORDER } from '@/lib/payment-plans'
 import { Badge, ButtonLink, Card, CardHeader, PageHeader, StatusBadge } from '@/components/ui'
 
 async function getSale(id: string) {
@@ -25,7 +27,7 @@ async function getSale(id: string) {
       buyers: { orderBy: { sequence: 'asc' } },
       paymentSchedules: {
         include: { milestone: true, payments: true },
-        orderBy: { createdAt: 'asc' },
+        orderBy: SCHEDULE_ORDER,
       },
       documents: { orderBy: { createdAt: 'desc' } },
       communicationLogs: {
@@ -46,17 +48,22 @@ export default async function SaleDetailPage(props: PageProps<'/sales/[id]'>) {
 
   const session = await auth()
   const isSuperAdmin = can(session?.user?.role, 'superadmin')
+  const canEditSale = can(session?.user?.role, 'admin')
 
   const livePayments = sale.paymentSchedules.flatMap((s) => s.payments.filter((p) => !p.deletedAt))
   const principalPaid = livePayments.reduce((a, p) => a + Number(p.amount), 0)
   const gstReceived = livePayments.reduce((a, p) => a + Number(p.gstPaid ?? 0), 0)
-  const principalDue = sale.paymentSchedules.reduce((sum, s) => sum + Number(s.principalAmount), 0)
-  const gstDue = sale.paymentSchedules.reduce((sum, s) => sum + Number(s.gstAmount ?? 0), 0)
+  // What the sale comes to in all, and what has actually fallen due so far (demands still upcoming are not due yet)
+  const saleTotal = sale.paymentSchedules.reduce((sum, s) => sum + Number(s.principalAmount) + Number(s.gstAmount ?? 0), 0)
+  const raised = sale.paymentSchedules.filter((s) => s.status !== 'UPCOMING')
+  const principalDue = raised.reduce((sum, s) => sum + Number(s.principalAmount), 0)
+  const gstDue = raised.reduce((sum, s) => sum + Number(s.gstAmount ?? 0), 0)
   const totalPaid = principalPaid + gstReceived
   const totalDue = principalDue + gstDue
   // The rate this sale was actually charged at (the project's rate may have changed since)
   const gstRateLabel = Number(sale.agreementValue) > 0 ? `${formatNumber((Number(sale.gstAmount) / Number(sale.agreementValue)) * 100)}%` : '—'
-  const paidPct = totalDue > 0 ? Math.round((totalPaid / totalDue) * 100) : 0
+  const outstanding = Math.max(0, totalDue - totalPaid)
+  const paidPct = totalDue > 0 ? Math.min(100, Math.round((totalPaid / totalDue) * 100)) : 0
 
   return (
     <>
@@ -76,7 +83,6 @@ export default async function SaleDetailPage(props: PageProps<'/sales/[id]'>) {
           subtitle={`${sale.unit.floor.wing.name} Wing, Floor ${sale.unit.floor.floorNumber} · ${sale.unit.configuration} · ${sale.unit.carpetAreaSqft.toString()} sqft`}
           actions={
             <>
-              <ButtonLink href={`/sales/${id}/kyc`}>KYC</ButtonLink>
               <ButtonLink href={`/sales/${id}/documents`}>Documents</ButtonLink>
               <ButtonLink href={`/sales/${id}/payments`} variant="primary">Payments</ButtonLink>
               {isSuperAdmin && <DeleteSaleButton saleId={id} />}
@@ -88,22 +94,16 @@ export default async function SaleDetailPage(props: PageProps<'/sales/[id]'>) {
           <CardHeader title={`Buyers (${sale.buyers.length})`} />
           <div className="grid grid-auto gap-4">
             {sale.buyers.map((buyer) => (
-              <div key={buyer.id} className="detail-tile">
-                <div className="flex items-center justify-between gap-2 mb-2">
-                  <div className="font-semibold">{buyer.fullName}</div>
-                  <div className="flex gap-2">
-                    {buyer.isPrimary && <Badge variant="primary">Primary</Badge>}
-                    {buyer.receiveComms && <Badge variant="success">Comms On</Badge>}
-                  </div>
-                </div>
-                <div className="text-sm text-muted">
-                  {buyer.email && <div>✉ {buyer.email}</div>}
-                  {buyer.whatsappNumber && <div>📱 {buyer.whatsappNumber}</div>}
-                  {buyer.panNumber && <div>PAN: {maskedPan(buyer.panNumber)}</div>}
-                  {buyer.aadhaarNumber && <div>Aadhaar: {maskedAadhaar(buyer.aadhaarNumber)}</div>}
-                </div>
-                {isSuperAdmin && !isAnonymized(buyer.fullName) && <div className="mt-2"><AnonymizeBuyerButton buyerId={buyer.id} buyerName={buyer.fullName} /></div>}
-              </div>
+              <BuyerCard
+                key={buyer.id}
+                canEdit={canEditSale && !isAnonymized(buyer.fullName)}
+                buyer={{
+                  id: buyer.id, fullName: buyer.fullName, email: buyer.email, whatsappNumber: buyer.whatsappNumber, address: buyer.address,
+                  isPrimary: buyer.isPrimary, receiveComms: buyer.receiveComms,
+                  maskedPan: buyer.panNumber ? maskedPan(buyer.panNumber) : null, maskedAadhaar: buyer.aadhaarNumber ? maskedAadhaar(buyer.aadhaarNumber) : null,
+                }}
+                footer={isSuperAdmin && !isAnonymized(buyer.fullName) ? <AnonymizeBuyerButton buyerId={buyer.id} buyerName={buyer.fullName} /> : undefined}
+              />
             ))}
           </div>
         </Card>
@@ -117,11 +117,12 @@ export default async function SaleDetailPage(props: PageProps<'/sales/[id]'>) {
                 [`GST (${gstRateLabel})`, formatCurrency(Number(sale.gstAmount))],
                 ['Stamp Duty', sale.stampDuty ? formatCurrency(Number(sale.stampDuty)) : '—'],
                 ['Reg. Charges', sale.registrationCharges ? formatCurrency(Number(sale.registrationCharges)) : '—'],
+                ['Total', formatCurrency(saleTotal), 'kv-row-total'],
                 ['Booking Date', formatDate(sale.bookingDate)],
                 ['Agreement Date', sale.agreementDate ? formatDate(sale.agreementDate) : 'Pending'],
                 ['Handover Date', sale.possessionDate ? formatDate(sale.possessionDate) : 'Pending'],
-              ].map(([label, value]) => (
-                <div key={label} className="kv-row"><span className="kv-label">{label}</span><span className="kv-value">{value}</span></div>
+              ].map(([label, value, rowClass]) => (
+                <div key={label} className={rowClass ? `kv-row ${rowClass}` : 'kv-row'}><span className="kv-label">{label}</span><span className="kv-value">{value}</span></div>
               ))}
             </div>
           </Card>
@@ -129,7 +130,7 @@ export default async function SaleDetailPage(props: PageProps<'/sales/[id]'>) {
           <Card>
             <CardHeader title="Payment Summary" />
             <div className="kv-list mb-3">
-              <div className="kv-row"><span>Total Collected</span><span className="kv-value text-success">{formatCurrency(totalPaid)}</span></div>
+              <div className="kv-row"><span>Payments Done</span><span className="kv-value text-success">{formatCurrency(totalPaid)}</span></div>
               <div className="kv-row kv-row-sub"><span>Principal</span><span className="kv-value">{formatCurrency(principalPaid)}</span></div>
               <div className="kv-row kv-row-sub"><span>GST</span><span className="kv-value">{formatCurrency(gstReceived)}</span></div>
               <div className="kv-row"><span>Total Due</span><span className="kv-value">{formatCurrency(totalDue)}</span></div>
@@ -137,13 +138,13 @@ export default async function SaleDetailPage(props: PageProps<'/sales/[id]'>) {
               <div className="kv-row kv-row-sub"><span>GST</span><span className="kv-value">{formatCurrency(gstDue)}</span></div>
               <div className="kv-row">
                 <span>Outstanding</span>
-                <span className={`kv-value ${totalDue - totalPaid > 0 ? 'text-danger' : 'text-success'}`}>{formatCurrency(Math.max(0, totalDue - totalPaid))}</span>
+                <span className={`kv-value ${outstanding > 0 ? 'text-danger' : 'text-success'}`}>{formatCurrency(outstanding)}</span>
               </div>
             </div>
-            <div className="progress-bar" role="progressbar" aria-valuenow={paidPct} aria-valuemin={0} aria-valuemax={100} aria-label="Share of the total paid">
+            <div className="progress-bar" role="progressbar" aria-valuenow={paidPct} aria-valuemin={0} aria-valuemax={100} aria-label="Share of the amount due that is paid">
               <div className="progress-fill" style={{ width: `${Math.min(100, paidPct)}%` }} />
             </div>
-            <div className="text-right text-sm text-muted mt-1">{paidPct}% paid</div>
+            <div className="text-right text-sm text-muted mt-1">{paidPct}% of the amount due is paid</div>
           </Card>
         </div>
 

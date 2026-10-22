@@ -1,4 +1,5 @@
 import { prisma } from '@/lib/db'
+import { SCHEDULE_ORDER } from '@/lib/payment-plans'
 
 /** What the document builders (payload.ts) need loaded for a sale. */
 export const saleForDocument = {
@@ -6,7 +7,7 @@ export const saleForDocument = {
   unit: { include: { floor: { include: { wing: true } } } },
   buyers: true,
   tenant: true,
-  paymentSchedules: { orderBy: { createdAt: 'asc' }, include: { milestone: true, payments: true } },
+  paymentSchedules: { orderBy: SCHEDULE_ORDER, include: { milestone: true, payments: true } },
 } as const
 
 export const loadSaleForDocument = (saleId: string) => prisma.sale.findUnique({ where: { id: saleId }, include: saleForDocument })

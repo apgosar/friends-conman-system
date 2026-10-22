@@ -74,20 +74,20 @@ export async function recordPayment(input: RecordPaymentInput, actorId: string) 
       data: { status: fullyPaid ? 'PAID' : OVERDUE_SCHEDULE_STATUSES.includes(schedule.status) ? schedule.status : 'PARTIALLY_PAID' },
     })
 
-    // Receipt to the primary buyer, on the channels they have details for, if they agreed to be contacted
-    const buyer = (await tx.buyer.findFirst({ where: { saleId: input.saleId, isPrimary: true } })) ?? (await tx.buyer.findFirst({ where: { saleId: input.saleId } }))
-    if (buyer && buyer.receiveComms) {
-      const description = sanitizeInline(schedule.description) || 'Milestone Payment'
-      const total = rupees(principal + gst).replace(/\.00$/, '')
+    // Receipt to every buyer who agreed to be contacted, on the channels they have details for
+    const buyers = await tx.buyer.findMany({ where: { saleId: input.saleId, receiveComms: true }, orderBy: { sequence: 'asc' } })
+    const description = sanitizeInline(schedule.description) || 'Milestone Payment'
+    const total = rupees(principal + gst).replace(/\.00$/, '')
+    const logs: Prisma.CommunicationLogCreateManyInput[] = []
+    for (const buyer of buyers) {
       const { messageContent, attachments } = buildCommContent(
         `Dear ${sanitizeInline(buyer.fullName) || 'Customer'},\nThank you for your payment of ₹${total} towards ${description}. We have successfully received the amount. Please find your official receipt attached.\n\nMILESTONE: ${description}`,
         [{ label: 'Receipt', path: `/api/documents/preview/receipt?paymentId=${payment.id}` }],
       )
-      const logs: Prisma.CommunicationLogCreateManyInput[] = []
       if (buyer.email) logs.push({ saleId: input.saleId, buyerId: buyer.id, channel: 'EMAIL', type: 'RECEIPT', messageContent, attachments, status: 'PENDING' })
       if (buyer.whatsappNumber) logs.push({ saleId: input.saleId, buyerId: buyer.id, channel: 'WHATSAPP', type: 'RECEIPT', messageContent, attachments, status: 'PENDING' })
-      if (logs.length > 0) await tx.communicationLog.createMany({ data: logs })
     }
+    if (logs.length > 0) await tx.communicationLog.createMany({ data: logs })
 
     await syncSaleLifecycle(input.saleId, tx)
 

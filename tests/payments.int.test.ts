@@ -81,6 +81,31 @@ describeDb('recording payments', () => {
     expect(await prisma.communicationLog.count()).toBe(0)
   })
 
+  it('sends the receipt to every buyer who agreed to be contacted, not only the primary one', async () => {
+    const { recordPayment } = await import('@/lib/payments/record-payment')
+    const { prisma, user, sale, schedule } = await setup()
+    await prisma.buyer.create({ data: { saleId: sale.id, fullName: 'Ravi Rao', email: 'ravi@example.com', whatsappNumber: '9876500000', sequence: 2, receiveComms: true } })
+    await prisma.buyer.create({ data: { saleId: sale.id, fullName: 'Opted Out', email: 'no@example.com', whatsappNumber: '9876511111', sequence: 3, receiveComms: false } })
+    await recordPayment(pay({ scheduleId: schedule.id, saleId: sale.id, amount: 50 }), user.id)
+    const logs = await prisma.communicationLog.findMany({ where: { saleId: sale.id }, include: { buyer: true } })
+    expect(logs.map((l) => `${l.buyer?.fullName}:${l.channel}`).sort()).toEqual(['Asha Rao:EMAIL', 'Asha Rao:WHATSAPP', 'Ravi Rao:EMAIL', 'Ravi Rao:WHATSAPP'])
+  })
+
+  it('keeps the demands of a sale in the same order after one of them is paid', async () => {
+    const { recordPayment } = await import('@/lib/payments/record-payment')
+    const { SCHEDULE_ORDER } = await import('@/lib/payment-plans')
+    const { prisma, user, sale, schedule } = await setup()
+    const at = new Date('2026-01-01T00:00:00Z')
+    await prisma.paymentSchedule.deleteMany({ where: { saleId: sale.id } })
+    const created = await prisma.paymentSchedule.createManyAndReturn({
+      data: ['First', 'Second', 'Third'].map((description) => ({ saleId: sale.id, description, principalAmount: 100, gstAmount: 0, status: 'DUE', createdAt: at })),
+    })
+    await recordPayment(pay({ scheduleId: created[0].id, saleId: sale.id, amount: 10 }), user.id) // updates the first row
+    const rows = await prisma.paymentSchedule.findMany({ where: { saleId: sale.id }, orderBy: SCHEDULE_ORDER })
+    expect(rows.map((r) => r.description)).toEqual(['First', 'Second', 'Third'])
+    void schedule
+  })
+
   it('refuses a payment against a cancelled sale', async () => {
     const { recordPayment } = await import('@/lib/payments/record-payment')
     const { prisma, user, sale, schedule } = await setup()

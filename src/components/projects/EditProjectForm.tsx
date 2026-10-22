@@ -5,7 +5,7 @@ import { useRouter } from 'next/navigation'
 import BackToProject from '@/components/projects/BackToProject'
 import PricingFields from '@/components/projects/PricingFields'
 import CompanyField from '@/components/projects/CompanyField'
-import { Alert, Button, ButtonLink, Input, SelectField, TextField, TextareaField } from '@/components/ui'
+import { Alert, Button, ButtonLink, Input, RadioGroupField, SelectField, TextField, TextareaField } from '@/components/ui'
 import { errorMessage, fetchJson, jsonRequest } from '@/lib/client/api'
 
 export default function EditProjectForm({ project, companies }: { project: any; companies: { id: string; name: string }[] }) {
@@ -13,6 +13,8 @@ export default function EditProjectForm({ project, companies }: { project: any; 
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
   const [success, setSuccess] = useState('')
+  const [parkingPricing, setParkingPricing] = useState(project.carParkingIncluded ? 'INCLUDED' : 'SEPARATE')
+  const parkingIncluded = parkingPricing === 'INCLUDED'
 
   const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault()
@@ -37,8 +39,9 @@ export default function EditProjectForm({ project, companies }: { project: any; 
       regParkingCharges: form.get('regParkingCharges'),
       tdsRatePercent: form.get('tdsRatePercent'),
       interestRatePercent: form.get('interestRatePercent'),
-      carParkingCharges: Number(form.get('carParkingCharges')),
-      carParkingIncluded: form.get('carParkingIncluded') === 'INCLUDED',
+      // A greyed-out box is not part of the form: keep the charge that is saved
+      carParkingCharges: parkingIncluded ? Number(project.carParkingCharges ?? 500000) : Number(form.get('carParkingCharges')),
+      carParkingIncluded: parkingIncluded,
     }
     const launchDate = form.get('launchDate')
     const expectedCompletion = form.get('expectedCompletion')
@@ -92,7 +95,15 @@ export default function EditProjectForm({ project, companies }: { project: any; 
 
           <PricingFields values={project} />
 
-          <div className="grid grid-3 gap-4 mb-6">
+          <div className="grid grid-2 gap-4 mb-6">
+            <RadioGroupField
+              label="Car parking pricing"
+              name="carParkingIncluded"
+              value={parkingPricing}
+              onChange={setParkingPricing}
+              options={[{ value: 'SEPARATE', label: 'Charged separately' }, { value: 'INCLUDED', label: 'Included in the agreement value' }]}
+              hint="Included means new sales carry no parking amount"
+            />
             <div className="form-group">
               <label className="form-label" htmlFor="carParkingCharges">Car Parking Charges (₹)</label>
               <Input
@@ -101,13 +112,10 @@ export default function EditProjectForm({ project, companies }: { project: any; 
                 type="number"
                 step="1000"
                 defaultValue={project.carParkingCharges ?? 500000}
+                disabled={parkingIncluded}
               />
-              <span className="form-hint">Per car park. Used when a new sale has parking charged separately</span>
+              <span className="form-hint">{parkingIncluded ? 'Not used: parking is included in the agreement value' : 'Per car park. Used when a new sale has parking charged separately'}</span>
             </div>
-            <SelectField label="Car parking pricing" name="carParkingIncluded" defaultValue={project.carParkingIncluded ? 'INCLUDED' : 'SEPARATE'} hint="Included means new sales carry no parking amount">
-              <option value="SEPARATE">Charged separately</option>
-              <option value="INCLUDED">Included in the agreement value</option>
-            </SelectField>
           </div>
 
           <div className="flex justify-end gap-3">

@@ -3,6 +3,7 @@ import { notFound } from 'next/navigation'
 import TopNav from '@/components/layout/TopNav'
 import PaymentScheduleRow from '@/components/sales/PaymentScheduleRow'
 import { plain } from '@/lib/plain'
+import { SCHEDULE_ORDER } from '@/lib/payment-plans'
 import { ButtonLink, Card, EmptyState, PageHeader, Table } from '@/components/ui'
 
 export default async function SalePaymentsPage(props: PageProps<'/sales/[id]/payments'>) {
@@ -13,7 +14,7 @@ export default async function SalePaymentsPage(props: PageProps<'/sales/[id]/pay
       unit: true,
       paymentSchedules: {
         include: { milestone: true, payments: true },
-        orderBy: { createdAt: 'asc' }
+        orderBy: SCHEDULE_ORDER
       }
     }
   })

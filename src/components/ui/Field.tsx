@@ -128,6 +128,49 @@ export const TextareaField = forwardRef<HTMLTextAreaElement, TextareaHTMLAttribu
   )
 })
 
+/** A choice of one out of a few, as radio buttons (use instead of a drop-down when there are only two or three options). */
+export function RadioGroupField({ label, name, value, onChange, options, hint, wrapperClassName }: {
+  label: ReactNode
+  name: string
+  value: string
+  onChange: (value: string) => void
+  options: { value: string; label: ReactNode }[]
+  hint?: ReactNode
+  wrapperClassName?: string
+}) {
+  const id = useId()
+  return (
+    <div className={cn('form-group', wrapperClassName)} role="radiogroup" aria-labelledby={`${id}-label`}>
+      <span className="form-label" id={`${id}-label`}>{label}</span>
+      <div className="flex gap-3 wrap">
+        {options.map((o) => (
+          <label key={o.value} className={cn('radio-card', value === o.value && 'is-selected')}>
+            <input type="radio" name={name} value={o.value} checked={value === o.value} onChange={() => onChange(o.value)} />
+            {o.label}
+          </label>
+        ))}
+      </div>
+      {hint && <span className="form-hint">{hint}</span>}
+    </div>
+  )
+}
+
+/** An on/off switch, green when on and red when off, with a word for each state beside it ("Communication On" / "Communication Off"). */
+export const SwitchField = forwardRef<HTMLInputElement, Omit<InputHTMLAttributes<HTMLInputElement>, 'type'> & { onLabel: string; offLabel: string }>(function SwitchField(
+  { onLabel, offLabel, id, className, checked, ...rest },
+  ref,
+) {
+  const auto = useId()
+  const fieldId = id ?? auto
+  return (
+    <label className={cn('switch-field', className)} htmlFor={fieldId}>
+      <input ref={ref} id={fieldId} type="checkbox" role="switch" className="switch-input" checked={checked} {...rest} />
+      <span className="switch-track" aria-hidden="true" />
+      <span className={checked ? 'switch-text-on' : 'switch-text-off'}>{checked ? onLabel : offLabel}</span>
+    </label>
+  )
+})
+
 export const CheckboxField = forwardRef<HTMLInputElement, Omit<InputHTMLAttributes<HTMLInputElement>, 'type'> & { label: ReactNode; hint?: ReactNode }>(function CheckboxField(
   { label, hint, id, className, ...rest },
   ref,

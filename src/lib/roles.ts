@@ -22,7 +22,7 @@ export const ROLE_BADGES: Record<Role, string> = {
 export const ROLE_DESCRIPTIONS: Record<Role, string> = {
   SUPER_ADMIN: 'Everything, including users, settings, audit log and deleting sales',
   ADMIN: 'Create and edit projects, sales, payments, documents and communications',
-  SALES: 'View projects and sales, upload KYC documents',
+  SALES: 'View projects and sales, work with sale documents',
   VIEWER: 'Read-only access to projects and sales',
 }
 

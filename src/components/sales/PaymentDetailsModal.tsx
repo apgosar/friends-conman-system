@@ -4,10 +4,16 @@ import { Button, Modal, StatusBadge } from '@/components/ui'
 import { formatCurrency, formatDate } from '@/lib/format'
 import { paymentModeLabel } from '@/lib/status'
 
+type Money = { amount: unknown; gstPaid?: unknown }
+
 /** What was due and what was received for one demand, with a link to each receipt. Used on both payment screens. */
 export default function PaymentDetailsModal({ schedule, onClose }: { schedule: any; onClose: () => void }) {
   const live = (schedule.payments ?? []).filter((p: any) => !p.deletedAt)
-  const received = live.reduce((a: number, p: any) => a + Number(p.amount) + Number(p.gstPaid ?? 0), 0)
+  const principalReceived = live.reduce((a: number, p: Money) => a + Number(p.amount), 0)
+  const gstReceived = live.reduce((a: number, p: Money) => a + Number(p.gstPaid ?? 0), 0)
+  const received = principalReceived + gstReceived
+  const principalBalance = Math.max(Number(schedule.principalAmount) - principalReceived, 0)
+  const gstBalance = Math.max(Number(schedule.gstAmount ?? 0) - gstReceived, 0)
 
   return (
     <Modal title="Payment Details" onClose={onClose} footer={<Button onClick={onClose}>Close</Button>}>
@@ -17,7 +23,12 @@ export default function PaymentDetailsModal({ schedule, onClose }: { schedule: a
         <div className="kv-row"><span className="kv-label">Due Date</span><span className="kv-value font-medium">{schedule.dueDate ? formatDate(schedule.dueDate) : 'On milestone'}</span></div>
         <div className="kv-row"><span className="kv-label">Principal Amount</span><span className="kv-value font-medium">{formatCurrency(Number(schedule.principalAmount))}</span></div>
         <div className="kv-row"><span className="kv-label">GST Amount</span><span className="kv-value font-medium">{formatCurrency(Number(schedule.gstAmount ?? 0))}</span></div>
+        <div className="kv-row"><span className="kv-label">Principal Received</span><span className="kv-value text-success">{formatCurrency(principalReceived)}</span></div>
+        <div className="kv-row"><span className="kv-label">GST Received</span><span className="kv-value text-success">{formatCurrency(gstReceived)}</span></div>
         <div className="kv-row"><span className="kv-label">Total Received</span><span className="kv-value text-success">{formatCurrency(received)}</span></div>
+        <div className="kv-row"><span className="kv-label">Principal Balance</span><span className={principalBalance > 0 ? 'kv-value font-medium text-danger' : 'kv-value font-medium'}>{formatCurrency(principalBalance)}</span></div>
+        <div className="kv-row"><span className="kv-label">GST Balance</span><span className={gstBalance > 0 ? 'kv-value font-medium text-danger' : 'kv-value font-medium'}>{formatCurrency(gstBalance)}</span></div>
+        <div className="kv-row"><span className="kv-label">Total Balance</span><span className={principalBalance + gstBalance > 0 ? 'kv-value font-bold text-danger' : 'kv-value font-bold'}>{formatCurrency(principalBalance + gstBalance)}</span></div>
       </div>
 
       {live.length > 0 && (

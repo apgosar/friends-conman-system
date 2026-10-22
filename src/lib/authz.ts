@@ -8,7 +8,7 @@ import { type Role, normalizeRole } from '@/lib/roles'
 export const PERMISSIONS = {
   /** Any signed-in user. */
   any: ['SUPER_ADMIN', 'ADMIN', 'SALES', 'VIEWER'],
-  /** Anyone who works with customers: may see KYC files and upload documents. Not read-only viewers. */
+  /** Anyone who works with customers: may work with a sale's documents. Not read-only viewers. */
   staff: ['SUPER_ADMIN', 'ADMIN', 'SALES'],
   /** Create / change business records: projects, sales, payments, documents, communications, reports. */
   admin: ['SUPER_ADMIN', 'ADMIN'],
@@ -31,7 +31,7 @@ const PAGE_RULES: ReadonlyArray<readonly [RegExp, Permission]> = [
   [/^\/(reports|communications|escalations|documents|companies)(\/|$)/, 'admin'],
   [/^\/(sales|projects)\/new(\/|$)/, 'admin'],
   [/^\/projects\/[^/]+\/(edit|templates\/new|payment-plan)(\/|$)/, 'admin'],
-  [/^\/sales\/[^/]+\/(kyc|documents)(\/|$)/, 'staff'],
+  [/^\/sales\/[^/]+\/documents(\/|$)/, 'staff'],
   [/^\/account(\/|$)/, 'any'],
 ]
 

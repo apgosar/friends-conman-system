@@ -72,6 +72,9 @@ const percent = z.union([z.number(), z.string().trim().min(1).transform(Number)]
 )
 
 /** The booking is the first line of every plan: its demand goes out the moment a sale is created. It is not a construction milestone. */
+/** A sale's demands in the order they were set up. The id breaks ties (they are all created together), so a row never jumps when it is updated. */
+export const SCHEDULE_ORDER: ({ createdAt: 'asc' } | { id: 'asc' })[] = [{ createdAt: 'asc' }, { id: 'asc' }]
+
 export const BOOKING_LABEL = 'Booking'
 /** The booking amount is due this many days after the sale is created. */
 export const BOOKING_DUE_DAYS = 15

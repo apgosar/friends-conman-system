@@ -154,7 +154,7 @@ export async function createSale(input: SaleCreateInput, actorId: string) {
         saleId: newSale.id, fullName: b.fullName, email: b.email || null,
         whatsappNumber: b.whatsappNumber || null, panNumber: b.panNumber || null,
         aadhaarNumber: b.aadhaarNumber || null, address: b.address || null,
-        isPrimary: i === 0, sequence: i + 1, receiveComms: b.receiveComms !== false,
+        isPrimary: i === 0, sequence: i + 1, receiveComms: i === 0 || b.receiveComms !== false, // the primary buyer is always contacted
       })),
     })
     const commBuyers = await tx.buyer.findMany({ where: { saleId: newSale.id, receiveComms: true } })

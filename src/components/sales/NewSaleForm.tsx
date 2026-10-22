@@ -8,6 +8,7 @@ import { percentOf, round2 } from '@/lib/money'
 import { PHONE_ERROR, normalizePhone } from '@/lib/phone'
 import { wingLabel } from '@/lib/building-structure'
 import { checkAgreementPartners } from '@/lib/companies'
+import { formatAadhaar } from '@/lib/buyers'
 import AgreementPartnerPicker, { defaultPartnerIds, type PartnerChoice } from './AgreementPartnerPicker'
 import { BOOKING_LABEL, SALE_TYPE_LABEL, UNIT_TYPE_LABEL, comboLabel, plansFor, schemeOf, unitTypeOfCategory, type PlanSaleType, type PlanSummary } from '@/lib/payment-plans'
 import { scrollToFirstInvalid } from '@/lib/client/forms'
@@ -37,10 +38,6 @@ function validateEmail(email: string) {
 }
 function validatePhone(phone: string) {
   return normalizePhone(phone).ok ? '' : PHONE_ERROR
-}
-function formatAadhaar(value: string) {
-  const digits = value.replace(/\D/g, '').slice(0, 12)
-  return digits.replace(/(\d{4})(?=\d)/g, '$1 ').trim()
 }
 
 type PlanOption = PlanSummary & { bookingPercent: number; items: { milestoneId: string; name: string; sequence: number; percentOfAV: number; status: string }[] }

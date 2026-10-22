@@ -36,7 +36,7 @@ The cost of breaking this is paid later and in bulk: a hand-styled button here, 
 | I need to… | Use | File |
 |---|---|---|
 | Show a button / link that looks like a button | `Button`, `ButtonLink` | `src/components/ui/Button.tsx` |
-| Add a form field with label, hint and error | `TextField`, `SelectField`, `TextareaField`, `CheckboxField` (bare: `Input`, `Select`, `Textarea`) | `src/components/ui/Field.tsx` |
+| Add a form field with label, hint and error | `TextField`, `SelectField`, `TextareaField`, `CheckboxField`, `RadioGroupField` (one of two or three, as radio buttons), `SwitchField` (on/off, green/red) (bare: `Input`, `Select`, `Textarea`) | `src/components/ui/Field.tsx` |
 | Open a dialog | `Modal` | `src/components/ui/Modal.tsx` |
 | Tell the user something worked or failed | `useToast()` | `src/components/ui/Toast.tsx` |
 | Ask "are you sure?" | `useConfirm()` | `src/components/ui/Toast.tsx` |
