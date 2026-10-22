@@ -35,6 +35,12 @@ describe('PartnerSchema', () => {
     expect(PartnerSchema.safeParse({ name: '', address: '' }).success).toBe(false)
     expect(PartnerSchema.safeParse({ name: 'A', address: '', panNumber: 'nope' }).success).toBe(false)
   })
+  it('accepts its own output again: the screen parses, then the server parses what was sent', () => {
+    const once = PartnerSchema.parse({ name: 'A', address: '', panNumber: '' })
+    expect(PartnerSchema.parse(once)).toEqual(once)
+    const withPan = PartnerSchema.parse({ name: 'A', address: 'Pune', panNumber: 'abcde1234f' })
+    expect(PartnerSchema.parse(withPan)).toEqual(withPan)
+  })
 })
 
 describe('checkAgreementPartners', () => {

@@ -16,7 +16,10 @@ export const AGREEMENT_PARTNERS = 2
 
 const text = (label: string, max: number) => z.string().trim().min(1, `Enter ${label}`).max(max, `${label} is too long (maximum ${max} characters)`)
 // Left out = unchanged (an edit that does not touch the PAN); empty = no PAN
-const optionalPan = z.string().trim().toUpperCase().transform((v) => v || null).pipe(z.string().regex(PAN_PATTERN, PAN_ERROR).nullable()).optional()
+// null is accepted too: the screen sends back what it parsed, and an empty PAN is parsed to null
+const optionalPan = z.string().nullish()
+  .transform((v) => (v === undefined ? undefined : (v?.trim().toUpperCase() || null)))
+  .pipe(z.string().regex(PAN_PATTERN, PAN_ERROR).nullable().optional())
 
 export const CompanySchema = z.object({
   name: text('the company name', 200),
@@ -29,7 +32,7 @@ export type CompanyInput = z.infer<typeof CompanySchema>
 export const PartnerSchema = z.object({
   name: text('the partner name', 200),
   panNumber: optionalPan,
-  address: z.string().trim().max(500, 'The address is too long (maximum 500 characters)').transform((v) => v || null),
+  address: z.string().nullish().transform((v) => v?.trim() ?? '').pipe(z.string().max(500, 'The address is too long (maximum 500 characters)')).transform((v) => v || null),
   isActive: z.boolean().optional(),
 })
 export type PartnerInput = z.infer<typeof PartnerSchema>

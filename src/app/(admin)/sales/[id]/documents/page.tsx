@@ -50,10 +50,10 @@ export default function SaleDocumentsPage(props: { params: Promise<{ id: string 
     }
   }
 
-  // A sale agreement names two of the company's partners: ask which, unless there is nothing to choose
+  // A sale agreement names two of the company's partners: ask which, and warn when the company has fewer than two
   const handleGenerate = (type: string) => {
     if (!namesPartners(type)) return generate(type)
-    if (partners.length > AGREEMENT_PARTNERS) {
+    if (partners.length !== AGREEMENT_PARTNERS) {
       const last = documents.find((d) => d.type === type)?.partnerIds ?? [] // start from the partners of the last agreement
       setPartnerAsk({ type, ids: last.filter((pid: string) => partners.some((p) => p.id === pid)), error: '' })
       return
@@ -171,7 +171,7 @@ export default function SaleDocumentsPage(props: { params: Promise<{ id: string 
       {partnerAsk && (
         <Modal
           title={partnerAsk.type === 'PAAA' ? 'Generate PAAA' : 'Generate Sale Agreement'}
-          subtitle={`Choose ${AGREEMENT_PARTNERS} partners to name in it`}
+          subtitle={partners.length > AGREEMENT_PARTNERS ? `Choose ${AGREEMENT_PARTNERS} partners to name in it` : 'Check the partners before you generate it'}
           onClose={() => setPartnerAsk(null)}
           footer={
             <>

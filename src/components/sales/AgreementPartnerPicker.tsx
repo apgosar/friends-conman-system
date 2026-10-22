@@ -28,6 +28,7 @@ export default function AgreementPartnerPicker({ partners, value, onChange, erro
   }
 
   const choose = partners.length > AGREEMENT_PARTNERS
+  const tooFew = partners.length < AGREEMENT_PARTNERS
   const full = value.length >= AGREEMENT_PARTNERS
   const toggle = (id: string, on: boolean) => onChange(on ? [...value, id] : value.filter((v) => v !== id))
 
@@ -37,6 +38,11 @@ export default function AgreementPartnerPicker({ partners, value, onChange, erro
       <p className="text-sm text-muted mb-3">
         {choose ? `Choose ${AGREEMENT_PARTNERS} of the ${partners.length} partners to name in the agreement.` : `${partners.length === 1 ? 'This partner is' : 'These partners are'} named in the agreement.`}
       </p>
+      {tooFew && (
+        <Alert variant="warning" className="mb-3" title="Only one partner for this company">
+          The agreement names {AGREEMENT_PARTNERS} partners. Add the other under <Link href="/companies" className="text-brand">Companies</Link> to name them too.
+        </Alert>
+      )}
       <div className="flex dir-col gap-2">
         {partners.map((p, i) => (
           <CheckboxField
