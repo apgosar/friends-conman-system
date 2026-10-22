@@ -112,11 +112,22 @@ describe('sale agreement figures', () => {
 })
 
 describe('demand letter position', () => {
-  it('shows the demand as a share of the price and what is still to pay', () => {
-    const paid = [{ id: 'p', amount: 100000, gstPaid: 5000, paymentDate: at('2026-01-06'), createdAt: at('2026-01-06'), deletedAt: null }]
-    const s: any = { ...sale, paymentSchedules: [schedule({ id: 'a', description: 'Booking', principalAmount: 100000, gstAmount: 5000, payments: paid }), sale.paymentSchedules[1]] }
-    expect(buildDemandPayload(s, s.paymentSchedules[1]).payment).toMatchObject({
-      percentOfAV: '35%', receivedTillDate: '1,00,000.00', totalOutstanding: '9,00,000.00', gstOutstanding: '17,500.00',
+  const paid = [{ id: 'p', amount: 100000, gstPaid: 5000, paymentDate: at('2026-01-06'), createdAt: at('2026-01-06'), deletedAt: null }]
+  const booking: any = schedule({ id: 'a', description: 'Booking', principalAmount: 100000, gstAmount: 5000, status: 'PAID', payments: paid })
+  const plinth: any = schedule({ id: 'b', description: 'Plinth', principalAmount: 350000, gstAmount: 17500, status: 'DUE' })
+
+  it('with nothing unpaid before it, the outstanding is just this demand, principal and GST apart', () => {
+    const s: any = { ...sale, paymentSchedules: [booking, plinth, schedule({ id: 'c', description: 'Slab', principalAmount: 200000, gstAmount: 10000, status: 'UPCOMING' })] }
+    expect(buildDemandPayload(s, plinth).payment).toMatchObject({
+      percentOfAV: '35%', receivedTillDate: '1,00,000.00',
+      outstandingPrincipal: '3,50,000.00', outstandingGst: '17,500.00', totalOutstanding: '3,67,500.00', gstOutstanding: '17,500.00', previousOutstanding: '0.00',
+    }) // the upcoming slab is not counted
+  })
+  it('adds earlier unpaid demands to the outstanding', () => {
+    const earlier = schedule({ id: 'e', description: 'Plinth', principalAmount: 200000, gstAmount: 10000, status: 'OVERDUE_7' })
+    const s: any = { ...sale, paymentSchedules: [booking, earlier, plinth] }
+    expect(buildDemandPayload(s, plinth).payment).toMatchObject({
+      outstandingPrincipal: '5,50,000.00', outstandingGst: '27,500.00', totalOutstanding: '5,77,500.00', previousOutstanding: '2,10,000.00',
     })
   })
 })

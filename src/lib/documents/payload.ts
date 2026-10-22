@@ -179,18 +179,38 @@ const demandFigures = (s: Pick<Schedule, 'principalAmount' | 'gstAmount'>) => {
   return { principalAmount: formatMoney(s.principalAmount), gstAmount: formatMoney(s.gstAmount), totalDue: formatMoney(total), amountInWords: numberToWords(total) }
 }
 
-/** Where the buyer stands when a demand is raised: what the demand is of the price, what has been paid, and what is still to pay (price and GST separately). */
+/**
+ * Where the buyer stands when a demand is raised: what the demand is of the price, what has been paid, and what is
+ * still to pay, worked out as the sale page does it. What is due is every demand that is not still upcoming (and this
+ * one); what is outstanding is that, less what has been paid, with principal and GST apart. Earlier unpaid demands are
+ * therefore already in it, and with none the outstanding is just this demand.
+ */
 const demandPosition = (sale: SaleForDocument, schedule: Schedule) => {
   const agreement = Number(sale.agreementValue)
   const payments = sale.paymentSchedules.flatMap((ps) => ps.payments).filter((p) => !p.deletedAt)
   const paid = payments.reduce((total, p) => total + Number(p.amount), 0)
   const gstPaid = payments.reduce((total, p) => total + Number(p.gstPaid), 0)
-  const gstTotal = sale.paymentSchedules.reduce((total, ps) => total + Number(ps.gstAmount), 0)
+
+  const raised = sale.paymentSchedules.filter((ps) => ps.status !== 'UPCOMING' || ps.id === schedule.id)
+  const principalDue = raised.reduce((total, ps) => total + Number(ps.principalAmount), 0)
+  const gstDue = raised.reduce((total, ps) => total + Number(ps.gstAmount ?? 0), 0)
+  const outstandingPrincipal = Math.max(0, principalDue - paid)
+  const outstandingGst = Math.max(0, gstDue - gstPaid)
+  const outstanding = outstandingPrincipal + outstandingGst
+
+  // The part of it that belongs to this demand; the rest is carried over from earlier demands
+  const own = sale.paymentSchedules.find((ps) => ps.id === schedule.id)
+  const ownPaid = (own?.payments ?? []).filter((p) => !p.deletedAt).reduce((total, p) => total + Number(p.amount) + Number(p.gstPaid), 0)
+  const ownUnpaid = Math.max(0, Number(schedule.principalAmount) + Number(schedule.gstAmount ?? 0) - ownPaid)
+
   return {
     percentOfAV: `${agreement > 0 ? Number(((Number(schedule.principalAmount) / agreement) * 100).toFixed(2)) : 0}%`,
     receivedTillDate: formatMoney(paid),
-    totalOutstanding: formatMoney(agreement - paid),
-    gstOutstanding: formatMoney(gstTotal - gstPaid),
+    outstandingPrincipal: formatMoney(outstandingPrincipal),
+    outstandingGst: formatMoney(outstandingGst),
+    totalOutstanding: formatMoney(outstanding),
+    gstOutstanding: formatMoney(outstandingGst), // the same as outstandingGst, kept for templates that already use it
+    previousOutstanding: formatMoney(Math.max(0, outstanding - ownUnpaid)),
   }
 }
 

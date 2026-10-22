@@ -107,8 +107,11 @@ export const TAG_GROUPS: TagGroup[] = [
     { tag: 'payment.amountInWords', desc: 'Demand total in words', types: PAYMENT_DOCS },
     { tag: 'payment.percentOfAV', desc: 'Demand principal as % of the agreement value', types: ['DEMAND_LETTER'] },
     { tag: 'payment.receivedTillDate', desc: 'Principal paid so far', types: ['DEMAND_LETTER'] },
-    { tag: 'payment.totalOutstanding', desc: 'Agreement value still to pay', types: ['DEMAND_LETTER'] },
-    { tag: 'payment.gstOutstanding', desc: 'GST still to pay', types: ['DEMAND_LETTER'] },
+    { tag: 'payment.totalOutstanding', desc: 'Total outstanding (principal + GST): this demand plus any earlier unpaid demands, as in the sale page Payment Summary', types: ['DEMAND_LETTER'] },
+    { tag: 'payment.outstandingPrincipal', desc: 'Outstanding principal (this demand plus earlier unpaid demands)', types: ['DEMAND_LETTER'] },
+    { tag: 'payment.outstandingGst', desc: 'Outstanding GST (this demand plus earlier unpaid demands)', types: ['DEMAND_LETTER'] },
+    { tag: 'payment.gstOutstanding', desc: 'Same as payment.outstandingGst', types: ['DEMAND_LETTER'] },
+    { tag: 'payment.previousOutstanding', desc: 'Earlier unpaid demands carried over (0.00 when there are none)', types: ['DEMAND_LETTER'] },
   ] },
   { group: 'Receipt', tags: [
     { tag: 'receipt.number', desc: 'Receipt number', types: ['RECEIPT'] },
