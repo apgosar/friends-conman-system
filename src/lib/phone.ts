@@ -42,6 +42,25 @@ export function formatPhone(stored: string | null | undefined): string {
   return /^\d{10}$/.test(stored) ? `+91 ${stored}` : stored
 }
 
+/**
+ * Several numbers typed in one box (separated by commas, semicolons or new lines). Each must be a valid number; they are
+ * stored as one text, "9876543210, +14155550123". Blank is ok with value null.
+ */
+export function normalizePhoneList(input: string | null | undefined): PhoneResult {
+  const numbers: string[] = []
+  for (const part of (input ?? '').split(/[,;\n]+/).map((p) => p.trim()).filter(Boolean)) {
+    const phone = normalizePhone(part)
+    if (!phone.ok || !phone.value) return { ok: false }
+    if (!numbers.includes(phone.value)) numbers.push(phone.value)
+  }
+  return { ok: true, value: numbers.length > 0 ? numbers.join(', ') : null }
+}
+
+/** A stored list of numbers as people read it: "+91 9876543210, +91 9123456789". */
+export function formatPhoneList(stored: string | null | undefined): string {
+  return (stored ?? '').split(',').map((n) => formatPhone(n.trim())).filter(Boolean).join(', ')
+}
+
 /** Digits with the country code and no "+", the form WhatsApp wants: "919876543210". */
 export function whatsappDigits(stored: string): string {
   const digits = stored.replace(/\D/g, '')

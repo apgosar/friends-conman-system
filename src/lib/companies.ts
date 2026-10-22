@@ -1,4 +1,5 @@
 import { z } from 'zod'
+import { normalizePhoneList } from '@/lib/phone'
 
 /**
  * The developer company of an installation and its partners. Client-safe: the Companies screen, the project forms, the
@@ -21,11 +22,20 @@ const optionalPan = z.string().nullish()
   .transform((v) => (v === undefined ? undefined : (v?.trim().toUpperCase() || null)))
   .pipe(z.string().regex(PAN_PATTERN, PAN_ERROR).nullable().optional())
 
+/** The contact numbers box: one or several numbers, checked and tidied; blank is no numbers. */
+export const CONTACT_NUMBERS_ERROR = 'Enter valid mobile numbers, separated by commas'
+export const contactNumbers = z.string().nullish().transform((v, ctx) => {
+  const list = normalizePhoneList(v)
+  if (!list.ok) { ctx.addIssue({ code: 'custom', message: CONTACT_NUMBERS_ERROR }); return z.NEVER }
+  return list.value
+})
+
 export const CompanySchema = z.object({
   name: text('the company name', 200),
   panNumber: z.string().trim().toUpperCase().regex(PAN_PATTERN, PAN_ERROR),
   gstin: z.string().trim().toUpperCase().transform((v) => v || null).pipe(z.string().regex(GSTIN_PATTERN, GSTIN_ERROR).nullable()),
   address: text('the company address', 500),
+  contactNumbers: contactNumbers.optional(), // left out = unchanged
 })
 export type CompanyInput = z.infer<typeof CompanySchema>
 

@@ -8,6 +8,13 @@ import { logger } from '@/lib/logger'
  *   WHATSAPP_ACCESS_TOKEN     — permanent system user token from Meta Business Manager
  */
 
+/**
+ * The approved Meta templates the app sends. The body variables are filled in this order:
+ * {{1}} buyer, {{2}} project, {{3}} unit, {{4}} configuration, {{5}} purpose, {{6}} document type, {{7}} amount,
+ * {{8}} extra info, {{9}} company, {{10}} contact numbers. The header is a PDF.
+ */
+export const DEMAND_TEMPLATE = 'demands_and_receipts_v2'
+
 export interface WhatsAppMessage {
   to: string           // phone with country code, no +  e.g. "919876543210"
   message: string      // plain-text body (used as fallback / logging)

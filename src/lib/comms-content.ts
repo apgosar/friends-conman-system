@@ -16,6 +16,15 @@ export type CommAttachment = {
 
 export const ATTACHMENT_MARKER = 'ATTACHMENTS:'
 
+/**
+ * The address to open a document in the browser. A Word template would download as a .docx, so a generated document
+ * (receipt, demand letter) is asked for as a PDF, which the browser shows in the tab.
+ */
+export function pdfViewUrl(path: string): string {
+  if (!path.startsWith('/api/documents/preview/') || /[?&]format=/.test(path)) return path
+  return path + (path.includes('?') ? '&' : '?') + 'format=pdf'
+}
+
 /** Only these parts of this app may be attached to a message. */
 const ALLOWED_PATH_PREFIXES = ['/api/documents/preview/', '/api/files/', '/uploads/']
 

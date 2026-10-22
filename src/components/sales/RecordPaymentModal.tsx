@@ -6,7 +6,7 @@ import { Alert, Button, Modal, SelectField, TextField, TextareaField, useToast }
 import { errorMessage, fetchJson, jsonRequest } from '@/lib/client/api'
 import { formatCurrency } from '@/lib/format'
 import { fromPaise, round2, toPaise } from '@/lib/money'
-import { MODES_NEEDING_BANK, PAYMENT_MODES } from '@/lib/status'
+import { PAYMENT_MODES } from '@/lib/status'
 import { highlightField } from '@/lib/client/forms'
 
 /** What is still owed on a demand (live payments only), never below zero. */
@@ -129,7 +129,7 @@ export function RecordPaymentDialog({ schedules, saleId, initialScheduleId, onCl
           </SelectField>
         </div>
 
-        {MODES_NEEDING_BANK.includes(mode) && <TextField label="Bank Name" value={bankName} onChange={(e) => setBankName(e.target.value)} />}
+        <TextField label="Bank Name" placeholder="e.g. HDFC Bank" maxLength={100} value={bankName} onChange={(e) => setBankName(e.target.value)} />
         <TextField label="Reference Number" placeholder="e.g. UTR / Cheque No." value={referenceNumber} onChange={(e) => setReferenceNumber(e.target.value)} />
         <TextareaField label="Remark" placeholder="Optional remarks" value={remark} onChange={(e) => setRemark(e.target.value)} />
 

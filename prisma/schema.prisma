@@ -69,6 +69,8 @@ model Project {
   id                  String          @id @default(cuid())
   name                String
   reraNumber          String?
+  /// Overrides the company's contact numbers for this project (empty = use the company's)
+  contactNumbers      String?
   address             String
   city                String
   state               String          @default("Maharashtra")
@@ -534,6 +536,8 @@ model Company {
   panNumber String?
   gstin     String?
   address   String
+  /// Phone numbers buyers can call, as "+91 9876543210, +91 …"; a project may set its own
+  contactNumbers String?
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 

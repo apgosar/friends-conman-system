@@ -46,7 +46,8 @@ export async function POST(
     }
 
     const project = unit.floor.wing.project
-    const { stampDuty, gst, registration, totalCost } = computeQuoteCosts(agreementValue, !!parkingIncluded, project.carParkingCharges || 0)
+    const addParking = !!parkingIncluded && !project.carParkingIncluded // a project that includes parking in the agreement value has nothing to add
+    const { stampDuty, gst, registration, totalCost } = computeQuoteCosts(agreementValue, addParking, project.carParkingCharges || 0)
 
     // Update status to INQUIRY_RECEIVED if it's currently AVAILABLE
     if (unit.status === 'AVAILABLE') {
@@ -62,7 +63,7 @@ export async function POST(
         customerName,
         mobileNumber: phone.value,
         agreementValue,
-        parkingIncluded,
+        parkingIncluded: addParking,
         stampDuty,
         gst,
         registration,

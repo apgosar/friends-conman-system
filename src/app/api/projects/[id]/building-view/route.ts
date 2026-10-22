@@ -106,5 +106,5 @@ export const GET = route<{ id: string }>('any', async ({ params }) => {
       }),
     })),
   }))
-  return Response.json({ wings, projectParkingCharge: project.carParkingCharges, repeatMobiles })
+  return Response.json({ wings, projectParkingCharge: project.carParkingCharges, projectParkingIncluded: project.carParkingIncluded, repeatMobiles })
 })

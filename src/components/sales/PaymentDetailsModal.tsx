@@ -3,6 +3,7 @@
 import { Button, Modal, StatusBadge } from '@/components/ui'
 import { formatCurrency, formatDate } from '@/lib/format'
 import { paymentModeLabel } from '@/lib/status'
+import { pdfViewUrl } from '@/lib/comms-content'
 
 type Money = { amount: unknown; gstPaid?: unknown }
 
@@ -41,7 +42,7 @@ export default function PaymentDetailsModal({ schedule, onClose }: { schedule: a
                   <span className="font-semibold">{formatCurrency(Number(pmt.amount) + Number(pmt.gstPaid ?? 0))}</span>
                   <span className="row">
                     <span className="text-muted">{formatDate(pmt.paymentDate)}</span>
-                    <a href={`/api/documents/preview/receipt?paymentId=${pmt.id}`} target="_blank" rel="noreferrer" className="btn btn-secondary btn-xs">View Receipt</a>
+                    <a href={pdfViewUrl(`/api/documents/preview/receipt?paymentId=${pmt.id}`)} target="_blank" rel="noreferrer" className="btn btn-secondary btn-xs">View Receipt</a>
                   </span>
                 </div>
                 <div className="text-muted">

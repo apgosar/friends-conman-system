@@ -12,8 +12,8 @@
 
 import { prisma } from '@/lib/db'
 import { sendEmail } from '@/lib/email'
-import { sendWhatsApp } from '@/lib/whatsapp'
-import { whatsappDigits } from '@/lib/phone'
+import { DEMAND_TEMPLATE, sendWhatsApp } from '@/lib/whatsapp'
+import { formatPhoneList, whatsappDigits } from '@/lib/phone'
 import { internalAuthHeaders } from '@/lib/internal-auth'
 import { publishPublicCopy } from '@/lib/storage/files'
 import { escapeHtml } from '@/lib/html-escape'
@@ -263,7 +263,7 @@ async function sendClaimed(logId: string): Promise<DispatchResult> {
         ? await prisma.sale.findUnique({
             where: { id: log.sale.id },
             include: {
-              project: { select: { name: true } },
+              project: { select: { name: true, contactNumbers: true, company: { select: { contactNumbers: true } } } },
               unit: { select: { unitNumber: true, configuration: true } },
             },
           })
@@ -272,6 +272,9 @@ async function sendClaimed(logId: string): Promise<DispatchResult> {
       // ── Build all template parameters ──────────────────────────────────────
       // {{1}} Buyer Name
       const buyerName = buyer?.fullName ?? 'Valued Customer'
+
+      // {{10}} Contact numbers: the project's own, else the company's (a parameter cannot be empty)
+      const contactNumbers = formatPhoneList(saleDetails?.project?.contactNumbers ?? saleDetails?.project?.company?.contactNumbers) || 'our office'
 
       // {{2}} Project Name
       const projectName = saleDetails?.project?.name ?? 'Your Project'
@@ -326,13 +329,12 @@ async function sendClaimed(logId: string): Promise<DispatchResult> {
       const cleanPhone = whatsappDigits(phone) // with the country code: Meta accepts a bare 10-digit number but never delivers it
 
       // Send the approved template with the PDF attached as a document header.
-      // NOTE: This requires the demands_and_receipts template to have a DOCUMENT header
-      // component configured in Meta Business Manager. If the template has no header,
-      // omit documentHeaderUrl — the body text will still be delivered.
+      // NOTE: The template (DEMAND_TEMPLATE, see lib/whatsapp.ts) has a DOCUMENT header in Meta Business Manager,
+      // which carries the PDF. When no public link is available the header is left out.
       const result = await sendWhatsApp({
         to: cleanPhone,
         message: plainText,
-        templateName: 'demands_and_receipts',
+        templateName: DEMAND_TEMPLATE,
         templateLanguage: 'en',
         // Pass document as header only when URL is available and publicly accessible
         documentHeaderUrl: finalDocUrl,
@@ -347,6 +349,7 @@ async function sendClaimed(logId: string): Promise<DispatchResult> {
           amount,                                  // {{7}}
           additionalInfo,                          // {{8}}
           companyName(),                           // {{9}}
+          contactNumbers,                          // {{10}}
         ],
       })
 

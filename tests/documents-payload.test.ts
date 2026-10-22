@@ -120,3 +120,19 @@ describe('demand letter position', () => {
     })
   })
 })
+
+describe('payment banks', () => {
+  it('lists each bank once in paymentBankNames, leaving out blanks and deleted payments', () => {
+    const at2 = (d: string) => new Date(d)
+    const pays = [
+      { id: 'a', amount: 1, gstPaid: 0, paymentDate: at2('2026-02-01'), createdAt: at2('2026-02-01'), bankName: 'HDFC Bank', deletedAt: null },
+      { id: 'b', amount: 1, gstPaid: 0, paymentDate: at2('2026-02-02'), createdAt: at2('2026-02-02'), bankName: ' HDFC Bank ', deletedAt: null },
+      { id: 'c', amount: 1, gstPaid: 0, paymentDate: at2('2026-02-03'), createdAt: at2('2026-02-03'), bankName: 'ICICI Bank', deletedAt: null },
+      { id: 'd', amount: 1, gstPaid: 0, paymentDate: at2('2026-02-04'), createdAt: at2('2026-02-04'), bankName: null, deletedAt: null },
+      { id: 'e', amount: 1, gstPaid: 0, paymentDate: at2('2026-02-05'), createdAt: at2('2026-02-05'), bankName: 'Gone Bank', deletedAt: at2('2026-02-06') },
+    ]
+    const s: any = { ...sale, unit: { ...sale.unit, category: 'FLAT' }, carParkingCount: 0, paymentSchedules: [schedule({ payments: pays })] }
+    expect(buildSalePayload(s).paymentBankNames).toBe('HDFC Bank, ICICI Bank')
+    expect(buildSalePayload({ ...s, paymentSchedules: [schedule({})] }).paymentBankNames).toBe('')
+  })
+})

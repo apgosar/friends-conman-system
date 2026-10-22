@@ -16,6 +16,7 @@ export function QuoteModal({
   handleGenerateQuote,
   isSubmittingQuote,
   projectParkingCharge,
+  parkingInAgreement = false,
   existingInquiries = [],
 }: any) {
   if (!showQuoteForm || !selectedUnit) return null
@@ -30,15 +31,17 @@ export function QuoteModal({
     ? existingInquiries.filter((q: any) => q.mobileNumber === quotePhone.value)
     : []
 
-  const registration = quoteData.parkingIncluded ? 50000 : 30000
+  // When the project already includes parking in the agreement value there is nothing to add
+  const addParking = !parkingInAgreement && !!quoteData.parkingIncluded
+  const registration = addParking ? 50000 : 30000
   const rows: [string, string][] = [
     ['Agreement Value', formatRupees(agreement)],
-    ...(quoteData.parkingIncluded ? [['Parking Charges', formatRupees(projectParkingCharge)] as [string, string]] : []),
+    ...(addParking ? [['Parking Charges', formatRupees(projectParkingCharge)] as [string, string]] : []),
     ['Stamp Duty (6%)', formatRupees(agreement * 0.06)],
     ['GST (5%)', formatRupees(agreement * 0.05)],
     ['Registration', formatRupees(registration)],
   ]
-  const total = agreement + agreement * 0.11 + registration + (quoteData.parkingIncluded ? projectParkingCharge : 0)
+  const total = agreement + agreement * 0.11 + registration + (addParking ? projectParkingCharge : 0)
 
   return (
     <Modal
@@ -109,12 +112,14 @@ export function QuoteModal({
           />
         </div>
 
-        <CheckboxField
-          label="Include parking"
-          hint={`+₹${(projectParkingCharge / 100000).toFixed(1)}L`}
-          checked={quoteData.parkingIncluded}
-          onChange={(e) => set({ parkingIncluded: e.target.checked })}
-        />
+        {!parkingInAgreement && (
+          <CheckboxField
+            label="Include parking"
+            hint={`+₹${(projectParkingCharge / 100000).toFixed(1)}L`}
+            checked={quoteData.parkingIncluded}
+            onChange={(e) => set({ parkingIncluded: e.target.checked })}
+          />
+        )}
 
         {agreement > 0 && (
           <div className="panel kv-list" aria-label="Cost estimate">

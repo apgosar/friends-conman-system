@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest'
 import { CompanySchema, PartnerSchema, checkAgreementPartners, namesPartners } from '@/lib/companies'
 import { buildSalePayload } from '@/lib/documents/payload'
 import { findTagIssues } from '@/lib/template-tags'
+import { formatPhoneList } from '@/lib/phone'
 
 describe('CompanySchema', () => {
   const ok = { name: 'Paradigm Friends Realtors LLP', panNumber: 'aadcb2230m', gstin: '27aadcb2230m1z2', address: '45 Builder Tower, Mumbai' }
@@ -98,5 +99,19 @@ describe('partners in a document', () => {
     expect(issues('SALE_AGREEMENT')).toEqual({ unknown: [], wrongType: [], htmlSections: [] })
     expect(issues('DEMAND_LETTER').wrongType).toEqual(expect.arrayContaining(['partner1Name', 'partner2Name', 'partners']))
     expect(issues('RECEIPT').wrongType).toContain('partner1Name')
+  })
+})
+
+describe('contact numbers', () => {
+  const company = { name: 'Neev', panNumber: 'AAAPL1234C', gstin: '', address: 'Pune' }
+  it('are optional, checked one by one and tidied', () => {
+    expect(CompanySchema.parse(company).contactNumbers).toBeUndefined()
+    expect(CompanySchema.parse({ ...company, contactNumbers: '' }).contactNumbers).toBeNull()
+    expect(CompanySchema.parse({ ...company, contactNumbers: '98765 43210; +91 91234 56789\n9876543210' }).contactNumbers).toBe('9876543210, 9123456789')
+    expect(CompanySchema.safeParse({ ...company, contactNumbers: '98765, 12' }).success).toBe(false)
+  })
+  it('read back as people write them', () => {
+    expect(formatPhoneList('9876543210, +14155550123')).toBe('+91 9876543210, +14155550123')
+    expect(formatPhoneList(null)).toBe('')
   })
 })

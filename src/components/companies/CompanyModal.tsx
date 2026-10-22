@@ -12,6 +12,7 @@ export interface CompanyData {
   panNumber: string | null
   gstin: string | null
   address: string
+  contactNumbers: string | null
   projectCount: number
   partners: PartnerData[]
 }
@@ -19,7 +20,7 @@ export interface PartnerData { id: string; name: string; address: string | null;
 
 /** Add or edit a company: name, PAN, GSTIN and address. */
 export default function CompanyModal({ company, onClose, onSaved }: { company: CompanyData | null; onClose: () => void; onSaved: () => void }) {
-  const [f, setF] = useState({ name: company?.name ?? '', panNumber: company?.panNumber ?? '', gstin: company?.gstin ?? '', address: company?.address ?? '' })
+  const [f, setF] = useState({ name: company?.name ?? '', panNumber: company?.panNumber ?? '', gstin: company?.gstin ?? '', address: company?.address ?? '', contactNumbers: company?.contactNumbers ?? '' })
   const [errors, setErrors] = useState<Record<string, string>>({})
   const [error, setError] = useState('')
   const [saving, setSaving] = useState(false)
@@ -38,7 +39,7 @@ export default function CompanyModal({ company, onClose, onSaved }: { company: C
     }
     setSaving(true)
     try {
-      await fetchJson(company ? `/api/companies/${company.id}` : '/api/companies', jsonRequest(company ? 'PUT' : 'POST', parsed.data))
+      await fetchJson(company ? `/api/companies/${company.id}` : '/api/companies', jsonRequest(company ? 'PUT' : 'POST', f)) // what was typed: the server reads it as the screen did
       onSaved()
     } catch (err) {
       setError(errorMessage(err))
@@ -68,6 +69,7 @@ export default function CompanyModal({ company, onClose, onSaved }: { company: C
           <TextField label="GSTIN" value={f.gstin} maxLength={15} autoCapitalize="characters" error={errors.gstin || undefined} onChange={(e) => set('gstin', e.target.value.toUpperCase().replace(/[^A-Z0-9]/g, ''))} placeholder="27AAAAA0000A1Z5" />
         </div>
         <TextareaField label="Address" required rows={3} value={f.address} error={errors.address || undefined} onChange={(e) => set('address', e.target.value)} placeholder="Registered office address" />
+        <TextField label="Contact Numbers" value={f.contactNumbers} error={errors.contactNumbers || undefined} hint="Shown to buyers in WhatsApp demand letters and receipts. Separate several numbers with a comma. A project can use its own" onChange={(e) => set('contactNumbers', e.target.value)} placeholder="9876543210, 9123456789" />
       </form>
     </Modal>
   )

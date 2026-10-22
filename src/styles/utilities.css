@@ -197,3 +197,6 @@
 
 /* Grid children may shrink below their content, so wide content (code, tables) scrolls inside its card instead of stretching the page */
 .grid > * { min-width: 0; }
+
+/* The target of an in-page link (#section): stops a little below the top when scrolled to */
+.anchor-target { scroll-margin-top: var(--space-6); }

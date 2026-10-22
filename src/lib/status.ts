@@ -135,8 +135,6 @@ export const PAYMENT_MODES = [
 export type PaymentMode = (typeof PAYMENT_MODES)[number]['value']
 export const PAYMENT_MODE_VALUES = PAYMENT_MODES.map((m) => m.value) as unknown as readonly [PaymentMode, ...PaymentMode[]]
 export const paymentModeLabel = (mode: string) => PAYMENT_MODES.find((m) => m.value === mode)?.label ?? humanize(mode)
-/** Modes where the bank matters (cheque / draft). */
-export const MODES_NEEDING_BANK: readonly string[] = ['CHEQUE', 'DD']
 
 // ── Communications & documents ─────────────────────────────────────────────────
 

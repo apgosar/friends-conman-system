@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation'
 import { Alert, Badge, Button, Card, CardHeader, EmptyState, Table, Td, useConfirm, useToast } from '@/components/ui'
 import { errorMessage, fetchJson, jsonRequest } from '@/lib/client/api'
 import { AGREEMENT_PARTNERS } from '@/lib/companies'
+import { formatPhoneList } from '@/lib/phone'
 import CompanyModal, { type CompanyData, type PartnerData } from './CompanyModal'
 import PartnerModal from './PartnerModal'
 
@@ -86,7 +87,8 @@ export default function Companies({ companies }: { companies: CompanyData[] }) {
                 <div className="detail-tile"><div className="label-caps">GSTIN</div><div>{company.gstin ?? '—'}</div></div>
                 <div className="detail-tile"><div className="label-caps">Projects</div><div>{company.projectCount}</div></div>
               </div>
-              <div className="text-secondary mb-4">{company.address}</div>
+              <div className="text-secondary mb-2">{company.address}</div>
+              <div className="text-secondary mb-4">Contact: {company.contactNumbers ? formatPhoneList(company.contactNumbers) : <span className="text-danger">Not added: edit the company to add the numbers buyers can call</span>}</div>
             </div>
 
             <div className="p-5 pt-0">

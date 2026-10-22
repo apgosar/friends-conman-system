@@ -34,6 +34,7 @@ export default function BuildingViewer({ projectId, view = '3d' }: { projectId: 
 
   const [wings, setWings] = useState<WingData[]>([])
   const [projectParkingCharge, setProjectParkingCharge] = useState(0)
+  const [parkingInAgreement, setParkingInAgreement] = useState(false) // the project prices parking into the agreement value
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [selectedWingIdx, setSelectedWingIdx] = useState(0)
@@ -70,6 +71,7 @@ export default function BuildingViewer({ projectId, view = '3d' }: { projectId: 
   const applyBuilding = useCallback((data: any) => {
     if (data.wings) setWings(data.wings)
     if (data.projectParkingCharge) setProjectParkingCharge(data.projectParkingCharge)
+    if (typeof data.projectParkingIncluded === 'boolean') setParkingInAgreement(data.projectParkingIncluded)
     setRepeatMobiles(data.repeatMobiles ?? {})
   }, [])
 
@@ -299,6 +301,7 @@ export default function BuildingViewer({ projectId, view = '3d' }: { projectId: 
         handleGenerateQuote={handleGenerateQuote}
         isSubmittingQuote={isSubmittingQuote}
         projectParkingCharge={projectParkingCharge}
+        parkingInAgreement={parkingInAgreement}
         existingInquiries={repeatMatches}
       />
 

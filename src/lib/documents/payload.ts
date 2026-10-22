@@ -1,5 +1,6 @@
 import { formatDate, formatMoney, numberToWords } from '@/lib/format'
 import { percentOf } from '@/lib/money'
+import { formatPhoneList } from '@/lib/phone'
 import { revealPii } from '@/lib/pii' // agreements carry the real numbers; nothing else does
 import { agreementPayables, rsText } from './payables'
 
@@ -89,6 +90,7 @@ export function buildSalePayload(sale: SaleForDocument, partners: PartnerForDocu
     companyAddress: company.address,
     companyGstin: company.gstin ?? '',
     companyPan: company.panNumber ?? '',
+    contactNumbers: formatPhoneList(project.contactNumbers ?? company.contactNumbers), // the project's own, else the company's
     partners: partners.map((p, i) => ({ index: i + 1, ordinal: ordinal(i + 1), name: p.name, address: p.address ?? '', panNumber: revealPii(p.panNumber) })),
     partner1Name: partners[0]?.name ?? '',
     partner1Address: partners[0]?.address ?? '',
@@ -160,6 +162,7 @@ export function buildSalePayload(sale: SaleForDocument, partners: PartnerForDocu
     balancePayable: formatMoney(balanceAfterAdvance - tds),
     balancePayableWords: numberToWords(balanceAfterAdvance - tds),
     receipts,
+    paymentBankNames: [...new Set(payments.map((p) => (p.bankName ?? '').trim()).filter(Boolean))].join(', '), // the banks the recorded payments came through
     receivedTotal: formatMoney(receivedTotal),
     receivedTotalWords: numberToWords(receivedTotal),
     mcgmCharges: rsText(payables.mcgm),

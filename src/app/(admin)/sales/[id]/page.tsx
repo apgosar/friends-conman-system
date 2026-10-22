@@ -62,7 +62,10 @@ export default async function SaleDetailPage(props: PageProps<'/sales/[id]'>) {
   const totalDue = principalDue + gstDue
   // The rate this sale was actually charged at (the project's rate may have changed since)
   const gstRateLabel = Number(sale.agreementValue) > 0 ? `${formatNumber((Number(sale.gstAmount) / Number(sale.agreementValue)) * 100)}%` : '—'
-  const outstanding = Math.max(0, totalDue - totalPaid)
+  // Still to pay of what has fallen due, principal and GST apart
+  const outstandingPrincipal = Math.max(0, principalDue - principalPaid)
+  const outstandingGst = Math.max(0, gstDue - gstReceived)
+  const outstanding = outstandingPrincipal + outstandingGst
   const paidPct = totalDue > 0 ? Math.min(100, Math.round((totalPaid / totalDue) * 100)) : 0
 
   return (
@@ -84,7 +87,7 @@ export default async function SaleDetailPage(props: PageProps<'/sales/[id]'>) {
           actions={
             <>
               <ButtonLink href={`/sales/${id}/documents`}>Documents</ButtonLink>
-              <ButtonLink href={`/sales/${id}/payments`} variant="primary">Payments</ButtonLink>
+              <ButtonLink href="#payment-schedule" variant="primary">Payments</ButtonLink>
               {isSuperAdmin && <DeleteSaleButton saleId={id} />}
             </>
           }
@@ -130,16 +133,18 @@ export default async function SaleDetailPage(props: PageProps<'/sales/[id]'>) {
           <Card>
             <CardHeader title="Payment Summary" />
             <div className="kv-list mb-3">
-              <div className="kv-row"><span>Payments Done</span><span className="kv-value text-success">{formatCurrency(totalPaid)}</span></div>
-              <div className="kv-row kv-row-sub"><span>Principal</span><span className="kv-value">{formatCurrency(principalPaid)}</span></div>
-              <div className="kv-row kv-row-sub"><span>GST</span><span className="kv-value">{formatCurrency(gstReceived)}</span></div>
               <div className="kv-row"><span>Total Due</span><span className="kv-value">{formatCurrency(totalDue)}</span></div>
               <div className="kv-row kv-row-sub"><span>Principal</span><span className="kv-value">{formatCurrency(principalDue)}</span></div>
               <div className="kv-row kv-row-sub"><span>GST</span><span className="kv-value">{formatCurrency(gstDue)}</span></div>
+              <div className="kv-row"><span>Payments Done</span><span className="kv-value text-success">{formatCurrency(totalPaid)}</span></div>
+              <div className="kv-row kv-row-sub"><span>Principal</span><span className="kv-value">{formatCurrency(principalPaid)}</span></div>
+              <div className="kv-row kv-row-sub"><span>GST</span><span className="kv-value">{formatCurrency(gstReceived)}</span></div>
               <div className="kv-row">
                 <span>Outstanding</span>
                 <span className={`kv-value ${outstanding > 0 ? 'text-danger' : 'text-success'}`}>{formatCurrency(outstanding)}</span>
               </div>
+              <div className="kv-row kv-row-sub"><span>Principal</span><span className="kv-value">{formatCurrency(outstandingPrincipal)}</span></div>
+              <div className="kv-row kv-row-sub"><span>GST</span><span className="kv-value">{formatCurrency(outstandingGst)}</span></div>
             </div>
             <div className="progress-bar" role="progressbar" aria-valuenow={paidPct} aria-valuemin={0} aria-valuemax={100} aria-label="Share of the amount due that is paid">
               <div className="progress-fill" style={{ width: `${Math.min(100, paidPct)}%` }} />
@@ -176,7 +181,7 @@ export default async function SaleDetailPage(props: PageProps<'/sales/[id]'>) {
           </Card>
         )}
 
-        <Card className="mb-6">
+        <Card className="mb-6 anchor-target" id="payment-schedule">
           <CardHeader title="Payment Schedule" actions={<RecordPaymentModal schedules={plain(sale.paymentSchedules)} saleId={id} />} />
           <PaymentScheduleTable schedules={plain(sale.paymentSchedules)} />
         </Card>

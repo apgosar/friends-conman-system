@@ -1,20 +1,26 @@
 'use client'
 
-import { useState } from 'react'
+import { useRef, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import BackToProject from '@/components/projects/BackToProject'
 import PricingFields from '@/components/projects/PricingFields'
 import CompanyField from '@/components/projects/CompanyField'
 import { Alert, Button, ButtonLink, Input, RadioGroupField, SelectField, TextField, TextareaField } from '@/components/ui'
 import { errorMessage, fetchJson, jsonRequest } from '@/lib/client/api'
+import { CONTACT_NUMBERS_ERROR } from '@/lib/companies'
+import { normalizePhoneList } from '@/lib/phone'
 
-export default function EditProjectForm({ project, companies }: { project: any; companies: { id: string; name: string }[] }) {
+export default function EditProjectForm({ project, companies }: { project: any; companies: { id: string; name: string; contactNumbers: string | null }[] }) {
   const router = useRouter()
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
   const [success, setSuccess] = useState('')
   const [parkingPricing, setParkingPricing] = useState(project.carParkingIncluded ? 'INCLUDED' : 'SEPARATE')
   const parkingIncluded = parkingPricing === 'INCLUDED'
+  const [contactError, setContactError] = useState('')
+  const [editingContact, setEditingContact] = useState(false)
+  const contactRef = useRef<HTMLInputElement>(null)
+  const companyContact = companies.find((c) => c.id === project.companyId)?.contactNumbers ?? ''
 
   const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault()
@@ -23,6 +29,12 @@ export default function EditProjectForm({ project, companies }: { project: any; 
     setSuccess('')
 
     const form = new FormData(e.currentTarget)
+    if (!normalizePhoneList(String(form.get('contactNumbers') ?? '')).ok) {
+      setContactError(CONTACT_NUMBERS_ERROR)
+      setLoading(false)
+      return
+    }
+    setContactError('')
     const data: Record<string, any> = {
       name: form.get('name'),
       reraNumber: form.get('reraNumber') || null,
@@ -32,6 +44,7 @@ export default function EditProjectForm({ project, companies }: { project: any; 
       type: form.get('type'),
       status: form.get('status'),
       companyId: form.get('companyId'),
+      contactNumbers: form.get('contactNumbers') ?? '',
       gstRatePercent: form.get('gstRatePercent'),
       stampDutyPercent: form.get('stampDutyPercent'),
       regChargesPercent: form.get('regChargesPercent'),
@@ -88,6 +101,31 @@ export default function EditProjectForm({ project, companies }: { project: any; 
           <div className="divider" />
           <h4 className="mb-4">Company</h4>
           <CompanyField companies={companies} defaultValue={project.companyId} />
+          <div className="form-group mb-4">
+            <label className="form-label" htmlFor="contactNumbers">Contact Numbers</label>
+            <div className="input-with-action">
+              <Input
+                id="contactNumbers"
+                name="contactNumbers"
+                ref={contactRef}
+                defaultValue={project.contactNumbers ?? companyContact}
+                readOnly={!editingContact}
+                invalid={!!contactError}
+                placeholder="9876543210, 9123456789"
+              />
+              {!editingContact && (
+                <button type="button" className="input-action" aria-label="Edit contact numbers" title="Edit" onClick={() => { setEditingContact(true); setTimeout(() => contactRef.current?.focus(), 0) }}>
+                  <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                    <path d="M11 4H6a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-5" />
+                    <path d="M18.5 2.5a2.12 2.12 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z" />
+                  </svg>
+                </button>
+              )}
+            </div>
+            {contactError
+              ? <span className="field-error" role="alert">{contactError}</span>
+              : <span className="form-hint">{companyContact ? 'Shown to buyers in WhatsApp demand letters and receipts. Filled in from the company: press Edit to give this project its own numbers, separated by commas' : 'Shown to buyers in WhatsApp demand letters and receipts. The company has no numbers yet: add them under Companies, or press Edit to type numbers for this project, separated by commas'}</span>}
+          </div>
 
           <div className="divider" />
           <h4 className="mb-1">Tax and pricing</h4>

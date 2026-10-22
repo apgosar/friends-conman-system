@@ -17,7 +17,9 @@ set "WSLUSER="
 set "REPO=apgosar/friends-conman-system"
 rem --------------------------------------------------------------------------
 
-set "WSLARGS=-d %DISTRO%"
+rem --cd ~ starts WSL in the Linux home folder. Without it WSL tries to open the folder this window was started from
+rem (often C:\Windows when run as administrator), which the Linux side may not be allowed to enter ("chdir(/mnt/c/Windows) failed 5").
+set "WSLARGS=-d %DISTRO% --cd ~"
 if defined WSLUSER set "WSLARGS=%WSLARGS% -u %WSLUSER%"
 
 echo.

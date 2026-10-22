@@ -1,7 +1,7 @@
 import { apiError, apiServerError } from '@/lib/api-error'
 import { NextRequest } from 'next/server'
 import { requireRole } from '@/lib/guard'
-import { sendWhatsApp } from '@/lib/whatsapp'
+import { DEMAND_TEMPLATE, sendWhatsApp } from '@/lib/whatsapp'
 import { PHONE_ERROR, normalizePhone, whatsappDigits } from '@/lib/phone'
 
 // POST /api/settings/test-whatsapp
@@ -20,7 +20,7 @@ export async function POST(req: NextRequest) {
     const result = await sendWhatsApp({
       to: phone,
       message: 'Neev CMS WhatsApp Integration Test',
-      templateName: 'demands_and_receipts',
+      templateName: DEMAND_TEMPLATE,
       templateLanguage: 'en',
       documentHeaderUrl: 'https://www.w3.org/WAI/ER/tests/xhtml/testfiles/resources/pdf/dummy.pdf',
       documentHeaderFilename: 'Test_Document.pdf',
@@ -34,6 +34,7 @@ export async function POST(req: NextRequest) {
         '1,00,000',                           // {{7}} Amount
         'Due Date: 31/07/2026',               // {{8}} Additional Info
         process.env.COMPANY_NAME || 'Neev CMS', // {{9}} Company Name
+        '+91 9876543210',                     // {{10}} Contact Numbers
       ],
     })
 

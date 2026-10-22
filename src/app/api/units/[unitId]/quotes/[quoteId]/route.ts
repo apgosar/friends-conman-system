@@ -63,8 +63,9 @@ export async function PATCH(req: NextRequest, { params }: Ctx) {
   const pricingChanged = data.agreementValue !== undefined || data.parkingIncluded !== undefined
   if (pricingChanged) {
     const agreementValue = data.agreementValue ?? inquiry.agreementValue
-    const parkingIncluded = data.parkingIncluded ?? inquiry.parkingIncluded
-    const costs = computeQuoteCosts(agreementValue, parkingIncluded, inquiry.unit.floor.wing.project.carParkingCharges || 0)
+    const project = inquiry.unit.floor.wing.project
+    const parkingIncluded = (data.parkingIncluded ?? inquiry.parkingIncluded) && !project.carParkingIncluded // included in the agreement value: nothing to add
+    const costs = computeQuoteCosts(agreementValue, parkingIncluded, project.carParkingCharges || 0)
     Object.assign(update, { agreementValue, parkingIncluded, ...costs })
   }
 

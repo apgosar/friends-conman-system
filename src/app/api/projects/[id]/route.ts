@@ -6,6 +6,8 @@ import { requireRole } from '@/lib/guard'
 import { parsePricingSettings } from '@/lib/pricing-settings'
 import { createAuditLog } from '@/lib/audit'
 import { activeSale } from '@/lib/soft-delete'
+import { CONTACT_NUMBERS_ERROR } from '@/lib/companies'
+import { normalizePhoneList } from '@/lib/phone'
 
 export async function GET(req: NextRequest, props: { params: Promise<{ id: string }> }) {
   const session = await auth()
@@ -40,6 +42,13 @@ export async function PATCH(req: NextRequest, props: { params: Promise<{ id: str
     launchDate, expectedCompletion,
   } = body
 
+  const contact = body.contactNumbers === undefined ? undefined : normalizePhoneList(String(body.contactNumbers ?? ''))
+  if (contact && !contact.ok) return apiError('invalid', CONTACT_NUMBERS_ERROR)
+  // Numbers the same as the company's mean "use the company's", so a later change to the company's numbers reaches this project too
+  if (contact?.ok && contact.value) {
+    const owner = await prisma.company.findFirst({ where: companyId ? { id: String(companyId) } : { projects: { some: { id } } }, select: { contactNumbers: true } })
+    if (owner?.contactNumbers === contact.value) contact.value = null
+  }
   if (companyId && !(await prisma.company.findUnique({ where: { id: String(companyId) }, select: { id: true } }))) return apiError('invalid', 'Choose a company from the list')
   const pricing = parsePricingSettings(body)
   if (pricing.error) return apiError('invalid', pricing.error)
@@ -56,6 +65,7 @@ export async function PATCH(req: NextRequest, props: { params: Promise<{ id: str
         ...(type && { type }),
         ...(status && { status }),
         ...(companyId && { companyId: String(companyId) }),
+        ...(contact?.ok && { contactNumbers: contact.value }), // empty = use the company's
         ...pricing.data,
         ...(carParkingCharges !== undefined && { carParkingCharges: parseFloat(carParkingCharges) }),
         ...(typeof carParkingIncluded === 'boolean' && { carParkingIncluded }),

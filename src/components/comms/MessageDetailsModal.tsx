@@ -1,7 +1,7 @@
 'use client'
 
 import { Alert, Badge, Button, Modal, StatusBadge } from '@/components/ui'
-import { getAttachments, stripAttachmentBlock } from '@/lib/comms-content'
+import { getAttachments, pdfViewUrl, stripAttachmentBlock } from '@/lib/comms-content'
 import { formatDateTime } from '@/lib/format'
 
 const CHANNEL_ICON: Record<string, string> = { EMAIL: '✉️', WHATSAPP: '💬' }
@@ -75,7 +75,7 @@ export default function MessageDetailsModal({ logs, onClose, onRetry, retrying }
             <div className="section-label mb-3">Attachments</div>
             <div className="row">
               {attachments.map((a, i) => (
-                <a key={i} href={a.path} target="_blank" rel="noreferrer" className="btn btn-secondary btn-sm">📄 {a.label}</a>
+                <a key={i} href={pdfViewUrl(a.path)} target="_blank" rel="noreferrer" className="btn btn-secondary btn-sm">📄 {a.label}</a>
               ))}
             </div>
           </div>
