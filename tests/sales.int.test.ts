@@ -75,6 +75,23 @@ describeDb('creating a sale', () => {
     expect(JSON.stringify(logs[0].attachments)).not.toContain('Architect')
   })
 
+  it('keeps stamp duty and registration out of the milestones: no milestone, not demanded until someone raises it', async () => {
+    const { createSale } = await import('@/lib/sales/create-sale')
+    const prisma = await getPrisma()
+    const user = await seedUser('ADMIN')
+    const { project, units } = await seedProject({ name: 'Stamp Heights', units: 1 })
+    const sale = await createSale(baseInput(project.id, units[0].id, {
+      paymentSchedules: [
+        { description: 'Booking', principalAmount: 1_000_000, gstAmount: 50_000, isBooking: true },
+        { description: 'Stamp Duty and Registration', principalAmount: 630_000, gstAmount: 0 },
+      ],
+    }), user.id)
+    const stamp = await prisma.paymentSchedule.findFirstOrThrow({ where: { saleId: sale.id, description: 'Stamp Duty and Registration' } })
+    expect(stamp).toMatchObject({ milestoneId: null, status: 'UPCOMING', demandGeneratedDate: null, dueDate: null })
+    const logs = await prisma.communicationLog.findMany({ where: { saleId: sale.id, type: 'DEMAND_LETTER' } })
+    expect(logs.every((l) => !String(l.messageContent).includes('Stamp Duty'))).toBe(true) // only the booking was demanded
+  })
+
   it('lets exactly one of several simultaneous bookings of the same unit through', async () => {
     const { createSale, SaleError } = await import('@/lib/sales/create-sale')
     const user = await seedUser('ADMIN')

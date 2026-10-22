@@ -10,7 +10,7 @@ import { wingLabel } from '@/lib/building-structure'
 import { checkAgreementPartners } from '@/lib/companies'
 import { formatAadhaar } from '@/lib/buyers'
 import AgreementPartnerPicker, { defaultPartnerIds, type PartnerChoice } from './AgreementPartnerPicker'
-import { BOOKING_LABEL, SALE_TYPE_LABEL, UNIT_TYPE_LABEL, comboLabel, plansFor, schemeOf, unitTypeOfCategory, type PlanSaleType, type PlanSummary } from '@/lib/payment-plans'
+import { BOOKING_LABEL, STAMP_DUTY_LABEL, catchUpPrincipal, SALE_TYPE_LABEL, UNIT_TYPE_LABEL, comboLabel, plansFor, schemeOf, unitTypeOfCategory, type PlanSaleType, type PlanSummary } from '@/lib/payment-plans'
 import { scrollToFirstInvalid } from '@/lib/client/forms'
 
 // Tax and pricing rules come from the selected project's settings (see lib/pricing.ts)
@@ -43,8 +43,8 @@ function validatePhone(phone: string) {
 type PlanOption = PlanSummary & { bookingPercent: number; items: { milestoneId: string; name: string; sequence: number; percentOfAV: number; status: string }[] }
 type ParkingSlot = { podium: string; floor: string; number: string }
 type Buyer = { fullName: string; panNumber: string; aadhaarNumber: string; address: string; email: string; whatsappNumber: string }
-// principalAmount already includes stamp duty + registration for the plinth row
-type ScheduleRow = { milestoneId: string; description: string; principalAmount: number; gstAmount: number; isPlinth?: boolean; isBooking?: boolean; sequence: number; percentOfAV?: number }
+// The stamp duty + registration row has no milestone: it is demanded by hand from the sale page
+type ScheduleRow = { milestoneId: string; description: string; principalAmount: number; gstAmount: number; isBooking?: boolean; sequence: number; percentOfAV?: number }
 
 const emptyBuyer = (): Buyer => ({ fullName: '', panNumber: '', aadhaarNumber: '', address: '', email: '', whatsappNumber: '' })
 
@@ -198,8 +198,6 @@ export default function NewSaleWizard({ projects, prefill = null, preselect = nu
     const rows: ScheduleRow[] = []
 
     milestones.forEach((m: any, index: number) => {
-      const isPlinth = m.name.toLowerCase().includes('plinth') && m.percentOfAV > 0
-      
       let shouldKeep = false
       let basePrincipal = 0
 
@@ -211,10 +209,11 @@ export default function NewSaleWizard({ projects, prefill = null, preselect = nu
       } else if (latestCompleted && m.id === latestCompleted.id) {
         shouldKeep = true
         const totalCompletedPercent = completedMilestones.reduce((acc: number, curr: any) => acc + (curr.percentOfAV || 0), 0)
-        let targetPrincipal = Math.round(agreementValue * (totalCompletedPercent / 100))
-        const actualBooking = (bookingAmount !== '' && Number(bookingAmount) > 0) ? Number(bookingAmount) : Math.round(agreementValue * (milestones[0].percentOfAV / 100))
-        
-        targetPrincipal -= actualBooking
+        // The booking is not one of the milestones, so it is counted on its own: what is due by now is the booking
+        // plus the completed milestones, less the booking amount that is already being paid
+        const bookingPercent = milestones[0].percentOfAV || 0
+        const actualBooking = (bookingAmount !== '' && Number(bookingAmount) > 0) ? Number(bookingAmount) : Math.round(agreementValue * (bookingPercent / 100))
+        const targetPrincipal = catchUpPrincipal(agreementValue, totalCompletedPercent, bookingPercent, actualBooking)
         
         if (targetPrincipal < 0) {
           basePrincipal = 0
@@ -248,24 +247,23 @@ export default function NewSaleWizard({ projects, prefill = null, preselect = nu
           description: m.name,
           principalAmount: basePrincipal,
           gstAmount: gstAmt,
-          isPlinth: false,
           isBooking: m.isBooking,
           sequence: m.sequence,
           percentOfAV: pct,
         })
       }
-
-      if (isPlinth && (stampDuty > 0 || regCharges > 0)) {
-        rows.push({
-          milestoneId: m.id,
-          description: 'Stamp Duty and Registration',
-          principalAmount: stampDuty + regCharges,
-          gstAmount: 0,
-          isPlinth: true,
-          sequence: m.sequence,
-        })
-      }
     })
+
+    // Stamp duty and registration: a row of its own with no milestone. It is demanded by hand from the sale page
+    if (stampDuty > 0 || regCharges > 0) {
+      rows.push({
+        milestoneId: '',
+        description: STAMP_DUTY_LABEL,
+        principalAmount: stampDuty + regCharges,
+        gstAmount: 0,
+        sequence: 998,
+      })
+    }
 
     // Add car parking as a separate row if it is charged separately — NO GST on parking
     if (separateParking && parkingCost > 0) {
@@ -351,7 +349,7 @@ export default function NewSaleWizard({ projects, prefill = null, preselect = nu
           milestoneId: s.milestoneId || undefined,
           isBooking: s.isBooking || undefined,
           description: s.description,
-          principalAmount: s.principalAmount,  // already includes stamp duty + reg for plinth row
+          principalAmount: s.principalAmount,
           gstAmount: s.gstAmount,
         }))
       }
@@ -658,7 +656,7 @@ export default function NewSaleWizard({ projects, prefill = null, preselect = nu
                       <td>
                         <div className="font-medium">{row.description}</div>
                         {row.percentOfAV === undefined && (
-                          <div className="text-xs text-muted">Excluded from milestone %</div>
+                          <div className="text-xs text-muted">{row.description === STAMP_DUTY_LABEL ? 'Not a milestone: you raise this demand yourself from the sale page' : 'Excluded from milestone %'}</div>
                         )}
                       </td>
                       <td className="text-right">

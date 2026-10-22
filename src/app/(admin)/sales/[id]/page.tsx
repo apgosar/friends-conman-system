@@ -183,7 +183,7 @@ export default async function SaleDetailPage(props: PageProps<'/sales/[id]'>) {
 
         <Card className="mb-6 anchor-target" id="payment-schedule">
           <CardHeader title="Payment Schedule" actions={<RecordPaymentModal schedules={plain(sale.paymentSchedules)} saleId={id} />} />
-          <PaymentScheduleTable schedules={plain(sale.paymentSchedules)} />
+          <PaymentScheduleTable schedules={plain(sale.paymentSchedules)} canRaiseDemand={canEditSale} />
         </Card>
 
         {sale.documents.length > 0 && (

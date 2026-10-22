@@ -7,6 +7,7 @@ import { dispatchAllPending } from '@/lib/comms-dispatcher'
 import { buildCommContent, sanitizeInline } from '@/lib/comms-content'
 import type { Prisma } from '@prisma/client'
 import { formatDate, formatRupees } from '@/lib/format'
+import { DEMAND_DUE_DAYS } from '@/lib/payment-plans'
 
 export async function POST(req: NextRequest, props: { params: Promise<{ id: string }> }) {
   const guard = await requireRole('admin')
@@ -24,7 +25,7 @@ export async function POST(req: NextRequest, props: { params: Promise<{ id: stri
 
     const actualDate = new Date()
     const dueDate = new Date(actualDate)
-    dueDate.setDate(dueDate.getDate() + 14) // 14 days later
+    dueDate.setDate(dueDate.getDate() + DEMAND_DUE_DAYS)
 
     const milestone = await prisma.constructionMilestone.update({
       where: { id },

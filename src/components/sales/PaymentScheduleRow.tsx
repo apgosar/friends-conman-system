@@ -5,9 +5,10 @@ import { Button, StatusBadge, Td } from '@/components/ui'
 import { formatCurrency, formatDate } from '@/lib/format'
 import PaymentDetailsModal from './PaymentDetailsModal'
 import { RecordPaymentDialog } from './RecordPaymentModal'
+import RaiseDemandButton from './RaiseDemandButton'
 
 /** One demand on a sale's payments page: click the row for details, "Record Payment" to take money against it. */
-export default function PaymentScheduleRow({ schedule, saleId }: { schedule: any; saleId: string }) {
+export default function PaymentScheduleRow({ schedule, saleId, canRaiseDemand = false }: { schedule: any; saleId: string; canRaiseDemand?: boolean }) {
   const [showPay, setShowPay] = useState(false)
   const [showDetails, setShowDetails] = useState(false)
 
@@ -25,6 +26,7 @@ export default function PaymentScheduleRow({ schedule, saleId }: { schedule: any
         <Td label="GST due">{formatCurrency(Number(schedule.gstAmount ?? 0))}</Td>
         <Td label="Received" className={received >= totalDue ? 'text-success font-semibold' : received > 0 ? 'font-semibold' : undefined}>{formatCurrency(received)}</Td>
         <Td label="">
+          {canRaiseDemand && !schedule.milestoneId && schedule.status === 'UPCOMING' && <RaiseDemandButton scheduleId={schedule.id} description={schedule.description} />}
           {schedule.status !== 'PAID' && (
             <Button variant="primary" size="sm" onClick={(e) => { e.stopPropagation(); setShowPay(true) }}>Record Payment</Button>
           )}

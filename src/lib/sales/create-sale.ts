@@ -4,7 +4,7 @@ import { z } from '@/lib/validate'
 import { nextSaleNumber } from '@/lib/numbering'
 import { buildCommContent, sanitizeInline } from '@/lib/comms-content'
 import { GST_RATE_OPTIONS, computeCharges, pricingFromProject } from '@/lib/pricing'
-import { BOOKING_DUE_DAYS } from '@/lib/payment-plans'
+import { BOOKING_DUE_DAYS, DEMAND_DUE_DAYS } from '@/lib/payment-plans'
 import { sumRupees } from '@/lib/money'
 import { PHONE_ERROR, normalizePhone } from '@/lib/phone'
 import { activeSale } from '@/lib/soft-delete'
@@ -184,7 +184,7 @@ export async function createSale(input: SaleCreateInput, actorId: string) {
           }
           if (isCompleted && actualDate) {
             dueDate = new Date(actualDate)
-            dueDate.setDate(dueDate.getDate() + 14)
+            dueDate.setDate(dueDate.getDate() + DEMAND_DUE_DAYS)
           }
           return {
             saleId: newSale.id,

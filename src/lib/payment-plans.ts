@@ -76,6 +76,24 @@ const percent = z.union([z.number(), z.string().trim().min(1).transform(Number)]
 export const SCHEDULE_ORDER: ({ createdAt: 'asc' } | { id: 'asc' })[] = [{ createdAt: 'asc' }, { id: 'asc' }]
 
 export const BOOKING_LABEL = 'Booking'
+
+/**
+ * Stamp duty and registration are not a construction milestone: they are one row of the sale's schedule with no milestone,
+ * which stays "not demanded" until someone raises the demand from the sale page.
+ */
+export const STAMP_DUTY_LABEL = 'Stamp Duty and Registration'
+/**
+ * A sale made after some milestones are already completed owes them at once, as one amount on the latest completed milestone.
+ * What is due by now is the booking plus the completed milestones (the booking is not one of the milestones, so it is
+ * counted on its own), less the booking amount that is paid with the sale. A negative result means the booking already
+ * covers more than is due; the caller carries that credit on to the next milestones.
+ */
+export function catchUpPrincipal(agreementValue: number, completedMilestonesPercent: number, bookingPercent: number, bookingAmount: number): number {
+  return Math.round(agreementValue * ((completedMilestonesPercent + bookingPercent) / 100)) - bookingAmount
+}
+
+/** A demand raised by hand (stamp duty and registration) is due this many days later, like a milestone demand. */
+export const DEMAND_DUE_DAYS = 14
 /** The booking amount is due this many days after the sale is created. */
 export const BOOKING_DUE_DAYS = 15
 const bookingPercent = z.union([z.number(), z.string().trim().min(1).transform(Number)]).pipe(

@@ -4,9 +4,10 @@ import { useState } from 'react'
 import { StatusBadge, Table } from '@/components/ui'
 import { formatCurrency, formatDate } from '@/lib/format'
 import PaymentDetailsModal from './PaymentDetailsModal'
+import RaiseDemandButton from './RaiseDemandButton'
 
 /** A sale's demands with what has been paid on each. Click a row for the receipts. */
-export default function PaymentScheduleTable({ schedules }: { schedules: any[] }) {
+export default function PaymentScheduleTable({ schedules, canRaiseDemand = false }: { schedules: any[]; canRaiseDemand?: boolean }) {
   const [selected, setSelected] = useState<any | null>(null)
 
   return (
@@ -15,7 +16,7 @@ export default function PaymentScheduleTable({ schedules }: { schedules: any[] }
         <thead>
           <tr>
             <th>Description</th><th>Principal</th><th>GST</th>
-            <th>Interest</th><th>Due Date</th><th>Status</th><th>Principal Paid</th><th>GST Paid</th>
+            <th>Interest</th><th>Due Date</th><th>Status</th><th>Principal Paid</th><th>GST Paid</th><th></th>
           </tr>
         </thead>
         <tbody>
@@ -39,6 +40,7 @@ export default function PaymentScheduleTable({ schedules }: { schedules: any[] }
                 <td><StatusBadge kind="schedule" status={s.status} /></td>
                 <td className="text-success font-semibold">{paid > 0 ? formatCurrency(paid) : '—'}</td>
                 <td className="text-success font-semibold">{gstPaid > 0 ? formatCurrency(gstPaid) : '—'}</td>
+                <td>{canRaiseDemand && !s.milestoneId && s.status === 'UPCOMING' && <RaiseDemandButton scheduleId={s.id} description={s.description} />}</td>
               </tr>
             )
           })}

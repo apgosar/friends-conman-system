@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import {
-  PaymentPlanSchema, comboKey, comboLabel, missingCombos, orderMilestones, plansFor, requiredCombos, saleTypesOfProject, schemeOf, unitTypeOfCategory,
+  PaymentPlanSchema, catchUpPrincipal, comboKey, comboLabel, missingCombos, orderMilestones, plansFor, requiredCombos, saleTypesOfProject, schemeOf, unitTypeOfCategory,
 } from '@/lib/payment-plans'
 
 const plan = (over: Record<string, unknown> = {}) => ({
@@ -129,5 +129,17 @@ describe('orderMilestones', () => {
     const out = orderMilestones(milestones, [plan(['A', 'B']), plan(['B', 'A'])])
     expect(out).toHaveLength(3)
     expect(new Set(out.map((m) => m.name))).toEqual(new Set(['A', 'B', 'Loose']))
+  })
+})
+
+describe('catchUpPrincipal', () => {
+  it('counts the booking on its own: Plinth 35 + 1st Slab 20 completed, booking 10, gives 55% on the latest milestone', () => {
+    const av = 10_000_000
+    // booking 10% paid with the sale; what is due by now is 10 + 35 + 20 = 65%, of which 10% is the booking
+    expect(catchUpPrincipal(av, 55, 10, 1_000_000)).toBe(5_500_000)
+  })
+  it('follows a booking amount that differs from the plan, and goes negative when the booking covers more than is due', () => {
+    expect(catchUpPrincipal(10_000_000, 35, 10, 1_500_000)).toBe(3_000_000)
+    expect(catchUpPrincipal(10_000_000, 0, 10, 2_000_000)).toBe(-1_000_000)
   })
 })
