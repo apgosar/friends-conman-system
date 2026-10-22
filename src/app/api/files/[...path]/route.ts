@@ -2,12 +2,16 @@ import { logger } from '@/lib/logger'
 import { apiError } from '@/lib/api-error'
 import { NextRequest, NextResponse } from 'next/server'
 import { requireRole } from '@/lib/guard'
+import { isInternalRequest } from '@/lib/internal-auth'
 import { downloadFile } from '@/lib/storage'
 import path from 'path'
 
 export async function GET(req: NextRequest, props: { params: Promise<{ path: string[] }> }) {
-  const guard = await requireRole('staff')
-  if ('error' in guard) return guard.error
+  // The app itself (the communications dispatcher) fetches files to attach to messages, with the shared secret
+  if (!isInternalRequest(req)) {
+    const guard = await requireRole('staff')
+    if ('error' in guard) return guard.error
+  }
 
   const { path: pathArray } = await props.params
   

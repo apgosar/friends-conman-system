@@ -9,7 +9,7 @@ import TemplateHtmlPreview from '@/components/projects/TemplateHtmlPreview'
 import CopyTemplateButton from '@/components/projects/CopyTemplateButton'
 import TemplateCoverage from '@/components/projects/TemplateCoverage'
 import { TEMPLATE_TYPES } from '@/lib/template-constants'
-import { Badge, ButtonLink, Card, CardHeader, EmptyRow, PageHeader, Table, Td } from '@/components/ui'
+import { ButtonLink, Card, CardHeader, EmptyRow, PageHeader, Table, Td } from '@/components/ui'
 
 export default async function TemplatesPage(props: PageProps<'/projects/[id]/templates'>) {
   const { id } = await props.params
@@ -53,15 +53,14 @@ export default async function TemplatesPage(props: PageProps<'/projects/[id]/tem
 
         <Card flush>
           <Table flush stack>
-            <thead><tr><th>Name</th><th>Type</th><th>Version</th><th>Status</th><th>Updated</th><th></th></tr></thead>
+            <thead><tr><th>Template</th><th>Version</th><th>Status</th><th>Updated</th><th></th></tr></thead>
             <tbody>
               {templates.length === 0 ? (
-                <EmptyRow colSpan={6}>No templates uploaded yet</EmptyRow>
+                <EmptyRow colSpan={5}>No templates uploaded yet</EmptyRow>
               ) : (
                 templates.map(t => (
                   <tr key={t.id}>
-                    <Td label="Name" className="font-medium">{t.name}</Td>
-                    <Td label="Type"><Badge>{t.type}</Badge></Td>
+                    <Td label="Template" className="font-medium">{TEMPLATE_TYPES.find((x) => x.value === t.type)?.label ?? t.type}</Td>
                     <Td label="Version">v{t.version}</Td>
                     <Td label="Status"><ActivateButton projectId={id} templateId={t.id} type={t.type} isActive={t.isActive} /></Td>
                     <Td label="Updated" className="text-muted">{formatDate(t.updatedAt)}</Td>
@@ -88,13 +87,13 @@ export default async function TemplatesPage(props: PageProps<'/projects/[id]/tem
             <CardHeader title="Recent template activity" />
             <div className="flex dir-col gap-2 text-sm">
               {activity.map((a) => {
-                const v = (a.newValues ?? a.oldValues) as { name?: string; type?: string; version?: number } | null
+                const v = (a.newValues ?? a.oldValues) as { type?: string; version?: number } | null
                 const typeLabel = TEMPLATE_TYPES.find((t) => t.value === v?.type)?.label ?? v?.type
                 return (
                   <div key={a.id} className="flex justify-between gap-3 wrap">
                     <span>
                       <b>{a.user?.name ?? 'Someone'}</b> {ACTION_LABEL[a.action] ?? a.action} {typeLabel ? <>{typeLabel} </> : null}
-                      {v?.name ? <>“{v.name}” </> : null}{v?.version ? <>(v{v.version})</> : null}
+                      {v?.version ? <>(v{v.version})</> : null}
                     </span>
                     <span className="text-muted nowrap">{formatDateTime(a.createdAt)}</span>
                   </div>

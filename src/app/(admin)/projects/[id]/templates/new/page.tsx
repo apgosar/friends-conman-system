@@ -87,8 +87,6 @@ export default function NewTemplatePage(props: { params: Promise<{ id: string }>
               </div>
             ) : (
               <form onSubmit={handleSubmit} className="flex dir-col gap-5">
-                <TextField label="Template name" name="name" required placeholder="e.g. Standard Sale Agreement v2" />
-
                 <SelectField label="Document type" name="type" value={type} onChange={(e) => setType(e.target.value)}>
                   {TEMPLATE_TYPES.map((t) => <option key={t.value} value={t.value}>{t.label}</option>)}
                 </SelectField>

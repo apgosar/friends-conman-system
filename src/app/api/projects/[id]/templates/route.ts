@@ -26,7 +26,7 @@ export async function GET(req: NextRequest, props: { params: Promise<{ id: strin
   }
 }
 
-// POST multipart/form-data: name, type, and either `file` (.docx) or `templateHtml`.
+// POST multipart/form-data: type, and either `file` (.docx) or `templateHtml`.
 // Everything is validated before anything is stored or any active template is replaced.
 export async function POST(req: NextRequest, props: { params: Promise<{ id: string }> }) {
   const guard = await requireRole('admin')
@@ -39,7 +39,7 @@ export async function POST(req: NextRequest, props: { params: Promise<{ id: stri
     if (!project) return apiError('notFound', 'Project not found')
 
     const form = await req.formData()
-    const { name, type } = validateTemplateMeta(form.get('name'), form.get('type'))
+    const { name, type } = validateTemplateMeta(form.get('type'))
 
     const file = form.get('file')
     let fileUrl: string | null = null

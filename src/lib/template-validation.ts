@@ -10,12 +10,10 @@ const MAX_UNCOMPRESSED_BYTES = 50 * 1024 * 1024 // zip-bomb guard
 // Browsers sometimes send these for .docx
 const ACCEPTED_MIME = new Set([DOCX_MIME, 'application/octet-stream', ''])
 
-export function validateTemplateMeta(name: unknown, type: unknown): { name: string; type: string } {
-  const n = typeof name === 'string' ? name.trim() : ''
-  if (!n) throw new TemplateValidationError('Template name is required')
-  if (n.length > TEMPLATE_LIMITS.nameMax) throw new TemplateValidationError(`Template name must be at most ${TEMPLATE_LIMITS.nameMax} characters`)
+/** A template is known by its document type: the name saved with it is the type's label ("Sale Agreement"). */
+export function validateTemplateMeta(type: unknown): { name: string; type: string } {
   if (typeof type !== 'string' || !TEMPLATE_TYPE_VALUES.includes(type)) throw new TemplateValidationError('Choose a valid document type')
-  return { name: n, type }
+  return { name: TEMPLATE_TYPES.find((t) => t.value === type)?.label ?? type, type }
 }
 
 /** Reject anything that is not a clean, well-formed .docx template. */

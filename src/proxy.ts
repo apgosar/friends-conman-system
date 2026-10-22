@@ -15,8 +15,9 @@ export default auth(async (req) => {
   const alwaysPublic = /^\/(api\/auth|api\/cron|api\/health|_next\/static|_next\/image|favicon\.ico|uploads|license-expired)/.test(pathname)
   if (alwaysPublic) return NextResponse.next()
 
-  // Server-to-server fetches of generated documents (comms dispatcher). The route re-checks the token.
-  if (pathname.startsWith('/api/documents/preview/') && isInternalRequest(req)) return NextResponse.next()
+  // Server-to-server fetches of documents to attach to a message (comms dispatcher): generated documents and
+  // uploaded files such as an architect certificate. The route re-checks the token.
+  if ((pathname.startsWith('/api/documents/preview/') || pathname.startsWith('/api/files/')) && isInternalRequest(req)) return NextResponse.next()
 
   // On-prem license gate — no-op on cloud (deploymentConfig.licenseEnforced is false there).
   // Fails closed: a missing/invalid/expired-past-grace license blocks everything below.
