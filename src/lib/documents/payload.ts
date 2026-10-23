@@ -1,5 +1,6 @@
 import { formatDate, formatMoney, numberToWords } from '@/lib/format'
 import { percentOf, sumRupees } from '@/lib/money'
+import { dateOfDay, interestNote, interestPolicyOf, interestStartDay, standingOfSchedule } from '@/lib/interest'
 import { formatPhoneList } from '@/lib/phone'
 import { revealPii } from '@/lib/pii' // agreements carry the real numbers; nothing else does
 import { computeOtherCharges, rsText, type ChargeItem } from '@/lib/other-charges'
@@ -70,14 +71,14 @@ export function buildSalePayload(sale: SaleForDocument, partners: PartnerForDocu
     .filter((p) => !p.deletedAt)
     .sort((a, b) => new Date(a.paymentDate).getTime() - new Date(b.paymentDate).getTime())
   const paidPrincipal = payments.reduce((total, p) => total + Number(p.amount), 0)
-  const receivedTotal = payments.reduce((total, p) => total + Number(p.amount) + Number(p.gstPaid), 0)
+  const receivedTotal = payments.reduce((total, p) => total + Number(p.amount) + Number(p.gstPaid) + Number(p.interestPaid ?? 0), 0)
   const receipts = payments.map((p, i) => ({
     index: i + 1,
     bank: p.bankName ?? '',
     branch: '', // the branch is not recorded with a payment
     reference: p.referenceNumber ?? '',
     date: formatDate(p.paymentDate),
-    amount: formatMoney(Number(p.amount) + Number(p.gstPaid)),
+    amount: formatMoney(Number(p.amount) + Number(p.gstPaid) + Number(p.interestPaid ?? 0)),
   }))
 
   const bookingSchedule = schedules.find((ps) => ps.description.toLowerCase().includes('booking')) ?? schedules[0]
@@ -206,12 +207,18 @@ const demandPosition = (sale: SaleForDocument, schedule: Schedule) => {
   const gstDue = raised.reduce((total, ps) => total + Number(ps.gstAmount ?? 0), 0)
   const outstandingPrincipal = Math.max(0, principalDue - paid)
   const outstandingGst = Math.max(0, gstDue - gstPaid)
-  const outstanding = outstandingPrincipal + outstandingGst
+  // Interest owed today on the demands raised, and on this one (for the letter)
+  const policy = interestPolicyOf(sale.project)
+  const outstandingInterest = raised.reduce((total, ps) => total + standingOfSchedule(ps, policy).outstanding, 0)
+  const outstanding = outstandingPrincipal + outstandingGst + outstandingInterest
+  const own0 = standingOfSchedule(schedule, policy)
+  const startDay = interestStartDay({ principalAmount: Number(schedule.principalAmount), dueDate: schedule.dueDate, demandGeneratedDate: schedule.demandGeneratedDate }, policy)
+  const showInterest = policy.onDemand === 'ALWAYS' || (policy.onDemand === 'WHEN_ACCRUED' && (own0.accrued > 0 || own0.outstanding > 0))
 
   // The part of it that belongs to this demand; the rest is carried over from earlier demands
   const own = sale.paymentSchedules.find((ps) => ps.id === schedule.id)
   const ownPaid = (own?.payments ?? []).filter((p) => !p.deletedAt).reduce((total, p) => total + Number(p.amount) + Number(p.gstPaid), 0)
-  const ownUnpaid = Math.max(0, Number(schedule.principalAmount) + Number(schedule.gstAmount ?? 0) - ownPaid)
+  const ownUnpaid = Math.max(0, Number(schedule.principalAmount) + Number(schedule.gstAmount ?? 0) - ownPaid) + own0.outstanding
 
   return {
     percentOfAV: `${agreement > 0 ? Number(((Number(schedule.principalAmount) / agreement) * 100).toFixed(2)) : 0}%`,
@@ -221,6 +228,15 @@ const demandPosition = (sale: SaleForDocument, schedule: Schedule) => {
     totalOutstanding: formatMoney(outstanding),
     gstOutstanding: formatMoney(outstandingGst), // the same as outstandingGst, kept for templates that already use it
     previousOutstanding: formatMoney(Math.max(0, outstanding - ownUnpaid)),
+    // Interest on late payment, under the project's settings (see Edit project > Interest)
+    outstandingInterest: formatMoney(outstandingInterest),
+    interestAccrued: formatMoney(own0.accrued),
+    interestOutstanding: formatMoney(own0.outstanding),
+    interestRate: `${policy.ratePercent}%`,
+    interestStartDate: startDay !== null && policy.enabled ? formatDate(dateOfDay(startDay)) : '',
+    interestNote: interestNote(policy, startDay, formatDate),
+    showInterest,
+    totalPayableWithInterest: formatMoney(Number(schedule.principalAmount) + Number(schedule.gstAmount ?? 0) + own0.outstanding),
   }
 }
 
@@ -240,7 +256,7 @@ export function buildReceiptPayload(sale: SaleForDocument, payment: ReceiptPayme
     .flatMap((ps) => ps.payments)
     .filter((p) => new Date(p.createdAt) <= new Date(payment.createdAt)) // later payments are not on this receipt
     .reduce((total, p) => total + Number(p.amount) + Number(p.gstPaid ?? 0), 0)
-  const received = Number(payment.amount) + Number(payment.gstPaid ?? 0)
+  const received = Number(payment.amount) + Number(payment.gstPaid ?? 0) + Number(payment.interestPaid ?? 0)
 
   return {
     ...buildSalePayload(sale),
@@ -251,6 +267,7 @@ export function buildReceiptPayload(sale: SaleForDocument, payment: ReceiptPayme
       date: formatDate(payment.paymentDate),
       principalPaid: formatMoney(payment.amount),
       gstPaid: formatMoney(payment.gstPaid),
+      interestPaid: formatMoney(payment.interestPaid ?? 0),
       amount: formatMoney(received),
       amountWords: numberToWords(received),
       mode: payment.mode,

@@ -175,3 +175,33 @@ describe('the advance in the agreement', () => {
     expect(buildSalePayload(withPaid(150000))).toMatchObject({ advancePaid: '1,50,000.00', balanceAfterAdvance: '8,50,000.00' })
   })
 })
+
+describe('interest in a demand letter and a receipt', () => {
+  const DAY = 86_400_000
+  const project = (over: Record<string, unknown> = {}) => ({ ...sale.project, interestEnabled: true, interestRatePercent: 12, interestGraceDays: 7, interestDefaultOrder: 'INTEREST_FIRST', interestOnDemand: 'WHEN_ACCRUED', ...over })
+  const late: any = schedule({ id: 'l', description: 'Plinth', principalAmount: 100000, gstAmount: 5000, status: 'OVERDUE_15', dueDate: new Date(Date.now() - 27 * DAY), demandGeneratedDate: new Date(Date.now() - 41 * DAY), interestWaivers: [] })
+  const sold = (over: Record<string, unknown> = {}, sched: any = late): any => ({ ...sale, project: project(over), paymentSchedules: [sched] })
+
+  it('shows what has accrued on the demand, the rate, the date interest starts and a ready sentence', () => {
+    const p = buildDemandPayload(sold(), late).payment as Record<string, unknown>
+    expect(p.interestRate).toBe('12%')
+    expect(Number(String(p.interestAccrued).replace(/,/g, ''))).toBeGreaterThan(0) // 20 days past the grace days
+    expect(p.interestOutstanding).toBe(p.interestAccrued)
+    expect(p.showInterest).toBe(true)
+    expect(String(p.interestNote)).toMatch(/^Interest @ 12% p\.a\. is charged on a payment received after \d\d\/\d\d\/\d{4}$/)
+    expect(p.totalOutstanding).not.toBe('1,05,000.00') // the interest is in it
+  })
+  it('follows the project: hidden when set to Never, always shown when set to Always, none when off', () => {
+    expect((buildDemandPayload(sold({ interestOnDemand: 'NEVER' }), late).payment as any).showInterest).toBe(false)
+    const notYet: any = schedule({ id: 'n', description: 'Plinth', principalAmount: 100000, gstAmount: 5000, status: 'DUE', dueDate: new Date(Date.now() + 5 * DAY), interestWaivers: [] })
+    expect((buildDemandPayload(sold({}, notYet), notYet).payment as any).showInterest).toBe(false) // nothing accrued yet
+    expect((buildDemandPayload(sold({ interestOnDemand: 'ALWAYS' }, notYet), notYet).payment as any).showInterest).toBe(true)
+    const off = buildDemandPayload(sold({ interestEnabled: false }), late).payment as any
+    expect(off).toMatchObject({ interestAccrued: '0.00', interestNote: '', interestStartDate: '' })
+  })
+  it('counts interest paid in a receipt, and in the total received', () => {
+    const pay: any = { id: 'p1', amount: 1000, gstPaid: 0, interestPaid: 250, paymentDate: at('2026-02-01'), createdAt: at('2026-02-01'), deletedAt: null, mode: 'NEFT', receiptNumber: 'R1', referenceNumber: null, bankName: null }
+    const r = buildReceiptPayload(sold({}, { ...late, payments: [pay] }), pay, { ...late, payments: [pay] }).receipt
+    expect(r).toMatchObject({ principalPaid: '1,000.00', interestPaid: '250.00', amount: '1,250.00' })
+  })
+})

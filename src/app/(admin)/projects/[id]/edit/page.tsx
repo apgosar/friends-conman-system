@@ -4,6 +4,7 @@ import TopNav from '@/components/layout/TopNav'
 import EditProjectForm from '@/components/projects/EditProjectForm'
 import EditProjectTabs from '@/components/projects/EditProjectTabs'
 import OtherChargesPanel from '@/components/projects/OtherChargesPanel'
+import InterestPanel from '@/components/projects/InterestPanel'
 import { plain } from '@/lib/plain'
 
 export default async function EditProjectPage(props: PageProps<'/projects/[id]/edit'>) {
@@ -20,6 +21,12 @@ export default async function EditProjectPage(props: PageProps<'/projects/[id]/e
         <EditProjectTabs
           projectId={id}
           details={<EditProjectForm project={plain(project)} companies={companies} />}
+          interest={
+            <InterestPanel
+              projectId={id}
+              initial={{ interestEnabled: project.interestEnabled, interestRatePercent: project.interestRatePercent, interestGraceDays: project.interestGraceDays, interestDefaultOrder: project.interestDefaultOrder, interestOnDemand: project.interestOnDemand }}
+            />
+          }
           charges={
             <OtherChargesPanel
               projectId={id}

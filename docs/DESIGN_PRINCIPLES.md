@@ -67,6 +67,7 @@ The cost of breaking this is paid later and in bulk: a hand-styled button here, 
 | Number a sale or receipt | `nextSaleNumber`, `nextReceiptNumber` | `src/lib/numbering.ts` |
 | Show or use a PAN / Aadhaar number | `maskedPan`, `maskedAadhaar`, `revealPii` | `src/lib/pii.ts` |
 | Build the data for a document | `buildSalePayload` / `buildDemandPayload` / `buildReceiptPayload` | `src/lib/documents/payload.ts` |
+| Interest on a late demand (daily accrual, what a payment clears first, waiver, the sentence for a letter) | `accrualsThrough`, `standingOfSchedule`, `splitPayment`, `interestPolicyOf`; the ledger: `syncAccruals` | `src/lib/interest.ts`, `src/lib/interest-ledger.ts` |
 | A project's other charges (society share money, MCGM charge, legal... due with the last milestone) | `computeOtherCharges`, `DEFAULT_OTHER_CHARGES`, `OTHER_CHARGES_LABEL` | `src/lib/other-charges.ts` |
 | Sale agreement PAYABLES (MCGM charge per sq ft, common area charge, fixed amounts) | `agreementPayables` | `src/lib/documents/payables.ts` |
 | Turn HTML into a PDF | `renderHtmlToPdf` | `src/lib/pdf/renderer.ts` |

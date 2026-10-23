@@ -11,6 +11,7 @@ Companion files for [DEPLOYMENT_ONPREM.md](../../DEPLOYMENT_ONPREM.md). Run thes
 - `cloudflared/config.yml` — tunnel routing config template; needs a real tunnel ID and credentials file (see below).
 - [../../.github/workflows/release-onprem.yml](../../.github/workflows/release-onprem.yml) — builds, pushes, and signs the image customers pull, triggered by pushing a `v*.*.*` git tag.
 - `docker-compose.override.yml.example` — for testing on the host machine only, before touching Cloudflare Tunnel/DNS at all. Copy to `docker-compose.override.yml` (Compose merges it automatically) to expose the app at `http://localhost:8080` on the host only, then delete it again before going live.
+- `Run-NeevDailyJob.bat` — the daily job (overdue ageing and interest); see "Daily job" below.
 - `update.sh` + `Update-NeevCMS.bat` — the one-click updater for a customer's server; see "Updating a customer's server" below.
 
 ## Test locally before wiring up internet access
@@ -154,6 +155,19 @@ docker compose start web
 ```
 
 If the backup was taken before a data conversion ran, also delete that conversion's line from `data-migrations.applied` (or the whole file), so the next update runs it again.
+
+## Daily job (overdue ageing and interest)
+
+The app posts each late demand's interest once a day and moves overdue demands to their bucket. Something has to start that job: `Run-NeevDailyJob.bat` does, using the app's own `CRON_SECRET` (nothing to type in).
+
+1. Put `Run-NeevDailyJob.bat` next to `Update-NeevCMS.bat` (`C:\NeevCMS\`) and set `DISTRO` and `APPDIR` the same way.
+2. Run it once by hand: it prints the app's answer (`200`) and `Daily job done.`
+3. **PowerShell (Admin)**: schedule it for 00:30 every day, whether or not anyone is logged in (the same kind of task as the WSL keep-alive in WINDOWS-INSTALL.md):
+   ```powershell
+   schtasks /create /tn "Neev CMS daily job" /tr "C:\NeevCMS\Run-NeevDailyJob.bat" /sc daily /st 00:30 /ru "<local-admin-username>" /rp "<that-account's-password>" /rl highest /f
+   ```
+
+A day the server was off is not lost: the next run posts every missed day's interest.
 
 ## ⚠ One-time: lock down the package's visibility
 

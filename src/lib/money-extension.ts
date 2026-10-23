@@ -48,7 +48,10 @@ export const moneyExtension = Prisma.defineExtension({
     payment: {
       amount: required('amount'),
       gstPaid: required('gstPaid'),
+      interestPaid: required('interestPaid'),
     },
+    interestAccrual: { principalBase: required('principalBase'), amount: required('amount') },
+    interestWaiver: { amount: required('amount') },
     projectCharge: { amount: required('amount') },
     tdsRecord: { tdsAmount: required('tdsAmount') },
     loan: {

@@ -8,11 +8,9 @@ interface Values {
   regChargesCap?: number | null
   regParkingCharges?: number | null
   tdsRatePercent?: number | null
-  interestRatePercent?: number | null
 }
 
 const DEFAULT_TDS = 1
-const DEFAULT_INTEREST = 12
 
 /**
  * The tax and pricing settings of a project, as form fields. Used by both New project and Edit project, so the two can
@@ -50,12 +48,6 @@ export default function PricingFields({ values = {} }: { values?: Values }) {
         <div className="form-group">
           <label className="form-label" htmlFor="regParkingCharges">Extra registration with parking (₹)</label>
           <Input id="regParkingCharges" name="regParkingCharges" type="number" min="0" step="1" defaultValue={v(values.regParkingCharges, DEFAULT_PRICING.regParkingCharges)} />
-        </div>
-      </div>
-      <div className="grid grid-3 gap-4 mb-4">
-        <div className="form-group">
-          <label className="form-label" htmlFor="interestRatePercent">Interest on overdue % p.a.</label>
-          <Input id="interestRatePercent" name="interestRatePercent" type="number" min="0" max="100" step="0.01" defaultValue={v(values.interestRatePercent, DEFAULT_INTEREST)} />
         </div>
       </div>
     </>

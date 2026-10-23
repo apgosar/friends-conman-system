@@ -17,3 +17,12 @@ describe('who may open what', () => {
     expect(can('ADMIN', 'superadmin')).toBe(false)
   })
 })
+
+describe('waiving interest', () => {
+  it('is for Admin and Super Admin: Sales and Viewer cannot', () => {
+    expect(can('SUPER_ADMIN', 'admin')).toBe(true)
+    expect(can('ADMIN', 'admin')).toBe(true)
+    expect(can('SALES', 'admin')).toBe(false)
+    expect(can('VIEWER', 'admin')).toBe(false)
+  })
+})

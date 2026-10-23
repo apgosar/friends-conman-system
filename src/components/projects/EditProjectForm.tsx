@@ -50,7 +50,6 @@ export default function EditProjectForm({ project, companies }: { project: any; 
       regChargesCap: form.get('regChargesCap'),
       regParkingCharges: form.get('regParkingCharges'),
       tdsRatePercent: form.get('tdsRatePercent'),
-      interestRatePercent: form.get('interestRatePercent'),
       // A greyed-out box is not part of the form: keep the charge that is saved
       carParkingCharges: parkingIncluded ? Number(project.carParkingCharges ?? 500000) : Number(form.get('carParkingCharges')),
       carParkingIncluded: parkingIncluded,

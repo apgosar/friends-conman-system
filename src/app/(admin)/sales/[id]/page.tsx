@@ -16,6 +16,7 @@ import { isAnonymized } from '@/lib/dpdp-compliance'
 import AnonymizeBuyerButton from '@/components/sales/AnonymizeBuyerButton'
 import BuyerCard from '@/components/sales/BuyerCard'
 import { SCHEDULE_ORDER } from '@/lib/payment-plans'
+import { interestPolicyOf, standingOfSchedule, withInterestPolicy } from '@/lib/interest'
 import { Badge, ButtonLink, Card, CardHeader, PageHeader, StatusBadge } from '@/components/ui'
 
 async function getSale(id: string) {
@@ -26,7 +27,7 @@ async function getSale(id: string) {
       unit: { include: { floor: { include: { wing: true } } } },
       buyers: { orderBy: { sequence: 'asc' } },
       paymentSchedules: {
-        include: { milestone: true, payments: true },
+        include: { milestone: true, payments: true, interestWaivers: true },
         orderBy: SCHEDULE_ORDER,
       },
       documents: { orderBy: { createdAt: 'desc' } },
@@ -58,15 +59,22 @@ export default async function SaleDetailPage(props: PageProps<'/sales/[id]'>) {
   const raised = sale.paymentSchedules.filter((s) => s.status !== 'UPCOMING')
   const principalDue = raised.reduce((sum, s) => sum + Number(s.principalAmount), 0)
   const gstDue = raised.reduce((sum, s) => sum + Number(s.gstAmount ?? 0), 0)
-  const totalPaid = principalPaid + gstReceived
+  const interestPaid = livePayments.reduce((a, p) => a + Number(p.interestPaid ?? 0), 0)
+  const totalPaid = principalPaid + gstReceived + interestPaid
   const totalDue = principalDue + gstDue
+  // Interest on late demands, worked out today under the project's settings
+  const interestPolicy = interestPolicyOf(sale.project)
+  const interestStandings = sale.paymentSchedules.map((s) => standingOfSchedule(s, interestPolicy))
+  const interestAccrued = interestStandings.reduce((a, s) => a + s.accrued, 0)
+  const interestOutstanding = interestStandings.reduce((a, s) => a + s.outstanding, 0)
+  const schedulesForScreen = withInterestPolicy(plain(sale.paymentSchedules), sale.project)
   // The rate this sale was actually charged at (the project's rate may have changed since)
   const gstRateLabel = Number(sale.agreementValue) > 0 ? `${formatNumber((Number(sale.gstAmount) / Number(sale.agreementValue)) * 100)}%` : '—'
   // Still to pay of what has fallen due, principal and GST apart
   const outstandingPrincipal = Math.max(0, principalDue - principalPaid)
   const outstandingGst = Math.max(0, gstDue - gstReceived)
-  const outstanding = outstandingPrincipal + outstandingGst
-  const paidPct = totalDue > 0 ? Math.min(100, Math.round((totalPaid / totalDue) * 100)) : 0
+  const outstanding = outstandingPrincipal + outstandingGst + interestOutstanding
+  const paidPct = totalDue > 0 ? Math.min(100, Math.round(((principalPaid + gstReceived) / totalDue) * 100)) : 0
 
   return (
     <>
@@ -139,12 +147,14 @@ export default async function SaleDetailPage(props: PageProps<'/sales/[id]'>) {
               <div className="kv-row"><span>Payments Done</span><span className="kv-value text-success">{formatCurrency(totalPaid)}</span></div>
               <div className="kv-row kv-row-sub"><span>Principal</span><span className="kv-value">{formatCurrency(principalPaid)}</span></div>
               <div className="kv-row kv-row-sub"><span>GST</span><span className="kv-value">{formatCurrency(gstReceived)}</span></div>
+              {interestPaid > 0 && <div className="kv-row kv-row-sub"><span>Interest</span><span className="kv-value">{formatCurrency(interestPaid)}</span></div>}
               <div className="kv-row">
                 <span>Outstanding</span>
                 <span className={`kv-value ${outstanding > 0 ? 'text-danger' : 'text-success'}`}>{formatCurrency(outstanding)}</span>
               </div>
               <div className="kv-row kv-row-sub"><span>Principal</span><span className="kv-value">{formatCurrency(outstandingPrincipal)}</span></div>
               <div className="kv-row kv-row-sub"><span>GST</span><span className="kv-value">{formatCurrency(outstandingGst)}</span></div>
+              {interestAccrued > 0 && <div className="kv-row kv-row-sub"><span>Interest</span><span className="kv-value">{formatCurrency(interestOutstanding)}</span></div>}
             </div>
             <div className="progress-bar" role="progressbar" aria-valuenow={paidPct} aria-valuemin={0} aria-valuemax={100} aria-label="Share of the amount due that is paid">
               <div className="progress-fill" style={{ width: `${Math.min(100, paidPct)}%` }} />
@@ -182,8 +192,8 @@ export default async function SaleDetailPage(props: PageProps<'/sales/[id]'>) {
         )}
 
         <Card className="mb-6 anchor-target" id="payment-schedule">
-          <CardHeader title="Payment Schedule" actions={<RecordPaymentModal schedules={plain(sale.paymentSchedules)} saleId={id} />} />
-          <PaymentScheduleTable schedules={plain(sale.paymentSchedules)} />
+          <CardHeader title="Payment Schedule" actions={<RecordPaymentModal schedules={schedulesForScreen} saleId={id} />} />
+          <PaymentScheduleTable schedules={schedulesForScreen} canWaive={canEditSale} />
         </Card>
 
         {sale.documents.length > 0 && (

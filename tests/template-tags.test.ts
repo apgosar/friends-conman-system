@@ -15,3 +15,12 @@ describe('findTagIssues', () => {
     expect(findTagIssues('{{unitKind}} {{unitNumber}} {{receipt.amount}}', 'RECEIPT', 'DOCX')).toMatchObject({ unknown: [], wrongType: [] })
   })
 })
+
+describe('interest tags', () => {
+  it('lets a demand letter use the interest tags and the interest section, but not a receipt or an agreement', () => {
+    const text = '{{#payment.showInterest}}{{payment.interestOutstanding}} {{payment.interestNote}}{{/payment.showInterest}} {{payment.outstandingInterest}} {{payment.totalPayableWithInterest}}'
+    expect(findTagIssues(text, 'DEMAND_LETTER', 'DOCX')).toMatchObject({ unknown: [], wrongType: [] })
+    expect(findTagIssues(text, 'RECEIPT', 'DOCX').wrongType).toContain('payment.interestNote')
+    expect(findTagIssues('{{receipt.interestPaid}}', 'RECEIPT', 'DOCX')).toMatchObject({ unknown: [], wrongType: [] })
+  })
+})

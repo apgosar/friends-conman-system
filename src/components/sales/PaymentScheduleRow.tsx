@@ -7,7 +7,7 @@ import PaymentDetailsModal from './PaymentDetailsModal'
 import { RecordPaymentDialog } from './RecordPaymentModal'
 
 /** One demand on a sale's payments page: click the row for details, "Record Payment" to take money against it. */
-export default function PaymentScheduleRow({ schedule, saleId }: { schedule: any; saleId: string }) {
+export default function PaymentScheduleRow({ schedule, saleId, canWaive = false }: { schedule: any; saleId: string; canWaive?: boolean }) {
   const [showPay, setShowPay] = useState(false)
   const [showDetails, setShowDetails] = useState(false)
 
@@ -32,7 +32,7 @@ export default function PaymentScheduleRow({ schedule, saleId }: { schedule: any
       </tr>
 
       {showPay && <RecordPaymentDialog schedules={[schedule]} saleId={saleId} initialScheduleId={schedule.id} onClose={() => setShowPay(false)} />}
-      {showDetails && <PaymentDetailsModal schedule={schedule} onClose={() => setShowDetails(false)} />}
+      {showDetails && <PaymentDetailsModal schedule={schedule} canWaive={canWaive} onClose={() => setShowDetails(false)} />}
     </>
   )
 }

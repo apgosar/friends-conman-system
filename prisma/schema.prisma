@@ -86,6 +86,11 @@ model Project {
   gstRatePercent       Float     @default(5)
   tdsRatePercent       Float     @default(1)
   interestRatePercent  Float     @default(12) // simple interest per annum on overdue demands
+  /// Interest on late demands: switched on, days of grace after the due date, what a payment clears first (INTEREST_FIRST | PRINCIPAL_FIRST), and whether a demand letter shows it (WHEN_ACCRUED | ALWAYS | NEVER)
+  interestEnabled      Boolean   @default(true)
+  interestGraceDays    Int       @default(7)
+  interestDefaultOrder String    @default("INTEREST_FIRST")
+  interestOnDemand     String    @default("WHEN_ACCRUED")
   carParkingCharges    Decimal   @default(500000) @db.Decimal(15, 2) // Default car parking price from project template
   carParkingIncluded   Boolean   @default(false) // parking is part of the agreement value: new sales carry no parking charge
   milestoneOrderManual Boolean   @default(false) // a super-admin set the milestone order by hand: plan changes no longer re-sort it
@@ -380,6 +385,7 @@ model PaymentSchedule {
   gstAmount               Decimal   @default(0) @db.Decimal(15, 2)
   dueDate                 DateTime?
   demandGeneratedDate     DateTime?
+  /// Interest still owed on this demand (accrued, less paid and waived), refreshed by the daily job and by every payment or waiver
   interestAmount          Decimal   @default(0) @db.Decimal(15, 2)
   status                  String    @default("UPCOMING")
   reminderCount           Int       @default(0)
@@ -391,14 +397,44 @@ model PaymentSchedule {
   createdAt               DateTime  @default(now())
   updatedAt               DateTime  @updatedAt
 
-  sale      Sale                   @relation(fields: [saleId], references: [id], onDelete: Cascade)
-  milestone ConstructionMilestone? @relation(fields: [milestoneId], references: [id])
-  payments  Payment[]
+  sale             Sale                   @relation(fields: [saleId], references: [id], onDelete: Cascade)
+  milestone        ConstructionMilestone? @relation(fields: [milestoneId], references: [id])
+  payments         Payment[]
+  interestAccruals InterestAccrual[]
+  interestWaivers  InterestWaiver[]
 
   @@index([saleId])
   @@index([status])
   @@index([status, dueDate])
   @@map("payment_schedules")
+}
+
+/// One day's interest on a late demand: the unpaid principal that day x the rate / 365. Rebuilt when a payment changes what was unpaid.
+model InterestAccrual {
+  id            String          @id @default(cuid())
+  scheduleId    String
+  date          DateTime        @db.Date
+  principalBase Decimal         @db.Decimal(15, 2)
+  ratePercent   Float
+  amount        Decimal         @db.Decimal(15, 2)
+  schedule      PaymentSchedule @relation(fields: [scheduleId], references: [id], onDelete: Cascade)
+
+  @@unique([scheduleId, date])
+  @@map("interest_accruals")
+}
+
+/// Interest forgiven on a demand, with the reason and who did it
+model InterestWaiver {
+  id          String          @id @default(cuid())
+  scheduleId  String
+  amount      Decimal         @db.Decimal(15, 2)
+  reason      String
+  createdById String
+  createdAt   DateTime        @default(now())
+  schedule    PaymentSchedule @relation(fields: [scheduleId], references: [id], onDelete: Cascade)
+
+  @@index([scheduleId])
+  @@map("interest_waivers")
 }
 
 model Payment {
@@ -407,6 +443,8 @@ model Payment {
   saleId          String
   amount          Decimal   @db.Decimal(15, 2)
   gstPaid         Decimal   @default(0) @db.Decimal(15, 2)
+  /// The part of this payment that cleared interest (amount is principal, gstPaid is GST)
+  interestPaid    Decimal   @default(0) @db.Decimal(15, 2)
   mode            String
   referenceNumber String? // UTR, cheque number
   bankName        String?

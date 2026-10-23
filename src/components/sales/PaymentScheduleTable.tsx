@@ -6,7 +6,7 @@ import { formatCurrency, formatDate } from '@/lib/format'
 import PaymentDetailsModal from './PaymentDetailsModal'
 
 /** A sale's demands with what has been paid on each. Click a row for the receipts. */
-export default function PaymentScheduleTable({ schedules }: { schedules: any[] }) {
+export default function PaymentScheduleTable({ schedules, canWaive = false }: { schedules: any[]; canWaive?: boolean }) {
   const [selected, setSelected] = useState<any | null>(null)
 
   return (
@@ -45,7 +45,7 @@ export default function PaymentScheduleTable({ schedules }: { schedules: any[] }
         </tbody>
       </Table>
 
-      {selected && <PaymentDetailsModal schedule={selected} onClose={() => setSelected(null)} />}
+      {selected && <PaymentDetailsModal schedule={selected} canWaive={canWaive} onClose={() => setSelected(null)} />}
     </>
   )
 }

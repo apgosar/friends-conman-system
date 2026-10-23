@@ -16,6 +16,7 @@ const PaymentSchema = z.object({
   saleId: z.string().min(1, 'saleId is required'),
   amount,
   gstPaid: amount.optional().default(0),
+  interestPaid: amount.optional().default(0),
   mode: z.enum(PAYMENT_MODE_VALUES, { message: 'Choose a payment mode' }),
   referenceNumber: z.string().max(100).optional(),
   bankName: z.string().max(100).optional(),

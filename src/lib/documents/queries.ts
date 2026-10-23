@@ -7,7 +7,7 @@ export const saleForDocument = {
   unit: { include: { floor: { include: { wing: true } } } },
   buyers: true,
   tenant: true,
-  paymentSchedules: { orderBy: SCHEDULE_ORDER, include: { milestone: true, payments: true } },
+  paymentSchedules: { orderBy: SCHEDULE_ORDER, include: { milestone: true, payments: true, interestWaivers: true } },
 } as const
 
 export const loadSaleForDocument = (saleId: string) => prisma.sale.findUnique({ where: { id: saleId }, include: saleForDocument })
