@@ -1,6 +1,7 @@
 import { formatDate, formatMoney, numberToWords } from '@/lib/format'
 import { percentOf, sumRupees } from '@/lib/money'
 import { paymentModeLabel } from '@/lib/status'
+import { floorLabel, floorOrdinal, ordinal } from '@/lib/building-structure'
 import { dateOfDay, interestNote, interestPolicyOf, interestStartDay, standingOfSchedule } from '@/lib/interest'
 import { formatPhoneList } from '@/lib/phone'
 import { revealPii } from '@/lib/pii' // agreements carry the real numbers; nothing else does
@@ -19,7 +20,6 @@ type Schedule = SaleForDocument['paymentSchedules'][number]
 export const DUE_STATUSES = ['DUE', 'OVERDUE_7', 'OVERDUE_15', 'OVERDUE_30', 'OVERDUE_30PLUS']
 
 const SQFT_TO_SQM = 0.092903
-const ordinal = (n: number) => (n === 1 ? '1st' : n === 2 ? '2nd' : n === 3 ? '3rd' : `${n}th`)
 /** Names in a line: "A", "A and B", "A, B and C". */
 const joinNames = (names: string[]) => {
   const list = names.filter(Boolean)
@@ -115,8 +115,8 @@ export function buildSalePayload(sale: SaleForDocument, partners: PartnerForDocu
     projectName: project.name,
     reraNumber: project.reraNumber ?? '',
     wingName: unit.floor.wing.name,
-    floorNumber: unit.floor.floorNumber.toString(),
-    floorOrdinal: ordinal(unit.floor.floorNumber),
+    floorNumber: floorLabel(unit.floor.floorNumber), // G for the ground floor
+    floorOrdinal: floorOrdinal(unit.floor.floorNumber), // Ground, 1st, 2nd ...: reads as "on the Ground floor"
     unitNumber: unit.unitNumber,
     configuration: unit.configuration,
     carpetArea: unit.carpetAreaSqft.toString(),

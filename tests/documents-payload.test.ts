@@ -218,3 +218,15 @@ describe('payment mode in documents', () => {
     expect(buildReceiptPayload(s, pays[0] as any, sched).receipt.mode).toBe('Demand Draft')
   })
 })
+
+describe('floors in documents', () => {
+  const onFloor = (n: number): any => ({ ...sale, carParkingCount: 0, unit: { ...sale.unit, category: 'SHOP', floor: { floorNumber: n, wing: { name: 'A' } } } })
+  it('writes the ground floor as G, and as Ground in "on the ___ floor"', () => {
+    expect(buildSalePayload(onFloor(0))).toMatchObject({ floorNumber: 'G', floorOrdinal: 'Ground' })
+    expect(buildSalePayload(onFloor(18))).toMatchObject({ floorNumber: '18', floorOrdinal: '18th' })
+  })
+  it('gets the ordinal endings right: 1st 2nd 3rd 4th, 11th 12th 13th, 21st 22nd 23rd, 101st 111th', () => {
+    const got = [1, 2, 3, 4, 11, 12, 13, 21, 22, 23, 101, 111].map((n) => buildSalePayload(onFloor(n)).floorOrdinal)
+    expect(got).toEqual(['1st', '2nd', '3rd', '4th', '11th', '12th', '13th', '21st', '22nd', '23rd', '101st', '111th'])
+  })
+})

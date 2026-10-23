@@ -70,8 +70,18 @@ export interface GeneratedUnit {
 
 export const LIMITS = { maxFloorsPerRange: 200, maxUnits: 5000, maxWings: 30, maxCommercialPerFloor: 99 }
 
-/** Ground floor (0) is written G, e.g. A-G01 for the first flat. */
-const floorLabel = (floor: number) => (floor === 0 ? 'G' : String(floor))
+/** Ground floor (0) is written G, e.g. A-G01 for the first flat. The one place a floor number becomes text on a screen, export or document. */
+export const floorLabel = (floor: number): string => (floor === 0 ? 'G' : String(floor))
+
+/** 1st, 2nd, 3rd, 4th ... 11th, 12th, 13th ... 21st, 22nd. */
+export function ordinal(n: number): string {
+  const lastTwo = n % 100
+  if (lastTwo >= 11 && lastTwo <= 13) return `${n}th`
+  return `${n}${({ 1: 'st', 2: 'nd', 3: 'rd' } as Record<number, string>)[n % 10] ?? 'th'}`
+}
+
+/** "Ground" for the ground floor, else 1st, 2nd...: reads as "on the Ground floor" / "on the 18th floor". */
+export const floorOrdinal = (floor: number): string => (floor === 0 ? 'Ground' : ordinal(floor))
 
 export function formatUnitNumber(format: NumberingFormat, wing: string, floor: number, position: number, unitsOnFloor: number): string {
   const pad = unitsOnFloor > 99 ? 3 : 2

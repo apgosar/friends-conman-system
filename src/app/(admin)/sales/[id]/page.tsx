@@ -16,6 +16,7 @@ import { isAnonymized } from '@/lib/dpdp-compliance'
 import AnonymizeBuyerButton from '@/components/sales/AnonymizeBuyerButton'
 import BuyerCard from '@/components/sales/BuyerCard'
 import { SCHEDULE_ORDER } from '@/lib/payment-plans'
+import { floorLabel } from '@/lib/building-structure'
 import { interestPolicyOf, standingOfSchedule, withInterestPolicy } from '@/lib/interest'
 import { Badge, ButtonLink, Card, CardHeader, PageHeader, StatusBadge } from '@/components/ui'
 
@@ -91,7 +92,7 @@ export default async function SaleDetailPage(props: PageProps<'/sales/[id]'>) {
             </>
           }
           title={`${sale.saleNumber} — ${sale.unit.unitNumber}`}
-          subtitle={`${sale.unit.floor.wing.name} Wing, Floor ${sale.unit.floor.floorNumber} · ${sale.unit.configuration} · ${sale.unit.carpetAreaSqft.toString()} sqft`}
+          subtitle={`${sale.unit.floor.wing.name} Wing, Floor ${floorLabel(sale.unit.floor.floorNumber)} · ${sale.unit.configuration} · ${sale.unit.carpetAreaSqft.toString()} sqft`}
           actions={
             <>
               <ButtonLink href={`/sales/${id}/documents`}>Documents</ButtonLink>

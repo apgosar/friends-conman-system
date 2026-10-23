@@ -3,7 +3,7 @@
 import { useMemo, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { MANUAL_UNIT_STATUSES, unitStatusLabel } from '@/lib/status'
-import { CATEGORIES, COMMON_AREA_SUGGESTIONS, categoryLabel, wingLabel } from '@/lib/building-structure'
+import { CATEGORIES, COMMON_AREA_SUGGESTIONS, categoryLabel, floorLabel, wingLabel } from '@/lib/building-structure'
 import { BookerFields, fmtNum, type StructureUnit, type UnitTypeRow, type WingRow } from './ui'
 import { Alert, Button, Input, Modal, PhoneInput, Select, SelectField, StatusBadge, Table, TextField, useConfirm } from '@/components/ui'
 import { normalizePhone } from '@/lib/phone'
@@ -94,7 +94,7 @@ function EditUnit({ unit, types, onClose }: { unit: StructureUnit; types: UnitTy
   return (
     <Modal
       title={`Edit unit ${unit.unitNumber}`}
-      subtitle={`${wingLabel(unit.wingName)}, floor ${unit.floorNumber === 0 ? 'G' : unit.floorNumber}`}
+      subtitle={`${wingLabel(unit.wingName)}, floor ${floorLabel(unit.floorNumber)}`}
       size="lg"
       onClose={onClose}
       dismissible={!busy}
@@ -329,7 +329,7 @@ export default function UnitsTable({ projectId, units, wings, types }: { project
                     <td className="font-semibold">{u.unitNumber}</td>
                     <td>{categoryLabel(u.category)}</td>
                     {wings.length > 1 && <td>{u.wingName === 'Commercial' ? 'Commercial' : u.wingName}</td>}
-                    <td>{u.floorNumber === 0 ? 'G' : u.floorNumber}</td>
+                    <td>{floorLabel(u.floorNumber)}</td>
                     <td>{u.typeName ?? <span className="text-muted">—</span>}</td>
                     <td>{u.configuration}</td>
                     <td>{fmtNum(u.carpetAreaSqft)} sqft</td>

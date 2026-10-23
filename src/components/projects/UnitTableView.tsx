@@ -1,6 +1,7 @@
 'use client'
 
 import { Input, StatusBadge, Badge, Td, cn } from '@/components/ui'
+import { floorLabel } from '@/lib/building-structure'
 import { isSaleable } from '@/lib/status'
 import type { UnitData } from './building-model'
 
@@ -58,7 +59,7 @@ export default function UnitTableView({ rows, query, onQuery, selectedId, onSele
                   onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); onSelect(unit) } }}
                 >
                   <Td label="Unit" className="font-semibold">{unit.unitNumber}</Td>
-                  <Td label="Floor">{floorNumber}</Td>
+                  <Td label="Floor">{floorLabel(floorNumber)}</Td>
                   <Td label="Configuration">{unit.configuration}</Td>
                   <Td label="Carpet area">{unit.carpetAreaSqft} sqft</Td>
                   <Td label="Status"><StatusBadge kind="unit" status={unit.status} /></Td>

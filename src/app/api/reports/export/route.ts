@@ -1,4 +1,5 @@
 import { apiError, apiServerError } from '@/lib/api-error'
+import { floorLabel } from '@/lib/building-structure'
 import { NextRequest } from 'next/server'
 import { requireRole } from '@/lib/guard'
 import { prisma } from '@/lib/db'
@@ -117,7 +118,7 @@ export async function GET(req: NextRequest) {
         return [
           project.name,
           wing.name,
-          String(u.floor.floorNumber),
+          floorLabel(u.floor.floorNumber),
           u.unitNumber,
           u.configuration,
           String(u.carpetAreaSqft ?? ''),

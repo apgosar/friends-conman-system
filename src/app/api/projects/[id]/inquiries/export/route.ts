@@ -1,4 +1,5 @@
 import { NextRequest } from 'next/server'
+import { floorLabel } from '@/lib/building-structure'
 import ExcelJS from 'exceljs'
 import { requireRole } from '@/lib/guard'
 import { prisma } from '@/lib/db'
@@ -51,7 +52,7 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ id: 
   const rows = inquiries.map((q) => [
     formatDate(q.createdAt),
     q.unit.floor.wing.name,
-    q.unit.floor.floorNumber,
+    floorLabel(q.unit.floor.floorNumber),
     q.unit.unitNumber,
     q.unit.configuration,
     q.unit.carpetAreaSqft,
