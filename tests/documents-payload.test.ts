@@ -205,3 +205,16 @@ describe('interest in a demand letter and a receipt', () => {
     expect(r).toMatchObject({ principalPaid: '1,000.00', interestPaid: '250.00', amount: '1,250.00' })
   })
 })
+
+describe('payment mode in documents', () => {
+  it('prints the mode as the Record Payment screen names it, in a receipt and in the agreement receipts table', () => {
+    const pays = [
+      { id: 'a', amount: 1, gstPaid: 0, interestPaid: 0, paymentDate: at('2026-02-01'), createdAt: at('2026-02-01'), bankName: null, deletedAt: null, mode: 'DD', receiptNumber: 'R1', referenceNumber: null },
+      { id: 'b', amount: 1, gstPaid: 0, interestPaid: 0, paymentDate: at('2026-02-02'), createdAt: at('2026-02-02'), bankName: null, deletedAt: null, mode: 'NEFT', receiptNumber: 'R2', referenceNumber: null },
+    ]
+    const sched: any = schedule({ id: 'm', description: 'Booking', payments: pays })
+    const s: any = { ...sale, carParkingCount: 0, unit: { ...sale.unit, category: 'FLAT' }, paymentSchedules: [sched] }
+    expect(buildSalePayload(s).receipts.map((r) => r.mode)).toEqual(['Demand Draft', 'NEFT'])
+    expect(buildReceiptPayload(s, pays[0] as any, sched).receipt.mode).toBe('Demand Draft')
+  })
+})

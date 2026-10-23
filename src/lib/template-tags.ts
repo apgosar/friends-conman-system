@@ -128,7 +128,7 @@ export const TAG_GROUPS: TagGroup[] = [
     { tag: 'receipt.interestPaid', desc: 'Interest received (0.00 when none)', types: ['RECEIPT'] },
     { tag: 'receipt.amount', desc: 'Total received (principal, GST and interest)', types: ['RECEIPT'] },
     { tag: 'receipt.amountWords', desc: 'Total received in words', types: ['RECEIPT'] },
-    { tag: 'receipt.mode', desc: 'Payment mode', types: ['RECEIPT'] },
+    { tag: 'receipt.mode', desc: 'Payment mode as named on the Record Payment screen (NEFT, Cheque, Demand Draft, Cash...)', types: ['RECEIPT'] },
     { tag: 'receipt.reference', desc: 'UTR / cheque number', types: ['RECEIPT'] },
     { tag: 'receipt.bankName', desc: 'Bank name', types: ['RECEIPT'] },
     { tag: 'receipt.cumulativePaid', desc: 'Total paid so far', types: ['RECEIPT'] },
@@ -156,7 +156,7 @@ export const LOOPS: LoopDef[] = [
     { tag: 'principalAmount', desc: 'Amount' }, { tag: 'gstAmount', desc: 'GST' }, { tag: 'totalAmount', desc: 'Total' },
   ] },
   { name: 'receipts', desc: 'One row per payment recorded so far: the receipt table at the end of a sale agreement', fields: [
-    { tag: 'index', desc: 'Number' }, { tag: 'bank', desc: 'Bank' }, { tag: 'branch', desc: 'Branch (not recorded: empty)' },
+    { tag: 'index', desc: 'Number' }, { tag: 'mode', desc: 'Payment mode (NEFT, Cheque, Cash...)' }, { tag: 'bank', desc: 'Bank' }, { tag: 'branch', desc: 'Branch (not recorded: empty)' },
     { tag: 'reference', desc: 'Cheque no. / UTR' }, { tag: 'date', desc: 'Date' }, { tag: 'amount', desc: 'Amount received (with GST)' },
   ] },
   { name: 'paymentPlan', desc: 'One row per payment plan instalment', fields: [

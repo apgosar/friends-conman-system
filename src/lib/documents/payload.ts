@@ -1,5 +1,6 @@
 import { formatDate, formatMoney, numberToWords } from '@/lib/format'
 import { percentOf, sumRupees } from '@/lib/money'
+import { paymentModeLabel } from '@/lib/status'
 import { dateOfDay, interestNote, interestPolicyOf, interestStartDay, standingOfSchedule } from '@/lib/interest'
 import { formatPhoneList } from '@/lib/phone'
 import { revealPii } from '@/lib/pii' // agreements carry the real numbers; nothing else does
@@ -74,6 +75,7 @@ export function buildSalePayload(sale: SaleForDocument, partners: PartnerForDocu
   const receivedTotal = payments.reduce((total, p) => total + Number(p.amount) + Number(p.gstPaid) + Number(p.interestPaid ?? 0), 0)
   const receipts = payments.map((p, i) => ({
     index: i + 1,
+    mode: paymentModeLabel(p.mode ?? ''),
     bank: p.bankName ?? '',
     branch: '', // the branch is not recorded with a payment
     reference: p.referenceNumber ?? '',
@@ -270,7 +272,7 @@ export function buildReceiptPayload(sale: SaleForDocument, payment: ReceiptPayme
       interestPaid: formatMoney(payment.interestPaid ?? 0),
       amount: formatMoney(received),
       amountWords: numberToWords(received),
-      mode: payment.mode,
+      mode: paymentModeLabel(payment.mode ?? ''), // "Cheque", "Demand Draft", "NEFT"... as the Record Payment screen names it
       reference: payment.referenceNumber ?? 'N/A',
       bankName: payment.bankName ?? 'N/A',
       cumulativePaid: formatMoney(paidUntilNow),
