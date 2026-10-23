@@ -8,6 +8,8 @@ import { createAuditLog } from '@/lib/audit'
 import { activeSale } from '@/lib/soft-delete'
 import { CONTACT_NUMBERS_ERROR } from '@/lib/companies'
 import { normalizePhoneList } from '@/lib/phone'
+import { HttpError } from '@/lib/errors'
+import { deleteProject } from '@/lib/projects/delete-project'
 
 export async function GET(req: NextRequest, props: { params: Promise<{ id: string }> }) {
   const session = await auth()
@@ -86,5 +88,19 @@ export async function PATCH(req: NextRequest, props: { params: Promise<{ id: str
     return Response.json({ success: true, data: updated })
   } catch (err) {
     return apiServerError(err, 'projects/[id]')
+  }
+}
+
+// DELETE /api/projects/[id]: Super Admin only. Deletes the project and everything under it, its sales included (see deleteProject)
+export async function DELETE(req: NextRequest, props: { params: Promise<{ id: string }> }) {
+  const guard = await requireRole('superadmin')
+  if ('error' in guard) return guard.error
+  const { id } = await props.params
+  try {
+    await deleteProject(id, guard.user.id)
+    return Response.json({ success: true })
+  } catch (err) {
+    if (err instanceof HttpError) return apiError(err.kind, err.message)
+    return apiServerError(err, 'projects/[id] DELETE')
   }
 }

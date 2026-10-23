@@ -10,6 +10,7 @@ import { activeSale } from '@/lib/soft-delete'
 import { auth } from '@/lib/auth'
 import { can } from '@/lib/authz'
 import { comboLabel, missingCombos, requiredCombos, type Combo } from '@/lib/payment-plans'
+import DeleteProjectButton from '@/components/projects/DeleteProjectButton'
 import { Alert, Badge, ButtonLink, Card, CardHeader, EmptyState, PageHeader, StatusBadge } from '@/components/ui'
 
 async function getProject(id: string) {
@@ -38,7 +39,8 @@ export default async function ProjectDetailPage(props: PageProps<'/projects/[id]
   const { id } = await props.params
   const project = await getProject(id)
   if (!project) notFound()
-  const isSuperAdmin = can((await auth())?.user?.role, 'superadmin') // building setup is for a Super Admin only
+  const isSuperAdmin = can((await auth())?.user?.role, 'superadmin') // building setup and deleting the project are for a Super Admin only
+  const salesOnRecord = isSuperAdmin ? await prisma.sale.count({ where: { projectId: id } }) : 0 // all of them, cancelled ones too: they are deleted with the project
 
   const allUnits = project.wings.flatMap((w) => w.floors.flatMap((f) => f.units))
   // Common areas (refuge area, society office...) are not for sale, so they are not part of the inventory counts
@@ -84,6 +86,7 @@ export default async function ProjectDetailPage(props: PageProps<'/projects/[id]
               <ButtonLink href={`/projects/${id}/milestones`}>Milestones</ButtonLink>
               <ButtonLink href={`/projects/${id}/templates`}>Templates</ButtonLink>
               {(project.type === 'REDEVELOPMENT' || project.type === 'MIXED') && <ButtonLink href={`/projects/${id}/tenants`}>Tenants</ButtonLink>}
+              {isSuperAdmin && <DeleteProjectButton projectId={id} projectName={project.name} salesCount={salesOnRecord} />}
             </>
           }
         />
