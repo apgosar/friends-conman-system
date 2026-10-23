@@ -92,6 +92,9 @@ export function catchUpPrincipal(agreementValue: number, completedMilestonesPerc
   return Math.round(agreementValue * ((completedMilestonesPercent + bookingPercent) / 100)) - bookingAmount
 }
 
+/** A demand that is not a share of the price (stamp duty, registration, parking, other charges): its letter is its own, without a milestone certificate. */
+export const isStandaloneCharge = (description: string): boolean => /stamp duty|registration|parking|other charges/i.test(description)
+
 /** A demand raised by hand (stamp duty and registration) is due this many days later, like a milestone demand. */
 export const DEMAND_DUE_DAYS = 14
 /** The booking amount is due this many days after the sale is created. */

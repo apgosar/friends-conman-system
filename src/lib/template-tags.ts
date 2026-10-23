@@ -28,6 +28,7 @@ export const TAG_GROUPS: TagGroup[] = [
     { tag: 'reraNumber', desc: 'RERA registration number' },
   ] },
   { group: 'Partners signing the agreement', tags: [
+    { tag: 'partnerNames', desc: 'All the partners named in the agreement: "A, B and C"', types: PARTNER_DOCS },
     { tag: 'partner1Name', desc: 'First partner: name', types: PARTNER_DOCS },
     { tag: 'partner1Address', desc: 'First partner: address', types: PARTNER_DOCS },
     { tag: 'partner1Pan', desc: 'First partner: PAN', types: PARTNER_DOCS },
@@ -90,9 +91,7 @@ export const TAG_GROUPS: TagGroup[] = [
     { tag: 'paymentBankNames', desc: 'Banks of the recorded payments, e.g. "HDFC Bank, ICICI Bank" (the bank of each payment is also in the receipts table: {{bank}})', types: NOT_RECEIPT },
     { tag: 'receivedTotal', desc: 'All money received so far (with GST), for the receipt at the end', types: NOT_RECEIPT },
     { tag: 'receivedTotalWords', desc: 'Money received so far, in words', types: NOT_RECEIPT },
-    { tag: 'mcgmCharges', desc: 'PAYABLES: MCGM Development and Betterment charges (Rs. 600 x carpet area)', types: NOT_RECEIPT },
-    { tag: 'commonAreaCharges', desc: 'PAYABLES: common area charges (Rs. 1,00,000 residential, Nil commercial)', types: NOT_RECEIPT },
-    { tag: 'payablesTotal', desc: 'PAYABLES: total amount payable', types: NOT_RECEIPT },
+    { tag: 'otherChargesTotal', desc: 'PAYABLES: total amount payable (all the other charges), e.g. Rs. 7,88,600/-', types: NOT_RECEIPT },
   ] },
   { group: 'Redevelopment (PAAA)', tags: [
     { tag: 'oldFlatNumber', desc: 'Tenant’s old flat number', types: NOT_RECEIPT },
@@ -139,6 +138,9 @@ export const LOOPS: LoopDef[] = [
   { name: 'partners', desc: 'One block per partner chosen for the agreement', fields: [
     { tag: 'index', desc: 'Number (1, 2)' }, { tag: 'ordinal', desc: '1st, 2nd' }, { tag: 'name', desc: 'Name' },
     { tag: 'address', desc: 'Address' }, { tag: 'panNumber', desc: 'PAN' },
+  ] },
+  { name: 'otherCharges', desc: 'One row per other charge of the sale (the PAYABLES table of a sale agreement), in the order of the project\'s list', fields: [
+    { tag: 'index', desc: 'Number' }, { tag: 'name', desc: 'The charge' }, { tag: 'amount', desc: 'Amount as printed: Rs. 4,98,000/-, Nil or As Determined at the time of assessment' },
   ] },
   { name: 'instalments', desc: 'One row per instalment of the price (no charges): the payment schedule table of a sale agreement', fields: [
     { tag: 'index', desc: 'Number' }, { tag: 'description', desc: 'Milestone' }, { tag: 'percentOfAV', desc: '% of agreement value' },

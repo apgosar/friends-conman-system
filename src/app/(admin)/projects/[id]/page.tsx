@@ -7,6 +7,8 @@ import ProjectSalesTable from '@/components/projects/ProjectSalesTable'
 import TemplateCoverage from '@/components/projects/TemplateCoverage'
 import { isSaleable, isUnsold } from '@/lib/status'
 import { activeSale } from '@/lib/soft-delete'
+import { auth } from '@/lib/auth'
+import { can } from '@/lib/authz'
 import { comboLabel, missingCombos, requiredCombos, type Combo } from '@/lib/payment-plans'
 import { Alert, Badge, ButtonLink, Card, CardHeader, EmptyState, PageHeader, StatusBadge } from '@/components/ui'
 
@@ -36,6 +38,7 @@ export default async function ProjectDetailPage(props: PageProps<'/projects/[id]
   const { id } = await props.params
   const project = await getProject(id)
   if (!project) notFound()
+  const isSuperAdmin = can((await auth())?.user?.role, 'superadmin') // building setup is for a Super Admin only
 
   const allUnits = project.wings.flatMap((w) => w.floors.flatMap((f) => f.units))
   // Common areas (refuge area, society office...) are not for sale, so they are not part of the inventory counts
@@ -76,7 +79,7 @@ export default async function ProjectDetailPage(props: PageProps<'/projects/[id]
           actions={
             <>
               <ButtonLink href={`/projects/${id}/edit`} variant="primary">Edit Project</ButtonLink>
-              <ButtonLink href={`/projects/${id}/structure`}>Building Setup</ButtonLink>
+              {isSuperAdmin && <ButtonLink href={`/projects/${id}/structure`}>Building Setup</ButtonLink>}
               <ButtonLink href={`/projects/${id}/payment-plan`}>Payment Plans</ButtonLink>
               <ButtonLink href={`/projects/${id}/milestones`}>Milestones</ButtonLink>
               <ButtonLink href={`/projects/${id}/templates`}>Templates</ButtonLink>
@@ -127,8 +130,8 @@ export default async function ProjectDetailPage(props: PageProps<'/projects/[id]
         ) : (
           <Card className="mb-6">
             <EmptyState title="This project has no building yet">
-              <p className="mb-4">Add the wings, floors and units to start quoting and selling. It takes a few minutes: define your unit types once, then describe each wing floor by floor.</p>
-              <ButtonLink href={`/projects/${id}/structure`} variant="primary">Set up the building</ButtonLink>
+              <p className="mb-4">{isSuperAdmin ? 'Add the wings, floors and units to start quoting and selling. It takes a few minutes: define your unit types once, then describe each wing floor by floor.' : 'A Super Admin needs to set up the wings, floors and units before quotes and sales can start.'}</p>
+              {isSuperAdmin && <ButtonLink href={`/projects/${id}/structure`} variant="primary">Set up the building</ButtonLink>}
             </EmptyState>
           </Card>
         )}

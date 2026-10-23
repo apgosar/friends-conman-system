@@ -3,6 +3,8 @@ import Link from 'next/link'
 import TopNav from '@/components/layout/TopNav'
 import { formatDate } from '@/lib/format'
 import { activeSale } from '@/lib/soft-delete'
+import { auth } from '@/lib/auth'
+import { can } from '@/lib/authz'
 import { ButtonLink, Card, EmptyState, PageHeader, StatusBadge } from '@/components/ui'
 
 async function getProjects() {
@@ -17,6 +19,7 @@ async function getProjects() {
 
 export default async function ProjectsPage() {
   const projects = await getProjects()
+  const canAddProject = can((await auth())?.user?.role, 'superadmin') // only a Super Admin adds a project
 
   return (
     <>
@@ -25,14 +28,14 @@ export default async function ProjectsPage() {
         <PageHeader
           title="All Projects"
           subtitle={`${projects.length} project${projects.length !== 1 ? 's' : ''} total`}
-          actions={<ButtonLink href="/projects/new" variant="primary" id="new-project-btn">+ New Project</ButtonLink>}
+          actions={canAddProject ? <ButtonLink href="/projects/new" variant="primary" id="new-project-btn">+ New Project</ButtonLink> : undefined}
         />
 
         {projects.length === 0 ? (
           <Card>
             <EmptyState title="No projects yet">
-              <p className="mb-4">Create your first project to get started</p>
-              <ButtonLink href="/projects/new" variant="primary">Create Project</ButtonLink>
+              <p className="mb-4">{canAddProject ? 'Create your first project to get started' : 'A Super Admin needs to create the first project'}</p>
+              {canAddProject && <ButtonLink href="/projects/new" variant="primary">Create Project</ButtonLink>}
             </EmptyState>
           </Card>
         ) : (

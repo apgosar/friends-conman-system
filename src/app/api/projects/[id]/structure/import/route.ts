@@ -22,7 +22,7 @@ const num = (s: string) => (s === '' ? undefined : Number(s.replace(/,/g, '')))
 
 // POST multipart/form-data: file = the filled template (.xlsx). All-or-nothing.
 export async function POST(req: NextRequest, props: { params: Promise<{ id: string }> }) {
-  const guard = await requireRole('admin')
+  const guard = await requireRole('superadmin')
   if ('error' in guard) return guard.error
   const { id: projectId } = await props.params
 

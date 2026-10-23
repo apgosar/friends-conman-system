@@ -12,17 +12,17 @@ datasource db {
 // ─────────────────────────────────────────────
 
 model User {
-  id            String    @id @default(cuid())
-  name          String
-  email         String    @unique
-  password      String
-  role String @default("VIEWER")
-  isActive      Boolean   @default(true)
-  tokenVersion  Int       @default(0) // bumped on password change / deactivation / role change: invalidates every open session
+  id                String     @id @default(cuid())
+  name              String
+  email             String     @unique
+  password          String
+  role              String     @default("VIEWER")
+  isActive          Boolean    @default(true)
+  tokenVersion      Int        @default(0) // bumped on password change / deactivation / role change: invalidates every open session
   passwordChangedAt DateTime?
-  createdAt     DateTime  @default(now())
-  updatedAt     DateTime  @updatedAt
-  auditLogs     AuditLog[]
+  createdAt         DateTime   @default(now())
+  updatedAt         DateTime   @updatedAt
+  auditLogs         AuditLog[]
 
   @@map("users")
 }
@@ -32,30 +32,30 @@ model User {
 // ─────────────────────────────────────────────
 
 model Inquiry {
-  id              String   @id @default(cuid())
+  id              String    @id @default(cuid())
   unitId          String
   customerName    String
   mobileNumber    String
-  agreementValue  Decimal @db.Decimal(15, 2)
-  parkingIncluded Boolean  @default(false)
-  stampDuty       Decimal @db.Decimal(15, 2)
-  gst             Decimal @db.Decimal(15, 2)
-  registration    Decimal @db.Decimal(15, 2)
-  totalCost       Decimal @db.Decimal(15, 2)
+  agreementValue  Decimal   @db.Decimal(15, 2)
+  parkingIncluded Boolean   @default(false)
+  stampDuty       Decimal   @db.Decimal(15, 2)
+  gst             Decimal   @db.Decimal(15, 2)
+  registration    Decimal   @db.Decimal(15, 2)
+  totalCost       Decimal   @db.Decimal(15, 2)
   email           String?
-  source          String?  // WALK_IN | REFERRAL | WEBSITE | BROKER | OTHER
-  sourceDetail    String?  // referrer / broker name
+  source          String? // WALK_IN | REFERRAL | WEBSITE | BROKER | OTHER
+  sourceDetail    String? // referrer / broker name
   validUntil      DateTime? // quote expiry
-  status          String   @default("OPEN") // OPEN | CONVERTED | LOST
-  convertedSaleId String?  // set when the inquiry is converted into a sale
+  status          String    @default("OPEN") // OPEN | CONVERTED | LOST
+  convertedSaleId String? // set when the inquiry is converted into a sale
   lostReason      String?
   lostNote        String?
   lastSharedAt    DateTime?
-  lastSharedVia   String?  // EMAIL | WHATSAPP | EMAIL+WHATSAPP
-  createdAt       DateTime @default(now())
-  updatedAt       DateTime @updatedAt
+  lastSharedVia   String? // EMAIL | WHATSAPP | EMAIL+WHATSAPP
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
 
-  unit            Unit     @relation(fields: [unitId], references: [id], onDelete: Cascade)
+  unit Unit @relation(fields: [unitId], references: [id], onDelete: Cascade)
 
   @@index([unitId])
   @@map("inquiries")
@@ -66,73 +66,70 @@ model Inquiry {
 // ─────────────────────────────────────────────
 
 model Project {
-  id                  String          @id @default(cuid())
-  name                String
-  reraNumber          String?
+  id                   String    @id @default(cuid())
+  name                 String
+  reraNumber           String?
   /// Overrides the company's contact numbers for this project (empty = use the company's)
-  contactNumbers      String?
-  address             String
-  city                String
-  state               String          @default("Maharashtra")
-  type String @default("FRESH")
-  status String @default("PLANNING")
-  launchDate          DateTime?
-  expectedCompletion  DateTime?
-  companyId           String
-  stampDutyPercent    Float         @default(6)
-  regChargesPercent   Float         @default(1) 
-  regChargesCap       Decimal?        @db.Decimal(15, 2) @default(30000) // registration fee is regChargesPercent of the agreement value, but never more than this (empty = no cap)
-  regParkingCharges   Decimal         @db.Decimal(15, 2) @default(20000) // extra registration fee when a car park is included
-  gstRatePercent      Float         @default(5)
-  tdsRatePercent      Float         @default(1)
-  interestRatePercent Float         @default(12) // simple interest per annum on overdue demands
-  carParkingCharges   Decimal @db.Decimal(15, 2)         @default(500000)  // Default car parking price from project template
-  carParkingIncluded  Boolean                            @default(false)   // parking is part of the agreement value: new sales carry no parking charge
-  milestoneOrderManual Boolean                           @default(false)   // a super-admin set the milestone order by hand: plan changes no longer re-sort it
-  paymentPlanOptOuts  String[]                           @default([])      // sale type + unit type combinations this project will not sell ("REDEVELOPMENT:COMMERCIAL"), so no payment plan is asked for
-  createdAt           DateTime        @default(now())
-  updatedAt           DateTime        @updatedAt
+  contactNumbers       String?
+  address              String
+  city                 String
+  state                String    @default("Maharashtra")
+  type                 String    @default("FRESH")
+  status               String    @default("PLANNING")
+  launchDate           DateTime?
+  expectedCompletion   DateTime?
+  companyId            String
+  stampDutyPercent     Float     @default(6)
+  regChargesPercent    Float     @default(1)
+  regChargesCap        Decimal?  @default(30000) @db.Decimal(15, 2) // registration fee is regChargesPercent of the agreement value, but never more than this (empty = no cap)
+  regParkingCharges    Decimal   @default(20000) @db.Decimal(15, 2) // extra registration fee when a car park is included
+  gstRatePercent       Float     @default(5)
+  tdsRatePercent       Float     @default(1)
+  interestRatePercent  Float     @default(12) // simple interest per annum on overdue demands
+  carParkingCharges    Decimal   @default(500000) @db.Decimal(15, 2) // Default car parking price from project template
+  carParkingIncluded   Boolean   @default(false) // parking is part of the agreement value: new sales carry no parking charge
+  milestoneOrderManual Boolean   @default(false) // a super-admin set the milestone order by hand: plan changes no longer re-sort it
+  paymentPlanOptOuts   String[]  @default([]) // sale type + unit type combinations this project will not sell ("REDEVELOPMENT:COMMERCIAL"), so no payment plan is asked for
+  createdAt            DateTime  @default(now())
+  updatedAt            DateTime  @updatedAt
 
-  wings               Wing[]
-  unitTypes           UnitType[]
-  milestones          ConstructionMilestone[]
-  paymentPlans        PaymentPlan[]
-  company             Company       @relation(fields: [companyId], references: [id])
-  templates           Template[]
-  tenants             Tenant[]
-  sales               Sale[]
-  auditLogs           AuditLog[]
+  wings        Wing[]
+  unitTypes    UnitType[]
+  milestones   ConstructionMilestone[]
+  paymentPlans PaymentPlan[]
+  charges      ProjectCharge[]
+  company      Company                 @relation(fields: [companyId], references: [id])
+  templates    Template[]
+  tenants      Tenant[]
+  sales        Sale[]
+  auditLogs    AuditLog[]
 
   @@map("projects")
 }
 
-
-
-
-
 model Wing {
-  id          String  @id @default(cuid())
+  id          String   @id @default(cuid())
   projectId   String
-  name        String  // A, B, Tower 1
+  name        String // A, B, Tower 1
   totalFloors Int
   createdAt   DateTime @default(now())
 
-  project     Project @relation(fields: [projectId], references: [id], onDelete: Cascade)
-  floors      Floor[]
+  project Project @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  floors  Floor[]
 
   @@index([projectId])
   @@map("wings")
 }
 
 model Floor {
-  id              String  @id @default(cuid())
-  wingId          String
-  floorNumber     Int
-  floorPlanUrl    String?
-  createdAt       DateTime @default(now())
+  id           String   @id @default(cuid())
+  wingId       String
+  floorNumber  Int
+  floorPlanUrl String?
+  createdAt    DateTime @default(now())
 
-  wing            Wing    @relation(fields: [wingId], references: [id], onDelete: Cascade)
-  units           Unit[]
+  wing  Wing   @relation(fields: [wingId], references: [id], onDelete: Cascade)
+  units Unit[]
 
   @@index([wingId])
   @@map("floors")
@@ -143,17 +140,17 @@ model UnitType {
   id               String   @id @default(cuid())
   projectId        String
   category         String   @default("FLAT") // FLAT | SHOP | OFFICE
-  name             String   // 2BHK-A, Shop, Penthouse
-  configuration    String   // 1BHK, 2BHK, 3BHK, Shop...
+  name             String // 2BHK-A, Shop, Penthouse
+  configuration    String // 1BHK, 2BHK, 3BHK, Shop...
   carpetAreaSqft   Float
   builtupAreaSqft  Float?
   basePricePerSqft Float?
-  floorPlanUrl     String?  // storage URL of the floor plan image
+  floorPlanUrl     String? // storage URL of the floor plan image
   createdAt        DateTime @default(now())
   updatedAt        DateTime @updatedAt
 
-  project          Project  @relation(fields: [projectId], references: [id], onDelete: Cascade)
-  units            Unit[]
+  project Project @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  units   Unit[]
 
   @@unique([projectId, name])
   @@index([projectId])
@@ -161,27 +158,27 @@ model UnitType {
 }
 
 model Unit {
-  id                  String      @id @default(cuid())
-  floorId             String
-  unitTypeId          String?     // layout this unit follows (shared floor plan, area, price)
-  category            String      @default("FLAT") // FLAT | SHOP | OFFICE
-  unitNumber          String      // A-301
-  configuration       String      // 1BHK, 2BHK, 3BHK
-  carpetAreaSqft      Float     
-  builtupAreaSqft     Float?    
-  basePricePerSqft    Float?    
-  status String @default("AVAILABLE")
-  statusManual        Boolean     @default(false) // status set by hand (unit sold before the system was used), not derived from a sale
-  bookedByName        String?     // who booked it, for a unit marked Booked by hand (no sale record)
-  bookedByMobile      String?
-  createdAt           DateTime    @default(now())
-  updatedAt           DateTime    @updatedAt
+  id               String   @id @default(cuid())
+  floorId          String
+  unitTypeId       String? // layout this unit follows (shared floor plan, area, price)
+  category         String   @default("FLAT") // FLAT | SHOP | OFFICE
+  unitNumber       String // A-301
+  configuration    String // 1BHK, 2BHK, 3BHK
+  carpetAreaSqft   Float
+  builtupAreaSqft  Float?
+  basePricePerSqft Float?
+  status           String   @default("AVAILABLE")
+  statusManual     Boolean  @default(false) // status set by hand (unit sold before the system was used), not derived from a sale
+  bookedByName     String? // who booked it, for a unit marked Booked by hand (no sale record)
+  bookedByMobile   String?
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
 
-  floor               Floor       @relation(fields: [floorId], references: [id], onDelete: Cascade)
-  unitType            UnitType?   @relation(fields: [unitTypeId], references: [id], onDelete: SetNull)
-  sales               Sale[]
-  inquiries           Inquiry[]
-  tenant              Tenant?
+  floor     Floor     @relation(fields: [floorId], references: [id], onDelete: Cascade)
+  unitType  UnitType? @relation(fields: [unitTypeId], references: [id], onDelete: SetNull)
+  sales     Sale[]
+  inquiries Inquiry[]
+  tenant    Tenant?
 
   @@index([floorId])
   @@index([unitTypeId])
@@ -189,29 +186,27 @@ model Unit {
   @@map("units")
 }
 
-
-
 // ─────────────────────────────────────────────
 // TENANT (Redevelopment)
 // ─────────────────────────────────────────────
 
 model Tenant {
-  id                  String    @id @default(cuid())
-  projectId           String
-  newUnitId           String?   @unique
-  name                String
-  oldFlatNumber       String
-  oldAreaSqft         Float   
-  extraAreaSqft       Float   @default(0) 
-  whatsappNumber      String?
-  email               String?
-  receiveComms        Boolean   @default(true)
-  createdAt           DateTime  @default(now())
-  updatedAt           DateTime  @updatedAt
+  id             String   @id @default(cuid())
+  projectId      String
+  newUnitId      String?  @unique
+  name           String
+  oldFlatNumber  String
+  oldAreaSqft    Float
+  extraAreaSqft  Float    @default(0)
+  whatsappNumber String?
+  email          String?
+  receiveComms   Boolean  @default(true)
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
 
-  project             Project   @relation(fields: [projectId], references: [id], onDelete: Cascade)
-  newUnit             Unit?     @relation(fields: [newUnitId], references: [id])
-  sale                Sale?
+  project Project @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  newUnit Unit?   @relation(fields: [newUnitId], references: [id])
+  sale    Sale?
 
   @@index([projectId])
   @@map("tenants")
@@ -222,42 +217,44 @@ model Tenant {
 // ─────────────────────────────────────────────
 
 model Sale {
-  id                    String      @id @default(cuid())
-  saleNumber            String      @unique // PRJ-001
-  projectId             String
-  unitId                String
-  tenantId              String?     @unique
-  saleType              String      @default("FRESH")
-  agreementValue        Decimal @db.Decimal(15, 2)     
-  gstAmount             Decimal @db.Decimal(15, 2)      // 5% of agreementValue
-  stampDuty             Decimal? @db.Decimal(15, 2)    
-  registrationCharges   Decimal? @db.Decimal(15, 2)    
-  carParking            Boolean     @default(false)
-  carParkingCount       Int         @default(0)      // how many car parks were sold
-  carParkingIncluded    Boolean     @default(false)  // parking is part of the agreement value: no separate charge or demand
-  carParkingCharges     Decimal? @db.Decimal(15, 2)      // Actual car parking amount charged
-  parkingPodiumLevel    String?
-  parkingFloor          String?
-  parkingNumber         String?
-  bookingAmount         Decimal? @db.Decimal(15, 2)      // Custom booking amount received
-  bookingDate           DateTime
-  agreementDate         DateTime?
-  possessionDate        DateTime?
-  status                String      @default("BOOKED")
-  nameChangeHistory     Json?       // array of {oldName, newName, date, userId}
-  deletedAt             DateTime?   // Soft delete — null means active
-  createdAt             DateTime    @default(now())
-  updatedAt             DateTime    @updatedAt
+  id                  String    @id @default(cuid())
+  saleNumber          String    @unique // PRJ-001
+  projectId           String
+  unitId              String
+  tenantId            String?   @unique
+  saleType            String    @default("FRESH")
+  agreementValue      Decimal   @db.Decimal(15, 2)
+  gstAmount           Decimal   @db.Decimal(15, 2) // 5% of agreementValue
+  stampDuty           Decimal?  @db.Decimal(15, 2)
+  registrationCharges Decimal?  @db.Decimal(15, 2)
+  carParking          Boolean   @default(false)
+  /// The other charges as they were when the sale was made: [{ name, amountType, rate, amount, text }]; the total is on the Other Charges schedule row
+  otherCharges        Json?
+  carParkingCount     Int       @default(0) // how many car parks were sold
+  carParkingIncluded  Boolean   @default(false) // parking is part of the agreement value: no separate charge or demand
+  carParkingCharges   Decimal?  @db.Decimal(15, 2) // Actual car parking amount charged
+  parkingPodiumLevel  String?
+  parkingFloor        String?
+  parkingNumber       String?
+  bookingAmount       Decimal?  @db.Decimal(15, 2) // Custom booking amount received
+  bookingDate         DateTime
+  agreementDate       DateTime?
+  possessionDate      DateTime?
+  status              String    @default("BOOKED")
+  nameChangeHistory   Json? // array of {oldName, newName, date, userId}
+  deletedAt           DateTime? // Soft delete — null means active
+  createdAt           DateTime  @default(now())
+  updatedAt           DateTime  @updatedAt
 
-  project               Project     @relation(fields: [projectId], references: [id], onDelete: Restrict)
-  unit                  Unit        @relation(fields: [unitId], references: [id], onDelete: Restrict)
-  tenant                Tenant?     @relation(fields: [tenantId], references: [id])
-  buyers                Buyer[]
-  paymentSchedules      PaymentSchedule[]
-  payments              Payment[]
-  documents             Document[]
-  communicationLogs     CommunicationLog[]
-  loans                 Loan[]
+  project           Project            @relation(fields: [projectId], references: [id], onDelete: Restrict)
+  unit              Unit               @relation(fields: [unitId], references: [id], onDelete: Restrict)
+  tenant            Tenant?            @relation(fields: [tenantId], references: [id])
+  buyers            Buyer[]
+  paymentSchedules  PaymentSchedule[]
+  payments          Payment[]
+  documents         Document[]
+  communicationLogs CommunicationLog[]
+  loans             Loan[]
 
   @@index([projectId])
   @@index([unitId])
@@ -266,80 +263,72 @@ model Sale {
   @@map("sales")
 }
 
-
-
-
-
 // ─────────────────────────────────────────────
 // BUYER
 // ─────────────────────────────────────────────
 
 model Buyer {
-  id                  String      @id @default(cuid())
-  saleId              String
-  fullName            String
-  email               String?
-  whatsappNumber      String?
-  panNumber           String?
-  aadhaarNumber       String?
-  address             String?
-  isPrimary           Boolean     @default(false)
-  sequence            Int         @default(1)
-  receiveComms        Boolean     @default(true)
-  createdAt           DateTime    @default(now())
-  updatedAt           DateTime    @updatedAt
+  id             String   @id @default(cuid())
+  saleId         String
+  fullName       String
+  email          String?
+  whatsappNumber String?
+  panNumber      String?
+  aadhaarNumber  String?
+  address        String?
+  isPrimary      Boolean  @default(false)
+  sequence       Int      @default(1)
+  receiveComms   Boolean  @default(true)
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
 
-  sale                Sale        @relation(fields: [saleId], references: [id], onDelete: Cascade)
-  kycDocuments        KycDocument[]
-  communicationLogs   CommunicationLog[]
+  sale              Sale               @relation(fields: [saleId], references: [id], onDelete: Cascade)
+  kycDocuments      KycDocument[]
+  communicationLogs CommunicationLog[]
 
   @@index([saleId])
   @@map("buyers")
 }
 
 model KycDocument {
-  id              String        @id @default(cuid())
+  id              String    @id @default(cuid())
   buyerId         String
-  docType String
+  docType         String
   fileUrl         String
-  status String @default("UPLOADED")
+  status          String    @default("UPLOADED")
   rejectionReason String?
   verifiedAt      DateTime?
-  createdAt       DateTime      @default(now())
-  updatedAt       DateTime      @updatedAt
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
 
-  buyer           Buyer         @relation(fields: [buyerId], references: [id], onDelete: Cascade)
+  buyer Buyer @relation(fields: [buyerId], references: [id], onDelete: Cascade)
 
   @@index([buyerId])
   @@index([status])
   @@map("kyc_documents")
 }
 
-
-
-
-
 // ─────────────────────────────────────────────
 // PAYMENT SCHEDULE & PAYMENTS
 // ─────────────────────────────────────────────
 
 model ConstructionMilestone {
-  id                      String              @id @default(cuid())
+  id                      String    @id @default(cuid())
   projectId               String
-  name                    String              // Plinth Complete, 5th Slab
+  name                    String // Plinth Complete, 5th Slab
   sequence                Int
-  percentOfAV             Float               @default(0)   // legacy: before payment plans, the one plan's % lived here. Plans hold the percentages now (PaymentPlanItem)
+  percentOfAV             Float     @default(0) // legacy: before payment plans, the one plan's % lived here. Plans hold the percentages now (PaymentPlanItem)
   plannedDate             DateTime?
   actualDate              DateTime?
-  status String @default("UPCOMING")
+  status                  String    @default("UPCOMING")
   architectCertificateUrl String?
   completedAt             DateTime?
-  createdAt               DateTime            @default(now())
-  updatedAt               DateTime            @updatedAt
+  createdAt               DateTime  @default(now())
+  updatedAt               DateTime  @updatedAt
 
-  project                 Project             @relation(fields: [projectId], references: [id], onDelete: Cascade)
-  paymentSchedules        PaymentSchedule[]
-  paymentPlanItems        PaymentPlanItem[]
+  project          Project           @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  paymentSchedules PaymentSchedule[]
+  paymentPlanItems PaymentPlanItem[]
 
   @@index([projectId])
   @@map("construction_milestones")
@@ -348,18 +337,18 @@ model ConstructionMilestone {
 /// A way of paying for a unit: which milestones fall due and what % of the agreement value is due at each.
 /// A project has several (for example 20/80 and 20/30/50), one default per sale type and unit type.
 model PaymentPlan {
-  id        String   @id @default(cuid())
-  projectId String
-  name      String
-  saleType  String   // FRESH (New Sale) | REDEVELOPMENT (Rehab)
-  unitType  String   // RESIDENTIAL | COMMERCIAL
-  isDefault Boolean  @default(false) // at most one default per project + saleType + unitType (database index)
-  bookingPercent Float @default(0)   // % of the agreement value due the moment a sale is created: the booking, not a construction milestone
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  id             String   @id @default(cuid())
+  projectId      String
+  name           String
+  saleType       String // FRESH (New Sale) | REDEVELOPMENT (Rehab)
+  unitType       String // RESIDENTIAL | COMMERCIAL
+  isDefault      Boolean  @default(false) // at most one default per project + saleType + unitType (database index)
+  bookingPercent Float    @default(0) // % of the agreement value due the moment a sale is created: the booking, not a construction milestone
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
 
-  project   Project           @relation(fields: [projectId], references: [id], onDelete: Cascade)
-  items     PaymentPlanItem[]
+  project Project           @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  items   PaymentPlanItem[]
 
   @@unique([projectId, saleType, unitType, name])
   @@index([projectId])
@@ -374,39 +363,37 @@ model PaymentPlanItem {
   sequence    Int
   percentOfAV Float
 
-  plan        PaymentPlan           @relation(fields: [planId], references: [id], onDelete: Cascade)
-  milestone   ConstructionMilestone @relation(fields: [milestoneId], references: [id])
+  plan      PaymentPlan           @relation(fields: [planId], references: [id], onDelete: Cascade)
+  milestone ConstructionMilestone @relation(fields: [milestoneId], references: [id])
 
   @@unique([planId, milestoneId])
   @@index([milestoneId])
   @@map("payment_plan_items")
 }
 
-
-
 model PaymentSchedule {
-  id                      String          @id @default(cuid())
+  id                      String    @id @default(cuid())
   saleId                  String
   milestoneId             String?
-  description             String          // On Booking, On Plinth
-  principalAmount         Decimal @db.Decimal(15, 2)         
-  gstAmount               Decimal @db.Decimal(15, 2)         @default(0) 
+  description             String // On Booking, On Plinth
+  principalAmount         Decimal   @db.Decimal(15, 2)
+  gstAmount               Decimal   @default(0) @db.Decimal(15, 2)
   dueDate                 DateTime?
   demandGeneratedDate     DateTime?
-  interestAmount          Decimal @db.Decimal(15, 2)         @default(0) 
-  status String @default("UPCOMING")
-  reminderCount           Int             @default(0)
+  interestAmount          Decimal   @default(0) @db.Decimal(15, 2)
+  status                  String    @default("UPCOMING")
+  reminderCount           Int       @default(0)
   lastReminderAt          DateTime?
-  managementEscalated     Boolean         @default(false)
-  managementApprovedStern Boolean         @default(false)
+  managementEscalated     Boolean   @default(false)
+  managementApprovedStern Boolean   @default(false)
   managementApprovedAt    DateTime?
   managementApprovedBy    String?
-  createdAt               DateTime        @default(now())
-  updatedAt               DateTime        @updatedAt
+  createdAt               DateTime  @default(now())
+  updatedAt               DateTime  @updatedAt
 
-  sale                    Sale            @relation(fields: [saleId], references: [id], onDelete: Cascade)
-  milestone               ConstructionMilestone? @relation(fields: [milestoneId], references: [id])
-  payments                Payment[]
+  sale      Sale                   @relation(fields: [saleId], references: [id], onDelete: Cascade)
+  milestone ConstructionMilestone? @relation(fields: [milestoneId], references: [id])
+  payments  Payment[]
 
   @@index([saleId])
   @@index([status])
@@ -414,30 +401,28 @@ model PaymentSchedule {
   @@map("payment_schedules")
 }
 
-
-
 model Payment {
-  id              String        @id @default(cuid())
+  id              String    @id @default(cuid())
   scheduleId      String
   saleId          String
-  amount          Decimal @db.Decimal(15, 2)       
-  gstPaid         Decimal @db.Decimal(15, 2)       @default(0) 
-  mode String
-  referenceNumber String?       // UTR, cheque number
+  amount          Decimal   @db.Decimal(15, 2)
+  gstPaid         Decimal   @default(0) @db.Decimal(15, 2)
+  mode            String
+  referenceNumber String? // UTR, cheque number
   bankName        String?
   remark          String?
   paymentDate     DateTime
   clearedDate     DateTime?
-  receiptNumber   String        @unique // RCP-PRJ-0001
+  receiptNumber   String    @unique // RCP-PRJ-0001
   receiptPdfUrl   String?
-  receiptSent     Boolean       @default(false)
-  deletedAt       DateTime?     // Soft delete — null means active
-  createdAt       DateTime      @default(now())
-  updatedAt       DateTime      @updatedAt
+  receiptSent     Boolean   @default(false)
+  deletedAt       DateTime? // Soft delete — null means active
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
 
-  schedule        PaymentSchedule @relation(fields: [scheduleId], references: [id], onDelete: Restrict)
-  sale            Sale            @relation(fields: [saleId], references: [id])
-  tdsRecord       TdsRecord?
+  schedule  PaymentSchedule @relation(fields: [scheduleId], references: [id], onDelete: Restrict)
+  sale      Sale            @relation(fields: [saleId], references: [id])
+  tdsRecord TdsRecord?
 
   @@index([saleId])
   @@index([scheduleId])
@@ -445,61 +430,55 @@ model Payment {
   @@map("payments")
 }
 
-
-
 model TdsRecord {
-  id                  String    @id @default(cuid())
-  paymentId           String    @unique
-  saleId              String
-  tdsAmount           Decimal @db.Decimal(15, 2)    // 1% of payment
-  form26QBAckNumber   String?
-  tdsDepositedDate    DateTime?
-  certificateUrl      String?
-  status String @default("PENDING")
-  createdAt           DateTime  @default(now())
-  updatedAt           DateTime  @updatedAt
+  id                String    @id @default(cuid())
+  paymentId         String    @unique
+  saleId            String
+  tdsAmount         Decimal   @db.Decimal(15, 2) // 1% of payment
+  form26QBAckNumber String?
+  tdsDepositedDate  DateTime?
+  certificateUrl    String?
+  status            String    @default("PENDING")
+  createdAt         DateTime  @default(now())
+  updatedAt         DateTime  @updatedAt
 
-  payment             Payment   @relation(fields: [paymentId], references: [id], onDelete: Restrict)
+  payment Payment @relation(fields: [paymentId], references: [id], onDelete: Restrict)
 
   @@map("tds_records")
 }
-
-
 
 // ─────────────────────────────────────────────
 // LOAN
 // ─────────────────────────────────────────────
 
 model Loan {
-  id                  String      @id @default(cuid())
-  saleId              String
-  bankName            String
-  sanctionedAmount    Decimal @db.Decimal(15, 2)     
-  sanctionLetterUrl   String?
-  totalDisbursed      Decimal @db.Decimal(15, 2)     @default(0) 
-  status String @default("APPLIED")
-  disbursements       LoanDisbursement[]
-  createdAt           DateTime    @default(now())
-  updatedAt           DateTime    @updatedAt
+  id                String             @id @default(cuid())
+  saleId            String
+  bankName          String
+  sanctionedAmount  Decimal            @db.Decimal(15, 2)
+  sanctionLetterUrl String?
+  totalDisbursed    Decimal            @default(0) @db.Decimal(15, 2)
+  status            String             @default("APPLIED")
+  disbursements     LoanDisbursement[]
+  createdAt         DateTime           @default(now())
+  updatedAt         DateTime           @updatedAt
 
-  sale                Sale        @relation(fields: [saleId], references: [id], onDelete: Cascade)
+  sale Sale @relation(fields: [saleId], references: [id], onDelete: Cascade)
 
   @@index([saleId])
   @@map("loans")
 }
 
-
-
 model LoanDisbursement {
-  id          String    @id @default(cuid())
+  id          String   @id @default(cuid())
   loanId      String
-  amount      Decimal @db.Decimal(15, 2)   
+  amount      Decimal  @db.Decimal(15, 2)
   date        DateTime
   referenceNo String?
   notes       String?
-  createdAt   DateTime  @default(now())
+  createdAt   DateTime @default(now())
 
-  loan        Loan      @relation(fields: [loanId], references: [id], onDelete: Cascade)
+  loan Loan @relation(fields: [loanId], references: [id], onDelete: Cascade)
 
   @@map("loan_disbursements")
 }
@@ -509,40 +488,59 @@ model LoanDisbursement {
 // ─────────────────────────────────────────────
 
 model Template {
-  id              String        @id @default(cuid())
-  projectId       String
-  type String
-  name            String
-  templateHtml    String?       @db.Text
-  fileUrl         String?       // S3/Local URL for .docx templates
-  version         Int           @default(1)
-  isActive        Boolean       @default(true)
-  createdAt       DateTime      @default(now())
-  updatedAt       DateTime      @updatedAt
+  id           String   @id @default(cuid())
+  projectId    String
+  type         String
+  name         String
+  templateHtml String?  @db.Text
+  fileUrl      String? // S3/Local URL for .docx templates
+  version      Int      @default(1)
+  isActive     Boolean  @default(true)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
 
-  project         Project       @relation(fields: [projectId], references: [id], onDelete: Cascade)
-  documents       Document[]
+  project   Project    @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  documents Document[]
 
   @@index([projectId])
   @@map("templates")
 }
 
+/// An amount a buyer pays besides the price, due with the last milestone (society share money, deposits, MCGM betterment charge...).
+/// The sale keeps its own copy (Sale.otherCharges) when it is made.
+model ProjectCharge {
+  id         String   @id @default(cuid())
+  projectId  String
+  name       String
+  /// FIXED: `amount` is rupees; PER_SQFT: `amount` is rupees per sq ft of RERA carpet area; AS_DETERMINED: no amount
+  amountType String   @default("FIXED")
+  amount     Decimal  @default(0) @db.Decimal(15, 2)
+  /// BOTH, RESIDENTIAL or COMMERCIAL: who pays it (the others see Nil)
+  appliesTo  String   @default("BOTH")
+  sequence   Int      @default(0)
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
 
+  project Project @relation(fields: [projectId], references: [id], onDelete: Cascade)
+
+  @@index([projectId])
+  @@map("project_charges")
+}
 
 /// The developer company of this installation: its details appear on agreements and letters. Projects pick one.
 model Company {
-  id        String   @id @default(cuid())
-  name      String   @unique
-  panNumber String?
-  gstin     String?
-  address   String
+  id             String   @id @default(cuid())
+  name           String   @unique
+  panNumber      String?
+  gstin          String?
+  address        String
   /// Phone numbers buyers can call, as "+91 9876543210, +91 …"; a project may set its own
   contactNumbers String?
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
 
-  partners  Partner[]
-  projects  Project[]
+  partners Partner[]
+  projects Project[]
 
   @@map("companies")
 }
@@ -552,34 +550,34 @@ model Partner {
   id        String   @id @default(cuid())
   companyId String
   name      String
-  panNumber String?  // encrypted at rest like a buyer's (see lib/pii.ts)
+  panNumber String? // encrypted at rest like a buyer's (see lib/pii.ts)
   address   String?
   isActive  Boolean  @default(true) // a partner who left is switched off, not deleted: old agreements still name them
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  company   Company  @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  company Company @relation(fields: [companyId], references: [id], onDelete: Cascade)
 
   @@index([companyId])
   @@map("partners")
 }
 
 model Document {
-  id              String        @id @default(cuid())
-  saleId          String
-  templateId      String?
-  type String
-  pdfUrl          String?
-  partnerIds      String[]      @default([]) // the partners named in a sale agreement (see Partner)
-  status String @default("DRAFT")
-  generatedAt     DateTime?
-  sentAt          DateTime?
-  deletedAt       DateTime?     // Soft delete — null means active
-  createdAt       DateTime      @default(now())
-  updatedAt       DateTime      @updatedAt
+  id          String    @id @default(cuid())
+  saleId      String
+  templateId  String?
+  type        String
+  pdfUrl      String?
+  partnerIds  String[]  @default([]) // the partners named in a sale agreement (see Partner)
+  status      String    @default("DRAFT")
+  generatedAt DateTime?
+  sentAt      DateTime?
+  deletedAt   DateTime? // Soft delete — null means active
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
 
-  sale            Sale          @relation(fields: [saleId], references: [id], onDelete: Cascade)
-  template        Template?     @relation(fields: [templateId], references: [id])
+  sale              Sale               @relation(fields: [saleId], references: [id], onDelete: Cascade)
+  template          Template?          @relation(fields: [templateId], references: [id])
   communicationLogs CommunicationLog[]
 
   @@index([saleId])
@@ -588,36 +586,32 @@ model Document {
   @@map("documents")
 }
 
-
-
-
-
 // ─────────────────────────────────────────────
 // COMMUNICATION LOG
 // ─────────────────────────────────────────────
 
 model CommunicationLog {
-  id                  String      @id @default(cuid())
-  saleId              String
-  buyerId             String?
-  documentId          String?
-  channel String
-  type String
-  messageContent      String?   @db.Text
-  attachments         Json?       // [{ label, path }] documents to attach; path is an app-relative /api/... URL
-  status String @default("QUEUED")
-  providerMessageId   String?
-  sentAt              DateTime?
-  deliveredAt         DateTime?
-  readAt              DateTime?
-  failureReason       String?
-  retryCount          Int         @default(0)
-  claimedAt           DateTime?   // set while a dispatcher worker owns the row (status SENDING)
-  createdAt           DateTime    @default(now())
+  id                String    @id @default(cuid())
+  saleId            String
+  buyerId           String?
+  documentId        String?
+  channel           String
+  type              String
+  messageContent    String?   @db.Text
+  attachments       Json? // [{ label, path }] documents to attach; path is an app-relative /api/... URL
+  status            String    @default("QUEUED")
+  providerMessageId String?
+  sentAt            DateTime?
+  deliveredAt       DateTime?
+  readAt            DateTime?
+  failureReason     String?
+  retryCount        Int       @default(0)
+  claimedAt         DateTime? // set while a dispatcher worker owns the row (status SENDING)
+  createdAt         DateTime  @default(now())
 
-  sale                Sale        @relation(fields: [saleId], references: [id], onDelete: Cascade)
-  buyer               Buyer?      @relation(fields: [buyerId], references: [id])
-  document            Document?   @relation(fields: [documentId], references: [id])
+  sale     Sale      @relation(fields: [saleId], references: [id], onDelete: Cascade)
+  buyer    Buyer?    @relation(fields: [buyerId], references: [id])
+  document Document? @relation(fields: [documentId], references: [id])
 
   @@index([saleId])
   @@index([status])
@@ -625,37 +619,30 @@ model CommunicationLog {
   @@map("communication_logs")
 }
 
-
-
-
-
-
-
 // ─────────────────────────────────────────────
 // AUDIT LOG
 // ─────────────────────────────────────────────
 
 model AuditLog {
-  id          String    @id @default(cuid())
-  userId      String?
-  projectId   String?
-  entityType  String    // sale, payment, document, unit...
-  entityId    String
-  action      String    // created, updated, deleted, sent, generated, verified
-  oldValues   Json?
-  newValues   Json?
-  ipAddress   String?
-  userAgent   String?
-  createdAt   DateTime  @default(now())
+  id         String   @id @default(cuid())
+  userId     String?
+  projectId  String?
+  entityType String // sale, payment, document, unit...
+  entityId   String
+  action     String // created, updated, deleted, sent, generated, verified
+  oldValues  Json?
+  newValues  Json?
+  ipAddress  String?
+  userAgent  String?
+  createdAt  DateTime @default(now())
 
-  user        User?     @relation(fields: [userId], references: [id])
-  project     Project?  @relation(fields: [projectId], references: [id])
+  user    User?    @relation(fields: [userId], references: [id])
+  project Project? @relation(fields: [projectId], references: [id])
 
   @@index([entityType, entityId])
   @@index([createdAt])
   @@map("audit_logs")
 }
-
 
 // ─────────────────────────────────────────────
 // INFRASTRUCTURE

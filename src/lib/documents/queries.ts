@@ -3,7 +3,7 @@ import { SCHEDULE_ORDER } from '@/lib/payment-plans'
 
 /** What the document builders (payload.ts) need loaded for a sale. */
 export const saleForDocument = {
-  project: { include: { company: true } },
+  project: { include: { company: true, charges: { orderBy: { sequence: 'asc' } } } },
   unit: { include: { floor: { include: { wing: true } } } },
   buyers: true,
   tenant: true,

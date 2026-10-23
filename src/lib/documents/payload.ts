@@ -1,8 +1,8 @@
 import { formatDate, formatMoney, numberToWords } from '@/lib/format'
-import { percentOf } from '@/lib/money'
+import { percentOf, sumRupees } from '@/lib/money'
 import { formatPhoneList } from '@/lib/phone'
 import { revealPii } from '@/lib/pii' // agreements carry the real numbers; nothing else does
-import { agreementPayables, rsText } from './payables'
+import { computeOtherCharges, rsText, type ChargeItem } from '@/lib/other-charges'
 
 /**
  * The data every document template can use ({{tags}}), built in ONE place for sale agreements, demand letters and
@@ -18,6 +18,11 @@ export const DUE_STATUSES = ['DUE', 'OVERDUE_7', 'OVERDUE_15', 'OVERDUE_30', 'OV
 
 const SQFT_TO_SQM = 0.092903
 const ordinal = (n: number) => (n === 1 ? '1st' : n === 2 ? '2nd' : n === 3 ? '3rd' : `${n}th`)
+/** Names in a line: "A", "A and B", "A, B and C". */
+const joinNames = (names: string[]) => {
+  const list = names.filter(Boolean)
+  return list.length > 1 ? `${list.slice(0, -1).join(', ')} and ${list[list.length - 1]}` : (list[0] ?? '')
+}
 const sum = (rows: Schedule[], f: (s: Schedule) => number) => rows.reduce((total, s) => total + f(s), 0)
 
 /** The demand a letter is about: the one named by the caller if given, else the first that is due. */
@@ -64,7 +69,7 @@ export function buildSalePayload(sale: SaleForDocument, partners: PartnerForDocu
     .flatMap((ps) => ps.payments)
     .filter((p) => !p.deletedAt)
     .sort((a, b) => new Date(a.paymentDate).getTime() - new Date(b.paymentDate).getTime())
-  const advance = payments.reduce((total, p) => total + Number(p.amount), 0)
+  const paidPrincipal = payments.reduce((total, p) => total + Number(p.amount), 0)
   const receivedTotal = payments.reduce((total, p) => total + Number(p.amount) + Number(p.gstPaid), 0)
   const receipts = payments.map((p, i) => ({
     index: i + 1,
@@ -77,12 +82,17 @@ export function buildSalePayload(sale: SaleForDocument, partners: PartnerForDocu
 
   const bookingSchedule = schedules.find((ps) => ps.description.toLowerCase().includes('booking')) ?? schedules[0]
   const bookingAmount = bookingSchedule ? Number(bookingSchedule.principalAmount) : (sale.bookingAmount || 0)
+  // The advance named in the agreement is the booking: what has been paid if that is more, else the booking amount agreed
+  // (the booking is demanded when the sale is created and may not be recorded as paid yet when the agreement is made)
+  const advance = Math.max(paidPrincipal, bookingAmount)
   const tds = percentOf(agreement, project.tdsRatePercent) // what the buyer deducts, at this project's configured rate
   const first = buyers[0]
   const commercial = unit.category === 'SHOP' || unit.category === 'OFFICE'
-  const payables = agreementPayables(unit.carpetAreaSqft, commercial)
-  const names = buyers.map((b) => b.fullName).filter(Boolean)
-  const buyerNames = names.length > 1 ? `${names.slice(0, -1).join(', ')} and ${names[names.length - 1]}` : (names[0] ?? '')
+  // The other charges the sale was made with; a sale from before they were kept is worked out from the project's list now
+  const otherCharges: { items: ChargeItem[]; total: number } = Array.isArray(sale.otherCharges)
+    ? { items: sale.otherCharges as unknown as ChargeItem[], total: sumRupees((sale.otherCharges as unknown as ChargeItem[]).map((c) => c.amount)) }
+    : computeOtherCharges(project.charges ?? [], { carpetAreaSqft: unit.carpetAreaSqft, commercial })
+  const buyerNames = joinNames(buyers.map((b) => b.fullName))
   const balanceAfterAdvance = agreement - advance
 
   return {
@@ -92,6 +102,7 @@ export function buildSalePayload(sale: SaleForDocument, partners: PartnerForDocu
     companyPan: company.panNumber ?? '',
     contactNumbers: formatPhoneList(project.contactNumbers ?? company.contactNumbers), // the project's own, else the company's
     partners: partners.map((p, i) => ({ index: i + 1, ordinal: ordinal(i + 1), name: p.name, address: p.address ?? '', panNumber: revealPii(p.panNumber) })),
+    partnerNames: joinNames(partners.map((p) => p.name)), // "A, B and C", for a line that names all the partners
     partner1Name: partners[0]?.name ?? '',
     partner1Address: partners[0]?.address ?? '',
     partner1Pan: revealPii(partners[0]?.panNumber),
@@ -165,9 +176,8 @@ export function buildSalePayload(sale: SaleForDocument, partners: PartnerForDocu
     paymentBankNames: [...new Set(payments.map((p) => (p.bankName ?? '').trim()).filter(Boolean))].join(', '), // the banks the recorded payments came through
     receivedTotal: formatMoney(receivedTotal),
     receivedTotalWords: numberToWords(receivedTotal),
-    mcgmCharges: rsText(payables.mcgm),
-    commonAreaCharges: payables.commonArea > 0 ? rsText(payables.commonArea) : 'Nil',
-    payablesTotal: rsText(payables.total),
+    otherCharges: otherCharges.items.map((c, i) => ({ index: i + 1, name: c.name, amount: c.text })),
+    otherChargesTotal: rsText(otherCharges.total),
     paymentPlanTotalAmount: formatMoney(sum(schedules, (s) => Number(s.principalAmount))),
     paymentPlanTotalGst: formatMoney(sum(schedules, (s) => Number(s.gstAmount))),
     paymentPlanGrandTotal: formatMoney(sum(schedules, (s) => Number(s.principalAmount) + Number(s.gstAmount))),

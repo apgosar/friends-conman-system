@@ -47,11 +47,12 @@ describe('PartnerSchema', () => {
 describe('checkAgreementPartners', () => {
   const four = ['a', 'b', 'c', 'd']
 
-  it('needs exactly two when the company has more than two active partners', () => {
+  it('accepts any number of the active partners, but at least one when the company has partners', () => {
     expect(checkAgreementPartners(four, ['a', 'c'])).toBeNull()
-    expect(checkAgreementPartners(four, [])).toMatch(/exactly 2/)
-    expect(checkAgreementPartners(four, ['a'])).toMatch(/exactly 2/)
-    expect(checkAgreementPartners(four, ['a', 'b', 'c'])).toMatch(/exactly 2/)
+    expect(checkAgreementPartners(four, ['a'])).toBeNull()
+    expect(checkAgreementPartners(four, ['a', 'b', 'c'])).toBeNull()
+    expect(checkAgreementPartners(four, four)).toBeNull()
+    expect(checkAgreementPartners(four, [])).toMatch(/at least one/)
   })
 
   it('rejects a partner twice, or one who is not an active partner of the company', () => {
@@ -59,10 +60,7 @@ describe('checkAgreementPartners', () => {
     expect(checkAgreementPartners(four, ['a', 'zzz'])).toMatch(/still active/)
   })
 
-  it('uses what there is when the company has two or fewer', () => {
-    expect(checkAgreementPartners(['a', 'b'], ['a', 'b'])).toBeNull()
-    expect(checkAgreementPartners(['a', 'b'], ['a'])).toMatch(/exactly 2/)
-    expect(checkAgreementPartners(['a'], ['a'])).toBeNull()
+  it('lets a company with no partners generate an agreement without them', () => {
     expect(checkAgreementPartners([], [])).toBeNull()
   })
 
@@ -82,6 +80,14 @@ describe('partners in a document', () => {
     buyers: [{ fullName: 'Asha', address: null, panNumber: null, aadhaarNumber: null, email: null, whatsappNumber: null, isPrimary: true }],
     paymentSchedules: [],
   }
+
+  it('names all the chosen partners in one line, however many there are', () => {
+    const three = [{ name: 'Rajesh Shah', address: null, panNumber: null }, { name: 'Meena Patel', address: null, panNumber: null }, { name: 'Kiran Rao', address: null, panNumber: null }]
+    expect(buildSalePayload(sale, three).partnerNames).toBe('Rajesh Shah, Meena Patel and Kiran Rao')
+    expect(buildSalePayload(sale, three.slice(0, 1)).partnerNames).toBe('Rajesh Shah')
+    expect(buildSalePayload(sale, three).partners).toHaveLength(3)
+    expect(buildSalePayload(sale).partnerNames).toBe('')
+  })
 
   it('carries the company PAN and the two chosen partners', () => {
     const p = buildSalePayload(sale, [{ name: 'Rajesh Shah', address: 'Mumbai', panNumber: null }, { name: 'Meena Patel', address: null, panNumber: null }])

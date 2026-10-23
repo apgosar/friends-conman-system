@@ -12,7 +12,7 @@ export const PERMISSIONS = {
   staff: ['SUPER_ADMIN', 'ADMIN', 'SALES'],
   /** Create / change business records: projects, sales, payments, documents, communications, reports. */
   admin: ['SUPER_ADMIN', 'ADMIN'],
-  /** Users, settings, audit log, deleting sales. */
+  /** Users, settings, audit log, deleting sales, adding companies and projects, and building setup. */
   superadmin: ['SUPER_ADMIN'],
 } as const satisfies Record<string, readonly Role[]>
 
@@ -29,7 +29,9 @@ export const can = (role: unknown, permission: Permission): boolean =>
 const PAGE_RULES: ReadonlyArray<readonly [RegExp, Permission]> = [
   [/^\/(users|audit|settings)(\/|$)/, 'superadmin'],
   [/^\/(reports|communications|escalations|documents|companies)(\/|$)/, 'admin'],
-  [/^\/(sales|projects)\/new(\/|$)/, 'admin'],
+  [/^\/projects\/new(\/|$)/, 'superadmin'],
+  [/^\/projects\/[^/]+\/structure(\/|$)/, 'superadmin'],
+  [/^\/sales\/new(\/|$)/, 'admin'],
   [/^\/projects\/[^/]+\/(edit|templates\/new|payment-plan)(\/|$)/, 'admin'],
   [/^\/sales\/[^/]+\/documents(\/|$)/, 'staff'],
   [/^\/account(\/|$)/, 'any'],

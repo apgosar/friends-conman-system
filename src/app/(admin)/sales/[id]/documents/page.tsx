@@ -4,7 +4,7 @@ import { useState, useEffect, useCallback, use } from 'react'
 import TopNav from '@/components/layout/TopNav'
 import { Alert, Badge, Button, ButtonLink, Card, CardHeader, EmptyState, Modal, PageHeader, Spinner, StatusBadge, Table, Td, useConfirm, useToast } from '@/components/ui'
 import AgreementPartnerPicker, { type PartnerChoice } from '@/components/sales/AgreementPartnerPicker'
-import { AGREEMENT_PARTNERS, checkAgreementPartners, namesPartners } from '@/lib/companies'
+import { checkAgreementPartners, namesPartners } from '@/lib/companies'
 import { errorMessage, fetchJson, jsonRequest } from '@/lib/client/api'
 import { formatDate } from '@/lib/format'
 
@@ -50,12 +50,12 @@ export default function SaleDocumentsPage(props: { params: Promise<{ id: string 
     }
   }
 
-  // A sale agreement names two of the company's partners: ask which, and warn when the company has fewer than two
+  // A sale agreement names some of the company's partners (any number): ask which, unless there is only one, and warn when there are none
   const handleGenerate = (type: string) => {
     if (!namesPartners(type)) return generate(type)
-    if (partners.length !== AGREEMENT_PARTNERS) {
-      const last = documents.find((d) => d.type === type)?.partnerIds ?? [] // start from the partners of the last agreement
-      setPartnerAsk({ type, ids: last.filter((pid: string) => partners.some((p) => p.id === pid)), error: '' })
+    if (partners.length !== 1) {
+      const last = (documents.find((d) => d.type === type)?.partnerIds ?? []).filter((pid: string) => partners.some((p) => p.id === pid)) // the partners of the last agreement
+      setPartnerAsk({ type, ids: last.length > 0 ? last : partners.map((p) => p.id), error: '' })
       return
     }
     return generate(type, partners.map((p) => p.id))
@@ -171,7 +171,7 @@ export default function SaleDocumentsPage(props: { params: Promise<{ id: string 
       {partnerAsk && (
         <Modal
           title={partnerAsk.type === 'PAAA' ? 'Generate PAAA' : 'Generate Sale Agreement'}
-          subtitle={partners.length > AGREEMENT_PARTNERS ? `Choose ${AGREEMENT_PARTNERS} partners to name in it` : 'Check the partners before you generate it'}
+          subtitle={partners.length > 0 ? 'Choose the partners to name in it' : 'Check the partners before you generate it'}
           onClose={() => setPartnerAsk(null)}
           footer={
             <>

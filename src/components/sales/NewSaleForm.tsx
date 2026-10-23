@@ -9,6 +9,7 @@ import { PHONE_ERROR, normalizePhone } from '@/lib/phone'
 import { wingLabel } from '@/lib/building-structure'
 import { checkAgreementPartners } from '@/lib/companies'
 import { formatAadhaar } from '@/lib/buyers'
+import { OTHER_CHARGES_LABEL, computeOtherCharges } from '@/lib/other-charges'
 import AgreementPartnerPicker, { defaultPartnerIds, type PartnerChoice } from './AgreementPartnerPicker'
 import { BOOKING_LABEL, STAMP_DUTY_LABEL, catchUpPrincipal, SALE_TYPE_LABEL, UNIT_TYPE_LABEL, comboLabel, plansFor, schemeOf, unitTypeOfCategory, type PlanSaleType, type PlanSummary } from '@/lib/payment-plans'
 import { scrollToFirstInvalid } from '@/lib/client/forms'
@@ -87,6 +88,10 @@ export default function NewSaleWizard({ projects, prefill = null, preselect = nu
   const [saleType, setSaleType] = useState(prefillProjectType && prefillProjectType !== 'MIXED' ? prefillProjectType : 'FRESH')
   const [unitId, setUnitId] = useState(prefill?.unitId ?? preselect?.unitId ?? '')
   const chosenUnit = selectedProject?.units.find((u: { id: string }) => u.id === unitId) as { category: string; carpetAreaSqft: number } | undefined
+  // What the buyer pays besides the price: due with the last milestone, and shown on the review step as one expandable row
+  const otherCharges = chosenUnit && selectedProject
+    ? computeOtherCharges(selectedProject.charges ?? [], { carpetAreaSqft: chosenUnit.carpetAreaSqft, commercial: chosenUnit.category === 'SHOP' || chosenUnit.category === 'OFFICE' })
+    : { items: [], total: 0 }
   const planCombo = chosenUnit ? { saleType: (saleType === 'REDEVELOPMENT' ? 'REDEVELOPMENT' : 'FRESH') as PlanSaleType, unitType: unitTypeOfCategory(chosenUnit.category) } : null
   const comboPlans = planCombo ? plansFor<PlanOption>(selectedProject?.paymentPlans ?? [], planCombo) : []
   const paymentPlan = comboPlans.find((p) => p.id === planChoice) ?? comboPlans[0] ?? null
@@ -263,6 +268,12 @@ export default function NewSaleWizard({ projects, prefill = null, preselect = nu
         gstAmount: 0,
         sequence: 998,
       })
+    }
+
+    // Other charges: one row on the last milestone of the plan (Possession / OC), no GST
+    if (otherCharges.total > 0) {
+      const lastItem = [...(plan?.items ?? [])].sort((x, y) => x.sequence - y.sequence).pop()
+      rows.push({ milestoneId: lastItem?.milestoneId ?? '', description: OTHER_CHARGES_LABEL, principalAmount: otherCharges.total, gstAmount: 0, sequence: 997 })
     }
 
     // Add car parking as a separate row if it is charged separately — NO GST on parking
@@ -592,6 +603,7 @@ export default function NewSaleWizard({ projects, prefill = null, preselect = nu
               [`Stamp Duty (${stampPct}%)`, stampDuty],
               [`Registration${separateParking ? ' (incl. parking)' : ''}`, regCharges],
               ...(separateParking ? [[`Car Parking (${carParkingCount})`, parkingCost]] : []),
+              ...(otherCharges.total > 0 ? [['Other Charges (due with the last milestone)', otherCharges.total]] : []),
             ].map(([label, amount]) => (
               <div key={String(label)} className="flex justify-between text-base mb-1">
                 <span className="text-secondary">{label}</span>
@@ -600,7 +612,7 @@ export default function NewSaleWizard({ projects, prefill = null, preselect = nu
             ))}
             <div className="pt-2 mt-2 flex justify-between font-bold border-top">
               <span>Total Payable</span>
-              <span className="text-brand">{fmt(agreementValue + gst + stampDuty + regCharges + parkingCost)}</span>
+              <span className="text-brand">{fmt(agreementValue + gst + stampDuty + regCharges + parkingCost + otherCharges.total)}</span>
             </div>
           </div>
 
@@ -655,7 +667,17 @@ export default function NewSaleWizard({ projects, prefill = null, preselect = nu
                       <td className="text-muted text-sm">{idx + 1}</td>
                       <td>
                         <div className="font-medium">{row.description}</div>
-                        {row.percentOfAV === undefined && (
+                        {row.description === OTHER_CHARGES_LABEL && (
+                          <details className="charge-details">
+                            <summary>Due with the last milestone · {otherCharges.items.length} charges</summary>
+                            <ul className="charge-list">
+                              {otherCharges.items.map((c, k) => (
+                                <li key={k}><span>{c.name}</span><span className="nowrap">{c.text}</span></li>
+                              ))}
+                            </ul>
+                          </details>
+                        )}
+                        {row.percentOfAV === undefined && row.description !== OTHER_CHARGES_LABEL && (
                           <div className="text-xs text-muted">{row.description === STAMP_DUTY_LABEL ? 'Not a milestone: you raise this demand yourself from the sale page' : 'Excluded from milestone %'}</div>
                         )}
                       </td>
@@ -678,7 +700,7 @@ export default function NewSaleWizard({ projects, prefill = null, preselect = nu
                         )}
                       </td>
                       <td className="text-right">
-                        <Input
+                        {row.description === OTHER_CHARGES_LABEL ? <span className="font-medium">{fmt(row.principalAmount)}</span> : <Input
                           small
                           type="number"
                           inputMode="decimal"
@@ -686,7 +708,7 @@ export default function NewSaleWizard({ projects, prefill = null, preselect = nu
                           className="amount-input text-right"
                           value={row.principalAmount}
                           onChange={e => updateScheduleAmount(idx, Number(e.target.value) || 0)}
-                        />
+                        />}
                       </td>
                       <td className="text-right text-muted">
                         {row.gstAmount > 0 ? fmt(row.gstAmount) : <span className="text-muted text-sm">—</span>}

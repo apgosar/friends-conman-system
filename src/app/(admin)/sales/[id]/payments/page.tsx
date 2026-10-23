@@ -3,14 +3,11 @@ import { notFound } from 'next/navigation'
 import TopNav from '@/components/layout/TopNav'
 import PaymentScheduleRow from '@/components/sales/PaymentScheduleRow'
 import { plain } from '@/lib/plain'
-import { auth } from '@/lib/auth'
-import { can } from '@/lib/authz'
 import { SCHEDULE_ORDER } from '@/lib/payment-plans'
 import { ButtonLink, Card, EmptyState, PageHeader, Table } from '@/components/ui'
 
 export default async function SalePaymentsPage(props: PageProps<'/sales/[id]/payments'>) {
   const { id } = await props.params
-  const canRaiseDemand = can((await auth())?.user?.role, 'admin')
   const sale = await prisma.sale.findUnique({
     where: { id },
     include: {
@@ -39,7 +36,7 @@ export default async function SalePaymentsPage(props: PageProps<'/sales/[id]/pay
                 <tr><th>Description</th><th>Status</th><th>Due Date</th><th>Principal Due</th><th>GST Due</th><th>Total Received</th><th>Actions</th></tr>
               </thead>
               <tbody>
-                {sale.paymentSchedules.map((schedule) => <PaymentScheduleRow key={schedule.id} schedule={plain(schedule)} saleId={sale.id} canRaiseDemand={canRaiseDemand} />)}
+                {sale.paymentSchedules.map((schedule) => <PaymentScheduleRow key={schedule.id} schedule={plain(schedule)} saleId={sale.id} />)}
               </tbody>
             </Table>
           )}

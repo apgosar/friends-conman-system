@@ -92,6 +92,51 @@ describeDb('creating a sale', () => {
     expect(logs.every((l) => !String(l.messageContent).includes('Stamp Duty'))).toBe(true) // only the booking was demanded
   })
 
+  it('adds the project\'s other charges as one row on the last milestone, worked out on the server', async () => {
+    const { createSale } = await import('@/lib/sales/create-sale')
+    const prisma = await getPrisma()
+    const user = await seedUser('ADMIN')
+    const { project, units } = await seedProject({ name: 'Charges Heights', units: 1 })
+    const plinth = await prisma.constructionMilestone.create({ data: { projectId: project.id, name: 'Plinth', sequence: 1 } })
+    const possession = await prisma.constructionMilestone.create({ data: { projectId: project.id, name: 'Possession', sequence: 2 } })
+    await prisma.projectCharge.createMany({ data: [
+      { projectId: project.id, name: 'Legal charges', amountType: 'FIXED', amount: 15_000, appliesTo: 'BOTH', sequence: 0 },
+      { projectId: project.id, name: 'MCGM betterment', amountType: 'PER_SQFT', amount: 600, appliesTo: 'BOTH', sequence: 1 },
+      { projectId: project.id, name: 'Shop deposit', amountType: 'FIXED', amount: 50_000, appliesTo: 'COMMERCIAL', sequence: 2 },
+    ] })
+    const sale = await createSale(baseInput(project.id, units[0].id, {
+      paymentSchedules: [
+        { description: 'Booking', principalAmount: 1_000_000, gstAmount: 50_000, isBooking: true },
+        { description: 'Plinth', milestoneId: plinth.id, principalAmount: 4_000_000, gstAmount: 200_000 },
+        { description: 'Possession', milestoneId: possession.id, principalAmount: 5_000_000, gstAmount: 250_000 },
+        { description: 'Other Charges', milestoneId: possession.id, principalAmount: 1, gstAmount: 0 }, // the screen's figure is not trusted
+      ],
+    }), user.id)
+
+    const row = await prisma.paymentSchedule.findFirstOrThrow({ where: { saleId: sale.id, description: 'Other Charges' } })
+    // 15,000 + 600 x 700 sq ft; the shop deposit is for commercial units only
+    expect(row).toMatchObject({ milestoneId: possession.id, principalAmount: 435_000, gstAmount: 0, status: 'UPCOMING' })
+    const saved = (await prisma.sale.findUniqueOrThrow({ where: { id: sale.id } })).otherCharges as { name: string; text: string }[]
+    expect(saved.map((c) => [c.name, c.text])).toEqual([['Legal charges', 'Rs. 15,000/-'], ['MCGM betterment', 'Rs. 4,20,000/-'], ['Shop deposit', 'Nil']])
+  })
+
+  it('puts the other charges on the last milestone when the screen did not send the row', async () => {
+    const { createSale } = await import('@/lib/sales/create-sale')
+    const prisma = await getPrisma()
+    const user = await seedUser('ADMIN')
+    const { project, units } = await seedProject({ name: 'Charges Two', units: 1 })
+    const possession = await prisma.constructionMilestone.create({ data: { projectId: project.id, name: 'Possession', sequence: 1 } })
+    await prisma.projectCharge.create({ data: { projectId: project.id, name: 'Legal charges', amountType: 'FIXED', amount: 15_000, appliesTo: 'BOTH', sequence: 0 } })
+    const sale = await createSale(baseInput(project.id, units[0].id, {
+      paymentSchedules: [
+        { description: 'Booking', principalAmount: 1_000_000, gstAmount: 50_000, isBooking: true },
+        { description: 'Possession', milestoneId: possession.id, principalAmount: 9_000_000, gstAmount: 450_000 },
+      ],
+    }), user.id)
+    const row = await prisma.paymentSchedule.findFirstOrThrow({ where: { saleId: sale.id, description: 'Other Charges' } })
+    expect(row).toMatchObject({ milestoneId: possession.id, principalAmount: 15_000 })
+  })
+
   it('lets exactly one of several simultaneous bookings of the same unit through', async () => {
     const { createSale, SaleError } = await import('@/lib/sales/create-sale')
     const user = await seedUser('ADMIN')

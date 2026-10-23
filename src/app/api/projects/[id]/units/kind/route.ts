@@ -16,7 +16,7 @@ const Schema = z.discriminatedUnion('kind', [
 // POST — change the kind of many units at once.
 // Units that have a sale, or inquiries, are skipped: they are real flats someone is buying.
 export async function POST(req: NextRequest, props: { params: Promise<{ id: string }> }) {
-  const guard = await requireRole('admin')
+  const guard = await requireRole('superadmin')
   if ('error' in guard) return guard.error
   const { id: projectId } = await props.params
 

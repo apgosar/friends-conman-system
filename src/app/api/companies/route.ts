@@ -21,7 +21,7 @@ export const GET = route('staff', async () => {
 })
 
 // POST /api/companies
-export const POST = route('admin', async ({ user, body }) => {
+export const POST = route('superadmin', async ({ user, body }) => {
   const input = await body(CompanySchema)
   const id = await transaction((tx) => createCompany(tx, input))
   await createAuditLog({ userId: user.id, entityType: 'company', entityId: id, action: 'created', newValues: { name: input.name } })

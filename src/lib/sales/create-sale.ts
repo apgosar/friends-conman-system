@@ -4,7 +4,8 @@ import { z } from '@/lib/validate'
 import { nextSaleNumber } from '@/lib/numbering'
 import { buildCommContent, sanitizeInline } from '@/lib/comms-content'
 import { GST_RATE_OPTIONS, computeCharges, pricingFromProject } from '@/lib/pricing'
-import { BOOKING_DUE_DAYS, DEMAND_DUE_DAYS } from '@/lib/payment-plans'
+import { BOOKING_DUE_DAYS, DEMAND_DUE_DAYS, isStandaloneCharge } from '@/lib/payment-plans'
+import { OTHER_CHARGES_LABEL, computeOtherCharges } from '@/lib/other-charges'
 import { sumRupees } from '@/lib/money'
 import { PHONE_ERROR, normalizePhone } from '@/lib/phone'
 import { activeSale } from '@/lib/soft-delete'
@@ -117,9 +118,18 @@ export async function createSale(input: SaleCreateInput, actorId: string) {
       throw new SaleError('Stamp duty and registration charges cannot be more than the agreement value', 400)
     }
 
-    const schedules = input.paymentSchedules ?? []
+    // Other charges: worked out here from the project's list for this unit (never taken from the screen) and carried by one
+    // schedule row on the last milestone, which the screen tells us by sending the row; without it the last milestone of the plan is used
+    const projectCharges = await tx.projectCharge.findMany({ where: { projectId: input.projectId }, orderBy: { sequence: 'asc' } })
+    const other = computeOtherCharges(projectCharges, { carpetAreaSqft: unit.carpetAreaSqft, commercial: unit.category === 'SHOP' || unit.category === 'OFFICE' })
+    const sentRows = input.paymentSchedules ?? []
+    const planRows = sentRows.filter((ps) => ps.description !== OTHER_CHARGES_LABEL)
+    const otherMilestoneId = sentRows.find((ps) => ps.description === OTHER_CHARGES_LABEL)?.milestoneId ?? [...planRows].reverse().find((ps) => ps.milestoneId)?.milestoneId ?? null
+    const schedules = other.total > 0 && planRows.length > 0
+      ? [...planRows, { milestoneId: otherMilestoneId, description: OTHER_CHARGES_LABEL, principalAmount: other.total, gstAmount: 0 }]
+      : planRows
     if (schedules.length > 0) {
-      const payable = sumRupees([input.agreementValue, stampDuty, registrationCharges, parkingCharge])
+      const payable = sumRupees([input.agreementValue, stampDuty, registrationCharges, parkingCharge, other.total])
       const planned = sumRupees(schedules.map((s) => s.principalAmount))
       if (planned > payable + payable * PLAN_TOLERANCE_RATIO) {
         throw new SaleError(`The payment plan adds up to more than the buyer owes (plan ${formatNumber(planned)}, payable ${formatNumber(payable)}). Check the milestone amounts.`, 400)
@@ -140,6 +150,7 @@ export async function createSale(input: SaleCreateInput, actorId: string) {
         stampDuty: stampDuty || null,
         registrationCharges: registrationCharges || null,
         carParking, carParkingCount, carParkingIncluded: parkingIncluded,
+        otherCharges: other.items.length > 0 ? (other.items as unknown as Prisma.InputJsonValue) : undefined,
         carParkingCharges: parkingCharge ? parkingCharge : null,
         parkingPodiumLevel: input.parkingPodiumLevel || null,
         parkingFloor: input.parkingFloor || null,
@@ -214,7 +225,7 @@ export async function createSale(input: SaleCreateInput, actorId: string) {
           const isBookingDemand = !schedule.milestoneId
           const amount = schedule.principalAmount + schedule.gstAmount
           const description = schedule.description.toLowerCase()
-          const isTaxOrParking = description.includes('stamp duty') || description.includes('registration') || description.includes('parking')
+          const isTaxOrParking = isStandaloneCharge(description)
           const dueText = schedule.dueDate ? formatDate(schedule.dueDate) : 'N/A'
 
           for (const buyer of commBuyers) {

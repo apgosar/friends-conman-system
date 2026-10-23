@@ -3,8 +3,11 @@ import TopNav from '@/components/layout/TopNav'
 import Companies from '@/components/companies/Companies'
 import { PageHeader } from '@/components/ui'
 import { maskedPan } from '@/lib/pii'
+import { auth } from '@/lib/auth'
+import { can } from '@/lib/authz'
 
 export default async function CompaniesPage() {
+  const canAddCompany = can((await auth())?.user?.role, 'superadmin') // only a Super Admin adds a company
   const rows = await prisma.company.findMany({
     orderBy: { name: 'asc' },
     include: { partners: { orderBy: { name: 'asc' } }, _count: { select: { projects: true } } },
@@ -20,7 +23,7 @@ export default async function CompaniesPage() {
       <TopNav title="Companies" subtitle="Developer companies and their partners" />
       <div className="admin-content">
         <PageHeader title="Companies" subtitle="The company on your agreements and letters, and its partners" />
-        <Companies companies={companies} />
+        <Companies companies={companies} canAdd={canAddCompany} />
       </div>
     </>
   )

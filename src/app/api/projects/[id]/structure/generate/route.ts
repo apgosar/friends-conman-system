@@ -29,7 +29,7 @@ const Schema = z.object({
 // POST — create wings, floors and units from a floor-pattern description.
 // Only adds: existing wings/floors are reused and existing unit numbers are skipped.
 export async function POST(req: NextRequest, props: { params: Promise<{ id: string }> }) {
-  const guard = await requireRole('admin')
+  const guard = await requireRole('superadmin')
   if ('error' in guard) return guard.error
   const { id: projectId } = await props.params
 

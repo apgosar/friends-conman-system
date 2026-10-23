@@ -7,7 +7,7 @@ import { dispatchAllPending } from '@/lib/comms-dispatcher'
 import { buildCommContent, sanitizeInline } from '@/lib/comms-content'
 import type { Prisma } from '@prisma/client'
 import { formatDate, formatRupees } from '@/lib/format'
-import { DEMAND_DUE_DAYS } from '@/lib/payment-plans'
+import { DEMAND_DUE_DAYS, isStandaloneCharge } from '@/lib/payment-plans'
 
 export async function POST(req: NextRequest, props: { params: Promise<{ id: string }> }) {
   const guard = await requireRole('admin')
@@ -72,7 +72,7 @@ export async function POST(req: NextRequest, props: { params: Promise<{ id: stri
 
       affectedSchedules.forEach(schedule => {
         const amount = Number(schedule.principalAmount) + Number(schedule.gstAmount)
-        const isTaxOrParking = schedule.description.toLowerCase().includes('stamp duty') || schedule.description.toLowerCase().includes('registration') || schedule.description.toLowerCase().includes('parking')
+        const isTaxOrParking = isStandaloneCharge(schedule.description)
 
         schedule.sale.buyers.forEach(buyer => {
           const greeting = `Dear ${sanitizeInline(buyer.fullName) || 'Customer'},`

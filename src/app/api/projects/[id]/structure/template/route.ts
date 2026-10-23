@@ -6,7 +6,7 @@ import { prisma } from '@/lib/db'
 
 // GET — a ready-to-fill Excel file for adding units in bulk (see structure/import)
 export async function GET(_req: NextRequest, props: { params: Promise<{ id: string }> }) {
-  const guard = await requireRole('admin')
+  const guard = await requireRole('superadmin')
   if ('error' in guard) return guard.error
   const { id: projectId } = await props.params
 

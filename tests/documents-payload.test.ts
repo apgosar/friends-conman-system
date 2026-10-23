@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { agreementPayables, COMMON_AREA_CHARGE_RESIDENTIAL } from '@/lib/documents/payables'
+import { DEFAULT_OTHER_CHARGES } from '@/lib/other-charges'
 import { buildDemandPayload, buildReceiptPayload, buildSalePayload, pickDemand } from '@/lib/documents/payload'
 
 const at = (d: string) => new Date(d)
@@ -103,11 +103,27 @@ describe('sale agreement figures', () => {
   it('keeps charges out of the instalment table and numbers the rest', () => {
     expect(p.instalments.map((r) => [r.index, r.description])).toEqual([[1, 'Booking'], [2, 'Plinth']])
   })
-  it('works out the payables: 600 a sq ft, and the common area charge only for homes', () => {
-    expect(p).toMatchObject({ unitKind: 'Flat', premisesType: 'Residential', hasParking: true, mcgmCharges: 'Rs. 4,50,000/-', commonAreaCharges: 'Rs. 1,00,000/-' })
-    const shop = buildSalePayload({ ...flat, unit: { ...flat.unit, category: 'SHOP' }, carParkingCount: 0 })
-    expect(shop).toMatchObject({ unitKind: 'Shop', premisesType: 'Commercial', hasParking: false, commonAreaCharges: 'Nil' })
-    expect(agreementPayables(750, false).total - agreementPayables(750, true).total).toBe(COMMON_AREA_CHARGE_RESIDENTIAL)
+  it('describes the unit: flat or shop, residential or commercial, with parking only when one is sold', () => {
+    expect(p).toMatchObject({ unitKind: 'Flat', premisesType: 'Residential', hasParking: true })
+    expect(buildSalePayload({ ...flat, unit: { ...flat.unit, category: 'SHOP' }, carParkingCount: 0 })).toMatchObject({ unitKind: 'Shop', premisesType: 'Commercial', hasParking: false })
+  })
+  it('lists the project\'s other charges for the unit, with the total (a sq ft rate on the carpet area, Nil for the other kind of unit)', () => {
+    const withCharges = (over: Record<string, unknown> = {}) => ({ ...flat, ...over, project: { ...flat.project, charges: DEFAULT_OTHER_CHARGES } })
+    const home = buildSalePayload(withCharges())
+    expect(home.otherCharges).toHaveLength(9)
+    expect(home.otherCharges[5]).toMatchObject({ index: 6, amount: 'Rs. 4,50,000/-' }) // 600 a sq ft on 750 sq ft
+    expect(home.otherCharges[1].amount).toBe('As Determined at the time of assessment')
+    expect(home.otherCharges[8].amount).toBe('Rs. 1,00,000/-')
+    expect(home.otherChargesTotal).toBe('Rs. 7,40,600/-')
+    const shop = buildSalePayload(withCharges({ unit: { ...flat.unit, category: 'SHOP' }, carParkingCount: 0 }))
+    expect(shop.otherCharges[8].amount).toBe('Nil')
+    expect(shop.otherChargesTotal).toBe('Rs. 6,40,600/-')
+  })
+  it('uses the charges the sale was made with, not the project\'s list as it is now', () => {
+    const saved = [{ name: 'Legal', amountType: 'FIXED', rate: 15000, amount: 15000, text: 'Rs. 15,000/-' }]
+    const p2 = buildSalePayload({ ...flat, otherCharges: saved, project: { ...flat.project, charges: DEFAULT_OTHER_CHARGES } })
+    expect(p2.otherCharges).toEqual([{ index: 1, name: 'Legal', amount: 'Rs. 15,000/-' }])
+    expect(p2.otherChargesTotal).toBe('Rs. 15,000/-')
   })
 })
 
@@ -145,5 +161,17 @@ describe('payment banks', () => {
     const s: any = { ...sale, unit: { ...sale.unit, category: 'FLAT' }, carParkingCount: 0, paymentSchedules: [schedule({ payments: pays })] }
     expect(buildSalePayload(s).paymentBankNames).toBe('HDFC Bank, ICICI Bank')
     expect(buildSalePayload({ ...s, paymentSchedules: [schedule({})] }).paymentBankNames).toBe('')
+  })
+})
+
+describe('the advance in the agreement', () => {
+  const booking: any = schedule({ id: 'a', description: 'Booking', principalAmount: 100000, gstAmount: 5000, status: 'DUE' })
+  const withPaid = (amount: number): any => ({ ...sale, carParkingCount: 0, unit: { ...sale.unit, category: 'FLAT' }, paymentSchedules: [{ ...booking, payments: amount ? [{ id: 'p', amount, gstPaid: 0, paymentDate: at('2026-02-01'), createdAt: at('2026-02-01'), bankName: null, deletedAt: null }] : [] }] })
+
+  it('is the booking amount when nothing has been recorded as paid yet', () => {
+    expect(buildSalePayload(withPaid(0))).toMatchObject({ advancePaid: '1,00,000.00', balanceAfterAdvance: '9,00,000.00' })
+  })
+  it('is what was paid when that is more than the booking', () => {
+    expect(buildSalePayload(withPaid(150000))).toMatchObject({ advancePaid: '1,50,000.00', balanceAfterAdvance: '8,50,000.00' })
   })
 })

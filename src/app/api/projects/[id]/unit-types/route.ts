@@ -8,7 +8,7 @@ import { FloorPlanError } from '@/lib/floor-plan'
 import { parseUnitTypeForm, storeFloorPlan } from '@/lib/unit-type-form'
 
 export async function GET(_req: NextRequest, props: { params: Promise<{ id: string }> }) {
-  const guard = await requireRole('admin')
+  const guard = await requireRole('superadmin')
   if ('error' in guard) return guard.error
   const { id: projectId } = await props.params
   const types = await prisma.unitType.findMany({
@@ -21,7 +21,7 @@ export async function GET(_req: NextRequest, props: { params: Promise<{ id: stri
 
 // POST multipart/form-data: name, configuration, carpetAreaSqft, builtupAreaSqft?, basePricePerSqft?, floorPlan? (image)
 export async function POST(req: NextRequest, props: { params: Promise<{ id: string }> }) {
-  const guard = await requireRole('admin')
+  const guard = await requireRole('superadmin')
   if ('error' in guard) return guard.error
   const { id: projectId } = await props.params
 

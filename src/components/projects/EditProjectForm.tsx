@@ -2,7 +2,6 @@
 
 import { useRef, useState } from 'react'
 import { useRouter } from 'next/navigation'
-import BackToProject from '@/components/projects/BackToProject'
 import PricingFields from '@/components/projects/PricingFields'
 import CompanyField from '@/components/projects/CompanyField'
 import { Alert, Button, ButtonLink, Input, RadioGroupField, SelectField, TextField, TextareaField } from '@/components/ui'
@@ -75,11 +74,6 @@ export default function EditProjectForm({ project, companies }: { project: any; 
   return (
     <div className="max-w-lg mx-auto">
       <div className="card">
-        <div className="card-header">
-          <span className="card-title">Edit Project</span>
-          <BackToProject projectId={project.id} />
-        </div>
-
         {error && <Alert variant="danger" className="mb-4">{error}</Alert>}
         {success && <Alert variant="success" className="mb-4">{success}</Alert>}
 

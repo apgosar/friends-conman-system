@@ -29,6 +29,7 @@ export default async function NewSalePage(props: PageProps<'/sales/new'>) {
         }
       },
       tenants: true,
+      charges: { orderBy: { sequence: 'asc' } },
       company: { select: { partners: { where: { isActive: true }, orderBy: { name: 'asc' }, select: { id: true, name: true } } } },
       paymentPlans: {
         orderBy: { name: 'asc' },
@@ -54,6 +55,7 @@ export default async function NewSalePage(props: PageProps<'/sales/new'>) {
       type: p.type,
       carParkingCharges: p.carParkingCharges,
       carParkingIncluded: p.carParkingIncluded,
+      charges: p.charges.map((c) => ({ name: c.name, amountType: c.amountType, amount: c.amount, appliesTo: c.appliesTo })), // the other charges, due with the last milestone
       partners: p.company.partners, // the active partners a sale agreement can name
       pricing: pricingFromProject(p),
       units,

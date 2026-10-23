@@ -17,7 +17,7 @@ const Schema = z.object({
 // POST — set the status of many units at once (units sold before the system was used).
 // Units that have a sale are skipped: their status always follows the sale.
 export async function POST(req: NextRequest, props: { params: Promise<{ id: string }> }) {
-  const guard = await requireRole('admin')
+  const guard = await requireRole('superadmin')
   if ('error' in guard) return guard.error
   const { id: projectId } = await props.params
 

@@ -12,9 +12,6 @@ export const GSTIN_PATTERN = /^[0-9]{2}[A-Z]{5}[0-9]{4}[A-Z][1-9A-Z]Z[0-9A-Z]$/
 export const PAN_ERROR = 'Please enter valid PAN number'
 export const GSTIN_ERROR = 'Please enter valid GSTIN'
 
-/** A sale agreement is signed by this many partners. */
-export const AGREEMENT_PARTNERS = 2
-
 const text = (label: string, max: number) => z.string().trim().min(1, `Enter ${label}`).max(max, `${label} is too long (maximum ${max} characters)`)
 // Left out = unchanged (an edit that does not touch the PAN); empty = no PAN
 // null is accepted too: the screen sends back what it parsed, and an empty PAN is parsed to null
@@ -48,17 +45,14 @@ export const PartnerSchema = z.object({
 export type PartnerInput = z.infer<typeof PartnerSchema>
 
 /**
- * Which partners go into a sale agreement. With two or more active partners exactly two must be chosen; with one, that one
- * is used; with none the agreement is made without partners (the screen warns). Returns an error text, or null when fine.
+ * Which partners go into a sale agreement: any number of the company's active partners, but at least one when the company
+ * has partners (with none the agreement is made without partner names; the screen warns). Returns an error text, or null.
  */
 export function checkAgreementPartners(activePartnerIds: string[], chosen: string[]): string | null {
   const distinct = new Set(chosen)
   if (distinct.size !== chosen.length) return 'Choose different partners'
   if (!chosen.every((id) => activePartnerIds.includes(id))) return 'Choose partners of this company who are still active'
-  const needed = Math.min(AGREEMENT_PARTNERS, activePartnerIds.length)
-  if (chosen.length !== needed) {
-    return needed === 0 ? 'This company has no partners' : `Choose ${needed === 1 ? 'the partner' : `exactly ${needed} partners`} for the agreement`
-  }
+  if (activePartnerIds.length > 0 && chosen.length === 0) return 'Choose at least one partner for the agreement'
   return null
 }
 

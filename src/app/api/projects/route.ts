@@ -3,6 +3,7 @@ import { NextRequest } from 'next/server'
 import { prisma } from '@/lib/db'
 import { auth } from '@/lib/auth'
 import { requireRole } from '@/lib/guard'
+import { DEFAULT_OTHER_CHARGES } from '@/lib/other-charges'
 import { parsePricingSettings } from '@/lib/pricing-settings'
 import { createAuditLog } from '@/lib/audit'
 import { activeSale } from '@/lib/soft-delete'
@@ -19,7 +20,7 @@ export async function GET() {
 }
 
 export async function POST(req: NextRequest) {
-  const guard = await requireRole('admin')
+  const guard = await requireRole('superadmin')
   if ('error' in guard) return guard.error
   const session = { user: guard.user }
   const body = await req.json()
@@ -39,6 +40,8 @@ export async function POST(req: NextRequest) {
       ...pricing.data, // anything left out takes the column default (see lib/pricing.ts)
     },
   })
+  // A new project starts with the standard other charges of the sale agreement; they can be changed on its edit page
+  await prisma.projectCharge.createMany({ data: DEFAULT_OTHER_CHARGES.map((c, i) => ({ projectId: project.id, name: c.name, amountType: c.amountType, amount: c.amount, appliesTo: c.appliesTo, sequence: i })) })
   await createAuditLog({ userId: session.user.id, projectId: project.id, entityType: 'project', entityId: project.id, action: 'created', newValues: { name, city, type } })
   return Response.json({ success: true, data: project }, { status: 201 })
 }

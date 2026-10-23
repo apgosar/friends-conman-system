@@ -6,7 +6,7 @@ import { createAuditLog } from '@/lib/audit'
 
 // DELETE — remove a whole wing, but only if none of its units has a sale or an inquiry
 export async function DELETE(_req: NextRequest, props: { params: Promise<{ id: string; wingId: string }> }) {
-  const guard = await requireRole('admin')
+  const guard = await requireRole('superadmin')
   if ('error' in guard) return guard.error
   const { id: projectId, wingId } = await props.params
 

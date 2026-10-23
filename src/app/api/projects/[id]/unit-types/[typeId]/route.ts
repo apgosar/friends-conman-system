@@ -21,7 +21,7 @@ async function removeStoredFile(url: string | null) {
 //   removeFloorPlan=1   clear the floor plan
 //   applyToUnits=1      also update this type's unsold units (sold units are never changed)
 export async function PATCH(req: NextRequest, props: Ctx) {
-  const guard = await requireRole('admin')
+  const guard = await requireRole('superadmin')
   if ('error' in guard) return guard.error
   const { id: projectId, typeId } = await props.params
 
@@ -78,7 +78,7 @@ export async function PATCH(req: NextRequest, props: Ctx) {
 
 // DELETE: only a type that no unit uses
 export async function DELETE(_req: NextRequest, props: Ctx) {
-  const guard = await requireRole('admin')
+  const guard = await requireRole('superadmin')
   if ('error' in guard) return guard.error
   const { id: projectId, typeId } = await props.params
 

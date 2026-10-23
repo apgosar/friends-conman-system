@@ -4,7 +4,6 @@ import { useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { Alert, Badge, Button, Card, CardHeader, EmptyState, Table, Td, useConfirm, useToast } from '@/components/ui'
 import { errorMessage, fetchJson, jsonRequest } from '@/lib/client/api'
-import { AGREEMENT_PARTNERS } from '@/lib/companies'
 import { formatPhoneList } from '@/lib/phone'
 import CompanyModal, { type CompanyData, type PartnerData } from './CompanyModal'
 import PartnerModal from './PartnerModal'
@@ -12,7 +11,7 @@ import PartnerModal from './PartnerModal'
 type PartnerEdit = { company: CompanyData; partner: PartnerData | null }
 
 /** The companies of this installation and their partners. A project picks a company; a sale agreement names two of its partners. */
-export default function Companies({ companies }: { companies: CompanyData[] }) {
+export default function Companies({ companies, canAdd = false }: { companies: CompanyData[]; canAdd?: boolean }) {
   const router = useRouter()
   const toast = useToast()
   const confirm = useConfirm()
@@ -59,9 +58,9 @@ export default function Companies({ companies }: { companies: CompanyData[] }) {
     <>
       <div className="flex justify-between items-center wrap gap-3 mb-4">
         <p className="text-secondary m-0">
-          {`The company that appears on a project's agreements and letters. When a sale agreement is generated you choose ${AGREEMENT_PARTNERS} of the company's partners to name in it.`}
+          {`The company that appears on a project's agreements and letters. When a sale agreement is generated you choose which of the company's partners to name in it.`}
         </p>
-        <Button variant="primary" onClick={() => setEditingCompany({ company: null })}>+ New company</Button>
+        {canAdd && <Button variant="primary" onClick={() => setEditingCompany({ company: null })}>+ New company</Button>}
       </div>
 
       {companies.length === 0 && (
@@ -96,12 +95,8 @@ export default function Companies({ companies }: { companies: CompanyData[] }) {
                 <h4 className="m-0">Partners</h4>
                 <Button size="sm" onClick={() => setEditingPartner({ company, partner: null })}>+ Add partner</Button>
               </div>
-              {active < AGREEMENT_PARTNERS && (
-                <Alert variant="warning" className="mb-3">
-                  {active === 0
-                    ? `No active partners yet. A sale agreement names ${AGREEMENT_PARTNERS} partners, so add them here.`
-                    : `Only ${active} active partner. A sale agreement names ${AGREEMENT_PARTNERS}, so add another.`}
-                </Alert>
+              {active === 0 && (
+                <Alert variant="warning" className="mb-3">No active partners yet. Add the partners who sign the sale agreement here.</Alert>
               )}
             </div>
             {company.partners.length > 0 && (

@@ -137,6 +137,12 @@
 }
 
 .form-input::placeholder { color: var(--text-disabled); }
+/* A row that opens to a list of what it is made of (the other charges on the payment plan review) */
+.charge-details { margin-top: var(--space-1); font-size: var(--text-sm); color: var(--text-muted); }
+.charge-details summary { cursor: pointer; }
+.charge-list { list-style: none; margin: var(--space-2) 0 0; padding: 0; display: flex; flex-direction: column; gap: var(--space-2); }
+.charge-list li { display: flex; justify-content: space-between; gap: var(--space-4); text-align: left; }
+
 /* A small button inside the right end of a text box (for example the pencil that unlocks a locked field) */
 .input-with-action { position: relative; }
 .input-with-action .form-input { padding-right: var(--space-10); }
