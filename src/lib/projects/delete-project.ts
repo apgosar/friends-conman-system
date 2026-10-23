@@ -39,6 +39,8 @@ export async function deleteProject(projectId: string, actorId: string): Promise
     await tx.tdsRecord.deleteMany({ where: { payment: { saleId: { in: saleIds } } } })
     const removed = await tx.payment.deleteMany({ where: { saleId: { in: saleIds } } })
     await tx.sale.deleteMany({ where: { id: { in: saleIds } } }) // schedules, interest, buyers, documents, loans and messages go with them
+    // A payment plan line points at a milestone and blocks it from being deleted, so the lines go before the milestones do
+    await tx.paymentPlanItem.deleteMany({ where: { plan: { projectId } } })
     await tx.project.delete({ where: { id: projectId } }) // the building, plans, charges, templates, tenants and quotes go with it
     return removed.count
   }, { timeout: 60_000, maxWait: 10_000 })

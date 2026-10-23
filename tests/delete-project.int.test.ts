@@ -13,7 +13,14 @@ describeDb('deleting a project', () => {
     const user = await seedUser('SUPER_ADMIN')
     const { project } = await seedProject({ units: 2 })
     await prisma.projectCharge.create({ data: { projectId: project.id, name: 'Legal', amountType: 'FIXED', amount: 15000, appliesTo: 'BOTH' } })
-    await prisma.constructionMilestone.create({ data: { projectId: project.id, name: 'Plinth', sequence: 1 } })
+    const plinth = await prisma.constructionMilestone.create({ data: { projectId: project.id, name: 'Plinth', sequence: 1 } })
+    const plan = await prisma.paymentPlan.create({ data: { projectId: project.id, name: 'Standard', saleType: 'FRESH', unitType: 'RESIDENTIAL', isDefault: true } })
+    await prisma.paymentPlanItem.create({ data: { planId: plan.id, milestoneId: plinth.id, sequence: 1, percentOfAV: 35 } }) // points at the milestone being deleted
+    await prisma.unitType.create({ data: { projectId: project.id, name: '2BHK-A', configuration: '2BHK', carpetAreaSqft: 700 } })
+    await prisma.template.create({ data: { projectId: project.id, type: 'RECEIPT', name: 'Receipt', fileUrl: '/api/files/templates%2Fr.docx' } })
+    const units = await prisma.unit.findMany({ where: { floor: { wing: { projectId: project.id } } } })
+    await prisma.tenant.create({ data: { projectId: project.id, name: 'Old tenant', oldFlatNumber: '1', oldAreaSqft: 300, newUnitId: units[0].id } })
+    await prisma.inquiry.create({ data: { unitId: units[1].id, customerName: 'Quote', mobileNumber: '9876543210', agreementValue: 1000, stampDuty: 1, gst: 1, registration: 1, totalCost: 1003 } })
 
     await expect(deleteProject(project.id, user.id)).resolves.toMatchObject({ sales: 0, payments: 0 })
 
@@ -22,6 +29,12 @@ describeDb('deleting a project', () => {
     expect(await prisma.unit.count()).toBe(0)
     expect(await prisma.projectCharge.count()).toBe(0)
     expect(await prisma.constructionMilestone.count()).toBe(0)
+    expect(await prisma.paymentPlan.count()).toBe(0)
+    expect(await prisma.paymentPlanItem.count()).toBe(0)
+    expect(await prisma.unitType.count()).toBe(0)
+    expect(await prisma.template.count()).toBe(0)
+    expect(await prisma.tenant.count()).toBe(0)
+    expect(await prisma.inquiry.count()).toBe(0)
     expect(await prisma.company.count()).toBe(1) // the company is not the project's
     const audit = await prisma.auditLog.findFirstOrThrow({ where: { entityType: 'project', entityId: project.id, action: 'deleted' } })
     expect(audit.userId).toBe(user.id)
