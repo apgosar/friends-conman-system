@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { findTagIssues } from '@/lib/template-tags'
+import { findTagIssues, requiredTemplateTypes } from '@/lib/template-tags'
 
 describe('findTagIssues', () => {
   it('accepts a section on a field of the surrounding loop, such as {{#hasNext}} inside {{#buyers}}', () => {
@@ -22,5 +22,13 @@ describe('interest tags', () => {
     expect(findTagIssues(text, 'DEMAND_LETTER', 'DOCX')).toMatchObject({ unknown: [], wrongType: [] })
     expect(findTagIssues(text, 'RECEIPT', 'DOCX').wrongType).toContain('payment.interestNote')
     expect(findTagIssues('{{receipt.interestPaid}}', 'RECEIPT', 'DOCX')).toMatchObject({ unknown: [], wrongType: [] })
+  })
+})
+
+describe('requiredTemplateTypes', () => {
+  it('needs the demand letter and receipt always, the sale agreement unless the project is all redevelopment, and never the PAAA', () => {
+    expect(requiredTemplateTypes('FRESH')).toEqual(['DEMAND_LETTER', 'RECEIPT', 'SALE_AGREEMENT'])
+    expect(requiredTemplateTypes('MIXED')).toEqual(['DEMAND_LETTER', 'RECEIPT', 'SALE_AGREEMENT'])
+    expect(requiredTemplateTypes('REDEVELOPMENT')).toEqual(['DEMAND_LETTER', 'RECEIPT'])
   })
 })

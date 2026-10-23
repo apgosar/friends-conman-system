@@ -231,9 +231,9 @@ export function describeTagIssues(issues: TagIssues, typeLabel: string): string[
 
 // ── Which templates a project needs ──────────────────────────────────────────
 
+/** The PAAA (redevelopment agreement) is optional: a project without one gets no warning, and generating one says a template is needed. */
 export function requiredTemplateTypes(projectType: string): string[] {
   const types = ['DEMAND_LETTER', 'RECEIPT']
   if (projectType !== 'REDEVELOPMENT') types.push('SALE_AGREEMENT')
-  if (projectType !== 'FRESH') types.push('PAAA')
   return types
 }
