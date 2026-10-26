@@ -35,7 +35,9 @@ describeDb('recording payments', () => {
     const { recordPayment, PaymentError } = await import('@/lib/payments/record-payment')
     const { prisma, user, sale, schedule } = await setup()
     await expect(recordPayment(pay({ scheduleId: schedule.id, saleId: sale.id, amount: 100 }), user.id)).rejects.toBeInstanceOf(PaymentError)
-    await expect(recordPayment(pay({ scheduleId: schedule.id, saleId: sale.id, amount: 10, gstPaid: 5.01 }), user.id)).rejects.toMatchObject({ status: 400 })
+    await expect(recordPayment(pay({ scheduleId: schedule.id, saleId: sale.id, amount: 0, gstPaid: 5.01 }), user.id)).rejects.toMatchObject({ status: 400 })
+    // principal and GST go to different accounts: one payment cannot carry both
+    await expect(recordPayment(pay({ scheduleId: schedule.id, saleId: sale.id, amount: 10, gstPaid: 1 }), user.id)).rejects.toMatchObject({ status: 400, message: expect.stringMatching(/two separate payments/) })
     await expect(recordPayment(pay({ scheduleId: schedule.id, saleId: sale.id, amount: 0, gstPaid: 0 }), user.id)).rejects.toMatchObject({ status: 400 })
     expect(await prisma.payment.count()).toBe(0)
     expect(await prisma.communicationLog.count()).toBe(0)
@@ -44,7 +46,7 @@ describeDb('recording payments', () => {
   it('two clerks paying the same demand in full at once: only one goes through', async () => {
     const { recordPayment } = await import('@/lib/payments/record-payment')
     const { prisma, user, sale, schedule } = await setup()
-    const full = pay({ scheduleId: schedule.id, saleId: sale.id, amount: 99.99, gstPaid: 5 })
+    const full = pay({ scheduleId: schedule.id, saleId: sale.id, amount: 99.99, gstPaid: 0 })
     const results = await Promise.allSettled([recordPayment(full, user.id), recordPayment(full, user.id), recordPayment(full, user.id)])
     expect(results.filter((r) => r.status === 'fulfilled')).toHaveLength(1)
     expect(await prisma.payment.count()).toBe(1)

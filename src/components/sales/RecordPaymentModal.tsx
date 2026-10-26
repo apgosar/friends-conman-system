@@ -13,6 +13,9 @@ import { INTEREST_ORDERS, splitPayment, standingOfSchedule, type InterestOrder }
 /** The interest settings the page attaches to each demand it passes in (see interestPolicyOf in lib/interest.ts). */
 type SchedulePolicy = { enabled: boolean; ratePercent: number; graceDays: number; defaultOrder: InterestOrder }
 
+/** Principal (with its interest) and GST are paid into different accounts, so a payment is one or the other. */
+type Kind = 'PRINCIPAL' | 'GST'
+
 /** What is still owed on a demand (live payments only), never below zero. Interest is what is owed on `onDate`. */
 export function outstandingOf(schedule: any, onDate: Date = new Date()) {
   const live = (schedule.payments ?? []).filter((p: any) => !p.deletedAt)
@@ -26,11 +29,14 @@ export function outstandingOf(schedule: any, onDate: Date = new Date()) {
 const today = () => new Date().toISOString().split('T')[0]
 const num = (v: string) => Number(v) || 0
 const text = (n: number) => (n > 0 ? String(round2(n)) : '')
+type Owed = { principal: number; gst: number; interest: number }
+/** Principal is paid first when anything of it (or its interest) is owed, else the GST. */
+const kindFor = (o?: Owed): Kind => (o && o.principal + o.interest > 0 ? 'PRINCIPAL' : 'GST')
 
 /**
- * The one place a payment is entered. Pick a demand (or arrive with one chosen); enter the amount received and what it
- * clears first, or type the interest, GST and principal yourself. The amounts default to what is still owed on the demand,
- * so recording "the full amount" is just Save. The rules are checked again on the server.
+ * The one place a payment is entered. Pick a demand (or arrive with one chosen), then whether this payment is the principal
+ * (with any interest) or the GST: they go into different accounts, so each is recorded on its own. The amount defaults to
+ * what is still owed, so recording "the full amount" is just Save. The rules are checked again on the server.
  */
 export function RecordPaymentDialog({ schedules, saleId, initialScheduleId, onClose }: { schedules: any[]; saleId: string; initialScheduleId?: string; onClose: () => void }) {
   const router = useRouter()
@@ -43,13 +49,15 @@ export function RecordPaymentDialog({ schedules, saleId, initialScheduleId, onCl
   )
   // Default to the chosen demand, else the first one that has actually been raised, else the first outstanding one
   const start = outstanding.find((o) => o.schedule.id === initialScheduleId) ?? outstanding.find((o) => o.schedule.status !== 'UPCOMING') ?? outstanding[0]
+  const startKind = kindFor(start)
 
   const [scheduleId, setScheduleId] = useState(start?.schedule.id ?? '')
+  const [kind, setKind] = useState<Kind>(startKind)
   const [order, setOrder] = useState<InterestOrder>(start?.schedule.interestPolicy?.defaultOrder ?? 'INTEREST_FIRST')
-  const [interest, setInterest] = useState(start ? text(start.interest) : '')
-  const [gst, setGst] = useState(start ? text(start.gst) : '')
-  const [principal, setPrincipal] = useState(start ? text(start.principal) : '')
-  const [total, setTotal] = useState(start ? text(round2(start.principal + start.gst + start.interest)) : '')
+  const [interest, setInterest] = useState(start && startKind === 'PRINCIPAL' ? text(start.interest) : '')
+  const [principal, setPrincipal] = useState(start && startKind === 'PRINCIPAL' ? text(start.principal) : '')
+  const [gst, setGst] = useState(start && startKind === 'GST' ? text(start.gst) : '')
+  const [total, setTotal] = useState(start ? text(startKind === 'PRINCIPAL' ? round2(start.principal + start.interest) : start.gst) : '')
   const [mode, setMode] = useState('NEFT')
   const [bankName, setBankName] = useState('')
   const [referenceNumber, setReferenceNumber] = useState('')
@@ -59,50 +67,60 @@ export function RecordPaymentDialog({ schedules, saleId, initialScheduleId, onCl
 
   const selected = outstanding.find((o) => o.schedule.id === scheduleId)
   const showInterest = !!selected && (selected.interest > 0 || num(interest) > 0 || !!selected.schedule.interestPolicy?.enabled)
+  const hasBoth = !!selected && selected.principal + selected.interest > 0 && selected.gst > 0 // both are owed: ask which one this payment is
 
-  /** Divide `amount` between interest, GST and principal for a demand, in the chosen order. */
-  const applySplit = (amount: number, o: typeof selected, by: InterestOrder) => {
+  /** Divide `amount` for a demand: between interest and principal in the chosen order, or all of it as GST. */
+  const applySplit = (amount: number, o: Owed | undefined, by: InterestOrder, k: Kind) => {
     if (!o) return
-    const s = splitPayment(amount, { interest: o.interest, gst: o.gst, principal: o.principal }, by)
-    setInterest(text(s.interest)); setGst(text(s.gst)); setPrincipal(text(s.principal))
+    if (k === 'GST') {
+      setInterest(''); setPrincipal(''); setGst(text(Math.min(amount, o.gst)))
+      return
+    }
+    const s = splitPayment(amount, { interest: o.interest, gst: 0, principal: o.principal }, by)
+    setInterest(text(s.interest)); setPrincipal(text(s.principal)); setGst('')
   }
-  const fill = (o: typeof selected, by: InterestOrder) => {
+  /** Fill the amounts with everything that is owed of this kind. */
+  const fill = (o: Owed | undefined, by: InterestOrder, k: Kind) => {
     if (!o) return
-    setTotal(text(round2(o.principal + o.gst + o.interest)))
-    applySplit(o.principal + o.gst + o.interest, o, by)
+    const owed = k === 'GST' ? o.gst : o.principal + o.interest
+    setTotal(text(round2(owed)))
+    applySplit(owed, o, by, k)
   }
   const selectSchedule = (id: string) => {
     setScheduleId(id)
     const o = outstanding.find((x) => x.schedule.id === id)
     const by: InterestOrder = o?.schedule.interestPolicy?.defaultOrder ?? 'INTEREST_FIRST'
-    setOrder(by)
-    fill(o, by)
+    const k = kindFor(o)
+    setOrder(by); setKind(k)
+    fill(o, by, k)
+    setError('')
+  }
+  const changeKind = (k: Kind) => {
+    setKind(k)
+    fill(selected, order, k)
     setError('')
   }
   const changeDate = (value: string) => {
     setPaymentDate(value)
     // Interest owed depends on the date: refill the amounts for the new date
-    const date = new Date(value || today())
-    const o = selected ? { ...selected, ...outstandingOf(selected.schedule, date) } : undefined
-    fill(o, order)
+    const o = selected ? outstandingOf(selected.schedule, new Date(value || today())) : undefined
+    fill(o, order, kind)
   }
-  const changeComponent = (set: (v: string) => void, value: string, parts: { interest: string; gst: string; principal: string }) => {
+  const changeComponent = (set: (v: string) => void, value: string, parts: { interest: string; principal: string }) => {
     set(value)
-    setTotal(text(num(parts.interest) + num(parts.gst) + num(parts.principal)))
+    setTotal(text(num(parts.interest) + num(parts.principal)))
   }
 
-  const interestNum = num(interest)
-  const gstNum = num(gst)
-  const principalNum = num(principal)
+  const interestNum = kind === 'PRINCIPAL' ? num(interest) : 0
+  const principalNum = kind === 'PRINCIPAL' ? num(principal) : 0
+  const gstNum = kind === 'GST' ? num(gst) : 0
 
   const submit = async (e: React.FormEvent) => {
     e.preventDefault()
     if (!selected) return
     // Each problem marks the wrong amount red and scrolls to it (the message stays in the alert)
     const wrong = (id: string, message: string) => { highlightField(id); setError(message) }
-    if (principalNum < 0) return wrong('payment-principal', 'Amounts cannot be negative')
-    if (gstNum < 0) return wrong('payment-gst', 'Amounts cannot be negative')
-    if (interestNum < 0) return wrong('payment-interest', 'Amounts cannot be negative')
+    if (principalNum < 0 || gstNum < 0 || interestNum < 0) return wrong('payment-total', 'Amounts cannot be negative')
     if (principalNum + gstNum + interestNum <= 0) return wrong('payment-total', 'Enter the amount received')
     if (toPaise(principalNum) > toPaise(selected.principal)) return wrong('payment-principal', `Principal cannot exceed ${formatCurrency(selected.principal)}`)
     if (toPaise(gstNum) > toPaise(selected.gst)) return wrong('payment-gst', `GST cannot exceed ${formatCurrency(selected.gst)}`)
@@ -123,7 +141,7 @@ export function RecordPaymentDialog({ schedules, saleId, initialScheduleId, onCl
         remark: remark || undefined,
         paymentDate: new Date(paymentDate).toISOString(),
       }))
-      toast.success('Payment recorded')
+      toast.success(kind === 'GST' ? 'GST payment recorded' : 'Payment recorded')
       onClose()
       router.refresh()
     } catch (err) {
@@ -157,6 +175,19 @@ export function RecordPaymentDialog({ schedules, saleId, initialScheduleId, onCl
 
         <TextField label="Payment Date" type="date" required value={paymentDate} onChange={(e) => changeDate(e.target.value)} />
 
+        {hasBoth ? (
+          <RadioGroupField
+            label="This payment is"
+            name="payment-kind"
+            value={kind}
+            onChange={(v) => changeKind(v as Kind)}
+            options={[{ value: 'PRINCIPAL', label: showInterest ? 'Principal (and interest)' : 'Principal' }, { value: 'GST', label: 'GST' }]}
+            hint="Principal and GST are paid into different accounts, so record each as its own payment"
+          />
+        ) : (
+          selected && <div className="text-sm text-muted">{kind === 'GST' ? 'Recording a GST payment' : showInterest ? 'Recording a principal payment (with any interest)' : 'Recording a principal payment'}</div>
+        )}
+
         <TextField
           id="payment-total"
           label="Amount received (₹)"
@@ -164,27 +195,30 @@ export function RecordPaymentDialog({ schedules, saleId, initialScheduleId, onCl
           min="0"
           step="0.01"
           value={total}
-          onChange={(e) => { setTotal(e.target.value); applySplit(num(e.target.value), selected, order) }}
-          hint="Type the amount and it is divided below in the order chosen, or type each part yourself"
+          onChange={(e) => { setTotal(e.target.value); applySplit(num(e.target.value), selected, order, kind) }}
+          hint={kind === 'PRINCIPAL' && showInterest ? 'Type the amount and it is divided below in the order chosen, or type each part yourself' : undefined}
         />
 
-        {showInterest && (
+        {kind === 'PRINCIPAL' && showInterest && (
           <RadioGroupField
             label="Clear first"
             name="payment-order"
             value={order}
-            onChange={(v) => { setOrder(v as InterestOrder); applySplit(num(total), selected, v as InterestOrder) }}
-            options={INTEREST_ORDERS.map((o) => ({ value: o.value, label: o.value === 'INTEREST_FIRST' ? 'Interest first' : 'Principal and GST first' }))}
+            onChange={(v) => { setOrder(v as InterestOrder); applySplit(num(total), selected, v as InterestOrder, kind) }}
+            options={INTEREST_ORDERS.map((o) => ({ value: o.value, label: o.value === 'INTEREST_FIRST' ? 'Interest first' : 'Principal first' }))}
           />
         )}
 
-        <div className="form-grid">
-          {showInterest && (
-            <TextField id="payment-interest" label="Interest (₹)" type="number" min="0" step="0.01" value={interest} onChange={(e) => changeComponent(setInterest, e.target.value, { interest: e.target.value, gst, principal })} />
-          )}
-          <TextField id="payment-gst" label="GST (₹)" type="number" min="0" step="0.01" value={gst} onChange={(e) => changeComponent(setGst, e.target.value, { interest, gst: e.target.value, principal })} />
-          <TextField id="payment-principal" label="Principal (₹)" type="number" min="0" step="0.01" value={principal} onChange={(e) => changeComponent(setPrincipal, e.target.value, { interest, gst, principal: e.target.value })} />
-        </div>
+        {kind === 'PRINCIPAL' ? (
+          <div className="form-grid">
+            {showInterest && (
+              <TextField id="payment-interest" label="Interest (₹)" type="number" min="0" step="0.01" value={interest} onChange={(e) => changeComponent(setInterest, e.target.value, { interest: e.target.value, principal })} />
+            )}
+            <TextField id="payment-principal" label="Principal (₹)" type="number" min="0" step="0.01" value={principal} onChange={(e) => changeComponent(setPrincipal, e.target.value, { interest, principal: e.target.value })} />
+          </div>
+        ) : (
+          <TextField id="payment-gst" label="GST (₹)" type="number" min="0" step="0.01" value={gst} onChange={(e) => { setGst(e.target.value); setTotal(e.target.value) }} />
+        )}
         <div className="kv-row card-flat py-2">
           <span className="text-secondary">Total being recorded</span>
           <span className="font-bold">{formatCurrency(round2(principalNum + gstNum + interestNum))}</span>

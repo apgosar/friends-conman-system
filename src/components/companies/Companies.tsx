@@ -7,6 +7,7 @@ import { errorMessage, fetchJson, jsonRequest } from '@/lib/client/api'
 import { formatPhoneList } from '@/lib/phone'
 import CompanyModal, { type CompanyData, type PartnerData } from './CompanyModal'
 import PartnerModal from './PartnerModal'
+import CompanyLetterhead from './CompanyLetterhead'
 
 type PartnerEdit = { company: CompanyData; partner: PartnerData | null }
 
@@ -87,6 +88,7 @@ export default function Companies({ companies, canAdd = false }: { companies: Co
                 <div className="detail-tile"><div className="label-caps">Projects</div><div>{company.projectCount}</div></div>
               </div>
               <div className="text-secondary mb-2">{company.address}</div>
+              <CompanyLetterhead companyId={company.id} letterheadUrl={company.letterheadUrl} topMm={company.quoteMarginTopMm} bottomMm={company.quoteMarginBottomMm} />
               <div className="text-secondary mb-4">Contact: {company.contactNumbers ? formatPhoneList(company.contactNumbers) : <span className="text-danger">Not added: edit the company to add the numbers buyers can call</span>}</div>
             </div>
 

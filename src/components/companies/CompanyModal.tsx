@@ -13,6 +13,9 @@ export interface CompanyData {
   gstin: string | null
   address: string
   contactNumbers: string | null
+  letterheadUrl: string | null
+  quoteMarginTopMm: number
+  quoteMarginBottomMm: number
   projectCount: number
   partners: PartnerData[]
 }
@@ -20,7 +23,7 @@ export interface PartnerData { id: string; name: string; address: string | null;
 
 /** Add or edit a company: name, PAN, GSTIN and address. */
 export default function CompanyModal({ company, onClose, onSaved }: { company: CompanyData | null; onClose: () => void; onSaved: () => void }) {
-  const [f, setF] = useState({ name: company?.name ?? '', panNumber: company?.panNumber ?? '', gstin: company?.gstin ?? '', address: company?.address ?? '', contactNumbers: company?.contactNumbers ?? '' })
+  const [f, setF] = useState({ name: company?.name ?? '', panNumber: company?.panNumber ?? '', gstin: company?.gstin ?? '', address: company?.address ?? '', contactNumbers: company?.contactNumbers ?? '', quoteMarginTopMm: String(company?.quoteMarginTopMm ?? 40), quoteMarginBottomMm: String(company?.quoteMarginBottomMm ?? 30) })
   const [errors, setErrors] = useState<Record<string, string>>({})
   const [error, setError] = useState('')
   const [saving, setSaving] = useState(false)
@@ -70,6 +73,10 @@ export default function CompanyModal({ company, onClose, onSaved }: { company: C
         </div>
         <TextareaField label="Address" required rows={3} value={f.address} error={errors.address || undefined} onChange={(e) => set('address', e.target.value)} placeholder="Registered office address" />
         <TextField label="Contact Numbers" value={f.contactNumbers} error={errors.contactNumbers || undefined} hint="Shown to buyers in WhatsApp demand letters and receipts. Separate several numbers with a comma. A project can use its own" onChange={(e) => set('contactNumbers', e.target.value)} placeholder="9876543210, 9123456789" />
+        <div className="grid grid-2 gap-4">
+          <TextField label="Letterhead: top margin (mm)" type="number" inputMode="numeric" value={f.quoteMarginTopMm} error={errors.quoteMarginTopMm || undefined} hint="Room the logo needs at the top of a quotation page" onChange={(e) => set('quoteMarginTopMm', e.target.value)} />
+          <TextField label="Letterhead: bottom margin (mm)" type="number" inputMode="numeric" value={f.quoteMarginBottomMm} error={errors.quoteMarginBottomMm || undefined} hint="Room the address needs at the bottom" onChange={(e) => set('quoteMarginBottomMm', e.target.value)} />
+        </div>
       </form>
     </Modal>
   )

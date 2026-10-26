@@ -71,7 +71,7 @@ describeDb('paying interest', () => {
     await runDailyInterestAndStatus()
     await expect(recordPayment(pay(a, { interestPaid: 4.3 }), a.user.id)).rejects.toMatchObject({ status: 400, message: expect.stringMatching(/Interest is more than/) })
 
-    const p = await recordPayment(pay(a, { interestPaid: 4.29, gstPaid: 50, amount: 600 }), a.user.id)
+    const p = await recordPayment(pay(a, { interestPaid: 4.29, amount: 600 }), a.user.id) // principal with its interest; the GST is a payment of its own
     expect(p.interestPaid).toBe(4.29)
     const row = await a.prisma.paymentSchedule.findUniqueOrThrow({ where: { id: a.schedule.id } })
     expect(row.status).toBe('OVERDUE_30') // 400 of the principal is still unpaid: still late, 20 days past due
@@ -84,7 +84,8 @@ describeDb('paying interest', () => {
     const { runDailyInterestAndStatus } = await import('@/lib/scheduler')
     const a = await lateDemand({ interestDefaultOrder: 'PRINCIPAL_FIRST' })
     await runDailyInterestAndStatus()
-    await recordPayment(pay(a, { amount: 1000, gstPaid: 50 }), a.user.id) // principal and GST first: the interest is left
+    await recordPayment(pay(a, { amount: 1000 }), a.user.id) // principal first, then the GST as its own payment: the interest is left
+    await recordPayment(pay(a, { gstPaid: 50 }), a.user.id)
     let row = await a.prisma.paymentSchedule.findUniqueOrThrow({ where: { id: a.schedule.id } })
     expect(row.status).not.toBe('PAID')
     expect(row.interestAmount).toBe(4.29)
@@ -122,7 +123,8 @@ describeDb('waiving interest', () => {
     await waiveInterest({ scheduleId: a.schedule.id, amount: 1.29, reason: 'Goodwill' }, a.user.id)
     expect((await a.prisma.paymentSchedule.findUniqueOrThrow({ where: { id: a.schedule.id } })).interestAmount).toBe(3)
 
-    await recordPayment(pay(a, { amount: 1000, gstPaid: 50 }), a.user.id)
+    await recordPayment(pay(a, { amount: 1000 }), a.user.id)
+    await recordPayment(pay(a, { gstPaid: 50 }), a.user.id)
     await waiveInterest({ scheduleId: a.schedule.id, amount: 3, reason: 'Delay was ours' }, a.user.id)
     expect(await a.prisma.paymentSchedule.findUniqueOrThrow({ where: { id: a.schedule.id } })).toMatchObject({ status: 'PAID', interestAmount: 0 })
     expect(await a.prisma.interestWaiver.count({ where: { scheduleId: a.schedule.id } })).toBe(2)

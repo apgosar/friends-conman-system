@@ -27,12 +27,19 @@ export const contactNumbers = z.string().nullish().transform((v, ctx) => {
   return list.value
 })
 
+/** Room the letterhead needs at the top or bottom of a quotation page, in millimetres. */
+const margin = (label: string) =>
+  z.union([z.number(), z.string().trim().min(1, `Enter the ${label}`).transform(Number)], { message: `Enter the ${label}` })
+    .pipe(z.number({ message: `The ${label} must be a number` }).int(`The ${label} must be a whole number`).min(0, `The ${label} cannot be negative`).max(120, `The ${label} cannot be more than 120 mm`))
+
 export const CompanySchema = z.object({
   name: text('the company name', 200),
   panNumber: z.string().trim().toUpperCase().regex(PAN_PATTERN, PAN_ERROR),
   gstin: z.string().trim().toUpperCase().transform((v) => v || null).pipe(z.string().regex(GSTIN_PATTERN, GSTIN_ERROR).nullable()),
   address: text('the company address', 500),
   contactNumbers: contactNumbers.optional(), // left out = unchanged
+  quoteMarginTopMm: margin('top margin').optional(),
+  quoteMarginBottomMm: margin('bottom margin').optional(),
 })
 export type CompanyInput = z.infer<typeof CompanySchema>
 

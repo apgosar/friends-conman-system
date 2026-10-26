@@ -137,6 +137,8 @@
 }
 
 .form-input::placeholder { color: var(--text-disabled); }
+.letterhead-thumb { max-width: 140px; max-height: 190px; border: 1px solid var(--border-color); border-radius: var(--radius-sm); background: #fff; }
+
 /* A row that opens to a list of what it is made of (the other charges on the payment plan review) */
 .charge-details { margin-top: var(--space-1); font-size: var(--text-sm); color: var(--text-muted); }
 .charge-details summary { cursor: pointer; }

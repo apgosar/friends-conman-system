@@ -567,15 +567,19 @@ model ProjectCharge {
 
 /// The developer company of this installation: its details appear on agreements and letters. Projects pick one.
 model Company {
-  id             String   @id @default(cuid())
-  name           String   @unique
-  panNumber      String?
-  gstin          String?
-  address        String
+  id                  String   @id @default(cuid())
+  name                String   @unique
+  panNumber           String?
+  gstin               String?
+  address             String
   /// Phone numbers buyers can call, as "+91 9876543210, +91 …"; a project may set its own
-  contactNumbers String?
-  createdAt      DateTime @default(now())
-  updatedAt      DateTime @updatedAt
+  contactNumbers      String?
+  /// Letterhead (an A4 image) the quotation is printed on, and how much room it needs at the top and bottom of the page
+  letterheadUrl       String?
+  quoteMarginTopMm    Int      @default(40)
+  quoteMarginBottomMm Int      @default(30)
+  createdAt           DateTime @default(now())
+  updatedAt           DateTime @updatedAt
 
   partners Partner[]
   projects Project[]

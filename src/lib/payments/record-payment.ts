@@ -58,6 +58,8 @@ export async function recordPayment(input: RecordPaymentInput, actorId: string) 
     // Interest owed up to the day of the payment (what has accrued, less what was paid or waived before)
     const interestDue = toPaise(standingOfSchedule(schedule, policyOf(sale.project), paidOn).outstanding)
 
+    // Principal (with its interest) and GST are paid into different accounts, so each is a payment of its own
+    if (gst > 0 && principal + interest > 0) throw new PaymentError('Principal and GST are paid into different accounts, so record them as two separate payments', 400)
     if (principal + gst + interest <= 0) throw new PaymentError('Enter a principal, GST and/or interest amount greater than zero', 400)
     if (interest > interestDue) throw new PaymentError(`Interest is more than the ₹${rupees(interestDue)} owed up to the payment date`, 400)
     if (principal > Math.max(principalDue, 0)) throw new PaymentError(`Principal is more than the outstanding ₹${rupees(Math.max(principalDue, 0))}`, 400)

@@ -11,13 +11,13 @@ const SIGNATURES: { ext: string; mime: string; test: (b: Buffer) => boolean }[] 
   { ext: 'webp', mime: 'image/webp', test: (b) => b.length > 12 && b.toString('ascii', 0, 4) === 'RIFF' && b.toString('ascii', 8, 12) === 'WEBP' },
 ]
 
-/** Accept PNG / JPG / WebP up to 5 MB, judged by the file's real contents rather than its name. */
-export function validateFloorPlan(buffer: Buffer): { ext: string; mime: string } {
-  if (buffer.length === 0) throw new FloorPlanError('The floor plan file is empty')
+/** Accept PNG / JPG / WebP up to 5 MB, judged by the file's real contents rather than its name. `label` names it in the messages (a floor plan, a letterhead). */
+export function validateFloorPlan(buffer: Buffer, label = 'Floor plan'): { ext: string; mime: string } {
+  if (buffer.length === 0) throw new FloorPlanError(`The ${label.toLowerCase()} file is empty`)
   if (buffer.length > FLOOR_PLAN_LIMITS.maxBytes) {
-    throw new FloorPlanError(`Floor plan is too large (${(buffer.length / 1024 / 1024).toFixed(1)} MB). Maximum is 5 MB`)
+    throw new FloorPlanError(`${label} is too large (${(buffer.length / 1024 / 1024).toFixed(1)} MB). Maximum is 5 MB`)
   }
   const sig = SIGNATURES.find((s) => s.test(buffer))
-  if (!sig) throw new FloorPlanError('Floor plan must be a PNG, JPG or WebP image')
+  if (!sig) throw new FloorPlanError(`${label} must be a PNG, JPG or WebP image`)
   return { ext: sig.ext, mime: sig.mime }
 }
