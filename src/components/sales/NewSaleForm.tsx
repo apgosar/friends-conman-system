@@ -51,7 +51,8 @@ const emptyBuyer = (): Buyer => ({ fullName: '', panNumber: '', aadhaarNumber: '
 
 // ─── Step indicator ──────────────────────────────────────────
 import { Alert, Button, Input, PhoneField, SelectField, StepBar, Stepper, Table, TextField, TextareaField } from '@/components/ui'
-import { errorMessage, fetchJson, jsonRequest } from '@/lib/client/api'
+import { ApiError, errorMessage, fetchJson, jsonRequest } from '@/lib/client/api'
+import KycPasswordModal from './KycPasswordModal'
 import { formatCurrency } from '@/lib/format'
 
 // ─── Main Wizard ─────────────────────────────────────────────
@@ -144,7 +145,10 @@ export default function NewSaleWizard({ projects, prefill = null, preselect = nu
   const [extractingKyc, setExtractingKyc] = useState<string | null>(null)
   const [kycMessage, setKycMessage] = useState<{ type: 'success' | 'error', text: string, idx: number } | null>(null)
 
-  const handleKycUpload = async (idx: number, docType: 'PAN' | 'AADHAAR', file: File) => {
+  // A locked PDF (e-Aadhaar, e-PAN) is sent again with its password once the person has typed it
+  const [passwordAsk, setPasswordAsk] = useState<{ idx: number; docType: 'PAN' | 'AADHAAR'; file: File; wrong: boolean } | null>(null)
+
+  const handleKycUpload = async (idx: number, docType: 'PAN' | 'AADHAAR', file: File, password?: string) => {
     if (!file) return
     setExtractingKyc(`${idx}-${docType}`)
     setKycMessage(null)
@@ -152,6 +156,7 @@ export default function NewSaleWizard({ projects, prefill = null, preselect = nu
       const formData = new FormData()
       formData.append('file', file)
       formData.append('docType', docType)
+      if (password) formData.append('password', password)
       const json = await fetchJson('/api/extract-kyc', { method: 'POST', body: formData })
       const { fullName, panNumber, aadhaarNumber, address } = json.data
       setBuyers(prev => prev.map((b, i) => {
@@ -164,9 +169,15 @@ export default function NewSaleWizard({ projects, prefill = null, preselect = nu
           address: address || b.address,
         }
       }))
+      setPasswordAsk(null)
       setKycMessage({ type: 'success', text: `Successfully extracted ${docType} details!`, idx })
     } catch (err) {
-      setKycMessage({ type: 'error', text: errorMessage(err), idx })
+      if (err instanceof ApiError && err.body.passwordRequired === true) {
+        setPasswordAsk({ idx, docType, file, wrong: err.body.wrongPassword === true }) // ask for the password, then read it again
+      } else {
+        setPasswordAsk(null)
+        setKycMessage({ type: 'error', text: errorMessage(err), idx })
+      }
     } finally {
       setExtractingKyc(null)
       setTimeout(() => setKycMessage(null), 6000)
@@ -406,6 +417,17 @@ export default function NewSaleWizard({ projects, prefill = null, preselect = nu
     <div className="max-w-xl mx-auto form-floating">
       <StepBar step={step} steps={['Sale Details', 'Payment Plan', 'Agreement']} />
 
+      {passwordAsk && (
+        <KycPasswordModal
+          docType={passwordAsk.docType}
+          fileName={passwordAsk.file.name}
+          wrong={passwordAsk.wrong}
+          busy={extractingKyc !== null}
+          onSubmit={(password) => handleKycUpload(passwordAsk.idx, passwordAsk.docType, passwordAsk.file, password)}
+          onCancel={() => setPasswordAsk(null)}
+        />
+      )}
+
       {/* ══════════════ STEP 1 ══════════════ */}
       {step === 1 && (
         <div className="card">
@@ -481,7 +503,7 @@ export default function NewSaleWizard({ projects, prefill = null, preselect = nu
                 </span>
                 <label className="btn btn-ghost btn-sm file-btn">
                   Upload PAN
-                  <input type="file" hidden accept="image/*" onChange={(e) => {
+                  <input type="file" hidden accept="image/*,application/pdf" onChange={(e) => {
                     const file = e.target.files?.[0]
                     if (file) handleKycUpload(idx, 'PAN', file)
                     e.target.value = '' // reset
@@ -489,7 +511,7 @@ export default function NewSaleWizard({ projects, prefill = null, preselect = nu
                 </label>
                 <label className="btn btn-ghost btn-sm file-btn">
                   Upload Aadhaar
-                  <input type="file" hidden accept="image/*" onChange={(e) => {
+                  <input type="file" hidden accept="image/*,application/pdf" onChange={(e) => {
                     const file = e.target.files?.[0]
                     if (file) handleKycUpload(idx, 'AADHAAR', file)
                     e.target.value = '' // reset

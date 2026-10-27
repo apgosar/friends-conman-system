@@ -3,6 +3,8 @@ import { apiError } from '@/lib/api-error'
 import { NextRequest, NextResponse } from 'next/server'
 import { requireRole } from '@/lib/guard'
 import { kycRateLimit, rateLimitExceeded } from '@/lib/rate-limit'
+import { HttpError } from '@/lib/errors'
+import { openForReading } from '@/lib/pdf-password'
 
 export async function POST(req: NextRequest) {
   const guard = await requireRole('staff')
@@ -29,7 +31,16 @@ export async function POST(req: NextRequest) {
       return apiError('invalid', 'Invalid or missing docType')
     }
 
-    const fileBuffer = Buffer.from(await file.arrayBuffer())
+    // A password-protected PDF (an e-Aadhaar or e-PAN) is opened with the password the person typed and passed on without the lock.
+    // The password is used here and nowhere else: it is not stored or logged.
+    const opened = await openForReading(Buffer.from(await file.arrayBuffer()), String(formData.get('password') ?? '') || undefined)
+    if (opened.status === 'password-required') {
+      return apiError('invalid', 'This PDF is password protected. Enter its password to continue', { passwordRequired: true })
+    }
+    if (opened.status === 'wrong-password') {
+      return apiError('invalid', 'That password is not correct. Try again', { passwordRequired: true, wrongPassword: true })
+    }
+    const fileBuffer = new Uint8Array(opened.buffer) // plain bytes for fetch and Blob
 
     let extractedData: any = {}
 
@@ -91,6 +102,7 @@ export async function POST(req: NextRequest) {
       data: extractedData,
     })
   } catch (error: any) {
+    if (error instanceof HttpError) return apiError(error.kind, error.message)
     logger.error({ err: error }, '[KYC Extract] Error:')
     return apiError('server', 'KYC extraction failed. Please try again')
   }

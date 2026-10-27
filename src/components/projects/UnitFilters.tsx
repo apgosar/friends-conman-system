@@ -52,8 +52,6 @@ export default function UnitFilters({ wings, selectedWingIdx, onSelectWing, type
         </div>
       )}
 
-      <div className="bv-spacer" />
-
       <div className="bv-filters">
         <div className="bv-chips" role="group" aria-label="Unit type">
           {typeChip('ALL', 'All Types')}

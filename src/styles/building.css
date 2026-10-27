@@ -9,8 +9,9 @@
 /* ── Toolbar: wing tabs, type filter, status filter ── */
 .bv-toolbar { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-4); margin-bottom: var(--space-4); }
 .bv-wings { display: flex; flex-wrap: wrap; gap: var(--space-2); }
-.bv-spacer { flex: 1; }
-.bv-filters { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-4); min-width: 0; }
+/* The filters always start their own row under the wing tabs. Beside them they only fitted for a wing with few unit types (Wing A) and dropped
+   to the next line for the others, so they moved about as the wing changed. */
+.bv-filters { display: flex; flex: 1 1 100%; flex-wrap: wrap; align-items: center; gap: var(--space-4); min-width: 0; }
 .bv-chips { display: flex; flex-wrap: wrap; gap: 6px; }
 
 .bv-chip {
