@@ -54,7 +54,8 @@ export default function BuildingViewer({ projectId, view = '3d' }: { projectId: 
   const [repeatMobiles, setRepeatMobiles] = useState<Record<string, number>>({})
   const [showAllInquiries, setShowAllInquiries] = useState(false)
   const [showFloorPlan, setShowFloorPlan] = useState(false)
-  const [inquiryAction, setInquiryAction] = useState<{ type: InquiryAction; inq: InquiryData } | null>(null)
+  // `fresh`: the quote was only just generated, so its share dialog invites the person to send it now
+  const [inquiryAction, setInquiryAction] = useState<{ type: InquiryAction; inq: InquiryData; fresh?: boolean } | null>(null)
 
   // The detail panel matches the building's height on desktop so a long inquiry list can't stretch the page.
   // A state-backed ref, because the canvas/table element is re-created when the wing or view changes and the new one must be observed
@@ -169,10 +170,11 @@ export default function BuildingViewer({ projectId, view = '3d' }: { projectId: 
     if (!phone.ok || !phone.value) { highlightField('quote-mobile'); return }
     setIsSubmittingQuote(true)
     try {
-      await fetchJson(`/api/units/${selectedUnit.id}/quotes`, jsonRequest('POST', { ...quoteData, mobileNumber: phone.value, agreementValue: Number(quoteData.agreementValue) }))
+      const created: InquiryData = await fetchJson(`/api/units/${selectedUnit.id}/quotes`, jsonRequest('POST', { ...quoteData, mobileNumber: phone.value, agreementValue: Number(quoteData.agreementValue) }))
       await reloadBuilding() // shows the new status and inquiry
       setShowQuoteForm(false)
       toast.success('Quote generated')
+      setInquiryAction({ type: 'share', inq: created, fresh: true }) // the next step is to send it to the customer
     } catch (err) {
       toast.error(errorMessage(err))
     } finally {
@@ -309,7 +311,7 @@ export default function BuildingViewer({ projectId, view = '3d' }: { projectId: 
         <EditInquiryModal unitId={selectedUnit.id} unitNumber={selectedUnit.unitNumber} inq={inquiryAction.inq} onClose={() => setInquiryAction(null)} onDone={afterAction} />
       )}
       {inquiryAction && selectedUnit && inquiryAction.type === 'share' && (
-        <ShareQuoteModal unitId={selectedUnit.id} unitNumber={selectedUnit.unitNumber} inq={inquiryAction.inq} onClose={() => setInquiryAction(null)} onDone={afterAction} />
+        <ShareQuoteModal unitId={selectedUnit.id} unitNumber={selectedUnit.unitNumber} inq={inquiryAction.inq} fresh={inquiryAction.fresh} onClose={() => setInquiryAction(null)} onDone={afterAction} />
       )}
       {inquiryAction && selectedUnit && inquiryAction.type === 'lost' && (
         <LostInquiryModal unitId={selectedUnit.id} inq={inquiryAction.inq} onClose={() => setInquiryAction(null)} onDone={afterAction} />

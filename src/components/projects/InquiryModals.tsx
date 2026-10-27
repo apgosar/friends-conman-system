@@ -124,8 +124,8 @@ export function EditInquiryModal({ unitId, unitNumber, inq, onClose, onDone }: {
 
 type ShareResult = { channel: string; ok: boolean; detail?: string }
 
-export function ShareQuoteModal({ unitId, unitNumber, inq, onClose, onDone }: {
-  unitId: string; unitNumber: string; inq: InquiryData; onClose: () => void; onDone: () => void
+export function ShareQuoteModal({ unitId, unitNumber, inq, fresh = false, onClose, onDone }: {
+  unitId: string; unitNumber: string; inq: InquiryData; /** the quote was just generated: invite the person to send it now */ fresh?: boolean; onClose: () => void; onDone: () => void
 }) {
   const [email, setEmail] = useState(inq.email ?? '')
   const [viaEmail, setViaEmail] = useState(!!inq.email)
@@ -157,18 +157,19 @@ export function ShareQuoteModal({ unitId, unitNumber, inq, onClose, onDone }: {
 
   return (
     <Modal
-      title="Share quote"
+      title={fresh ? 'Quote generated: share it with the customer' : 'Share quote'}
       subtitle={`${inq.customerName} · Unit ${unitNumber}`}
       dismissible={!sending}
       onClose={close}
       footer={
         <>
-          <Button onClick={close}>{results ? 'Close' : 'Cancel'}</Button>
+          <Button onClick={close}>{results ? 'Close' : fresh ? 'Not now' : 'Cancel'}</Button>
           {!results && <Button variant="primary" loading={sending} onClick={send}>Send quote</Button>}
         </>
       }
     >
       <div className="flex dir-col gap-3">
+        {fresh && !results && <p className="m-0 text-secondary">The quote PDF is ready. Send it to {inq.customerName} now, or choose Not now and share it later from the inquiry.</p>}
         <CheckboxField label="WhatsApp" hint={formatPhone(inq.mobileNumber)} checked={viaWhatsApp} onChange={(e) => setViaWhatsApp(e.target.checked)} />
         <CheckboxField label="Email" checked={viaEmail} onChange={(e) => setViaEmail(e.target.checked)} />
         {viaEmail && <TextField id="share-email" label="Email address" type="email" placeholder="customer@example.com" value={email} onChange={(e) => setEmail(e.target.value)} />}
