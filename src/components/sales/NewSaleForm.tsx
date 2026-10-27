@@ -53,6 +53,8 @@ const emptyBuyer = (): Buyer => ({ fullName: '', panNumber: '', aadhaarNumber: '
 import { Alert, Button, Input, PhoneField, SelectField, StepBar, Stepper, Table, TextField, TextareaField } from '@/components/ui'
 import { ApiError, errorMessage, fetchJson, jsonRequest } from '@/lib/client/api'
 import KycPasswordModal from './KycPasswordModal'
+import NameMismatchModal from './NameMismatchModal'
+import { namesMatch } from '@/lib/names'
 import { formatCurrency } from '@/lib/format'
 
 // ─── Main Wizard ─────────────────────────────────────────────
@@ -148,6 +150,9 @@ export default function NewSaleWizard({ projects, prefill = null, preselect = nu
   // A locked PDF (e-Aadhaar, e-PAN) is sent again with its password once the person has typed it
   const [passwordAsk, setPasswordAsk] = useState<{ idx: number; docType: 'PAN' | 'AADHAAR'; file: File; wrong: boolean } | null>(null)
 
+  const [kycNames, setKycNames] = useState<{ PAN?: string; AADHAAR?: string }[]>([]) // per buyer: the name read from each document
+  const [nameAsk, setNameAsk] = useState<{ idx: number; aadhaar: string; pan: string } | null>(null)
+
   const handleKycUpload = async (idx: number, docType: 'PAN' | 'AADHAAR', file: File, password?: string) => {
     if (!file) return
     setExtractingKyc(`${idx}-${docType}`)
@@ -159,6 +164,10 @@ export default function NewSaleWizard({ projects, prefill = null, preselect = nu
       if (password) formData.append('password', password)
       const json = await fetchJson('/api/extract-kyc', { method: 'POST', body: formData })
       const { fullName, panNumber, aadhaarNumber, address } = json.data
+      // The name read from each document is kept, so that when the two differ the person can say which one is right
+      const names = { ...kycNames[idx], ...(fullName ? { [docType]: fullName as string } : {}) }
+      setKycNames(prev => { const next = [...prev]; next[idx] = names; return next })
+      if (names.PAN && names.AADHAAR && !namesMatch(names.PAN, names.AADHAAR)) setNameAsk({ idx, aadhaar: names.AADHAAR, pan: names.PAN })
       setBuyers(prev => prev.map((b, i) => {
         if (i !== idx) return b
         return {
@@ -189,7 +198,10 @@ export default function NewSaleWizard({ projects, prefill = null, preselect = nu
     setBuyers(prev => prev.map((b, i) => i === idx ? { ...b, [field]: val } : b))
   }
   const addBuyer = () => setBuyers(prev => [...prev, emptyBuyer()])
-  const removeBuyer = (idx: number) => setBuyers(prev => prev.filter((_, i) => i !== idx))
+  const removeBuyer = (idx: number) => {
+    setBuyers(prev => prev.filter((_, i) => i !== idx))
+    setKycNames(prev => prev.filter((_, i) => i !== idx))
+  }
 
   // ── Step 1 → 2: Build payment schedule from project milestones ──
   // The payment schedule for a plan: its milestones with the % of the agreement value due at each, adjusted for a custom
@@ -425,6 +437,15 @@ export default function NewSaleWizard({ projects, prefill = null, preselect = nu
           busy={extractingKyc !== null}
           onSubmit={(password) => handleKycUpload(passwordAsk.idx, passwordAsk.docType, passwordAsk.file, password)}
           onCancel={() => setPasswordAsk(null)}
+        />
+      )}
+
+      {nameAsk && (
+        <NameMismatchModal
+          aadhaarName={nameAsk.aadhaar}
+          panName={nameAsk.pan}
+          onChoose={(name) => { updateBuyer(nameAsk.idx, 'fullName', name); setNameAsk(null) }}
+          onCancel={() => setNameAsk(null)}
         />
       )}
 
