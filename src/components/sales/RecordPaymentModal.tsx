@@ -7,6 +7,7 @@ import { errorMessage, fetchJson, jsonRequest } from '@/lib/client/api'
 import { formatCurrency } from '@/lib/format'
 import { fromPaise, round2, toPaise } from '@/lib/money'
 import { PAYMENT_MODES } from '@/lib/status'
+import { isOfflineCharge } from '@/lib/payment-plans'
 import { highlightField } from '@/lib/client/forms'
 import { INTEREST_ORDERS, splitPayment, standingOfSchedule, type InterestOrder } from '@/lib/interest'
 
@@ -26,6 +27,9 @@ export function outstandingOf(schedule: any, onDate: Date = new Date()) {
   return { principal: fromPaise(Math.max(0, principal)), gst: fromPaise(Math.max(0, gst)), interest }
 }
 
+/** Stamp duty and registration are paid outside the application: nothing is recorded against them here. */
+export const takesPayments = (schedule: { description: string }): boolean => !isOfflineCharge(schedule.description)
+
 const today = () => new Date().toISOString().split('T')[0]
 const num = (v: string) => Number(v) || 0
 const text = (n: number) => (n > 0 ? String(round2(n)) : '')
@@ -44,7 +48,7 @@ export function RecordPaymentDialog({ schedules, saleId, initialScheduleId, onCl
   const [paymentDate, setPaymentDate] = useState(today)
   const asOf = useMemo(() => new Date(paymentDate || today()), [paymentDate])
   const outstanding = useMemo(
-    () => schedules.map((s) => ({ schedule: s, ...outstandingOf(s, asOf) })).filter((o) => o.principal + o.gst + o.interest > 0.005),
+    () => schedules.filter(takesPayments).map((s) => ({ schedule: s, ...outstandingOf(s, asOf) })).filter((o) => o.principal + o.gst + o.interest > 0.005),
     [schedules, asOf],
   )
   // Default to the chosen demand, else the first one that has actually been raised, else the first outstanding one
@@ -241,7 +245,7 @@ export function RecordPaymentDialog({ schedules, saleId, initialScheduleId, onCl
 /** The "Record Payment" button for a sale's page, with its dialog. */
 export default function RecordPaymentModal({ schedules, saleId }: { schedules: any[]; saleId: string }) {
   const [open, setOpen] = useState(false)
-  const hasOutstanding = useMemo(() => schedules.some((s) => { const o = outstandingOf(s); return o.principal + o.gst + o.interest > 0.005 }), [schedules])
+  const hasOutstanding = useMemo(() => schedules.filter(takesPayments).some((s) => { const o = outstandingOf(s); return o.principal + o.gst + o.interest > 0.005 }), [schedules])
   return (
     <>
       <Button variant="primary" size="sm" onClick={() => setOpen(true)} disabled={!hasOutstanding}>Record Payment</Button>

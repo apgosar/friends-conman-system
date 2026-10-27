@@ -1,6 +1,6 @@
 import Link from 'next/link'
 import { prisma } from '@/lib/db'
-import { OUTSTANDING_SCHEDULE_STATUSES } from '@/lib/status'
+import { OUTSTANDING_SCHEDULE_STATUSES, TDS_MODE } from '@/lib/status'
 import { formatCurrency } from '@/lib/format'
 import TopNav from '@/components/layout/TopNav'
 import AgingChart from '@/components/dashboard/AgingChart'
@@ -27,7 +27,7 @@ async function getDashboardData() {
       },
     }),
     prisma.payment.findMany({
-      where: { deletedAt: null, sale: activeSale },
+      where: { deletedAt: null, mode: { not: TDS_MODE }, sale: activeSale },
       orderBy: { createdAt: 'desc' },
       take: 10,
       include: {
@@ -78,7 +78,7 @@ async function getDashboardData() {
 
   const [collectedThisMonth, tdsPending] = await Promise.all([
     prisma.payment.aggregate({
-      where: { paymentDate: { gte: monthStart }, deletedAt: null, sale: activeSale },
+      where: { paymentDate: { gte: monthStart }, deletedAt: null, mode: { not: TDS_MODE }, sale: activeSale }, // TDS credits are not money collected
       _sum: { amount: true },
     }),
     prisma.tdsRecord.count({ where: { status: { not: 'CERTIFICATE_RECEIVED' } } }),

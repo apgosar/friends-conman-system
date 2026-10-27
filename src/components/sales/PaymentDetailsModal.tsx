@@ -6,7 +6,7 @@ import { Alert, Button, Modal, StatusBadge, TextField, useToast } from '@/compon
 import { errorMessage, fetchJson, jsonRequest } from '@/lib/client/api'
 import { standingOfSchedule } from '@/lib/interest'
 import { formatCurrency, formatDate } from '@/lib/format'
-import { paymentModeLabel } from '@/lib/status'
+import { isTdsPayment, paymentKindLabel, paymentModeLabel } from '@/lib/status'
 import { pdfViewUrl } from '@/lib/comms-content'
 
 type Money = { amount: unknown; gstPaid?: unknown; interestPaid?: unknown }
@@ -109,12 +109,13 @@ export default function PaymentDetailsModal({ schedule, onClose, canWaive = fals
                   <span className="font-semibold">{formatCurrency(Number(pmt.amount) + Number(pmt.gstPaid ?? 0) + Number(pmt.interestPaid ?? 0))}</span>
                   <span className="row">
                     <span className="text-muted">{formatDate(pmt.paymentDate)}</span>
-                    <a href={pdfViewUrl(`/api/documents/preview/receipt?paymentId=${pmt.id}`)} target="_blank" rel="noreferrer" className="btn btn-secondary btn-xs">View Receipt</a>
+                    {!isTdsPayment(pmt) && <a href={pdfViewUrl(`/api/documents/preview/receipt?paymentId=${pmt.id}`)} target="_blank" rel="noreferrer" className="btn btn-secondary btn-xs">View Receipt</a>}
                   </span>
                 </div>
                 <div className="text-muted">
-                  {paymentModeLabel(pmt.mode)}{pmt.referenceNumber ? ` · Ref: ${pmt.referenceNumber}` : ''} · Receipt {pmt.receiptNumber}
+                  {paymentModeLabel(pmt.mode)}{pmt.referenceNumber ? ` · Ref: ${pmt.referenceNumber}` : ''}{isTdsPayment(pmt) ? ' · deducted by the buyer, no receipt' : ` · Receipt ${pmt.receiptNumber}`}
                 </div>
+                <div className="text-muted">{paymentKindLabel(pmt)}</div>
                 {Number(pmt.interestPaid ?? 0) > 0 && <div className="text-muted">of which interest {formatCurrency(Number(pmt.interestPaid))}</div>}
                 {pmt.remark && <div className="italic text-secondary mt-2">&ldquo;{pmt.remark}&rdquo;</div>}
               </div>

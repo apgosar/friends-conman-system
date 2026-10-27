@@ -6,6 +6,7 @@ import { buildReceiptPayload } from '@/lib/documents/payload'
 import { findActiveTemplate, loadPaymentForReceipt } from '@/lib/documents/queries'
 import { renderPreview } from '@/lib/documents/render'
 import { HttpError } from '@/lib/errors'
+import { isTdsPayment } from '@/lib/status'
 
 // GET /api/documents/preview/receipt?paymentId=…&format=pdf
 export async function GET(req: NextRequest) {
@@ -22,6 +23,7 @@ export async function GET(req: NextRequest) {
 
     const found = await loadPaymentForReceipt(paymentId)
     if (!found?.schedule?.sale) return apiError('notFound', 'Payment or its sale not found')
+    if (isTdsPayment(found)) return apiError('invalid', 'A TDS adjustment has no receipt: the buyer pays that tax to the government')
     const { schedule, ...payment } = found
     const sale = schedule.sale
 

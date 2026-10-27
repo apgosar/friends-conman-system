@@ -134,7 +134,24 @@ export const PAYMENT_MODES = [
 ] as const
 export type PaymentMode = (typeof PAYMENT_MODES)[number]['value']
 export const PAYMENT_MODE_VALUES = PAYMENT_MODES.map((m) => m.value) as unknown as readonly [PaymentMode, ...PaymentMode[]]
-export const paymentModeLabel = (mode: string) => PAYMENT_MODES.find((m) => m.value === mode)?.label ?? humanize(mode)
+/**
+ * Tax the buyer deducted and deposited with the government is credited against a demand's principal as a payment of this mode.
+ * It is not one of PAYMENT_MODES (nobody pays "by TDS" at the desk): the Record TDS dialog is the only place that makes one.
+ */
+export const TDS_MODE = 'TDS'
+export const isTdsPayment = (p: { mode?: string | null }): boolean => p.mode === TDS_MODE
+export const paymentModeLabel = (mode: string) => (mode === TDS_MODE ? 'TDS adjusted' : PAYMENT_MODES.find((m) => m.value === mode)?.label ?? humanize(mode))
+
+/** What a payment cleared: "Principal", "GST", "Principal and interest" or "Interest" (a TDS credit is "TDS on principal"). */
+export function paymentKindLabel(p: { mode?: string | null; amount: unknown; gstPaid?: unknown; interestPaid?: unknown }): string {
+  if (isTdsPayment(p)) return 'TDS on principal'
+  const principal = Number(p.amount) > 0
+  const gst = Number(p.gstPaid ?? 0) > 0
+  const interest = Number(p.interestPaid ?? 0) > 0
+  if (gst) return principal || interest ? 'GST and principal' : 'GST' // one payment is never both (see record-payment), but old ones may be
+  if (principal) return interest ? 'Principal and interest' : 'Principal'
+  return interest ? 'Interest' : 'Principal'
+}
 
 // ── Communications & documents ─────────────────────────────────────────────────
 

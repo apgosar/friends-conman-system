@@ -4,7 +4,7 @@ import { useState } from 'react'
 import { Button, StatusBadge, Td } from '@/components/ui'
 import { formatCurrency, formatDate } from '@/lib/format'
 import PaymentDetailsModal from './PaymentDetailsModal'
-import { RecordPaymentDialog } from './RecordPaymentModal'
+import { RecordPaymentDialog, takesPayments } from './RecordPaymentModal'
 
 /** One demand on a sale's payments page: click the row for details, "Record Payment" to take money against it. */
 export default function PaymentScheduleRow({ schedule, saleId, canWaive = false }: { schedule: any; saleId: string; canWaive?: boolean }) {
@@ -25,7 +25,7 @@ export default function PaymentScheduleRow({ schedule, saleId, canWaive = false 
         <Td label="GST due">{formatCurrency(Number(schedule.gstAmount ?? 0))}</Td>
         <Td label="Received" className={received >= totalDue ? 'text-success font-semibold' : received > 0 ? 'font-semibold' : undefined}>{formatCurrency(received)}</Td>
         <Td label="">
-          {schedule.status !== 'PAID' && (
+          {schedule.status !== 'PAID' && takesPayments(schedule) && (
             <Button variant="primary" size="sm" onClick={(e) => { e.stopPropagation(); setShowPay(true) }}>Record Payment</Button>
           )}
         </Td>

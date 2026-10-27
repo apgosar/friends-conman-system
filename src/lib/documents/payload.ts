@@ -1,6 +1,7 @@
 import { formatDate, formatMoney, numberToWords } from '@/lib/format'
 import { percentOf, sumRupees } from '@/lib/money'
-import { paymentModeLabel } from '@/lib/status'
+import { isTdsPayment, paymentKindLabel, paymentModeLabel } from '@/lib/status'
+import { isOfflineCharge, isStandaloneCharge } from '@/lib/payment-plans'
 import { floorLabel, floorOrdinal, ordinal } from '@/lib/building-structure'
 import { dateOfDay, interestNote, interestPolicyOf, interestStartDay, standingOfSchedule } from '@/lib/interest'
 import { formatPhoneList } from '@/lib/phone'
@@ -48,8 +49,7 @@ export function buildSalePayload(sale: SaleForDocument, partners: PartnerForDocu
   const lines = schedules.filter((ps) => Number(ps.principalAmount) > 0).map((ps) => {
     const principal = Number(ps.principalAmount)
     const gst = Number(ps.gstAmount)
-    const description = ps.description.toLowerCase()
-    const isCharge = ['stamp duty', 'parking', 'registration'].some((w) => description.includes(w))
+    const isCharge = isStandaloneCharge(ps.description) // stamp duty, registration, parking and the other charges are not instalments of the price
     const pct = isCharge ? 0 : Number(((principal / agreement) * 100).toFixed(2))
     return { isCharge, principal, gst, pct, description: ps.description }
   })
@@ -67,14 +67,19 @@ export function buildSalePayload(sale: SaleForDocument, partners: PartnerForDocu
   const instalments = instalmentLines.map((l, i) => row(l, i + 1))
 
   // Money the buyers have already paid: each payment is principal (a part of the price) plus the GST on it
-  const payments = schedules
-    .flatMap((ps) => ps.payments)
+  const allPayments = schedules
+    .flatMap((ps) => ps.payments.map((p) => ({ ...p, milestoneName: ps.description })))
     .filter((p) => !p.deletedAt)
     .sort((a, b) => new Date(a.paymentDate).getTime() - new Date(b.paymentDate).getTime())
-  const paidPrincipal = payments.reduce((total, p) => total + Number(p.amount), 0)
+  const paidPrincipal = allPayments.reduce((total, p) => total + Number(p.amount), 0) // tax deducted at source counts towards the price
+  // Money actually received: a TDS adjustment is not a receipt (the buyer pays that tax to the government)
+  const payments = allPayments.filter((p) => !isTdsPayment(p))
+  const tdsAdjusted = allPayments.filter(isTdsPayment).reduce((total, p) => total + Number(p.amount), 0)
   const receivedTotal = payments.reduce((total, p) => total + Number(p.amount) + Number(p.gstPaid) + Number(p.interestPaid ?? 0), 0)
   const receipts = payments.map((p, i) => ({
     index: i + 1,
+    milestone: p.milestoneName,
+    kind: paymentKindLabel(p),
     mode: paymentModeLabel(p.mode ?? ''),
     bank: p.bankName ?? '',
     branch: '', // the branch is not recorded with a payment
@@ -177,6 +182,7 @@ export function buildSalePayload(sale: SaleForDocument, partners: PartnerForDocu
     balancePayableWords: numberToWords(balanceAfterAdvance - tds),
     receipts,
     paymentBankNames: [...new Set(payments.map((p) => (p.bankName ?? '').trim()).filter(Boolean))].join(', '), // the banks the recorded payments came through
+    tdsAdjusted: formatMoney(tdsAdjusted), // TDS credited against the price so far
     receivedTotal: formatMoney(receivedTotal),
     receivedTotalWords: numberToWords(receivedTotal),
     otherCharges: otherCharges.items.map((c, i) => ({ index: i + 1, name: c.name, amount: c.text })),
@@ -204,7 +210,8 @@ const demandPosition = (sale: SaleForDocument, schedule: Schedule) => {
   const paid = payments.reduce((total, p) => total + Number(p.amount), 0)
   const gstPaid = payments.reduce((total, p) => total + Number(p.gstPaid), 0)
 
-  const raised = sale.paymentSchedules.filter((ps) => ps.status !== 'UPCOMING' || ps.id === schedule.id)
+  // Stamp duty and registration are paid outside this application: they are never part of what is outstanding
+  const raised = sale.paymentSchedules.filter((ps) => !isOfflineCharge(ps.description) && (ps.status !== 'UPCOMING' || ps.id === schedule.id))
   const principalDue = raised.reduce((total, ps) => total + Number(ps.principalAmount), 0)
   const gstDue = raised.reduce((total, ps) => total + Number(ps.gstAmount ?? 0), 0)
   const outstandingPrincipal = Math.max(0, principalDue - paid)
@@ -219,11 +226,21 @@ const demandPosition = (sale: SaleForDocument, schedule: Schedule) => {
 
   // The part of it that belongs to this demand; the rest is carried over from earlier demands
   const own = sale.paymentSchedules.find((ps) => ps.id === schedule.id)
-  const ownPaid = (own?.payments ?? []).filter((p) => !p.deletedAt).reduce((total, p) => total + Number(p.amount) + Number(p.gstPaid), 0)
+  const ownLive = (own?.payments ?? []).filter((p) => !p.deletedAt)
+  const ownPaid = ownLive.reduce((total, p) => total + Number(p.amount) + Number(p.gstPaid), 0)
+  const ownPrincipalDue = Math.max(0, Number(schedule.principalAmount) - ownLive.reduce((total, p) => total + Number(p.amount), 0))
+  const ownGstDue = Math.max(0, Number(schedule.gstAmount ?? 0) - ownLive.reduce((total, p) => total + Number(p.gstPaid), 0))
+  const ownTds = ownLive.filter(isTdsPayment).reduce((total, p) => total + Number(p.amount), 0)
   const ownUnpaid = Math.max(0, Number(schedule.principalAmount) + Number(schedule.gstAmount ?? 0) - ownPaid) + own0.outstanding
 
   return {
     percentOfAV: `${agreement > 0 ? Number(((Number(schedule.principalAmount) / agreement) * 100).toFixed(2)) : 0}%`,
+    // This demand alone, still unpaid (after any payment and any TDS adjusted against it), principal and GST apart
+    principalDue: formatMoney(ownPrincipalDue),
+    gstDue: formatMoney(ownGstDue),
+    dueNow: formatMoney(ownPrincipalDue + ownGstDue),
+    dueNowWords: numberToWords(ownPrincipalDue + ownGstDue),
+    tdsAdjusted: formatMoney(ownTds),
     receivedTillDate: formatMoney(paid),
     outstandingPrincipal: formatMoney(outstandingPrincipal),
     outstandingGst: formatMoney(outstandingGst),
@@ -267,6 +284,9 @@ export function buildReceiptPayload(sale: SaleForDocument, payment: ReceiptPayme
     receipt: {
       number: payment.receiptNumber ?? `REC-${payment.id.substring(0, 6).toUpperCase()}`,
       date: formatDate(payment.paymentDate),
+      milestone: schedule.description, // what the payment is for: Booking, 6th Slab...
+      kind: paymentKindLabel(payment), // Principal, GST, Principal and interest or Interest
+      towards: `${schedule.description} (${paymentKindLabel(payment)})`,
       principalPaid: formatMoney(payment.amount),
       gstPaid: formatMoney(payment.gstPaid),
       interestPaid: formatMoney(payment.interestPaid ?? 0),

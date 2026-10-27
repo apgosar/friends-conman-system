@@ -7,6 +7,9 @@ import { can } from '@/lib/authz'
 import DeleteSaleButton from '@/components/sales/DeleteSaleButton'
 import PaymentScheduleTable from '@/components/sales/PaymentScheduleTable'
 import RecordPaymentModal from '@/components/sales/RecordPaymentModal'
+import RecordTdsModal from '@/components/sales/RecordTdsModal'
+import { tdsLimitOf } from '@/lib/payments/record-tds'
+import { isTdsPayment } from '@/lib/status'
 import CommunicationLogTable from '@/components/sales/CommunicationLogTable'
 import SaleLifecycleCard from '@/components/sales/SaleLifecycleCard'
 
@@ -15,7 +18,7 @@ import { maskedAadhaar, maskedPan } from '@/lib/pii'
 import { isAnonymized } from '@/lib/dpdp-compliance'
 import AnonymizeBuyerButton from '@/components/sales/AnonymizeBuyerButton'
 import BuyerCard from '@/components/sales/BuyerCard'
-import { SCHEDULE_ORDER } from '@/lib/payment-plans'
+import { SCHEDULE_ORDER, isOfflineCharge } from '@/lib/payment-plans'
 import { floorLabel } from '@/lib/building-structure'
 import { interestPolicyOf, standingOfSchedule, withInterestPolicy } from '@/lib/interest'
 import { Badge, ButtonLink, Card, CardHeader, PageHeader, StatusBadge } from '@/components/ui'
@@ -53,14 +56,19 @@ export default async function SaleDetailPage(props: PageProps<'/sales/[id]'>) {
   const canEditSale = can(session?.user?.role, 'admin')
 
   const livePayments = sale.paymentSchedules.flatMap((s) => s.payments.filter((p) => !p.deletedAt))
-  const principalPaid = livePayments.reduce((a, p) => a + Number(p.amount), 0)
-  const gstReceived = livePayments.reduce((a, p) => a + Number(p.gstPaid ?? 0), 0)
-  // What the sale comes to in all, and what has actually fallen due so far (demands still upcoming are not due yet)
+  const receivedPayments = livePayments.filter((p) => !isTdsPayment(p))
+  // Tax the buyer deducted (TDS) is credited against the principal but is not money received here
+  const tdsAdjusted = livePayments.filter(isTdsPayment).reduce((a, p) => a + Number(p.amount), 0)
+  const principalPaid = receivedPayments.reduce((a, p) => a + Number(p.amount), 0)
+  const gstReceived = receivedPayments.reduce((a, p) => a + Number(p.gstPaid ?? 0), 0)
+  const tdsLimit = tdsLimitOf(Number(sale.agreementValue), sale.project.tdsRatePercent)
+  // What the sale comes to in all, and what has actually fallen due so far (demands still upcoming are not due yet).
+  // Stamp duty and registration are paid outside the application, so they are never part of what is due or outstanding.
   const saleTotal = sale.paymentSchedules.reduce((sum, s) => sum + Number(s.principalAmount) + Number(s.gstAmount ?? 0), 0)
-  const raised = sale.paymentSchedules.filter((s) => s.status !== 'UPCOMING')
+  const raised = sale.paymentSchedules.filter((s) => s.status !== 'UPCOMING' && !isOfflineCharge(s.description))
   const principalDue = raised.reduce((sum, s) => sum + Number(s.principalAmount), 0)
   const gstDue = raised.reduce((sum, s) => sum + Number(s.gstAmount ?? 0), 0)
-  const interestPaid = livePayments.reduce((a, p) => a + Number(p.interestPaid ?? 0), 0)
+  const interestPaid = receivedPayments.reduce((a, p) => a + Number(p.interestPaid ?? 0), 0)
   const totalPaid = principalPaid + gstReceived + interestPaid
   const totalDue = principalDue + gstDue
   // Interest on late demands, worked out today under the project's settings
@@ -72,10 +80,10 @@ export default async function SaleDetailPage(props: PageProps<'/sales/[id]'>) {
   // The rate this sale was actually charged at (the project's rate may have changed since)
   const gstRateLabel = Number(sale.agreementValue) > 0 ? `${formatNumber((Number(sale.gstAmount) / Number(sale.agreementValue)) * 100)}%` : '—'
   // Still to pay of what has fallen due, principal and GST apart
-  const outstandingPrincipal = Math.max(0, principalDue - principalPaid)
+  const outstandingPrincipal = Math.max(0, principalDue - principalPaid - tdsAdjusted)
   const outstandingGst = Math.max(0, gstDue - gstReceived)
   const outstanding = outstandingPrincipal + outstandingGst + interestOutstanding
-  const paidPct = totalDue > 0 ? Math.min(100, Math.round(((principalPaid + gstReceived) / totalDue) * 100)) : 0
+  const paidPct = totalDue > 0 ? Math.min(100, Math.round(((principalPaid + tdsAdjusted + gstReceived) / totalDue) * 100)) : 0
 
   return (
     <>
@@ -149,6 +157,7 @@ export default async function SaleDetailPage(props: PageProps<'/sales/[id]'>) {
               <div className="kv-row kv-row-sub"><span>Principal</span><span className="kv-value">{formatCurrency(principalPaid)}</span></div>
               <div className="kv-row kv-row-sub"><span>GST</span><span className="kv-value">{formatCurrency(gstReceived)}</span></div>
               {interestPaid > 0 && <div className="kv-row kv-row-sub"><span>Interest</span><span className="kv-value">{formatCurrency(interestPaid)}</span></div>}
+              {tdsAdjusted > 0 && <div className="kv-row"><span>TDS Adjusted</span><span className="kv-value text-success">{formatCurrency(tdsAdjusted)}</span></div>}
               <div className="kv-row">
                 <span>Outstanding</span>
                 <span className={`kv-value ${outstanding > 0 ? 'text-danger' : 'text-success'}`}>{formatCurrency(outstanding)}</span>
@@ -193,7 +202,15 @@ export default async function SaleDetailPage(props: PageProps<'/sales/[id]'>) {
         )}
 
         <Card className="mb-6 anchor-target" id="payment-schedule">
-          <CardHeader title="Payment Schedule" actions={<RecordPaymentModal schedules={schedulesForScreen} saleId={id} />} />
+          <CardHeader
+            title="Payment Schedule"
+            actions={
+              <div className="row">
+                <RecordTdsModal schedules={schedulesForScreen} saleId={id} tdsLimit={tdsLimit} tdsRatePercent={sale.project.tdsRatePercent ?? 1} />
+                <RecordPaymentModal schedules={schedulesForScreen} saleId={id} />
+              </div>
+            }
+          />
           <PaymentScheduleTable schedules={schedulesForScreen} canWaive={canEditSale} />
         </Card>
 

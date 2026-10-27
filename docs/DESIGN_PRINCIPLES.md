@@ -67,6 +67,8 @@ The cost of breaking this is paid later and in bulk: a hand-styled button here, 
 | Number a sale or receipt | `nextSaleNumber`, `nextReceiptNumber` | `src/lib/numbering.ts` |
 | Show or use a PAN / Aadhaar number | `maskedPan`, `maskedAadhaar`, `revealPii` | `src/lib/pii.ts` |
 | Build the data for a document | `buildSalePayload` / `buildDemandPayload` / `buildReceiptPayload` | `src/lib/documents/payload.ts` |
+| TDS credited against a milestone's principal (a payment of mode `TDS`: no receipt, not cash), and what a payment cleared (`Principal`, `GST`…) | `recordTds`, `tdsLimitOf`; `TDS_MODE`, `isTdsPayment`, `paymentKindLabel` | `src/lib/payments/record-tds.ts`, `src/lib/status.ts` |
+| Stamp duty and registration (paid outside the app: never outstanding, never in Record Payment, paid once the agreement date is set) | `isOfflineCharge`; `syncSaleLifecycle` | `src/lib/payment-plans.ts`, `src/lib/sale-lifecycle.ts` |
 | Interest on a late demand (daily accrual, what a payment clears first, waiver, the sentence for a letter) | `accrualsThrough`, `standingOfSchedule`, `splitPayment`, `interestPolicyOf`; the ledger: `syncAccruals` | `src/lib/interest.ts`, `src/lib/interest-ledger.ts` |
 | A project's other charges (society share money, MCGM charge, legal... due with the last milestone) | `computeOtherCharges`, `DEFAULT_OTHER_CHARGES`, `OTHER_CHARGES_LABEL` | `src/lib/other-charges.ts` |
 | Sale agreement PAYABLES (MCGM charge per sq ft, common area charge, fixed amounts) | `agreementPayables` | `src/lib/documents/payables.ts` |

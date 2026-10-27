@@ -5,6 +5,7 @@ import { buildCommContent, sanitizeInline } from '@/lib/comms-content'
 import { fromPaise, toPaise } from '@/lib/money'
 import { syncSaleLifecycle } from '@/lib/sale-lifecycle'
 import { OVERDUE_SCHEDULE_STATUSES } from '@/lib/status'
+import { isOfflineCharge } from '@/lib/payment-plans'
 import { activeSale } from '@/lib/soft-delete'
 import { formatMoney } from '@/lib/format'
 import { standingOfSchedule } from '@/lib/interest'
@@ -48,6 +49,7 @@ export async function recordPayment(input: RecordPaymentInput, actorId: string) 
       include: { payments: { where: { deletedAt: null }, select: { amount: true, gstPaid: true, interestPaid: true, paymentDate: true } }, interestWaivers: { select: { amount: true } } },
     })
     if (!schedule) throw new PaymentError('Payment schedule not found for this sale', 404)
+    if (isOfflineCharge(schedule.description)) throw new PaymentError('Stamp duty and registration are paid outside this application. Record the agreement date to mark them paid', 400)
 
     const principalDue = toPaise(schedule.principalAmount) - schedule.payments.reduce((a, p) => a + toPaise(p.amount), 0)
     const gstDue = toPaise(schedule.gstAmount) - schedule.payments.reduce((a, p) => a + toPaise(p.gstPaid), 0)

@@ -1,7 +1,7 @@
 import { apiServerError } from '@/lib/api-error'
 import { requireRole } from '@/lib/guard'
 import { prisma } from '@/lib/db'
-import { OUTSTANDING_SCHEDULE_STATUSES, UNIT_STATUS_ORDER, isSaleable, isUnsold } from '@/lib/status'
+import { OUTSTANDING_SCHEDULE_STATUSES, TDS_MODE, UNIT_STATUS_ORDER, isSaleable, isUnsold } from '@/lib/status'
 import { activeSale } from '@/lib/soft-delete'
 import { formatMonthYear } from '@/lib/format'
 
@@ -84,7 +84,7 @@ export async function GET() {
     // ─── 3. Collections & Finance ──────────────────────────────────────────────
     const today = new Date()
     const payments = await prisma.payment.findMany({
-      where: { deletedAt: null, sale: activeSale },
+      where: { deletedAt: null, mode: { not: TDS_MODE }, sale: activeSale }, // TDS credits are not money collected
       select: { amount: true, paymentDate: true, mode: true }
     })
 

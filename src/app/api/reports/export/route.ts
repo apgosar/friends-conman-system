@@ -5,6 +5,7 @@ import { requireRole } from '@/lib/guard'
 import { prisma } from '@/lib/db'
 import { activeSale } from '@/lib/soft-delete'
 import { formatDate } from '@/lib/format'
+import { TDS_MODE } from '@/lib/status'
 
 function escapeCsv(val: any): string {
   if (val === null || val === undefined) return ''
@@ -65,7 +66,7 @@ export async function GET(req: NextRequest) {
       // Payment model has: scheduleId, saleId, amount, gstPaid, mode, referenceNumber, bankName, remark, paymentDate, receiptNumber
       // We join with sale and schedule via separate queries for simplicity
       const payments = await prisma.payment.findMany({
-        where: { deletedAt: null, sale: activeSale },
+        where: { deletedAt: null, mode: { not: TDS_MODE }, sale: activeSale },
         include: {
           sale: {
             include: {

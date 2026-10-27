@@ -3,11 +3,11 @@ import TopNav from '@/components/layout/TopNav'
 import { formatCurrency, formatDate } from '@/lib/format'
 import { activeSale } from '@/lib/soft-delete'
 import { Badge, ButtonLink, Card, EmptyRow, PageHeader, Table, Td } from '@/components/ui'
-import { paymentModeLabel } from '@/lib/status'
+import { TDS_MODE, paymentModeLabel } from '@/lib/status'
 
 async function getPayments() {
   return prisma.payment.findMany({
-    where: { deletedAt: null, sale: activeSale },
+    where: { deletedAt: null, mode: { not: TDS_MODE }, sale: activeSale }, // TDS credits are not money received
     orderBy: { paymentDate: 'desc' },
     take: 100,
     include: {
@@ -27,7 +27,7 @@ async function getPayments() {
 export default async function PaymentsPage() {
   const [payments, totals] = await Promise.all([
     getPayments(),
-    prisma.payment.aggregate({ where: { deletedAt: null, sale: activeSale }, _sum: { amount: true }, _count: true }),
+    prisma.payment.aggregate({ where: { deletedAt: null, mode: { not: TDS_MODE }, sale: activeSale }, _sum: { amount: true }, _count: true }),
   ])
   const totalCollected = Number(totals._sum.amount ?? 0) // across every payment, not just the latest ones listed below
 
