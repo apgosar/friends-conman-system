@@ -13,6 +13,8 @@ export type OpenedFile =
 
 const isPdf = (b: Buffer) => b.subarray(0, 1024).includes('%PDF-')
 
+const hasLock = (b: Buffer) => b.includes('/Encrypt')
+
 /** A copy of the document without the lock: its pages carried into a new file (saving the opened file would lock it again). */
 async function withoutLock(opened: PDFDocument): Promise<Buffer> {
   const clean = await PDFDocument.create()
@@ -28,7 +30,12 @@ export async function openForReading(buffer: Buffer, password?: string): Promise
     await PDFDocument.load(buffer)
     return { status: 'ready', buffer, unlocked: false } // not protected
   } catch (err) {
-    if (!(err instanceof EncryptedPDFError)) throw fail('invalid', 'The PDF could not be read. Upload the original file again')
+    if (!(err instanceof EncryptedPDFError)) {
+      // Some tools write PDFs that viewers open but this parser rejects (stray bytes after the header). With no lock on the file there
+      // is nothing to open here, so it goes on as it is and the reader judges it.
+      if (!hasLock(buffer)) return { status: 'ready', buffer, unlocked: false }
+      throw fail('invalid', 'The PDF could not be read. Upload the original file again')
+    }
   }
 
   // Protected. A file that is only restricted (no password to open it) opens with an empty one, without asking.

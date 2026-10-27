@@ -38,6 +38,15 @@ describe('openForReading', () => {
     const opened = await openForReading(await pdf({ userPassword: '', ownerPassword: 'owner' }))
     expect(opened).toMatchObject({ status: 'ready', unlocked: true })
   })
+  it('passes on a PDF with stray bytes after the header that viewers open but the parser rejects', async () => {
+    const plain = await pdf()
+    const nl = plain.indexOf('\n') + 1
+    const odd = Buffer.concat([plain.subarray(0, nl), Buffer.from('%abc\n'), Buffer.from([0xf4, 0x39, 0x01, 0x00, 0x0b, 0x0a]), plain.subarray(nl)])
+    await expect(PDFDocument.load(odd)).rejects.toThrow() // the case this guards: the parser cannot read it
+    const opened = await openForReading(odd)
+    expect(opened).toMatchObject({ status: 'ready', unlocked: false })
+    expect(opened.status === 'ready' && opened.buffer.equals(odd)).toBe(true)
+  })
   it('leaves a damaged PDF for the reader to judge: it is not locked, so there is nothing to ask', async () => {
     const damaged = Buffer.from('%PDF-1.7 this is not really a pdf')
     expect(await openForReading(damaged)).toMatchObject({ status: 'ready', unlocked: false })
