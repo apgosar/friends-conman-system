@@ -16,6 +16,7 @@ export default function MilestoneRow({ m }: { m: any }) {
 
   const [loading, setLoading] = useState(false)
   const [showComplete, setShowComplete] = useState(false)
+  const [showUncomplete, setShowUncomplete] = useState(false)
   const [showDelete, setShowDelete] = useState(false)
   const [certificateFile, setCertificateFile] = useState<File | null>(null)
 
@@ -25,6 +26,20 @@ export default function MilestoneRow({ m }: { m: any }) {
       await fetchJson(`/api/milestones/${m.id}`, { method: 'DELETE' })
       setShowDelete(false)
       toast.success('Milestone deleted')
+      router.refresh()
+    } catch (err) {
+      toast.error(errorMessage(err))
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  const handleUncomplete = async () => {
+    setLoading(true)
+    try {
+      await fetchJson(`/api/milestones/${m.id}/uncomplete`, { method: 'POST' })
+      setShowUncomplete(false)
+      toast.success('Milestone is no longer marked complete')
       router.refresh()
     } catch (err) {
       toast.error(errorMessage(err))
@@ -69,6 +84,7 @@ export default function MilestoneRow({ m }: { m: any }) {
             <span className="text-muted text-sm">No certificate</span>
           )}
           {m.status !== 'COMPLETED' && <Button size="sm" onClick={() => setShowComplete(true)}>Mark Complete</Button>}
+          {m.status === 'COMPLETED' && isSuperAdmin && <Button size="sm" onClick={() => setShowUncomplete(true)}>Uncomplete</Button>}
           {isSuperAdmin && <Button size="sm" variant="danger" onClick={() => setShowDelete(true)}>🗑️ Delete</Button>}
         </div>
 
@@ -90,6 +106,26 @@ export default function MilestoneRow({ m }: { m: any }) {
               <input id="certificate-file" type="file" required accept=".pdf,image/*" className="form-input" onChange={(e) => setCertificateFile(e.target.files?.[0] ?? null)} />
               <span className="form-hint">Upload the signed completion certificate from the architect.</span>
             </form>
+          </Modal>
+        )}
+
+        {showUncomplete && (
+          <Modal
+            title="Uncomplete milestone"
+            subtitle={m.name}
+            dismissible={!loading}
+            onClose={() => setShowUncomplete(false)}
+            footer={
+              <>
+                <Button onClick={() => setShowUncomplete(false)} disabled={loading}>Cancel</Button>
+                <Button variant="danger" loading={loading} onClick={handleUncomplete}>Uncomplete milestone</Button>
+              </>
+            }
+          >
+            <p className="mb-4">Take this milestone back from Completed?</p>
+            <Alert variant="warning">
+              The demands raised for this milestone go back to not yet raised, and the architect certificate is cleared. Demand letters already sent to buyers cannot be taken back. If payments have been recorded against any of these demands, this is blocked.
+            </Alert>
           </Modal>
         )}
 

@@ -8,6 +8,8 @@ import { BOOKING_DUE_DAYS, DEMAND_DUE_DAYS, isStandaloneCharge } from '@/lib/pay
 import { OTHER_CHARGES_LABEL, computeOtherCharges } from '@/lib/other-charges'
 import { sumRupees } from '@/lib/money'
 import { PHONE_ERROR, normalizePhone } from '@/lib/phone'
+import { PAN_ERROR, PAN_PATTERN } from '@/lib/companies'
+import { AADHAAR_ERROR, EMAIL_ERROR } from '@/lib/buyers'
 import { activeSale } from '@/lib/soft-delete'
 import { NOT_FOR_SALE_STATUS, UNSOLD_UNIT_STATUSES, unitStatusLabel } from '@/lib/status'
 import { redact } from '@/lib/redact'
@@ -22,15 +24,16 @@ const zMoney = z
 
 const SaleBuyerSchema = z.object({
   fullName: z.string().trim().min(1, 'Buyer full name is required').max(200),
-  email: z.string().trim().email('Invalid email').optional().nullable().or(z.literal('')),
-  whatsappNumber: z.string().optional().nullable().transform((v, ctx) => {
+  // Every detail of a buyer is required: the agreement, the receipts and the messages all need them
+  email: z.string({ error: 'Enter the email address' }).trim().min(1, 'Enter the email address').email(EMAIL_ERROR),
+  whatsappNumber: z.string({ error: 'Enter the WhatsApp number' }).transform((v, ctx) => {
     const phone = normalizePhone(v)
-    if (!phone.ok) { ctx.addIssue({ code: 'custom', message: PHONE_ERROR }); return z.NEVER }
+    if (!phone.ok || !phone.value) { ctx.addIssue({ code: 'custom', message: phone.ok ? 'Enter the WhatsApp number' : PHONE_ERROR }); return z.NEVER }
     return phone.value
   }),
-  panNumber: z.string().optional().nullable(),
-  aadhaarNumber: z.string().optional().nullable(),
-  address: z.string().optional().nullable(),
+  panNumber: z.string({ error: 'Enter the PAN number' }).trim().toUpperCase().regex(PAN_PATTERN, PAN_ERROR),
+  aadhaarNumber: z.string({ error: 'Enter the Aadhaar number' }).transform((v) => v.replace(/\s/g, '')).pipe(z.string().regex(/^\d{12}$/, AADHAAR_ERROR)),
+  address: z.string({ error: 'Enter the address' }).trim().min(1, 'Enter the address').max(500, 'The address is too long (maximum 500 characters)'),
   receiveComms: z.boolean().optional(),
 })
 

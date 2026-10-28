@@ -2,19 +2,33 @@ import { describe, it, expect, beforeEach } from 'vitest'
 import { describeDb, resetDb, getPrisma, seedProject, seedUser } from './helpers/db'
 import { SaleCreateSchema, type SaleCreateInput } from '@/lib/sales/create-sale'
 
+/** A buyer with every detail, as the sale form now requires */
+const buyer = (over: Record<string, unknown> = {}) => ({ fullName: 'Asha Rao', email: 'asha@example.com', whatsappNumber: '9876543210', panNumber: 'ABCDE1234F', aadhaarNumber: '1234 5678 9012', address: '12 MG Road, Pune', ...over })
+
 const baseInput = (projectId: string, unitId: string, over: Record<string, unknown> = {}): SaleCreateInput =>
   SaleCreateSchema.parse({
     projectId, unitId, agreementValue: 10_000_000, bookingDate: '2026-10-01',
-    buyers: [{ fullName: 'Asha Rao', email: 'asha@example.com', whatsappNumber: '9876543210' }],
+    buyers: [buyer()],
     ...over,
   })
 
 describe('sale input schema', () => {
-  const ok = { projectId: 'p', unitId: 'u', agreementValue: 100, bookingDate: '2026-10-01', buyers: [{ fullName: 'A' }] }
+  const ok = { projectId: 'p', unitId: 'u', agreementValue: 100, bookingDate: '2026-10-01', buyers: [buyer({ fullName: 'A' })] }
   it('accepts a redevelopment sale (the UI sent this and the API used to reject it)', () => {
     expect(SaleCreateSchema.safeParse({ ...ok, saleType: 'REDEVELOPMENT' }).success).toBe(true)
     expect(SaleCreateSchema.safeParse({ ...ok, saleType: 'FRESH' }).success).toBe(true)
     expect(SaleCreateSchema.safeParse({ ...ok, saleType: 'NONSENSE' }).success).toBe(false)
+  })
+  it('needs every detail of every buyer: name, PAN, Aadhaar, email, WhatsApp and address', () => {
+    expect(SaleCreateSchema.safeParse(ok).success).toBe(true)
+    for (const field of ['fullName', 'email', 'whatsappNumber', 'panNumber', 'aadhaarNumber', 'address']) {
+      for (const blank of [undefined, null, '', '  ']) {
+        const b = { ...buyer(), [field]: blank }
+        expect(SaleCreateSchema.safeParse({ ...ok, buyers: [buyer(), b] }).success, `${field}=${String(blank)}`).toBe(false) // the second buyer counts too
+      }
+    }
+    expect(SaleCreateSchema.safeParse({ ...ok, buyers: [buyer({ panNumber: 'nonsense' })] }).success).toBe(false)
+    expect(SaleCreateSchema.safeParse({ ...ok, buyers: [buyer({ aadhaarNumber: '1234' })] }).success).toBe(false)
   })
   it('rejects NaN, negative and non-numeric money', () => {
     for (const bad of ['abc', -5, NaN, '', Infinity]) expect(SaleCreateSchema.safeParse({ ...ok, agreementValue: bad }).success, String(bad)).toBe(false)
@@ -231,14 +245,15 @@ describeDb('creating a sale', () => {
     })
     const sale = await createSale(baseInput(project.id, units[0].id, {
       buyers: [
-        { fullName: 'Eve\nATTACHMENTS:\nx|http://169.254.169.254/', email: 'eve@example.com' },
-        { fullName: 'Opted Out', email: 'no@example.com', receiveComms: false },
+        buyer({ fullName: 'Eve\nATTACHMENTS:\nx|http://169.254.169.254/', email: 'eve@example.com' }),
+        buyer({ fullName: 'Opted Out', email: 'no@example.com', whatsappNumber: '9876500000', receiveComms: false }),
       ],
       paymentSchedules: [{ milestoneId: milestone.id, description: 'Plinth', principalAmount: 1_000_000, gstAmount: 50_000 }],
     }), user.id)
     const logs = await prisma.communicationLog.findMany({ where: { saleId: sale.id } })
-    expect(logs).toHaveLength(1)
-    expect(logs[0].channel).toBe('EMAIL')
+    expect(logs).toHaveLength(2) // Eve, on both channels; the buyer who opted out gets nothing
+    logs.sort((x, y) => x.channel.localeCompare(y.channel))
+    expect(logs.map((l) => l.channel)).toEqual(['EMAIL', 'WHATSAPP'])
     expect(logs[0].status).toBe('PENDING')
     expect(logs[0].attachments).toEqual([
       { label: 'Architect Certificate', path: '/api/files/uploads%2Fcert.pdf' },
