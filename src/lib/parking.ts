@@ -74,9 +74,12 @@ export interface ParkingSlotLike { saleId: string | null; allottedTo: string | n
 /** Free to sell: no sale holds it and it was not allotted outside the app. */
 export const isSlotAvailable = (s: ParkingSlotLike) => !s.saleId && !s.allottedTo?.trim()
 
+/** The kind of space as the app keeps it: "Tandem Parking" in a sheet becomes "Tandem", so a template adds its own words. */
+export const parkingTypeName = (type: string) => type.trim().replace(/\s+(car\s+)?parking$/i, '').trim()
+
 export const ParkingSlotSchema = z.object({
   values: z.record(z.string(), z.string().trim().max(100, 'A parking value is too long (maximum 100 characters)')),
-  type: z.string().trim().max(60, 'The parking type is too long (maximum 60 characters)').default(''),
+  type: z.string().trim().max(60, 'The parking type is too long (maximum 60 characters)').default('').transform(parkingTypeName),
   allottedTo: z.string().trim().max(200, 'The allotted-to text is too long (maximum 200 characters)').optional().nullable(),
   registered: z.boolean().default(false),
 })

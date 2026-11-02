@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest'
 import { buildSlots, columnNames, findBlocks, suggestTarget } from '@/lib/parking-import'
-import { NO_CHOICE, NO_VALUE, choose, explicitPick, fieldKey, isSlotAvailable, pickText, pickedSlot, typesFitting, valuesFor, legacyParkingTexts, parkingFieldsProblem, slotLabel, slotStatus, slotUniqueKey } from '@/lib/parking'
+import { NO_CHOICE, NO_VALUE, choose, explicitPick, fieldKey, isSlotAvailable, pickText, pickedSlot, typesFitting, valuesFor, legacyParkingTexts, parkingFieldsProblem, slotLabel, parkingTypeName, slotStatus, slotUniqueKey } from '@/lib/parking'
 import { findTagIssues } from '@/lib/template-tags'
 import { buildSalePayload } from '@/lib/documents/payload'
 
@@ -88,7 +88,7 @@ describe('reading a parking sheet', () => {
     const { slots, errors } = buildSlots(findBlocks(sheet), fields, mapping)
     expect(errors).toEqual([])
     expect(slots).toHaveLength(5)
-    expect(slots[2]).toMatchObject({ values: { level: 'Ground Floor Parking', number: '3' }, type: 'Stack Parking', allottedTo: 'SHOP 05', registered: true })
+    expect(slots[2]).toMatchObject({ values: { level: 'Ground Floor Parking', number: '3' }, type: 'Stack', allottedTo: 'SHOP 05', registered: true })
     expect(slots[0]).toMatchObject({ allottedTo: null, registered: false })
     expect(slots[4]).toMatchObject({ values: { level: 'P -1 1st Floor Parking', number: '2' }, allottedTo: 'Bharati Gda' })
   })
@@ -99,7 +99,7 @@ describe('reading a parking sheet', () => {
     expect(errors).toEqual([])
     expect(slots[2].values).toEqual({ floor: 'Ground', level: '-', number: '3' })
     expect(slots[4].values).toEqual({ floor: '1st', level: 'P1', number: '2' })
-    expect(slotLabel(three, slots[4].values, slots[4].type)).toBe('1st, P1, 2 (Surface Parking)')
+    expect(slotLabel(three, slots[4].values, slots[4].type)).toBe('1st, P1, 2 (Surface)')
   })
   it('says which row is wrong, and never lets two rows be the same space', () => {
     const twice = [...sheet, ['2', 'Surface Parking', '', '']]
@@ -188,5 +188,14 @@ describe('choosing a space detail by detail', () => {
     const odd: { id: string; values: Record<string, string>; type: string }[] = [{ id: 'x', values: { floor: '1st', number: '9' }, type: '' }, { id: 'y', values: { floor: '1st', level: 'P1', number: '8' }, type: '' }]
     expect(valuesFor(odd, { floor: '1st' }, 'level').map(pickText)).toEqual(['—', 'P1'])
     expect(pickedSlot(odd, three, choose(odd, three, choose(odd, three, NO_CHOICE, 'floor', '1st'), 'level', NO_VALUE).pick)?.id).toBe('x')
+  })
+})
+
+describe('parkingTypeName', () => {
+  it('keeps only the kind of space', () => {
+    expect(parkingTypeName('Tandem Parking')).toBe('Tandem')
+    expect(parkingTypeName(' Surface car parking ')).toBe('Surface')
+    expect(parkingTypeName('Stack')).toBe('Stack')
+    expect(parkingTypeName('')).toBe('')
   })
 })

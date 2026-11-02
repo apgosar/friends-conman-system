@@ -1,4 +1,4 @@
-import { slotUniqueKey, cleanValues, type ParkingFieldDef, type ParkingValues } from '@/lib/parking'
+import { slotUniqueKey, cleanValues, parkingTypeName, type ParkingFieldDef, type ParkingValues } from '@/lib/parking'
 
 /**
  * Reading a parking sheet. Sheets differ from project to project, so the reader makes no assumption about the columns: it finds the
@@ -121,7 +121,7 @@ export function buildSlots(blocks: SheetBlock[], fields: ParkingFieldDef[], mapp
         const text = (row.cells[c] ?? '').trim()
         if (!text) return
         if (t.kind === 'field') { if (keys.has(t.key)) values[t.key] = text }
-        else if (t.kind === 'type') type = text
+        else if (t.kind === 'type') type = parkingTypeName(text)
         else if (t.kind === 'allottedTo') allottedTo = text
         else if (t.kind === 'registered') registered = isYes(text)
       })
