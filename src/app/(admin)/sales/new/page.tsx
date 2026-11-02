@@ -2,6 +2,7 @@ import { prisma } from '@/lib/db'
 import TopNav from '@/components/layout/TopNav'
 import NewSaleForm from '@/components/sales/NewSaleForm'
 import { pricingFromProject } from '@/lib/pricing'
+import { slotLabel, type ParkingValues } from '@/lib/parking'
 
 export default async function NewSalePage(props: PageProps<'/sales/new'>) {
   const { inquiryId, unitId } = await props.searchParams
@@ -30,6 +31,9 @@ export default async function NewSalePage(props: PageProps<'/sales/new'>) {
       },
       tenants: true,
       charges: { orderBy: { sequence: 'asc' } },
+      parkingFields: { orderBy: { sequence: 'asc' } },
+      // Only the spaces still free: none sold, none allotted outside the app
+      parkingSlots: { where: { saleId: null, OR: [{ allottedTo: null }, { allottedTo: '' }] }, orderBy: { sequence: 'asc' } },
       company: { select: { partners: { where: { isActive: true }, orderBy: { name: 'asc' }, select: { id: true, name: true } } } },
       paymentPlans: {
         orderBy: { name: 'asc' },
@@ -56,6 +60,8 @@ export default async function NewSalePage(props: PageProps<'/sales/new'>) {
       carParkingCharges: p.carParkingCharges,
       carParkingIncluded: p.carParkingIncluded,
       charges: p.charges.map((c) => ({ name: c.name, amountType: c.amountType, amount: c.amount, appliesTo: c.appliesTo })), // the other charges, due with the last milestone
+      parkingFields: p.parkingFields.map((f) => ({ key: f.key, name: f.name })),
+      parkingSlots: p.parkingSlots.map((s) => ({ id: s.id, label: slotLabel(p.parkingFields, (s.values ?? {}) as ParkingValues, s.type) })),
       partners: p.company.partners, // the active partners a sale agreement can name
       pricing: pricingFromProject(p),
       units,

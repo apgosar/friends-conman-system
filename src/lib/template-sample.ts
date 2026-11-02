@@ -38,6 +38,7 @@ function body(type: string) {
         p('Project: {{projectName}} (RERA {{reraNumber}})'),
         p('Unit: {{unitNumber}}, {{configuration}}, {{carpetArea}} sqft carpet, {{floorOrdinal}} floor, Wing {{wingName}}'),
         p('Agreement value: {{agreementValue}} ({{agreementValueWords}})'),
+        p('{{#hasParking}}Parking: {{parkingSummary}}{{/hasParking}}'),
         p('Purchasers', { bold: true }),
         // Repeats once per buyer
         p('{{#buyers}}{{ordinal}} Purchaser: {{fullName}}, PAN {{panNumber}}, Aadhaar {{aadhaarNumber}}{{/buyers}}'),

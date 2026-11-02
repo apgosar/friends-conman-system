@@ -98,18 +98,59 @@ model Project {
   createdAt            DateTime  @default(now())
   updatedAt            DateTime  @updatedAt
 
-  wings        Wing[]
-  unitTypes    UnitType[]
-  milestones   ConstructionMilestone[]
-  paymentPlans PaymentPlan[]
-  charges      ProjectCharge[]
-  company      Company                 @relation(fields: [companyId], references: [id])
-  templates    Template[]
-  tenants      Tenant[]
-  sales        Sale[]
-  auditLogs    AuditLog[]
+  wings         Wing[]
+  unitTypes     UnitType[]
+  milestones    ConstructionMilestone[]
+  paymentPlans  PaymentPlan[]
+  charges       ProjectCharge[]
+  parkingFields ParkingField[]
+  parkingSlots  ParkingSlot[]
+  company       Company                 @relation(fields: [companyId], references: [id])
+  templates     Template[]
+  tenants       Tenant[]
+  sales         Sale[]
+  auditLogs     AuditLog[]
 
   @@map("projects")
+}
+
+/// A parameter of this project's parking (Floor, Level, Number, Tower, Bay ...). `key` is the camelCase of the name and is the tag name in a template.
+model ParkingField {
+  id        String   @id @default(cuid())
+  projectId String
+  name      String
+  key       String
+  sequence  Int      @default(0)
+  createdAt DateTime @default(now())
+
+  project Project @relation(fields: [projectId], references: [id], onDelete: Cascade)
+
+  @@unique([projectId, key])
+  @@index([projectId])
+  @@map("parking_fields")
+}
+
+/// One parking space. `values` holds {fieldKey: text} for the project's parking fields. It is available when it has no sale and nothing in `allottedTo`.
+model ParkingSlot {
+  id         String   @id @default(cuid())
+  projectId  String
+  values     Json     @default("{}")
+  uniqueKey  String // the values in field order, lower-cased: one space is never listed twice in a project
+  type       String   @default("") // Stack Parking, Surface Parking ...
+  allottedTo String? // allotted outside the app (a shop, a buyer's name): not for sale here
+  registered Boolean  @default(false)
+  saleId     String?
+  sequence   Int      @default(0)
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  project Project @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  sale    Sale?   @relation(fields: [saleId], references: [id], onDelete: SetNull)
+
+  @@unique([projectId, uniqueKey])
+  @@index([projectId])
+  @@index([saleId])
+  @@map("parking_slots")
 }
 
 model Wing {
@@ -260,6 +301,7 @@ model Sale {
   documents         Document[]
   communicationLogs CommunicationLog[]
   loans             Loan[]
+  parkingSlots      ParkingSlot[]
 
   @@index([projectId])
   @@index([unitId])

@@ -5,6 +5,7 @@ import EditProjectForm from '@/components/projects/EditProjectForm'
 import EditProjectTabs from '@/components/projects/EditProjectTabs'
 import OtherChargesPanel from '@/components/projects/OtherChargesPanel'
 import InterestPanel from '@/components/projects/InterestPanel'
+import ParkingFieldsPanel from '@/components/projects/ParkingFieldsPanel'
 import { plain } from '@/lib/plain'
 
 export default async function EditProjectPage(props: PageProps<'/projects/[id]/edit'>) {
@@ -12,6 +13,7 @@ export default async function EditProjectPage(props: PageProps<'/projects/[id]/e
   const project = await prisma.project.findUnique({ where: { id } })
   if (!project) notFound()
   const charges = await prisma.projectCharge.findMany({ where: { projectId: id }, orderBy: { sequence: 'asc' } })
+  const parkingFields = await prisma.parkingField.findMany({ where: { projectId: id }, orderBy: { sequence: 'asc' } })
   const companies = await prisma.company.findMany({ orderBy: { name: 'asc' }, select: { id: true, name: true, contactNumbers: true } })
 
   return (
@@ -21,6 +23,7 @@ export default async function EditProjectPage(props: PageProps<'/projects/[id]/e
         <EditProjectTabs
           projectId={id}
           details={<EditProjectForm project={plain(project)} companies={companies} />}
+          parking={<ParkingFieldsPanel projectId={id} initial={parkingFields.map((f) => ({ name: f.name, key: f.key }))} />}
           interest={
             <InterestPanel
               projectId={id}

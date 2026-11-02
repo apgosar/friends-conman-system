@@ -48,9 +48,10 @@ export const TAG_GROUPS: TagGroup[] = [
     { tag: 'premisesType', desc: 'Residential or Commercial' },
     { tag: 'carParkingCount', desc: 'Number of car parks sold', types: NOT_RECEIPT },
     { tag: 'hasParking', desc: 'Section: {{#hasParking}} … {{/hasParking}} shows its content only when a car park is sold', types: NOT_RECEIPT },
-    { tag: 'parkingPodiumLevel', desc: 'Parking podium level', types: NOT_RECEIPT },
-    { tag: 'parkingFloor', desc: 'Parking floor', types: NOT_RECEIPT },
-    { tag: 'parkingNumber', desc: 'Parking number', types: NOT_RECEIPT },
+    { tag: 'parkingPodiumLevel', desc: 'Parking level, e.g. "P-1", from the parking detail named Level (older sales: as typed). Several spaces: separated by commas', types: NOT_RECEIPT },
+    { tag: 'parkingFloor', desc: 'Parking floor, from the parking detail named Floor (older sales: as typed)', types: NOT_RECEIPT },
+    { tag: 'parkingNumber', desc: 'Parking number, from the parking detail named Number (older sales: as typed)', types: NOT_RECEIPT },
+    { tag: 'parkingSummary', desc: 'Every parking space of the sale in one line, e.g. "P -1 1st Floor Parking, 2 (Surface Parking); P -1 1st Floor Parking, 3 (Surface Parking)"', types: NOT_RECEIPT },
   ] },
   { group: 'Primary buyer', tags: [
     { tag: 'buyer1Name', desc: 'Primary buyer name' },
@@ -153,6 +154,10 @@ export const LOOPS: LoopDef[] = [
     { tag: 'whatsappNumber', desc: 'WhatsApp number' }, { tag: 'address', desc: 'Address' }, { tag: 'isPrimary', desc: 'Yes / No' },
     { tag: 'hasNext', desc: 'Section: {{#hasNext}}; {{/hasNext}} shows its content for every buyer but the last' },
   ] },
+  { name: 'parkingSlots', desc: 'One block per parking space of the sale. Besides these, each parking detail of the project (shown on its Parking page, e.g. level, number) is a tag inside the block', fields: [
+    { tag: 'index', desc: 'Number (1, 2…)' }, { tag: 'label', desc: 'The space in words: its details joined with commas' }, { tag: 'type', desc: 'Type of parking (Stack, Surface…)' },
+    { tag: 'hasNext', desc: 'Section: {{#hasNext}}; {{/hasNext}} shows its content for every space but the last' },
+  ] },
   { name: 'partners', desc: 'One block per partner chosen for the agreement', fields: [
     { tag: 'index', desc: 'Number (1, 2)' }, { tag: 'ordinal', desc: '1st, 2nd' }, { tag: 'name', desc: 'Name' },
     { tag: 'address', desc: 'Address' }, { tag: 'panNumber', desc: 'PAN' },
@@ -224,6 +229,7 @@ export function findTagIssues(text: string, type: string, format: 'DOCX' | 'HTML
 
     const loop = stack.length ? stack[stack.length - 1] : null
     if (loop && loopFields.get(loop)?.has(name)) continue // a field of the surrounding loop
+    if (loop === 'parkingSlots') continue // a parking detail of the project: its name is chosen per project, so any name is accepted
     if (name === '.' || name === 'this') continue
     if (!allPaths.has(name)) unknown.add(name)
     else if (!availablePaths.has(name)) wrongType.add(name)

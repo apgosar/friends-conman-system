@@ -186,6 +186,13 @@ export const KYC_STATUS: Record<string, StatusStyle> = {
   REJECTED: { label: 'Rejected', badge: 'badge-danger' },
 }
 
+/** Where a parking space stands: free to sell, sold in the app, or allotted outside it. */
+export const PARKING_STATUS: Record<string, StatusStyle> = {
+  AVAILABLE: { label: 'Available', badge: 'badge-success' },
+  SOLD:      { label: 'Sold',      badge: 'badge-info' },
+  ALLOTTED:  { label: 'Allotted',  badge: 'badge-warning' },
+}
+
 // ── Projects ───────────────────────────────────────────────────────────────────
 
 export const PROJECT_STATUS: Record<string, StatusStyle> = {

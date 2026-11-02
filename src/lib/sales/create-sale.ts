@@ -11,6 +11,7 @@ import { PHONE_ERROR, normalizePhone } from '@/lib/phone'
 import { PAN_ERROR, PAN_PATTERN } from '@/lib/companies'
 import { AADHAAR_ERROR, EMAIL_ERROR } from '@/lib/buyers'
 import { activeSale } from '@/lib/soft-delete'
+import { claimParkingSlots } from '@/lib/parking-sale'
 import { NOT_FOR_SALE_STATUS, UNSOLD_UNIT_STATUSES, unitStatusLabel } from '@/lib/status'
 import { redact } from '@/lib/redact'
 import { formatDate, formatNumber, formatRupees } from '@/lib/format'
@@ -62,6 +63,7 @@ export const SaleCreateSchema = z.object({
   parkingPodiumLevel: z.string().optional().nullable(),
   parkingFloor: z.string().optional().nullable(),
   parkingNumber: z.string().optional().nullable(),
+  parkingSlotIds: z.array(z.string().min(1)).max(20).optional(), // the spaces chosen from the project's parking list
   bookingAmount: zMoney.optional().nullable(),
   bookingDate: z.string().refine((v) => !isNaN(Date.parse(v)), 'Invalid bookingDate'),
   buyers: z.array(SaleBuyerSchema).min(1, 'At least one buyer is required'),
@@ -163,6 +165,7 @@ export async function createSale(input: SaleCreateInput, actorId: string) {
       },
     })
 
+    if (input.parkingSlotIds?.length) { const refused = await claimParkingSlots(tx, { projectId: input.projectId, saleId: newSale.id, slotIds: input.parkingSlotIds, count: carParkingCount }); if (refused) throw new SaleError(refused, 409) }
     await tx.buyer.createMany({
       data: input.buyers.map((b, i) => ({
         saleId: newSale.id, fullName: b.fullName, email: b.email || null,

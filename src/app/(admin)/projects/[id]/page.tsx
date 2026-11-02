@@ -82,6 +82,7 @@ export default async function ProjectDetailPage(props: PageProps<'/projects/[id]
             <>
               <ButtonLink href={`/projects/${id}/edit`} variant="primary">Edit Project</ButtonLink>
               {isSuperAdmin && <ButtonLink href={`/projects/${id}/structure`}>Building Setup</ButtonLink>}
+              <ButtonLink href={`/projects/${id}/parking`}>Parking</ButtonLink>
               <ButtonLink href={`/projects/${id}/payment-plan`}>Payment Plans</ButtonLink>
               <ButtonLink href={`/projects/${id}/milestones`}>Milestones</ButtonLink>
               <ButtonLink href={`/projects/${id}/templates`}>Templates</ButtonLink>

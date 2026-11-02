@@ -7,6 +7,7 @@ import { dateOfDay, interestNote, interestPolicyOf, interestStartDay, standingOf
 import { formatPhoneList } from '@/lib/phone'
 import { revealPii } from '@/lib/pii' // agreements carry the real numbers; nothing else does
 import { computeOtherCharges, rsText, type ChargeItem } from '@/lib/other-charges'
+import { legacyParkingTexts, slotLabel, type ParkingValues } from '@/lib/parking'
 
 /**
  * The data every document template can use ({{tags}}), built in ONE place for sale agreements, demand letters and
@@ -100,6 +101,14 @@ export function buildSalePayload(sale: SaleForDocument, partners: PartnerForDocu
   const otherCharges: { items: ChargeItem[]; total: number } = Array.isArray(sale.otherCharges)
     ? { items: sale.otherCharges as unknown as ChargeItem[], total: sumRupees((sale.otherCharges as unknown as ChargeItem[]).map((c) => c.amount)) }
     : computeOtherCharges(project.charges ?? [], { carpetAreaSqft: unit.carpetAreaSqft, commercial })
+  // The parking spaces the sale took from the project's list; a sale from before the list reads its own text fields instead
+  const parkingFields = project.parkingFields ?? []
+  const parkingSlots = (sale.parkingSlots ?? []).map((s) => {
+    const values = (s.values ?? {}) as ParkingValues
+    // Every parking detail of the project is a tag, blank when the space has no value for it
+    return { values: Object.fromEntries(parkingFields.map((f) => [f.key, values[f.key] ?? ''])), label: slotLabel(parkingFields, values), type: s.type }
+  })
+  const parkingTexts = legacyParkingTexts((sale.parkingSlots ?? []).map((s) => ({ values: (s.values ?? {}) as ParkingValues })))
   const buyerNames = joinNames(buyers.map((b) => b.fullName))
   const balanceAfterAdvance = agreement - advance
 
@@ -155,9 +164,11 @@ export function buildSalePayload(sale: SaleForDocument, partners: PartnerForDocu
     stampDuty: formatMoney(sale.stampDuty),
     registrationCharges: formatMoney(sale.registrationCharges),
     carParkingCharges: formatMoney(sale.carParkingCharges),
-    parkingPodiumLevel: sale.parkingPodiumLevel ?? '',
-    parkingFloor: sale.parkingFloor ?? '',
-    parkingNumber: sale.parkingNumber ?? '',
+    parkingPodiumLevel: parkingTexts.podiumLevel || (sale.parkingPodiumLevel ?? ''),
+    parkingFloor: parkingTexts.floor || (sale.parkingFloor ?? ''),
+    parkingNumber: parkingTexts.number || (sale.parkingNumber ?? ''),
+    parkingSummary: parkingSlots.map((s) => s.label).join('; '),
+    parkingSlots: parkingSlots.map((s, i) => ({ ...s.values, index: i + 1, label: s.label, type: s.type, hasNext: i < parkingSlots.length - 1 })),
     bookingAmount: formatMoney(bookingAmount),
     bookingAmountWords: numberToWords(bookingAmount),
     balanceAmount: formatMoney(agreement - bookingAmount),

@@ -20,6 +20,7 @@ import AnonymizeBuyerButton from '@/components/sales/AnonymizeBuyerButton'
 import BuyerCard from '@/components/sales/BuyerCard'
 import { SCHEDULE_ORDER, isOfflineCharge } from '@/lib/payment-plans'
 import { floorLabel } from '@/lib/building-structure'
+import { slotLabel, type ParkingValues } from '@/lib/parking'
 import { interestPolicyOf, standingOfSchedule, withInterestPolicy } from '@/lib/interest'
 import { Badge, ButtonLink, Card, CardHeader, PageHeader, StatusBadge } from '@/components/ui'
 
@@ -27,7 +28,8 @@ async function getSale(id: string) {
   return prisma.sale.findUnique({
     where: { id },
     include: {
-      project: true,
+      project: { include: { parkingFields: { orderBy: { sequence: 'asc' } } } },
+      parkingSlots: { orderBy: { sequence: 'asc' } },
       unit: { include: { floor: { include: { wing: true } } } },
       buyers: { orderBy: { sequence: 'asc' } },
       paymentSchedules: {
@@ -64,6 +66,10 @@ export default async function SaleDetailPage(props: PageProps<'/sales/[id]'>) {
   const tdsLimit = tdsLimitOf(Number(sale.agreementValue), sale.project.tdsRatePercent)
   // What the sale comes to in all, and what has actually fallen due so far (demands still upcoming are not due yet).
   // Stamp duty and registration are paid outside the application, so they are never part of what is due or outstanding.
+  // Where the car parks are: the spaces taken from the project's list, else what was typed when the sale was made
+  const parkingText = sale.parkingSlots.length > 0
+    ? sale.parkingSlots.map((s) => slotLabel(sale.project.parkingFields, (s.values ?? {}) as ParkingValues, s.type)).join('; ')
+    : [sale.parkingPodiumLevel, sale.parkingFloor, sale.parkingNumber].filter(Boolean).join(' · ') || `${sale.carParkingCount} car ${sale.carParkingCount === 1 ? 'park' : 'parks'}`
   const saleTotal = sale.paymentSchedules.reduce((sum, s) => sum + Number(s.principalAmount) + Number(s.gstAmount ?? 0), 0)
   const raised = sale.paymentSchedules.filter((s) => s.status !== 'UPCOMING' && !isOfflineCharge(s.description))
   const principalDue = raised.reduce((sum, s) => sum + Number(s.principalAmount), 0)
@@ -138,6 +144,7 @@ export default async function SaleDetailPage(props: PageProps<'/sales/[id]'>) {
                 ['Stamp Duty', sale.stampDuty ? formatCurrency(Number(sale.stampDuty)) : '—'],
                 ['Reg. Charges', sale.registrationCharges ? formatCurrency(Number(sale.registrationCharges)) : '—'],
                 ['Total', formatCurrency(saleTotal), 'kv-row-total'],
+                ...(sale.carParkingCount > 0 ? [['Parking', parkingText]] : []),
                 ['Booking Date', formatDate(sale.bookingDate)],
                 ['Agreement Date', sale.agreementDate ? formatDate(sale.agreementDate) : 'Pending'],
                 ['Handover Date', sale.possessionDate ? formatDate(sale.possessionDate) : 'Pending'],

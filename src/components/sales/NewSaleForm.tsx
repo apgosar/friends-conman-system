@@ -42,7 +42,7 @@ function validatePhone(phone: string) {
 }
 
 type PlanOption = PlanSummary & { bookingPercent: number; items: { milestoneId: string; name: string; sequence: number; percentOfAV: number; status: string }[] }
-type ParkingSlot = { podium: string; floor: string; number: string }
+type ParkingSlot = { podium: string; floor: string; number: string; slotId: string }
 type Buyer = { fullName: string; panNumber: string; aadhaarNumber: string; address: string; email: string; whatsappNumber: string }
 // The stamp duty + registration row has no milestone: it is demanded by hand from the sale page
 type ScheduleRow = { milestoneId: string; description: string; principalAmount: number; gstAmount: number; isBooking?: boolean; sequence: number; percentOfAV?: number }
@@ -102,11 +102,14 @@ export default function NewSaleWizard({ projects, prefill = null, preselect = nu
   const [agreementValue, setAgreementValue] = useState(prefill?.agreementValue ?? 10000000)
   const [bookingAmount, setBookingAmount] = useState<number | ''>('')
   // Car parking: how many, whether it is inside the agreement value, and where each one is
-  const emptySlot = (): ParkingSlot => ({ podium: '', floor: '', number: '' })
+  const emptySlot = (): ParkingSlot => ({ podium: '', floor: '', number: '', slotId: '' })
   const [parkingSlots, setParkingSlots] = useState<ParkingSlot[]>(prefill?.carParking ? [emptySlot()] : [])
   const carParkingCount = parkingSlots.length
   const parkingIncluded: boolean = selectedProject?.carParkingIncluded ?? false // a project setting
   const carParking = carParkingCount > 0
+  // A project with a parking list sells from it: each space is chosen from those still free, so none is sold twice
+  const availableSlots: { id: string; label: string }[] = selectedProject?.parkingSlots ?? []
+  const hasParkingList = (selectedProject?.parkingFields?.length ?? 0) > 0
   const setParkingCount = (n: number) => setParkingSlots(prev => (n <= prev.length ? prev.slice(0, n) : [...prev, ...Array.from({ length: n - prev.length }, emptySlot)]))
   const updateSlot = (i: number, field: keyof ParkingSlot, value: string) => setParkingSlots(prev => prev.map((p, k) => (k === i ? { ...p, [field]: value } : p)))
   const [bookingDate, setBookingDate] = useState(new Date().toISOString().split('T')[0])
@@ -328,6 +331,7 @@ export default function NewSaleWizard({ projects, prefill = null, preselect = nu
       if (validatePhone(b.whatsappNumber) || !normalizePhone(b.whatsappNumber).ok || !(normalizePhone(b.whatsappNumber) as { value: string | null }).value) errs[`buyer-${i}-whatsappNumber`] = PHONE_ERROR
       if (!b.address.trim()) errs[`buyer-${i}-address`] = 'Please enter the address'
     })
+    if (hasParkingList) parkingSlots.forEach((slot, i) => { if (!slot.slotId) errs[`parking-${i}`] = 'Please choose the parking space' })
     setFieldErrors(errs)
     if (Object.keys(errs).length > 0) { scrollToFirstInvalid(); return }
     if (!paymentPlan) { setError('There is no payment plan for this sale type and unit type. Add one under Payment Plans first'); return }
@@ -373,9 +377,9 @@ export default function NewSaleWizard({ projects, prefill = null, preselect = nu
         carParking,
         carParkingCount,
         carParkingCharges: parkingCost,
-        parkingPodiumLevel: joinSlots(parkingSlots, 'podium'),
-        parkingFloor: joinSlots(parkingSlots, 'floor'),
-        parkingNumber: joinSlots(parkingSlots, 'number'),
+        ...(hasParkingList
+          ? { parkingSlotIds: parkingSlots.map(p => p.slotId) } // the server fills the agreement's parking text from the chosen spaces
+          : { parkingPodiumLevel: joinSlots(parkingSlots, 'podium'), parkingFloor: joinSlots(parkingSlots, 'floor'), parkingNumber: joinSlots(parkingSlots, 'number') }),
         bookingAmount: bookingAmount !== '' ? Number(bookingAmount) : undefined,
         bookingDate,
         inquiryId: prefill?.inquiryId,
@@ -630,7 +634,23 @@ export default function NewSaleWizard({ projects, prefill = null, preselect = nu
                 </p>
               )}
               {parkingIncluded && <p className="mb-3 text-base text-muted">Parking is included in the agreement value for this project, so no parking amount is added to this sale.</p>}
-              {parkingSlots.map((slot, i) => (
+              {hasParkingList && carParkingCount > availableSlots.length && (
+                <Alert variant="warning" className="mb-3">Only {availableSlots.length} parking {availableSlots.length === 1 ? 'space is' : 'spaces are'} available in this project</Alert>
+              )}
+              {parkingSlots.map((slot, i) => hasParkingList ? (
+                <SelectField
+                  key={i}
+                  label={carParkingCount > 1 ? `Parking ${i + 1}` : 'Parking space'}
+                  required
+                  value={slot.slotId}
+                  error={fieldErrors[`parking-${i}`]}
+                  onChange={e => { updateSlot(i, 'slotId', e.target.value); clearFieldError(`parking-${i}`) }}
+                  wrapperClassName="mb-4"
+                >
+                  <option value="">Choose a parking space</option>
+                  {availableSlots.filter(a => a.id === slot.slotId || !parkingSlots.some(o => o.slotId === a.id)).map(a => <option key={a.id} value={a.id}>{a.label}</option>)}
+                </SelectField>
+              ) : (
                 <div key={i} className="grid grid-3 gap-4 mb-4">
                   <TextField label={carParkingCount > 1 ? `Parking ${i + 1}: podium level` : 'Podium Floor Level'} value={slot.podium} onChange={e => updateSlot(i, 'podium', e.target.value)} placeholder="e.g. Podium 1" />
                   <TextField label="Floor" value={slot.floor} onChange={e => updateSlot(i, 'floor', e.target.value)} placeholder="e.g. Ground" />

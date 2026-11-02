@@ -41,6 +41,9 @@ export const softDelete = {
         data: { deletedAt: new Date(), status: 'CANCELLED' },
       })
 
+      // Its parking spaces are free to sell again
+      await tx.parkingSlot.updateMany({ where: { saleId: id }, data: { saleId: null } })
+
       // The inquiry this sale was converted from is open again, so it can be re-converted
       await tx.inquiry.updateMany({
         where: { convertedSaleId: id, status: 'CONVERTED' },
