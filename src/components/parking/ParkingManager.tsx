@@ -6,7 +6,7 @@ import { useRouter } from 'next/navigation'
 import { Alert, Button, Card, CardHeader, CheckboxField, EmptyRow, FilterChips, Modal, SelectField, StatCard, StatusBadge, Table, Td, TextField, useConfirm, useToast } from '@/components/ui'
 import { errorMessage, fetchJson, jsonRequest } from '@/lib/client/api'
 import { plural } from '@/lib/errors'
-import { slotLabel, slotStatus, type ParkingFieldDef, type ParkingValues } from '@/lib/parking'
+import { compareText, slotLabel, slotStatus, type ParkingFieldDef, type ParkingValues } from '@/lib/parking'
 
 export interface ParkingRow {
   id: string
@@ -28,6 +28,7 @@ export default function ParkingManager({ projectId, fields, rows, canEdit }: { p
   const toast = useToast()
   const confirm = useConfirm()
   const [filter, setFilter] = useState<Filter>('ALL')
+  const [detailFilter, setDetailFilter] = useState<Record<string, string>>({}) // parking detail key -> the value shown ('' = all)
   const [editing, setEditing] = useState<{ id: string | null; draft: Draft } | null>(null)
   const [error, setError] = useState('')
   const [saving, setSaving] = useState(false)
@@ -37,7 +38,17 @@ export default function ParkingManager({ projectId, fields, rows, canEdit }: { p
     for (const r of rows) c[slotStatus({ saleId: r.sale?.id ?? null, allottedTo: r.allottedTo })]++
     return c
   }, [rows])
-  const shown = rows.filter((r) => filter === 'ALL' || slotStatus({ saleId: r.sale?.id ?? null, allottedTo: r.allottedTo }) === filter)
+  // A filter for each parking detail that has a few different values (Floor, Level, Tower...). A detail that is a number, such as the parking
+  // number, has a value per space, so a filter on it would be a list of every space: it gets none.
+  const detailFilters = useMemo(() => fields.flatMap((f) => {
+    const values = [...new Set(rows.map((r) => (r.values[f.key] ?? '').trim()).filter(Boolean))]
+    if (values.length < 2 || values.every((v) => /^d+$/.test(v))) return []
+    return [{ field: f, values: values.sort(compareText) }]
+  }), [fields, rows])
+  const byDetail = rows.filter((r) => detailFilters.every(({ field }) => !detailFilter[field.key] || (r.values[field.key] ?? '').trim() === detailFilter[field.key]))
+  const statusOf = (r: ParkingRow) => slotStatus({ saleId: r.sale?.id ?? null, allottedTo: r.allottedTo })
+  const shownCounts = { ALL: byDetail.length, AVAILABLE: byDetail.filter((r) => statusOf(r) === 'AVAILABLE').length, SOLD: byDetail.filter((r) => statusOf(r) === 'SOLD').length, ALLOTTED: byDetail.filter((r) => statusOf(r) === 'ALLOTTED').length }
+  const shown = byDetail.filter((r) => filter === 'ALL' || statusOf(r) === filter)
 
   const open = (row?: ParkingRow) => {
     setError('')
@@ -106,8 +117,18 @@ export default function ParkingManager({ projectId, fields, rows, canEdit }: { p
             label="Show"
             value={filter}
             onChange={setFilter}
-            options={[{ value: 'ALL', label: `All (${counts.ALL})` }, { value: 'AVAILABLE', label: `Available (${counts.AVAILABLE})` }, { value: 'SOLD', label: `Sold (${counts.SOLD})` }, { value: 'ALLOTTED', label: `Allotted (${counts.ALLOTTED})` }]}
+            options={[{ value: 'ALL', label: `All (${shownCounts.ALL})` }, { value: 'AVAILABLE', label: `Available (${shownCounts.AVAILABLE})` }, { value: 'SOLD', label: `Sold (${shownCounts.SOLD})` }, { value: 'ALLOTTED', label: `Allotted (${shownCounts.ALLOTTED})` }]}
           />
+          {detailFilters.length > 0 && (
+            <div className="grid grid-3 gap-3 mt-3">
+              {detailFilters.map(({ field, values }) => (
+                <SelectField key={field.key} label={field.name} value={detailFilter[field.key] ?? ''} onChange={(e) => setDetailFilter((m) => ({ ...m, [field.key]: e.target.value }))}>
+                  <option value="">All</option>
+                  {values.map((v) => <option key={v} value={v}>{v}</option>)}
+                </SelectField>
+              ))}
+            </div>
+          )}
         </div>
         <Table stack flush>
           <thead>

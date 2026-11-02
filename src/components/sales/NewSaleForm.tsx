@@ -42,7 +42,7 @@ function validatePhone(phone: string) {
 }
 
 type PlanOption = PlanSummary & { bookingPercent: number; items: { milestoneId: string; name: string; sequence: number; percentOfAV: number; status: string }[] }
-type ParkingSlot = { podium: string; floor: string; number: string; slotId: string }
+type ParkingSlot = { podium: string; floor: string; number: string; choice: Choice }
 type Buyer = { fullName: string; panNumber: string; aadhaarNumber: string; address: string; email: string; whatsappNumber: string }
 // The stamp duty + registration row has no milestone: it is demanded by hand from the sale page
 type ScheduleRow = { milestoneId: string; description: string; principalAmount: number; gstAmount: number; isBooking?: boolean; sequence: number; percentOfAV?: number }
@@ -55,6 +55,7 @@ import { ApiError, errorMessage, fetchJson, jsonRequest } from '@/lib/client/api
 import KycPasswordModal from './KycPasswordModal'
 import NameMismatchModal from './NameMismatchModal'
 import { namesMatch } from '@/lib/names'
+import { NO_CHOICE, choose, explicitPick, pickedSlot, pickText, typesFitting, valuesFor, type Choice, type PickSlot } from '@/lib/parking'
 import { formatCurrency } from '@/lib/format'
 
 // ─── Main Wizard ─────────────────────────────────────────────
@@ -69,7 +70,7 @@ const unitsGroupedByWing = (units: any[]): [string, any[]][] => {
 }
 
 // One value per parking space, written once each: "P-45, P-46"
-const joinSlots = (slots: ParkingSlot[], field: keyof ParkingSlot) => Array.from(new Set(slots.map(p => p[field].trim()).filter(Boolean))).join(', ') || undefined
+const joinSlots = (slots: ParkingSlot[], field: 'podium' | 'floor' | 'number') => Array.from(new Set(slots.map(p => p[field].trim()).filter(Boolean))).join(', ') || undefined
 
 type Prefill = { inquiryId: string; projectId: string; unitId: string; agreementValue: number; carParking: boolean; buyerName: string; mobileNumber: string } | null
 
@@ -102,16 +103,21 @@ export default function NewSaleWizard({ projects, prefill = null, preselect = nu
   const [agreementValue, setAgreementValue] = useState(prefill?.agreementValue ?? 10000000)
   const [bookingAmount, setBookingAmount] = useState<number | ''>('')
   // Car parking: how many, whether it is inside the agreement value, and where each one is
-  const emptySlot = (): ParkingSlot => ({ podium: '', floor: '', number: '', slotId: '' })
+  const emptySlot = (): ParkingSlot => ({ podium: '', floor: '', number: '', choice: NO_CHOICE })
   const [parkingSlots, setParkingSlots] = useState<ParkingSlot[]>(prefill?.carParking ? [emptySlot()] : [])
   const carParkingCount = parkingSlots.length
   const parkingIncluded: boolean = selectedProject?.carParkingIncluded ?? false // a project setting
   const carParking = carParkingCount > 0
   // A project with a parking list sells from it: each space is chosen from those still free, so none is sold twice
-  const availableSlots: { id: string; label: string }[] = selectedProject?.parkingSlots ?? []
-  const hasParkingList = (selectedProject?.parkingFields?.length ?? 0) > 0
+  const availableSlots: PickSlot[] = selectedProject?.parkingSlots ?? []
+  const parkingFields: { key: string; name: string }[] = selectedProject?.parkingFields ?? []
+  const hasParkingList = parkingFields.length > 0
+  // The space each car park points to once every detail has a value; a space chosen for one car park is not offered for another
+  const slotIdOf = (slot: ParkingSlot) => pickedSlot(availableSlots, parkingFields, slot.choice.pick)?.id ?? ''
+  const freeFor = (i: number) => availableSlots.filter(a => !parkingSlots.some((o, k) => k !== i && slotIdOf(o) === a.id))
+  const chooseDetail = (i: number, key: string, value: string) => setParkingSlots(prev => prev.map((p, k) => (k === i ? { ...p, choice: choose(freeFor(i), parkingFields, p.choice, key, value) } : p)))
   const setParkingCount = (n: number) => setParkingSlots(prev => (n <= prev.length ? prev.slice(0, n) : [...prev, ...Array.from({ length: n - prev.length }, emptySlot)]))
-  const updateSlot = (i: number, field: keyof ParkingSlot, value: string) => setParkingSlots(prev => prev.map((p, k) => (k === i ? { ...p, [field]: value } : p)))
+  const updateSlot = (i: number, field: 'podium' | 'floor' | 'number', value: string) => setParkingSlots(prev => prev.map((p, k) => (k === i ? { ...p, [field]: value } : p)))
   const [bookingDate, setBookingDate] = useState(new Date().toISOString().split('T')[0])
   const [buyers, setBuyers] = useState<Buyer[]>([prefill ? { ...emptyBuyer(), fullName: prefill.buyerName, whatsappNumber: prefill.mobileNumber } : emptyBuyer()])
 
@@ -331,7 +337,7 @@ export default function NewSaleWizard({ projects, prefill = null, preselect = nu
       if (validatePhone(b.whatsappNumber) || !normalizePhone(b.whatsappNumber).ok || !(normalizePhone(b.whatsappNumber) as { value: string | null }).value) errs[`buyer-${i}-whatsappNumber`] = PHONE_ERROR
       if (!b.address.trim()) errs[`buyer-${i}-address`] = 'Please enter the address'
     })
-    if (hasParkingList) parkingSlots.forEach((slot, i) => { if (!slot.slotId) errs[`parking-${i}`] = 'Please choose the parking space' })
+    if (hasParkingList) parkingSlots.forEach((slot, i) => { if (!slotIdOf(slot)) errs[`parking-${i}`] = 'Please choose the parking space' })
     setFieldErrors(errs)
     if (Object.keys(errs).length > 0) { scrollToFirstInvalid(); return }
     if (!paymentPlan) { setError('There is no payment plan for this sale type and unit type. Add one under Payment Plans first'); return }
@@ -378,7 +384,7 @@ export default function NewSaleWizard({ projects, prefill = null, preselect = nu
         carParkingCount,
         carParkingCharges: parkingCost,
         ...(hasParkingList
-          ? { parkingSlotIds: parkingSlots.map(p => p.slotId) } // the server fills the agreement's parking text from the chosen spaces
+          ? { parkingSlotIds: parkingSlots.map(slotIdOf) } // the server fills the agreement's parking text from the chosen spaces
           : { parkingPodiumLevel: joinSlots(parkingSlots, 'podium'), parkingFloor: joinSlots(parkingSlots, 'floor'), parkingNumber: joinSlots(parkingSlots, 'number') }),
         bookingAmount: bookingAmount !== '' ? Number(bookingAmount) : undefined,
         bookingDate,
@@ -638,18 +644,33 @@ export default function NewSaleWizard({ projects, prefill = null, preselect = nu
                 <Alert variant="warning" className="mb-3">Only {availableSlots.length} parking {availableSlots.length === 1 ? 'space is' : 'spaces are'} available in this project</Alert>
               )}
               {parkingSlots.map((slot, i) => hasParkingList ? (
-                <SelectField
-                  key={i}
-                  label={carParkingCount > 1 ? `Parking ${i + 1}` : 'Parking space'}
-                  required
-                  value={slot.slotId}
-                  error={fieldErrors[`parking-${i}`]}
-                  onChange={e => { updateSlot(i, 'slotId', e.target.value); clearFieldError(`parking-${i}`) }}
-                  wrapperClassName="mb-4"
-                >
-                  <option value="">Choose a parking space</option>
-                  {availableSlots.filter(a => a.id === slot.slotId || !parkingSlots.some(o => o.slotId === a.id)).map(a => <option key={a.id} value={a.id}>{a.label}</option>)}
-                </SelectField>
+                <div key={i} className="panel mb-4">
+                  {carParkingCount > 1 && <div className="font-semibold mb-2">Parking {i + 1}</div>}
+                  <div className="grid grid-3 gap-3">
+                    {parkingFields.map((f, fi) => {
+                      const fit = freeFor(i)
+                      const last = fi === parkingFields.length - 1
+                      return (
+                        <SelectField
+                          key={f.key}
+                          label={f.name}
+                          required
+                          value={slot.choice.pick[f.key] ?? ''}
+                          error={last ? fieldErrors[`parking-${i}`] : undefined}
+                          onChange={e => { chooseDetail(i, f.key, e.target.value); clearFieldError(`parking-${i}`) }}
+                          wrapperClassName="mb-0"
+                        >
+                          <option value="">Choose {f.name.toLowerCase()}</option>
+                          {valuesFor(fit, explicitPick(slot.choice), f.key).map(v => {
+                            // The last detail (the number) also says what kind of space it is
+                            const type = last ? typesFitting(fit, { ...explicitPick(slot.choice), [f.key]: v }) : ''
+                            return <option key={v} value={v}>{pickText(v)}{type ? ` · ${type}` : ''}</option>
+                          })}
+                        </SelectField>
+                      )
+                    })}
+                  </div>
+                </div>
               ) : (
                 <div key={i} className="grid grid-3 gap-4 mb-4">
                   <TextField label={carParkingCount > 1 ? `Parking ${i + 1}: podium level` : 'Podium Floor Level'} value={slot.podium} onChange={e => updateSlot(i, 'podium', e.target.value)} placeholder="e.g. Podium 1" />

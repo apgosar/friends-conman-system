@@ -44,7 +44,8 @@ async function readGrid(file: File): Promise<string[][]> {
 
 // POST multipart/form-data: file = the parking sheet (.xlsx).
 //   Without `mapping`: reads the sheet and answers with what it found (the tables, the columns and a guess at what each column is).
-//   With `mapping` (JSON {columns, title}): imports. All or nothing; spaces already in the project are skipped.
+//   With `mapping` (JSON {columns, title, titleValues, replace}): imports. All or nothing; spaces already in the project are skipped,
+//   or, with `replace`, the ones no sale holds are removed first.
 export const POST = route<{ id: string }>('superadmin', async ({ req, params, user }) => {
   const project = await prisma.project.findUnique({ where: { id: params.id }, select: { id: true } })
   if (!project) throw fail('notFound', 'Project not found')
@@ -79,6 +80,8 @@ export const POST = route<{ id: string }>('superadmin', async ({ req, params, us
     const parsed = JSON.parse(rawMapping) as ImportMapping
     if (typeof parsed?.columns !== 'object' || parsed.columns === null || typeof parsed.title !== 'string') throw new Error('shape')
     for (const v of [...Object.values(parsed.columns), parsed.title]) if (typeof v !== 'string' || !parseTarget(v)) throw new Error('target')
+    const tv = parsed.titleValues
+    if (tv !== undefined && (typeof tv !== 'object' || tv === null || Object.values(tv).some((o) => typeof o !== 'object' || o === null || Object.values(o).some((v) => typeof v !== 'string' || v.length > 100)))) throw new Error('titles')
     mapping = parsed
   } catch {
     throw fail('invalid', 'The column choices could not be read. Choose them again')
@@ -90,6 +93,8 @@ export const POST = route<{ id: string }>('superadmin', async ({ req, params, us
   if (errors.length > 0) return apiError('invalid', errors[0], { errors: errors.slice(0, 25), totalErrors: errors.length })
 
   const result = await transaction(async (tx) => {
+    // "Replace": the spaces no sale holds are taken out first, so a list imported the wrong way can be brought in again
+    const removed = mapping.replace === true ? (await tx.parkingSlot.deleteMany({ where: { projectId: params.id, saleId: null } })).count : 0
     const existing = await tx.parkingSlot.findMany({ where: { projectId: params.id }, select: { uniqueKey: true, sequence: true } })
     const taken = new Set(existing.map((s) => s.uniqueKey))
     let sequence = existing.reduce((m, s) => Math.max(m, s.sequence), 0)
@@ -103,7 +108,7 @@ export const POST = route<{ id: string }>('superadmin', async ({ req, params, us
     }
     if (existing.length + data.length > MAX_PARKING_SLOTS) throw fail('invalid', `A project can have at most ${MAX_PARKING_SLOTS} parking spaces`)
     if (data.length > 0) await tx.parkingSlot.createMany({ data })
-    return { created: data.length, skipped: skipped.length }
+    return { created: data.length, skipped: skipped.length, removed }
   })
   await createAuditLog({ userId: user.id, projectId: params.id, entityType: 'parking', entityId: params.id, action: 'imported', newValues: { ...result, file: file.name } })
   return Response.json({ success: true, ...result }, { status: 201 })

@@ -173,6 +173,25 @@ describeDb('importing a parking sheet', () => {
     expect(await prisma.parkingSlot.count()).toBe(5)
   })
 
+  it('can replace a list imported the wrong way, and keeps a space a sale holds', async () => {
+    asRole('SUPER_ADMIN')
+    const { POST } = await import('@/app/api/projects/[id]/parking/import/route')
+    const { prisma, project, units, user } = await setup()
+    const file = await sheetFile()
+    await POST(form(file, mapping), params(project.id)) // the whole title went into Level
+    const { createSale } = await import('@/lib/sales/create-sale')
+    const free = await prisma.parkingSlot.findFirstOrThrow({ where: { allottedTo: null }, orderBy: { sequence: 'asc' } })
+    await createSale(saleInput(project.id, units[0].id, { carParkingCount: 1, parkingSlotIds: [free.id] }), user.id)
+
+    await prisma.parkingField.create({ data: { projectId: project.id, name: 'Floor', key: 'floor', sequence: 2 } })
+    const titled = { columns: mapping.columns, title: 'ignore', replace: true, titleValues: { 'ground floor parking': { floor: 'Ground', level: '-' }, 'p -1 1st floor parking': { floor: '1st', level: 'P1' } } }
+    expect(await (await POST(form(file, titled), params(project.id))).json()).toMatchObject({ created: 5, removed: 4 })
+    const all = await prisma.parkingSlot.findMany({ orderBy: { sequence: 'asc' } })
+    expect(all).toHaveLength(6) // the 4 not sold went; the sold one stayed (its old values), and 5 came in
+    expect(all.filter((s) => (s.values as Record<string, string>).floor === '1st').map((s) => (s.values as Record<string, string>).level)).toEqual(['P1', 'P1'])
+    expect(all.some((s) => s.id === free.id && s.saleId)).toBe(true)
+  })
+
   it('imports nothing when a row is wrong', async () => {
     asRole('SUPER_ADMIN')
     const { POST } = await import('@/app/api/projects/[id]/parking/import/route')

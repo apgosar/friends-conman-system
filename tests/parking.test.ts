@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest'
 import { buildSlots, columnNames, findBlocks, suggestTarget } from '@/lib/parking-import'
-import { fieldKey, isSlotAvailable, legacyParkingTexts, parkingFieldsProblem, slotLabel, slotStatus, slotUniqueKey } from '@/lib/parking'
+import { NO_CHOICE, NO_VALUE, choose, explicitPick, fieldKey, isSlotAvailable, pickText, pickedSlot, typesFitting, valuesFor, legacyParkingTexts, parkingFieldsProblem, slotLabel, slotStatus, slotUniqueKey } from '@/lib/parking'
 import { findTagIssues } from '@/lib/template-tags'
 import { buildSalePayload } from '@/lib/documents/payload'
 
@@ -92,6 +92,15 @@ describe('reading a parking sheet', () => {
     expect(slots[0]).toMatchObject({ allottedTo: null, registered: false })
     expect(slots[4]).toMatchObject({ values: { level: 'P -1 1st Floor Parking', number: '2' }, allottedTo: 'Bharati Gda' })
   })
+  it('gives each table title its own values: Ground is Floor Ground and Level -, P -1 is Floor 1st and Level P1', () => {
+    const three = [{ name: 'Floor', key: 'floor' }, { name: 'Level', key: 'level' }, { name: 'Number', key: 'number' }]
+    const titled = { ...mapping, title: 'ignore', titleValues: { 'ground floor parking': { floor: 'Ground', level: '-' }, 'p -1 1st floor parking': { floor: '1st', level: 'P1' } } }
+    const { slots, errors } = buildSlots(findBlocks(sheet), three, titled)
+    expect(errors).toEqual([])
+    expect(slots[2].values).toEqual({ floor: 'Ground', level: '-', number: '3' })
+    expect(slots[4].values).toEqual({ floor: '1st', level: 'P1', number: '2' })
+    expect(slotLabel(three, slots[4].values, slots[4].type)).toBe('1st, P1, 2 (Surface Parking)')
+  })
   it('says which row is wrong, and never lets two rows be the same space', () => {
     const twice = [...sheet, ['2', 'Surface Parking', '', '']]
     const { errors } = buildSlots(findBlocks(twice), fields, mapping)
@@ -130,5 +139,54 @@ describe('parking in a sale agreement', () => {
   it('falls back to what was typed for a sale made before the parking list', () => {
     const p = buildSalePayload({ ...base, parkingSlots: [] })
     expect(p).toMatchObject({ parkingPodiumLevel: 'typed level', parkingNumber: 'typed no', parkingSummary: '', parkingSlots: [] })
+  })
+})
+
+describe('choosing a space detail by detail', () => {
+  const three = [{ name: 'Floor', key: 'floor' }, { name: 'Level', key: 'level' }, { name: 'Number', key: 'number' }]
+  const slot = (id: string, floor: string, level: string, number: string, type = 'Surface Parking') => ({ id, values: { floor, level, number }, type })
+  const free = [
+    slot('g1', 'Ground', '-', '1', 'Stack Parking'), slot('a2', '1st', 'P1', '2'),
+    slot('b1', '2nd', 'P2', '1'), slot('b2', '2nd', 'P2', '2'), slot('c1', '2nd', 'P3', '1', 'Tandem Parking'), slot('d5', '3rd', 'P4', '5'),
+  ]
+  const ex = explicitPick
+  const chain = (...steps: [string, string][]) => steps.reduce((c, [k, v]) => choose(free, three, c, k, v), NO_CHOICE)
+  it('narrows the levels to the chosen floor', () => {
+    const c = chain(['floor', '2nd'])
+    expect(valuesFor(free, ex(c), 'level')).toEqual(['P2', 'P3'])
+    expect(c.pick).toEqual({ floor: '2nd' }) // two levels left: nothing fills itself in
+  })
+  it('fills the floor in when the level only exists on one floor', () => {
+    const c = chain(['level', 'P4'])
+    expect(c.pick).toEqual({ level: 'P4', floor: '3rd', number: '5' }) // the number fills itself in too: it is the only one left
+    expect(pickedSlot(free, three, c.pick)?.id).toBe('d5')
+  })
+  it('drops a floor that no longer fits when the level is changed', () => {
+    const c = chain(['floor', '2nd'], ['level', 'P4'])
+    expect(c.pick).toMatchObject({ level: 'P4', floor: '3rd' })
+  })
+  it('never locks: a value that filled itself in can be replaced by changing what it came from', () => {
+    const c = chain(['level', 'P4'])
+    expect(valuesFor(free, ex(c), 'level')).toEqual(['-', 'P1', 'P2', 'P3', 'P4']) // the floor was not picked, so it does not limit the levels
+    const d = choose(free, three, c, 'level', 'P3')
+    expect(d.pick).toMatchObject({ level: 'P3', floor: '2nd', number: '1' })
+    expect(choose(free, three, c, 'level', '').pick).toEqual({}) // clearing what the rest came from clears it all
+  })
+  it('lists the numbers still free on that floor and level, with their type', () => {
+    expect(chain(['floor', '2nd'], ['level', 'P3']).pick).toMatchObject({ floor: '2nd', level: 'P3', number: '1' })
+    const p2 = chain(['floor', '2nd'], ['level', 'P2'])
+    expect(valuesFor(free, ex(p2), 'number')).toEqual(['1', '2'])
+    expect(typesFitting(free, { ...ex(p2), number: '1' })).toBe('Surface Parking')
+    expect(pickedSlot(free, three, p2.pick)).toBeNull() // number not chosen yet
+    expect(pickedSlot(free, three, chain(['floor', '2nd'], ['level', 'P2'], ['number', '2']).pick)?.id).toBe('b2')
+  })
+  it('clears a detail when asked, and keeps the rest that still fits', () => {
+    const c = chain(['floor', '2nd'], ['level', 'P2'], ['number', '1'])
+    expect(choose(free, three, c, 'number', '').pick).toEqual({ floor: '2nd', level: 'P2' })
+  })
+  it('lets a space with no value for a detail be chosen', () => {
+    const odd: { id: string; values: Record<string, string>; type: string }[] = [{ id: 'x', values: { floor: '1st', number: '9' }, type: '' }, { id: 'y', values: { floor: '1st', level: 'P1', number: '8' }, type: '' }]
+    expect(valuesFor(odd, { floor: '1st' }, 'level').map(pickText)).toEqual(['—', 'P1'])
+    expect(pickedSlot(odd, three, choose(odd, three, choose(odd, three, NO_CHOICE, 'floor', '1st'), 'level', NO_VALUE).pick)?.id).toBe('x')
   })
 })

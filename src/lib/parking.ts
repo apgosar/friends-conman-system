@@ -119,3 +119,68 @@ export function legacyParkingTexts(slots: { values: ParkingValues }[]): { podium
 
 /** The status shown for a space (see PARKING_STATUS). */
 export const slotStatus = (s: ParkingSlotLike): 'AVAILABLE' | 'SOLD' | 'ALLOTTED' => (s.saleId ? 'SOLD' : s.allottedTo?.trim() ? 'ALLOTTED' : 'AVAILABLE')
+
+// ── Choosing a space detail by detail (the new-sale form) ─────────────────────
+// A person picks a value for any parking detail (Floor, Level, Number...). The other details narrow to what still fits, and a detail
+// left with one possible value fills itself in. Pure functions over the free spaces, so the form and the tests agree.
+
+export interface PickSlot { id: string; values: ParkingValues; type: string }
+/** What the person has chosen so far: detail key -> value (a detail not chosen is missing). */
+export type Pick = Record<string, string>
+
+/** Stands for "this space has no value for the detail", so such a space can still be chosen. */
+export const NO_VALUE = '\u0000'
+const valueOf = (s: PickSlot, key: string) => (s.values[key] ?? '').trim() || NO_VALUE
+/** The text shown for a value. */
+export const pickText = (value: string) => (value === NO_VALUE ? '—' : value)
+
+/** The spaces that fit every choice made. */
+export const slotsFitting = (slots: PickSlot[], pick: Pick) => slots.filter((s) => Object.entries(pick).every(([k, v]) => valueOf(s, k) === v))
+
+/** The values a detail can take given the choices made for the OTHER details, in natural order. */
+export function valuesFor(slots: PickSlot[], pick: Pick, key: string): string[] {
+  const others = Object.fromEntries(Object.entries(pick).filter(([k]) => k !== key))
+  return [...new Set(slotsFitting(slots, others).map((s) => valueOf(s, key)))].sort((a, b) => compareText(pickText(a), pickText(b)))
+}
+
+/** Types of parking among the spaces that fit (for the label next to a number): "Stack Parking" or "Stack Parking / Tandem Parking". */
+export const typesFitting = (slots: PickSlot[], pick: Pick) => [...new Set(slotsFitting(slots, pick).map((s) => s.type.trim()).filter(Boolean))].join(' / ')
+
+/** Fills in every detail that has only one value left. */
+export function settle(slots: PickSlot[], fields: ParkingFieldDef[], pick: Pick): Pick {
+  const next = { ...pick }
+  const fit = slotsFitting(slots, next)
+  for (const f of fields) {
+    if (next[f.key]) continue
+    const values = new Set(fit.map((s) => valueOf(s, f.key)))
+    if (values.size === 1) next[f.key] = [...values][0]
+  }
+  return next
+}
+
+/** The choices on one car park: every detail's value, and which of them the person picked themselves (the rest filled themselves in). */
+export interface Choice { pick: Pick; explicit: string[] }
+export const NO_CHOICE: Choice = { pick: {}, explicit: [] }
+/** Only what the person picked: it is what narrows the other details, so a value that filled itself in never locks the others. */
+export const explicitPick = (c: Choice): Pick => Object.fromEntries(c.explicit.flatMap((k) => (c.pick[k] ? [[k, c.pick[k]]] : [])))
+
+/**
+ * The person set one detail (an empty value clears it). Their other picks are kept when they still fit; whatever had filled itself in is
+ * worked out again. So Level P4 after Floor 2nd gives up the floor, and the floor then fills itself in as 3rd.
+ */
+export function choose(slots: PickSlot[], fields: ParkingFieldDef[], choice: Choice, key: string, value: string): Choice {
+  const next: Pick = value ? { [key]: value } : {}
+  const explicit = value ? [key] : []
+  for (const f of fields) {
+    if (f.key === key || !choice.explicit.includes(f.key) || !choice.pick[f.key]) continue
+    if (slotsFitting(slots, { ...next, [f.key]: choice.pick[f.key] }).length > 0) { next[f.key] = choice.pick[f.key]; explicit.push(f.key) }
+  }
+  return { pick: settle(slots, fields, next), explicit }
+}
+
+/** The space the choices point to, once every detail has a value and exactly one space fits. */
+export function pickedSlot(slots: PickSlot[], fields: ParkingFieldDef[], pick: Pick): PickSlot | null {
+  if (fields.some((f) => !pick[f.key])) return null
+  const fit = slotsFitting(slots, pick)
+  return fit.length === 1 ? fit[0] : null
+}

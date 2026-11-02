@@ -2,9 +2,10 @@
 
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
-import { Alert, Button, Card, CardHeader, Input, SelectField } from '@/components/ui'
+import { Alert, Button, Card, CardHeader, CheckboxField, Input, SelectField, TextField } from '@/components/ui'
 import { ApiError, errorMessage, fetchJson } from '@/lib/client/api'
 import { plural } from '@/lib/errors'
+import { titleKey } from '@/lib/parking-import'
 
 interface Preview {
   hasTitles: boolean
@@ -23,7 +24,9 @@ export default function ParkingImport({ projectId }: { projectId: string }) {
   const [busy, setBusy] = useState(false)
   const [preview, setPreview] = useState<Preview | null>(null)
   const [columns, setColumns] = useState<Record<string, string>>({})
-  const [title, setTitle] = useState('ignore')
+  // What each table title stands for, e.g. “P -1 1st Floor Parking” is Floor 1st and Level P1: written out per title and per detail
+  const [titleValues, setTitleValues] = useState<Record<string, Record<string, string>>>({})
+  const [replace, setReplace] = useState(false)
   const [result, setResult] = useState<{ ok: boolean; text: string; details?: string[] } | null>(null)
 
   const failure = (err: unknown, lead: string) => {
@@ -43,10 +46,7 @@ export default function ParkingImport({ projectId }: { projectId: string }) {
       const p = res.preview as Preview
       setPreview(p)
       setColumns(Object.fromEntries(p.columns.map((c) => [c.name.toLowerCase(), c.suggested])))
-      // A title row such as "Ground Floor Parking" most likely belongs to the first detail (the level), unless a column already fills it
-      const taken = new Set(p.columns.map((c) => c.suggested))
-      const free = p.fields.find((f) => !taken.has(`field:${f.key}`))
-      setTitle(p.hasTitles && free ? `field:${free.key}` : 'ignore')
+      setTitleValues({})
     } catch (err) {
       failure(err, 'The file could not be read:')
     } finally {
@@ -60,10 +60,11 @@ export default function ParkingImport({ projectId }: { projectId: string }) {
     try {
       const body = new FormData()
       body.append('file', file)
-      body.append('mapping', JSON.stringify({ columns, title }))
+      body.append('mapping', JSON.stringify({ columns, title: 'ignore', titleValues, replace }))
       const res = await fetchJson(`/api/projects/${projectId}/parking/import`, { method: 'POST', body })
+      const removed = res.removed ? ` ${plural(res.removed, 'space')} not sold in the app ${res.removed === 1 ? 'was' : 'were'} replaced.` : ''
       const skipped = res.skipped ? ` ${plural(res.skipped, 'space')} already in the list ${res.skipped === 1 ? 'was' : 'were'} skipped.` : ''
-      setResult({ ok: true, text: `Imported ${plural(res.created, 'parking space')}.${skipped}` })
+      setResult({ ok: true, text: `Imported ${plural(res.created, 'parking space')}.${skipped}${removed}` })
       setFile(null); setPreview(null)
       router.refresh()
     } catch (err) {
@@ -72,6 +73,9 @@ export default function ParkingImport({ projectId }: { projectId: string }) {
       setBusy(false)
     }
   }
+
+  const titles = [...new Set((preview?.blocks ?? []).flatMap((b) => (b.title ? [b.title] : [])))]
+  const missing = titles.some((t) => !Object.values(titleValues[titleKey(t)] ?? {}).some((v) => v.trim()))
 
   const targets = preview && (
     <>
@@ -107,14 +111,26 @@ export default function ParkingImport({ projectId }: { projectId: string }) {
                 {targets}
               </SelectField>
             ))}
-            {preview.hasTitles && (
-              <SelectField label="Table title (e.g. “Ground Floor Parking”)" value={title} onChange={(e) => setTitle(e.target.value)} hint="Which detail the title of each table fills in">
-                <option value="ignore">Not needed</option>
-                {preview.fields.map((f) => <option key={f.key} value={`field:${f.key}`}>{f.name}</option>)}
-              </SelectField>
-            )}
           </div>
-          <Button variant="primary" loading={busy} onClick={run}>Import</Button>
+          {titles.length > 0 && (
+            <div className="mb-4">
+              <h4 className="mb-1">What each table title means</h4>
+              <p className="form-hint mb-3">Say which value of each parking detail a table title stands for, for example “P -1 1st Floor Parking” is Floor 1st and Level P1. Every space in that table gets these values.</p>
+              {titles.map((t) => (
+                <div key={t} className="panel mb-3">
+                  <div className="font-semibold mb-2">{t}</div>
+                  <div className="grid grid-3 gap-3">
+                    {preview.fields.map((f) => (
+                      <TextField key={f.key} label={f.name} value={titleValues[titleKey(t)]?.[f.key] ?? ''} maxLength={100} onChange={(e) => setTitleValues((m) => ({ ...m, [titleKey(t)]: { ...m[titleKey(t)], [f.key]: e.target.value } }))} />
+                    ))}
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+          <CheckboxField label="Replace the spaces already in the list" checked={replace} onChange={(e) => setReplace(e.target.checked)} hint="Removes every space no sale holds and brings in the ones from this file. Use it to redo an import. Sold spaces stay" />
+          {missing && <Alert variant="warning" className="mb-3">Fill in at least one detail for every table title above</Alert>}
+          <Button variant="primary" loading={busy} disabled={missing} onClick={run}>Import</Button>
         </div>
       )}
 

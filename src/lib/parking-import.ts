@@ -82,9 +82,19 @@ export const isYes = (text: string) => /^(y|yes|true|1|registered)$/i.test(text.
 export interface ImportMapping {
   /** header text (lower-cased) -> what the column holds */
   columns: Record<string, string>
-  /** which parameter the block title fills ("ignore" = none) */
+  /** which parameter the whole block title fills ("ignore" = none); used when a title has no values of its own below */
   title: string
+  /**
+   * What each table's title stands for, written out by the person: "Ground Floor Parking" is Floor "Ground" and Level "-". Keyed by the
+   * title (trimmed, lower-cased), then by parking detail key. Every space of that table gets these values.
+   */
+  titleValues?: Record<string, Record<string, string>>
+  /** Take out the spaces already in the list that no sale holds, and bring these in their place */
+  replace?: boolean
 }
+
+/** The key a table title is looked up by. */
+export const titleKey = (title: string | null) => (title ?? '').trim().toLowerCase()
 
 export interface ParsedSlot { n: number; values: ParkingValues; type: string; allottedTo: string | null; registered: boolean }
 
@@ -94,7 +104,7 @@ export function buildSlots(blocks: SheetBlock[], fields: ParkingFieldDef[], mapp
   const slots: ParsedSlot[] = []
   const keys = new Set(fields.map((f) => f.key))
   const titleTarget = parseTarget(mapping.title)
-  const titleKey = titleTarget?.kind === 'field' && keys.has(titleTarget.key) ? titleTarget.key : null
+  const wholeTitleKey = titleTarget?.kind === 'field' && keys.has(titleTarget.key) ? titleTarget.key : null
 
   for (const block of blocks) {
     const targets = block.headers.map((h) => parseTarget(mapping.columns[h.toLowerCase()] ?? 'ignore') ?? ({ kind: 'ignore' } as ColumnTarget))
@@ -103,7 +113,10 @@ export function buildSlots(blocks: SheetBlock[], fields: ParkingFieldDef[], mapp
       let type = ''
       let allottedTo: string | null = null
       let registered = false
-      if (titleKey && block.title) values[titleKey] = block.title
+      const own = mapping.titleValues?.[titleKey(block.title)]
+      if (own && Object.values(own).some((v) => v.trim())) {
+        for (const [k, v] of Object.entries(own)) if (keys.has(k) && v.trim()) values[k] = v.trim()
+      } else if (wholeTitleKey && block.title) values[wholeTitleKey] = block.title
       targets.forEach((t, c) => {
         const text = (row.cells[c] ?? '').trim()
         if (!text) return
