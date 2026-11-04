@@ -1,5 +1,7 @@
 # On-prem deployment stack
 
+> **Setting up a new server? Start with [DEPLOYMENT-GUIDE.md](DEPLOYMENT-GUIDE.md).** It is the one document that walks through everything in order (domain, Cloudflare, Windows server, install, updates). This file is the reference for the stack's files and for how the updater works.
+
 Companion files for [DEPLOYMENT_ONPREM.md](../../DEPLOYMENT_ONPREM.md). Run these on the customer's server, not on your own machine (except the one-time `cloudflared tunnel create` step, which needs your Cloudflare login).
 
 **Target server is Windows?** Start with [WINDOWS-INSTALL.md](WINDOWS-INSTALL.md) first — it gets Docker running headlessly inside WSL2, persistent across reboots with nobody logged in. Everything below then runs inside that Linux shell, unchanged.
@@ -22,7 +24,7 @@ Confirm the stack actually works before spending any time on Cloudflare/DNS:
 cp docker-compose.override.yml.example docker-compose.override.yml
 docker compose up -d
 docker compose exec web npx prisma migrate deploy
-docker compose exec web npx prisma db seed   # starter logins; set SEED_PASSWORD first, or note the password it prints
+docker compose exec web npx prisma db seed   # DEMO data and logins, for this local test only; set SEED_PASSWORD first, or note the password it prints
 # open http://localhost:8080 in a browser on the host machine
 rm docker-compose.override.yml   # remove before going live — no ports should be published in production
 ```
@@ -68,10 +70,11 @@ Copy-Item .env.onprem.example .env
 # 7) On the customer's server: authenticate to the private registry, once
 #    (persists in the server's Docker credential store — not stored in .env)
 docker login ghcr.io -u <your-github-username>
-# password: a fine-grained personal access token scoped to read:packages only
-# for this one package — generate it at github.com/settings/tokens, and give
-# it a name that identifies which customer/server it's for, so you can
-# revoke just that one if the relationship ends.
+# password: a personal access token (classic) with only the read:packages
+# scope (GitHub Packages does not accept fine-grained tokens) — generate it at
+# github.com/settings/tokens, and give it a name that identifies which
+# customer/server it's for, so you can revoke just that one if the
+# relationship ends.
 
 # 8) Bring the stack up — pulls the pinned image, never builds from source
 docker compose pull
@@ -80,9 +83,9 @@ docker compose up -d
 # 9) Create the database tables (and apply every later change, in order).
 #    update.sh runs the same command.
 docker compose exec web npx prisma migrate deploy
-#    First install only: create the starter logins. The password comes from
-#    SEED_PASSWORD, or is generated and printed once; there is no default.
-docker compose exec web npx prisma db seed
+#    First install of a real customer: do NOT run `prisma db seed`. It loads a
+#    demo company, demo projects and demo logins. Create the first Super Admin
+#    with the command in DEPLOYMENT-GUIDE.md, step D7.
 ```
 
 Verify `https://<customer-slug>.<your-domain>/api/health` responds before considering the deployment live.

@@ -1,5 +1,7 @@
 # Installing Neev CMS on a Windows on-prem server
 
+> **Setting up a new server? Start with [DEPLOYMENT-GUIDE.md](DEPLOYMENT-GUIDE.md)**, the single start-to-finish document (it also covers buying the domain and the Cloudflare side). This file stays as the reference for the Windows details, above all the **Troubleshooting** section at the end for "it stopped after a reboot or a sleep".
+
 For a blank Windows machine, going from nothing to a running, internet-reachable, reboot-proof deployment.
 
 **Why this looks the way it does**: everything in [docker-compose.yml](docker-compose.yml) (the app, Postgres, MinIO, Cloudflare Tunnel) is built from Linux container images — that's not changing, porting to native Windows containers isn't practical here since Postgres/MinIO/cloudflared don't ship Windows images. So the plan is: run a lightweight Linux environment on the Windows box via **WSL2**, install plain **Docker Engine** inside it (not Docker Desktop — see below for why), and make sure that Linux environment boots automatically with Windows so the app survives reboots **without anyone logging in**. Everything from `deploy/onprem/README.md` onward runs unchanged inside that Linux shell.
@@ -210,7 +212,8 @@ docker login ghcr.io -u <your-github-username>
 docker compose pull
 docker compose up -d
 docker compose exec web npx prisma migrate deploy
-docker compose exec web npx prisma db seed   # first install only (demo data); set SEED_PASSWORD, or note the password it prints
+# Do NOT run `prisma db seed` for a real customer (it loads demo data). Create the first
+# Super Admin with the command in DEPLOYMENT-GUIDE.md, step D7.
 ```
 
 `migrate deploy` creates the tables and applies every later change in order. (Older installs were built with `db push`; the updater converts them automatically the first time.)
