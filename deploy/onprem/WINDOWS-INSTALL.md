@@ -4,7 +4,7 @@
 
 For a blank Windows machine, going from nothing to a running, internet-reachable, reboot-proof deployment.
 
-**Why this looks the way it does**: everything in [docker-compose.yml](docker-compose.yml) (the app, Postgres, MinIO, Cloudflare Tunnel) is built from Linux container images — that's not changing, porting to native Windows containers isn't practical here since Postgres/MinIO/cloudflared don't ship Windows images. So the plan is: run a lightweight Linux environment on the Windows box via **WSL2**, install plain **Docker Engine** inside it (not Docker Desktop — see below for why), and make sure that Linux environment boots automatically with Windows so the app survives reboots **without anyone logging in**. Everything from `deploy/onprem/README.md` onward runs unchanged inside that Linux shell.
+**Why this looks the way it does**: everything in [docker-compose.yml](docker-compose.yml) (the app, Postgres, Cloudflare Tunnel) is built from Linux container images — that's not changing, porting to native Windows containers isn't practical here since Postgres/cloudflared don't ship Windows images. So the plan is: run a lightweight Linux environment on the Windows box via **WSL2**, install plain **Docker Engine** inside it (not Docker Desktop — see below for why), and make sure that Linux environment boots automatically with Windows so the app survives reboots **without anyone logging in**. Everything from `deploy/onprem/README.md` onward runs unchanged inside that Linux shell.
 
 **Why not Docker Desktop**: it's built for a logged-in user's desktop session, its background service's unattended-reboot behavior is less predictable than a plain systemd service, and it requires a paid subscription once a company crosses certain size/revenue thresholds — a licensing question about the *customer's* company that's better avoided. Docker Engine (Community) inside WSL2 is free, headless, and this exact combination is Docker's own documented supported path.
 
@@ -203,7 +203,7 @@ From here it's identical to the Linux instructions in [README.md](README.md) ste
 
 ```bash
 cd ~/neev-cms
-# edit .env: NEXTAUTH_SECRET, CRON_SECRET, POSTGRES_PASSWORD, MinIO keys,
+# edit .env: NEXTAUTH_SECRET, CRON_SECRET, POSTGRES_PASSWORD,
 # LICENSE_TOKEN (from you), IMAGE_TAG (the version you released)
 
 docker login ghcr.io -u <your-github-username>

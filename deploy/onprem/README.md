@@ -8,7 +8,7 @@ Companion files for [DEPLOYMENT_ONPREM.md](../../DEPLOYMENT_ONPREM.md). Run thes
 
 ## Files
 
-- `docker-compose.yml` — app + local Postgres + MinIO + Cloudflare Tunnel. No host ports are published; `cloudflared` is the only path in.
+- `docker-compose.yml` — app + local Postgres + Cloudflare Tunnel (uploaded documents live in the app's `files` volume). No host ports are published; `cloudflared` is the only path in.
 - `.env.onprem.example` — template for the real `.env` you create on the server. Copy it, fill in generated secrets, never commit the filled-in version.
 - `cloudflared/config.yml` — tunnel routing config template; needs a real tunnel ID and credentials file (see below).
 - [../../.github/workflows/release-onprem.yml](../../.github/workflows/release-onprem.yml) — builds, pushes, and signs the image customers pull, triggered by pushing a `v*.*.*` git tag.
@@ -62,8 +62,8 @@ git push origin v1.2.0
 
 # 6) On the customer's server: fill in the env file
 Copy-Item .env.onprem.example .env
-# edit .env — generate NEXTAUTH_SECRET, CRON_SECRET, POSTGRES_PASSWORD, and
-# MinIO access/secret keys fresh for this deployment, paste the contents of
+# edit .env — generate NEXTAUTH_SECRET, CRON_SECRET and POSTGRES_PASSWORD
+# fresh for this deployment, paste the contents of
 # the license.jwt file from step 4 into LICENSE_TOKEN, and set IMAGE_TAG to
 # the version from step 5 (e.g. "v1.2.0")
 
@@ -131,7 +131,8 @@ Every run writes a log to `update-logs/` that the customer can send you. The app
 
 **What it deliberately does not do**
 - It doesn't change `docker-compose.yml` or add settings to `.env`. If a release needs either, tell the customer separately (the new `update.sh` is fetched automatically). A missing required setting makes the new version fail its health check, so the script rolls back rather than leaving a broken app.
-- It doesn't update Postgres, MinIO or `cloudflared`.
+- It doesn't update Postgres or `cloudflared`.
+- It doesn't move a server that still runs MinIO (installed before v0.0.42) to the `files` volume. That is a one-time `switch-to-local-storage.sh`; see `DEPLOYMENT-GUIDE.md`, Part F.
 - Database changes are Prisma migrations (`prisma/migrations`). **Never edit a migration that has shipped**; add a new one (`npx prisma migrate dev --name what_changed`). Anything Prisma cannot express in `schema.prisma` (partial indexes, CHECK constraints) goes in the migration SQL.
 
 **One-time data conversions**
@@ -179,7 +180,6 @@ The first time `release-onprem.yml` runs, it creates a new GHCR package (`ghcr.i
 ## Notes
 
 - `web` carries both `build:` (local testing, from the repo's root [Dockerfile](../../Dockerfile)) and `image:` (real deployments, pulled from GHCR — see steps 5–8 above and [DEPLOYMENT_ONPREM.md](../../DEPLOYMENT_ONPREM.md) §1). Real customer deployments should only ever run `docker compose pull`, never `docker compose build`.
-- Storage defaults to the S3/MinIO adapter automatically (`DEPLOYMENT_TARGET=onprem` in the env template) — see [src/lib/deployment-config.ts](../../src/lib/deployment-config.ts).
-- `minio-init` is a one-shot job that creates the document bucket on first boot; it exits after running and that's expected.
+- Uploaded documents are kept on disk: the env template sets `STORAGE_PROVIDER="local"` and `LOCAL_STORAGE_DIR="/data/files"`, and `docker-compose.yml` mounts the `files` volume there (the container's root is read-only). Back this volume up with the database (`DEPLOYMENT-GUIDE.md`, E4). Cloud still uses GCS — see [src/lib/deployment-config.ts](../../src/lib/deployment-config.ts).
 - License checks are cached in-process for ~15 minutes (`src/lib/license/verify.ts`), so renewing a license means updating `LICENSE_TOKEN` in `.env` and restarting the `web` container (`docker compose up -d web`), not just editing the file. `/api/health` is exempt from the license gate so uptime monitoring keeps working even on an expired deployment; every other route (pages and API) blocks once the grace period ends. See [DEPLOYMENT_ONPREM.md](../../DEPLOYMENT_ONPREM.md) §4 for the full design.
 - Distroless/shell-less runtime images were considered for extra hardening but skipped for now — Puppeteer/Chromium's shared-library requirements make that a nontrivial change on its own, and it wouldn't meaningfully raise the bar against an operator who already has `docker exec` access to the host. Read-only root filesystem + dropped capabilities (already in `docker-compose.yml`) are the practical hardening at this layer.

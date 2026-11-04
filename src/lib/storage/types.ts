@@ -7,7 +7,7 @@ export interface UploadFileParams {
 
 /**
  * Document storage backend, implemented once per provider (GCS for cloud,
- * S3/MinIO for on-prem — see deployment-config.ts). Callers depend only on
+ * local disk for on-prem, S3 also works — see deployment-config.ts). Callers depend only on
  * this interface via src/lib/storage/index.ts, never on a specific provider.
  */
 export interface StorageAdapter {

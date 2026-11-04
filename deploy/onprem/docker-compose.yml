@@ -1,8 +1,11 @@
 name: neev-cms
 
-# On-prem deployment stack: app + local Postgres + MinIO (self-hosted S3) +
-# Cloudflare Tunnel. No ports are published to the host — cloudflared is the
-# only path in, so there is nothing to port-forward or scan from outside.
+# On-prem deployment stack: app + local Postgres + Cloudflare Tunnel. Uploaded
+# documents live in the `files` volume. No ports are published to the host —
+# cloudflared is the only path in, so there is nothing to port-forward or scan
+# from outside.
+# (Servers installed before v0.0.42 also ran MinIO; switch-to-local-storage.sh
+# moves them over.)
 #
 # `web` carries both `build:` and `image:`. Real customer deployments should
 # only ever run `docker compose pull` (uses `image:`, requires `docker login
@@ -40,8 +43,10 @@ services:
     depends_on:
       db:
         condition: service_healthy
-      minio:
-        condition: service_healthy
+    # Uploaded documents (.env: STORAGE_PROVIDER=local, LOCAL_STORAGE_DIR=/data/files). The only
+    # writable place in the container; the volume is owned by the app's user (see the Dockerfile).
+    volumes:
+      - files:/data/files
     networks:
       - internal
 
@@ -64,44 +69,6 @@ services:
     networks:
       - internal
 
-  # MinIO removed its images from Docker Hub (minio/minio, minio/mc) in
-  # Sept 2026 and Quay now needs a login. Chainguard publishes a free,
-  # anonymous-pull build; it ships `mc` and `sh` too, so the init job below
-  # uses this same image.
-  minio:
-    image: cgr.dev/chainguard/minio:latest
-    restart: always
-    command: server /data --console-address ":9001"
-    environment:
-      MINIO_ROOT_USER: ${AWS_ACCESS_KEY_ID}
-      MINIO_ROOT_PASSWORD: ${AWS_SECRET_ACCESS_KEY}
-    volumes:
-      - minio-data:/data
-    healthcheck:
-      test: ["CMD", "mc", "ready", "local"]
-      interval: 10s
-      timeout: 5s
-      retries: 5
-    networks:
-      - internal
-
-  # One-shot job: creates the document bucket on first boot. MinIO doesn't
-  # auto-create buckets, and app startup doesn't have permission to.
-  minio-init:
-    image: cgr.dev/chainguard/minio:latest
-    depends_on:
-      minio:
-        condition: service_healthy
-    env_file:
-      - .env
-    entrypoint: >
-      /bin/sh -c "
-      mc alias set local http://minio:9000 $$AWS_ACCESS_KEY_ID $$AWS_SECRET_ACCESS_KEY &&
-      mc mb --ignore-existing local/$$AWS_S3_BUCKET
-      "
-    networks:
-      - internal
-
   cloudflared:
     image: cloudflare/cloudflared:latest
     restart: always
@@ -118,4 +85,4 @@ networks:
 
 volumes:
   pgdata:
-  minio-data:
+  files:

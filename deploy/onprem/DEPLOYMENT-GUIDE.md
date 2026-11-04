@@ -33,9 +33,8 @@ This replaces the step lists that used to be spread across `README.md`, `WINDOWS
    └─ WSL2 (Ubuntu)                                                                │
         └─ Docker Engine                                                           │
              ├─ cloudflared  (the container that makes the tunnel above) ──────────┘
-             ├─ web          (Neev CMS)
-             ├─ db           (Postgres: all records)
-             └─ minio        (uploaded documents)
+             ├─ web          (Neev CMS; uploaded documents are kept in its "files" volume)
+             └─ db           (Postgres: all records)
 ```
 
 - **The customer does not need a domain.** Every customer gets a subdomain of a domain **you** own (`pfr.example.com`).
@@ -625,8 +624,6 @@ set_var DATABASE_URL          "postgresql://neev_cms:$DB_PASS@db:5432/neev_cms?s
 set_var NEXTAUTH_SECRET       "$(openssl rand -base64 32)"
 set_var CRON_SECRET           "$(openssl rand -hex 32)"
 set_var PII_ENCRYPTION_KEY    "$(openssl rand -base64 32)"
-set_var AWS_ACCESS_KEY_ID     "neev$(openssl rand -hex 4)"
-set_var AWS_SECRET_ACCESS_KEY "$(openssl rand -hex 24)"
 
 set_var NEXTAUTH_URL          "https://$HOSTNAME_PUBLIC"
 set_var APP_URL               "https://$HOSTNAME_PUBLIC"
@@ -663,10 +660,10 @@ What the other lines mean:
 
 | Line | Meaning |
 |---|---|
-| `DEPLOYMENT_TARGET`, `STORAGE_PROVIDER` | Already right for on-prem (files go to the local MinIO). Leave them. |
+| `DEPLOYMENT_TARGET`, `STORAGE_PROVIDER`, `LOCAL_STORAGE_DIR` | Already right for on-prem (uploaded documents are kept in the `files` volume, mounted at `/data/files`). Leave them. |
 | `LICENSE_MODE="onprem"` | Turns the license check on. Leave it. |
 | `NEXTAUTH_URL`, `APP_URL` | Must be the real `https://` address. A leftover `<...>` placeholder makes the app crash with "Invalid URL". |
-| `POSTGRES_*`, `AWS_*` | Passwords the containers use to talk to each other; the values are internal. |
+| `POSTGRES_*` | The password the app and the database use to talk to each other; the value is internal. |
 | `COMPANY_GSTIN`, `GMAIL_*` | Optional; see E6. |
 
 ## D4. Log in to the private registry
@@ -691,8 +688,6 @@ The first `pull` downloads a large image (it bundles Chromium and LibreOffice fo
 | Service | Expected state |
 |---|---|
 | `db` | `Up ... (healthy)` |
-| `minio` | `Up ... (healthy)` |
-| `minio-init` | `Exited (0)` (it only creates the file bucket once; this is correct) |
 | `web` | `Up ... (healthy)` once started (the first check can take up to a minute) |
 | `cloudflared` | `Up` |
 
@@ -856,11 +851,14 @@ mkdir -p backups
 docker compose exec -T db sh -c 'pg_dump -U "$POSTGRES_USER" --clean --if-exists --no-owner "$POSTGRES_DB"' | gzip > backups/db-manual-$(date +%Y%m%d-%H%M%S).sql.gz
 ls -lh backups | tail -3
 ```
-Uploaded documents (KYC scans, generated PDFs) live in a separate Docker volume:
+Uploaded documents (KYC scans, generated PDFs) live in a separate Docker volume, `files`:
 ```bash
-docker run --rm -v neev-cms_minio-data:/data -v "$PWD/backups":/backup alpine tar czf /backup/files-manual-$(date +%Y%m%d-%H%M%S).tgz -C /data .
+docker run --rm -v neev-cms_files:/data -v "$PWD/backups":/backup alpine tar czf /backup/files-manual-$(date +%Y%m%d-%H%M%S).tgz -C /data .
+ls -lh backups | tail -3
 ```
-*(The database command is the one the updater uses. The files command is the standard volume-copy pattern but has not yet been run on a server; run it once, check the file's size, and test a restore before you rely on it.)*
+*(The database command is the one the updater uses. The files command was tested on a Docker volume, including a restore, but not yet on a customer server: check the file's size the first time.)*
+
+The database backup and the files backup belong together: take them at the same time, and restore them together.
 
 Copy `backups\` and `.env` to storage you control. From Windows, the folder is `\\wsl$\Ubuntu-22.04\home\neev\neev-cms\backups`. `.env` holds the `PII_ENCRYPTION_KEY` (D3); a database backup without it cannot be read.
 
@@ -868,6 +866,13 @@ Copy `backups\` and `.env` to storage you control. From Windows, the folder is `
 ```bash
 docker compose stop web
 gunzip -c backups/db-manual-20261104-103000.sql.gz | docker compose exec -T db sh -c 'psql -U "$POSTGRES_USER" "$POSTGRES_DB"'
+docker compose start web
+```
+
+**Restore the uploaded documents** (replaces what is in the volume; the owner must be the app's user, 1001):
+```bash
+docker compose stop web
+docker run --rm -v neev-cms_files:/data -v "$PWD/backups":/backup alpine sh -c "rm -rf /data/* && cd /data && tar xzf /backup/files-manual-20261104-103000.tgz && chown -R 1001:1001 /data"
 docker compose start web
 ```
 
@@ -934,6 +939,16 @@ git push origin v0.0.41
 ```
 Wait for the green Action (about four minutes), then tell the customer the tag. They double-click **Update Neev CMS**, type `v0.0.41`, confirm, and wait a few minutes (about a minute of downtime). A failed update rolls itself back, and the customer can send you the newest file in `~/neev-cms/update-logs`. The updater does **not** change `docker-compose.yml` or add new `.env` settings; if a release needs either, tell the customer separately.
 
+**Move a server that still runs MinIO to the files volume (once per server).** Servers set up before v0.0.42 keep uploaded documents in a MinIO container. MinIO has withdrawn its images, so that container can no longer be re-downloaded if it is ever recreated on a new machine. Servers set up from v0.0.42 on have nothing to move (the script says so and stops). First update the app to v0.0.42 or newer (the normal updater), then:
+
+**[Server · Ubuntu]**
+```bash
+cd ~/neev-cms
+curl -fsSL https://raw.githubusercontent.com/apgosar/friends-conman-system/v0.0.42/deploy/onprem/switch-to-local-storage.sh -o switch-to-local-storage.sh
+bash switch-to-local-storage.sh
+```
+It copies every document into the new `files` volume while the app keeps running, asks before it stops the app (about a minute), copies what changed in the meantime, **proves the two are identical**, swaps in the `docker-compose.yml` and `.env` settings for your release (`IMAGE_TAG` in `.env`), and starts the app without MinIO. It saves your old `docker-compose.yml` and `.env` first (in `backups/storage-switch-<time>/`) and puts them back by itself if the app does not become healthy. The database restarts briefly because `.env` changes. Afterwards, sign in and open a sale's documents. The old MinIO data stays in the `minio-data` volume as a safety copy; after a week, free the space with `docker volume rm neev-cms_minio-data`. To go back, copy the two saved files back and run `docker compose up -d --remove-orphans` (documents uploaded since the switch are only in the new volume). Take a backup (E4) first; it is cheap insurance.
+
 **Renew a license.** Issue a new token on your PC (B4, same command), then on the server replace the value and restart the app:
 ```bash
 nano .env          # replace the LICENSE_TOKEN value
@@ -981,7 +996,7 @@ Start with the general-purpose questions: is the server on, is the task running 
 | Every page says **license expired / invalid**; log has `[License]` | `docker compose logs web \| grep -i license`: *signature invalid* means the image was built before you changed the public key (rebuild and re-release); *not valid for host* means the license `--host` differs from the address in use; *expired* means renew (Part F) | Fix per the message, then `docker compose up -d web`. |
 | `web` unhealthy, log says **Invalid URL** | `NEXTAUTH_URL` or `APP_URL` in `.env` is still a placeholder | Set both to `https://<hostname>`, then `docker compose up -d web`. |
 | `docker compose pull`: **denied / unauthorized** for `ghcr.io/apgosar/...` | Not logged in, wrong token, token missing `read:packages`, or expired | Repeat D4 with a valid classic token. |
-| `docker compose pull`: **pull access denied for minio/minio** or **minio/mc** (login already works) | MinIO removed those images from Docker Hub in September 2026, and Quay now needs a login. Your `docker-compose.yml` is an older copy that still names them. The other images (Postgres, cloudflared) are fine; they only show "Interrupted" because the pull stopped | Point the file at Chainguard's free MinIO build: `sed -i 's#image: minio/minio:latest#image: cgr.dev/chainguard/minio:latest#; s#image: minio/mc:latest#image: cgr.dev/chainguard/minio:latest#' docker-compose.yml`, then `docker compose pull && docker compose up -d`. New downloads of `docker-compose.yml` from a tag released after this fix already have it. |
+| `docker compose pull`: **pull access denied for minio/minio** or **minio/mc** (login already works) | MinIO removed those images from Docker Hub in September 2026, and Quay now needs a login. Your `docker-compose.yml` is an older copy that still names them. The other images (Postgres, cloudflared) are fine; they only show "Interrupted" because the pull stopped | Best: update to v0.0.42 or newer and run the move to the files volume (Part F, "Move a server that still runs MinIO"); MinIO is then not needed at all. Quick fix to stay on MinIO for now: point the file at Chainguard's free build: `sed -i 's#image: minio/minio:latest#image: cgr.dev/chainguard/minio:latest#; s#image: minio/mc:latest#image: cgr.dev/chainguard/minio:latest#' docker-compose.yml`, then `docker compose pull && docker compose up -d`. |
 | `docker compose pull`: **manifest unknown** | That tag is not in the registry | Check `IMAGE_TAG`; make sure the release Action finished green. |
 | `migrate deploy` fails with **P3018 / P3009** or a SQL error | A migration could not apply | Stop. Do not retry blindly; send the output to yourself/support. On a fresh install, the database is empty, so `docker compose down -v` then start over is safe **only before real data exists**. |
 | **Cannot sign in** with a password you set | Rules not met, or too many failed tries | Rules: 10+ characters, letter and number. Wait a few minutes after repeated failures. |

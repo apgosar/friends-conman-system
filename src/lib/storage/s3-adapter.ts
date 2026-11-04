@@ -8,7 +8,7 @@ import type { StorageAdapter, UploadFileParams } from './types'
 const BUCKET = process.env.AWS_S3_BUCKET || 'friends-conman-docs'
 
 // S3_ENDPOINT + S3_FORCE_PATH_STYLE point this same adapter at a self-hosted
-// MinIO instance on-prem. Leave both unset to talk to real AWS S3 instead.
+// self-hosted S3 server (e.g. MinIO). Leave both unset to talk to real AWS S3 instead.
 const client = new S3Client({
   region: process.env.AWS_REGION || 'us-east-1',
   endpoint: process.env.S3_ENDPOINT || undefined,
@@ -42,7 +42,7 @@ export const s3Adapter: StorageAdapter = {
         })
       )
 
-      // Return our secure proxy API URL rather than a direct S3/MinIO URL
+      // Return our secure proxy API URL rather than a direct S3 URL
       // so we can enforce authentication when the file is requested.
       return `/api/files/${encodeURIComponent(key)}`
     } catch (error) {

@@ -126,7 +126,12 @@ export function validateEnv(): void {
       warnings.push('  ⚠ AWS_S3_BUCKET not set — falling back to default bucket name "friends-conman-docs".')
     }
     if (deploymentConfig.target === 'onprem' && !process.env.S3_ENDPOINT) {
-      warnings.push('  ⚠ S3_ENDPOINT not set for an on-prem deployment — the S3 adapter will talk to real AWS S3, not a local MinIO instance.')
+      warnings.push('  ⚠ S3_ENDPOINT not set for an on-prem deployment — the S3 adapter will talk to real AWS S3, not a self-hosted S3 server.')
+    }
+  } else if (deploymentConfig.storageProvider === 'local') {
+    // The container's root filesystem is read-only: without a mounted folder every upload would fail
+    if (process.env.NODE_ENV === 'production' && !process.env.LOCAL_STORAGE_DIR?.trim()) {
+      errors.push('  ✗ LOCAL_STORAGE_DIR — STORAGE_PROVIDER=local needs the folder that holds the uploaded files (on-prem: "/data/files", the files volume in docker-compose.yml)')
     }
   } else if (!process.env.GCS_BUCKET_NAME) {
     warnings.push('  ⚠ GCS_BUCKET_NAME not set — falling back to default bucket name "friends-conman-docs".')

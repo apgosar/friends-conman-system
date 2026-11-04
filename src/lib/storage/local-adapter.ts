@@ -4,9 +4,13 @@ import crypto from 'crypto'
 import type { StorageAdapter, UploadFileParams } from './types'
 
 /**
- * Local-disk storage for development (STORAGE_PROVIDER=local, the default under `next dev`).
+ * Local-disk storage (STORAGE_PROVIDER=local). Two uses:
+ *  - on-prem: LOCAL_STORAGE_DIR is a Docker volume (/data/files), so the files are durable and backed up with the
+ *    database. This replaced the MinIO container.
+ *  - development: the default under `next dev`, files in .storage/.
  * Same key/URL scheme as the cloud adapters, so the rest of the app behaves identically.
- * Not for production: the filesystem is not shared or durable on Cloud Run, and is read-only in the on-prem container.
+ * Not for Cloud Run: its filesystem is not shared or durable. The container root is read-only on-prem, so
+ * LOCAL_STORAGE_DIR must point at a mounted volume (env.ts refuses to start in production without it).
  */
 const ROOT = path.resolve(process.env.LOCAL_STORAGE_DIR || path.join(process.cwd(), '.storage'))
 
@@ -21,7 +25,15 @@ export const localAdapter: StorageAdapter = {
     const key = `${folder}/${fileName ?? crypto.randomUUID()}`
     const full = resolveKey(key)
     await fs.mkdir(path.dirname(full), { recursive: true })
-    await fs.writeFile(full, buffer)
+    // Write beside the target and rename, so a crash mid-write never leaves a half-written document under its real name
+    const tmp = `${full}.${crypto.randomUUID()}.tmp`
+    try {
+      await fs.writeFile(tmp, buffer)
+      await fs.rename(tmp, full)
+    } catch (err) {
+      await fs.rm(tmp, { force: true })
+      throw err
+    }
     return `/api/files/${encodeURIComponent(key)}`
   },
 

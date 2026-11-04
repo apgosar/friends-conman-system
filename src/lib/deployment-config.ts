@@ -1,7 +1,7 @@
 /**
  * Central switch for behavior that legitimately differs between deployment
  * targets (cloud: Cloud Run + Supabase + GCS, vs on-prem: customer server +
- * local Postgres + MinIO). Other modules should read flags off
+ * local Postgres + files on a local volume). Other modules should read flags off
  * `deploymentConfig` instead of checking process.env directly, so every
  * environment-dependent decision stays visible in one place rather than
  * scattered `if (isOnPrem)` branches through business logic.
@@ -30,7 +30,7 @@ function resolveStorageProvider(target: DeploymentTarget): StorageProvider {
   // Local development needs no cloud credentials: keep files on disk (.storage/)
   if (process.env.NODE_ENV === 'development') return 'local'
   // Sensible default per target: cloud runs on GCS today, on-prem has no
-  // GCS credentials available so it defaults to the S3/MinIO adapter.
+  // GCS credentials available so it defaults to the S3 adapter (the on-prem env template sets STORAGE_PROVIDER=local explicitly).
   return target === 'onprem' ? 's3' : 'gcs'
 }
 

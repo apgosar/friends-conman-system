@@ -6,7 +6,7 @@ import { downloadFile, uploadFile } from './index'
 
 /**
  * Helpers for working with stored files by the URLs we keep in the database.
- * Everything goes through the storage adapter (GCS / S3-MinIO / local dev) — never the app's own disk,
+ * Everything goes through the storage adapter (GCS / S3 / local disk) — never the app's own disk,
  * which is ephemeral on Cloud Run and read-only in the on-prem container.
  */
 

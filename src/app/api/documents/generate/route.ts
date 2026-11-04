@@ -36,7 +36,7 @@ export const POST = route('admin', async ({ body }) => {
 
   const file = await renderToFile(template, buildDemandPayload(sale, pickDemand(sale), partners))
 
-  // Stored through the storage layer (GCS / MinIO / local dev); the URL it returns is login-protected
+  // Stored through the storage layer (GCS / S3 / local disk); the URL it returns is login-protected
   const fileUrl = await uploadFile({
     buffer: file.buffer,
     mimeType: file.mimeType,

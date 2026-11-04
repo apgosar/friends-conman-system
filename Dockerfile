@@ -84,6 +84,10 @@ COPY --from=builder --chown=nextjs:nodejs /app/package.json ./package.json
 COPY --from=builder --chown=nextjs:nodejs /app/node_modules ./node_modules
 COPY --from=builder --chown=nextjs:nodejs /app/data-migrations ./data-migrations
 
+# Uploaded documents on-prem (STORAGE_PROVIDER=local, LOCAL_STORAGE_DIR=/data/files). The container's root is
+# read-only, so this is the one writable place; a new volume mounted here inherits this owner.
+RUN mkdir -p /data/files && chown -R nextjs:nodejs /data
+
 # Switch to non-root user
 USER nextjs
 

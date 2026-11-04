@@ -6,7 +6,7 @@ The app writes JSON log lines (pino). In them, level 30 is info, 40 is a warning
 
 ## 1. Is it running?
 
-Go to the app folder and list the containers. All of `web`, `db`, `minio` and `cloudflared` should be `Up`:
+Go to the app folder and list the containers. All of `web`, `db` and `cloudflared` should be `Up` (a server not yet moved to the `files` volume also runs `minio`):
 
 ```bash
 cd /home/ankur/neev-cms && docker compose ps
@@ -63,7 +63,7 @@ docker compose logs --since 30m db
 ```
 
 ```bash
-docker compose logs --since 30m minio
+docker compose logs --since 30m minio   # only on a server that still runs MinIO
 ```
 
 The tunnel to the internet:

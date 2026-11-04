@@ -52,8 +52,8 @@ None of this stops a root user from reading container memory or `docker export`-
 ## 3. Data & storage layer for on-prem — implemented
 
 - **Database**: run Postgres in a container on the same host, data volume on an **encrypted disk** (LUKS). Not for RE protection — for data-at-rest protection if the machine is later resold, seized, or the disk removed. Wired up in [deploy/onprem/docker-compose.yml](deploy/onprem/docker-compose.yml) (`db` service).
-- **Object storage**: `src/lib/storage/` is now a pluggable adapter (`gcsAdapter` / `s3Adapter`) selected by [deployment-config.ts](src/lib/deployment-config.ts) — cloud keeps using GCS, on-prem uses the S3 adapter pointed at a self-hosted **MinIO** container (`minio` service in the compose file, bootstrapped by `minio-init`). No rewrite needed elsewhere; every caller still imports `uploadFile`/`downloadFile`/etc. from `@/lib/storage`.
-- The existing `/api/files/[...path]` authenticated-proxy pattern is unchanged — MinIO/S3 is never reachable directly from the browser, only through that route.
+- **Object storage**: `src/lib/storage/` is now a pluggable adapter (`gcsAdapter` / `s3Adapter`) selected by [deployment-config.ts](src/lib/deployment-config.ts) — cloud keeps using GCS, on-prem uses the **local-disk adapter on a Docker volume** (`files`, mounted at `/data/files`). It first used the S3 adapter against a self-hosted MinIO container, but MinIO withdrew its images from Docker Hub, and the app only needs upload, download and delete, so the container was dropped (`deploy/onprem/switch-to-local-storage.sh` moves older servers over). No rewrite needed elsewhere; every caller still imports `uploadFile`/`downloadFile`/etc. from `@/lib/storage`.
+- The existing `/api/files/[...path]` authenticated-proxy pattern is unchanged — storage is never reachable directly from the browser, only through that route.
 
 ---
 
@@ -98,7 +98,7 @@ No inbound ports opened on the customer's router/firewall — `cloudflared` make
 
 ## 6. `docker-compose.yml` (on-prem) — implemented
 
-Live in [deploy/onprem/](deploy/onprem/): `docker-compose.yml` (`web` + `db` + `minio` + `minio-init` + `cloudflared`, no host ports published), `.env.onprem.example`, and `cloudflared/config.yml`. See [deploy/onprem/README.md](deploy/onprem/README.md) for the first-time setup sequence (tunnel creation, env file, bringing the stack up, running migrations).
+Live in [deploy/onprem/](deploy/onprem/): `docker-compose.yml` (`web` + `db` + `cloudflared`, with a `files` volume, no host ports published), `.env.onprem.example`, and `cloudflared/config.yml`. See [deploy/onprem/README.md](deploy/onprem/README.md) for the first-time setup sequence (tunnel creation, env file, bringing the stack up, running migrations).
 
 The current root [docker-compose.yml](docker-compose.yml) (single `web` service, host port 3000 published) is unrelated dev-only scaffolding — leave it as is; it isn't what customer deployments use.
 
@@ -111,14 +111,14 @@ Not yet done: swapping `build:` for a pulled `image:` tag once the private regis
 ## 7. Secrets & config management
 
 - `.env` created directly on the server by you during deployment from [deploy/onprem/.env.onprem.example](deploy/onprem/.env.onprem.example) (not committed, not emailed) — `chmod 600`, owned by a dedicated non-interactive service account rather than the customer's general admin login where their IT process allows it.
-- `NEXTAUTH_SECRET`, `CRON_SECRET`, `POSTGRES_PASSWORD`, MinIO access/secret keys all generated fresh per deployment (`openssl rand -base64 32` / `openssl rand -hex 32`) — never reused across customers. [env.ts](src/lib/env.ts) validates the required ones are present and non-placeholder, and now also warns if the active storage provider (`STORAGE_PROVIDER`, driven by [deployment-config.ts](src/lib/deployment-config.ts)) is missing its bucket/endpoint config.
+- `NEXTAUTH_SECRET`, `CRON_SECRET`, `POSTGRES_PASSWORD` all generated fresh per deployment (`openssl rand -base64 32` / `openssl rand -hex 32`) — never reused across customers. [env.ts](src/lib/env.ts) validates the required ones are present and non-placeholder, and now also warns if the active storage provider (`STORAGE_PROVIDER`, driven by [deployment-config.ts](src/lib/deployment-config.ts)) is missing its bucket/endpoint config.
 - License private key, registry credentials: yours, rotated per deployment, never shared with the customer. (Cloudflare Tunnel credentials are per-deployment too — see `deploy/onprem/cloudflared/`, gitignored.)
 
 ---
 
 ## 8. Backups & disaster recovery
 
-- Nightly `pg_dump` + MinIO bucket sync, encrypted (age/gpg) and pushed to storage **you** control (your own S3/GCS bucket), not just kept on the customer's box. This also gives you an audit trail independent of the customer's server.
+- Nightly `pg_dump` + a copy of the `files` volume, encrypted (age/gpg) and pushed to storage **you** control (your own S3/GCS bucket), not just kept on the customer's box. This also gives you an audit trail independent of the customer's server.
 - Document a restore runbook and test it once before go-live.
 
 ---
@@ -153,7 +153,7 @@ The license-gating mechanism in §4 is what makes that agreement enforceable in 
 5. [ ] `deploy/onprem/.env` (from `.env.onprem.example`, including `LICENSE_TOKEN` and `IMAGE_TAG`) placed on server by you; `docker login ghcr.io` once, then `docker compose pull && docker compose up -d`.
 6. [ ] `cloudflared` tunnel created, DNS routed, WAF/rate-limit rules configured on Cloudflare — see [deploy/onprem/README.md](deploy/onprem/README.md).
 7. [ ] `docker compose exec web npx prisma migrate deploy` run against the fresh Postgres container (creates the tables and applies every migration in order).
-8. [ ] `minio-init` ran successfully (bucket created) — check `docker compose logs minio-init`.
+8. [ ] The `files` volume is mounted: `docker compose exec web sh -c 'test -w /data/files && echo ok'`.
 9. [ ] GHCR package visibility confirmed **Private** (one-time, after the first tag push — §1).
 10. [ ] Backups scheduled and one restore tested.
 11. [ ] Sentry + uptime monitoring receiving data.
