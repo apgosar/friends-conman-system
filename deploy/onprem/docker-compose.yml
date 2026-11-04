@@ -64,8 +64,12 @@ services:
     networks:
       - internal
 
+  # MinIO removed its images from Docker Hub (minio/minio, minio/mc) in
+  # Sept 2026 and Quay now needs a login. Chainguard publishes a free,
+  # anonymous-pull build; it ships `mc` and `sh` too, so the init job below
+  # uses this same image.
   minio:
-    image: minio/minio:latest
+    image: cgr.dev/chainguard/minio:latest
     restart: always
     command: server /data --console-address ":9001"
     environment:
@@ -84,7 +88,7 @@ services:
   # One-shot job: creates the document bucket on first boot. MinIO doesn't
   # auto-create buckets, and app startup doesn't have permission to.
   minio-init:
-    image: minio/mc:latest
+    image: cgr.dev/chainguard/minio:latest
     depends_on:
       minio:
         condition: service_healthy
