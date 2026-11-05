@@ -27,13 +27,21 @@ export type DbTransaction = Omit<typeof prisma, '$connect' | '$disconnect' | '$o
  * `prisma.$transaction(async (tx) => …)` for code that writes audited models (sales, payments, buyers, documents,
  * KYC, projects). Use this instead of calling $transaction directly: the audit entries for those writes are written
  * inside the same transaction, so they commit or roll back with it and never need a second pooled connection.
+ *
+ * `audit: false` is for a bulk copy of whole records (a project import): the per-write entries would each hold a copy of
+ * the data, so the caller writes one summary entry itself instead.
+ * `isolationLevel` is for reading many tables as they were at one moment (a project export).
  */
-export async function transaction<T>(fn: (tx: DbTransaction) => Promise<T>, options?: { maxWait?: number; timeout?: number }): Promise<T> {
+export async function transaction<T>(
+  fn: (tx: DbTransaction) => Promise<T>,
+  options?: { maxWait?: number; timeout?: number; audit?: boolean; isolationLevel?: Prisma.TransactionIsolationLevel },
+): Promise<T> {
+  const { audit: record = true, ...prismaOptions } = options ?? {}
   const userId = await resolveActorId() // looked up before the transaction takes its connection
   return prisma.$transaction(async (tx) => {
-    const audit = { userId, rows: [] as Prisma.AuditLogUncheckedCreateInput[] }
+    const audit = { userId, rows: [] as Prisma.AuditLogUncheckedCreateInput[], quiet: !record }
     const result = await transactionAudit.run(audit, () => fn(tx))
     if (audit.rows.length > 0) await tx.auditLog.createMany({ data: audit.rows })
     return result
-  }, options)
+  }, prismaOptions)
 }

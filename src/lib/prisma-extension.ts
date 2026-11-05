@@ -13,6 +13,8 @@ import { redact } from '@/lib/redact'
 export interface TransactionAudit {
   userId: string | null
   rows: Prisma.AuditLogUncheckedCreateInput[]
+  /** Write no per-change entries inside this transaction (see `transaction(fn, { audit: false })`). */
+  quiet?: boolean
 }
 export const transactionAudit = new AsyncLocalStorage<TransactionAudit>()
 
@@ -49,6 +51,7 @@ export const auditLogExtension = Prisma.defineExtension({
         }
 
         const buffered = transactionAudit.getStore()
+        if (buffered?.quiet) return query(args)
         const userId = buffered ? buffered.userId : await resolveActorId()
         const result = await query(args)
 

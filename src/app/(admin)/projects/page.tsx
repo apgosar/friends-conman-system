@@ -28,7 +28,12 @@ export default async function ProjectsPage() {
         <PageHeader
           title="All Projects"
           subtitle={`${projects.length} project${projects.length !== 1 ? 's' : ''} total`}
-          actions={canAddProject ? <ButtonLink href="/projects/new" variant="primary" id="new-project-btn">+ New Project</ButtonLink> : undefined}
+          actions={canAddProject ? (
+            <>
+              <ButtonLink href="/projects/import">Import Project</ButtonLink>
+              <ButtonLink href="/projects/new" variant="primary" id="new-project-btn">+ New Project</ButtonLink>
+            </>
+          ) : undefined}
         />
 
         {projects.length === 0 ? (

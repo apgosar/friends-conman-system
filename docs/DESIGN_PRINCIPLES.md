@@ -73,6 +73,8 @@ The cost of breaking this is paid later and in bulk: a hand-styled button here, 
 | A project's parking: its own details (Level, Number, Bay...), its spaces, which are free, and the tags and old text fields built from them; reading an Excel sheet of spaces | `fieldKey`, `slotLabel`, `slotUniqueKey`, `isSlotAvailable`, `legacyParkingTexts`; `claimParkingSlots`; `findBlocks`, `buildSlots` | `src/lib/parking.ts`, `src/lib/parking-sale.ts`, `src/lib/parking-import.ts` |
 | A project's other charges (society share money, MCGM charge, legal... due with the last milestone) | `computeOtherCharges`, `DEFAULT_OTHER_CHARGES`, `OTHER_CHARGES_LABEL` | `src/lib/other-charges.ts` |
 | Sale agreement PAYABLES (MCGM charge per sq ft, common area charge, fixed amounts) | `agreementPayables` | `src/lib/documents/payables.ts` |
+| Move a project to another server (Super Admin: one passphrase-locked file out, uploaded in pieces, imported in one transaction). What travels is `TABLES`; what does not is `LEFT_BEHIND` | `exportProject`; `readBundle`, `previewImport`, `importProject`; the file: `writePackage` / `readPackage`; the pieces: `stageChunk` | `src/lib/project-transfer/` |
+| Download a file the API answers with | `downloadFromApi` | `src/lib/client/api.ts` |
 | Turn HTML into a PDF | `renderHtmlToPdf` | `src/lib/pdf/renderer.ts` |
 | Log something | `logger` | `src/lib/logger.ts` |
 | Rate limit an endpoint | `rateLimit` helpers | `src/lib/rate-limit.ts` |
@@ -217,6 +219,7 @@ All routes live in `src/app/api/**/route.ts`.
 - **Deleting.** Sales, payments and documents are soft-deleted via `softDelete.*` (`src/lib/soft-delete.ts`). **Every query that lists or counts sales uses `where: { sale: activeSale }` / `activeSale`**, so cancelled and deleted sales never leak into dashboards, receivables or exports.
 - **One live sale per unit** is enforced by a partial unique index in the database, and `src/lib/sales/create-sale.ts` locks the unit row before checking. Sale and receipt numbers come from `number_sequences` (`src/lib/numbering.ts`): gap-free, concurrency-safe, no `max()+1`.
 - **Sale status** is derived, not typed: `src/lib/sale-lifecycle.ts` (`deriveSaleStatus`, `syncSaleLifecycle`) from dates and payments.
+- **Moving a project to another server** (`src/lib/project-transfer/`, Super Admin). Ids and stored-file keys are kept as they are, so nothing needs rewriting; the company is matched by name; users by e-mail. The columns that travel come from `schema.prisma` itself, and `tests/project-transfer.test.ts` fails when a table is in neither `TABLES` (moves) nor `LEFT_BEHIND` (stays, with the reason), so **a new table has to be decided on**. Messages are never copied (a queued one would be sent again). The import writes only the files the records point at, inside the storage area, and its records in one `transaction(…, { audit: false })` with a single audit entry of its own. The file is read and written piece by piece (frames of 1 MiB), and uploaded in 5 MB pieces because every request passes the proxy, which buffers only the first 10 MB of a body.
 - **Server to client.** Rows from the money-converting client carry a hidden symbol React refuses to serialise; pass them to a client component through `plain(rows)` (`src/lib/plain.ts`).
 - **Counting and paging.** A list that can grow without bound is paginated on the server (see the audit and communications APIs). Do not `findMany()` everything into a table.
 
@@ -225,7 +228,7 @@ All routes live in `src/app/api/**/route.ts`.
 ## 7. Security and personal data
 
 - **Sessions.** `src/lib/auth.ts` (NextAuth, JWT). A token carries a `tokenVersion`; changing a password, role or active flag bumps it and every open session ends (`src/lib/session-token.ts`). Passwords: rules in `src/lib/password-rules.ts` (shown to users from the same constant), hashing in `src/lib/password.ts`. Login is rate limited.
-- **PAN and Aadhaar** are encrypted at rest (AES-256-GCM, `PII_ENCRYPTION_KEY`) by a Prisma extension, so a database copy or backup shows `enc:v1:…`. Screens call `maskedPan` / `maskedAadhaar`; only document generation calls `revealPii`. Never select these columns into a response, a log line or a report. Details and the conversion script: `src/lib/pii.ts`, `src/lib/pii-migration.ts`, `scripts/encrypt-pii.ts` (`npm run db:encrypt-pii`).
+- **PAN and Aadhaar** are encrypted at rest (AES-256-GCM, `PII_ENCRYPTION_KEY`) by a Prisma extension, so a database copy or backup shows `enc:v1:…`. The one place they leave the database in the clear is a project export file, which is itself encrypted with the Super Admin's passphrase (AES-256-GCM, scrypt) because the other server has a different key; the importing server encrypts them again with its own. Screens call `maskedPan` / `maskedAadhaar`; only document generation calls `revealPii`. Never select these columns into a response, a log line or a report. Details and the conversion script: `src/lib/pii.ts`, `src/lib/pii-migration.ts`, `scripts/encrypt-pii.ts` (`npm run db:encrypt-pii`).
 - **Erasure on request** (DPDP Act): `src/lib/dpdp-compliance.ts`, reachable by a Super Admin from the sale page and `POST /api/buyers/[id]/anonymize`. It keeps the sale and payments, removes the person.
 - **Escape everything that becomes HTML.** `src/lib/html-escape.ts` (`escapeHtml`), used by the template engine, the email builder and the quote PDF. Text typed by a user must never be concatenated into HTML unescaped.
 - **PDFs** are produced only by `src/lib/pdf/renderer.ts`: one shared Chromium, at most three pages at once, JavaScript off, and only `data:` URLs and public `https` images, fonts and styles may load (never `file://`, `http://` or an internal address). Do not launch Puppeteer anywhere else.
@@ -307,7 +310,7 @@ Then add the matching client call with `fetchJson`. `tests/api-conventions.test.
 
 **A new feature stylesheet.** Create `src/styles/<feature>.css`, import it in `src/styles/globals.css` between `components.css` and `utilities.css`, and put its phone/tablet rules next to it.
 
-**A database change.** Edit `prisma/schema.prisma`, run `npx prisma migrate dev --name …`, commit the migration, keep `CHECK` constraints and indexes in the SQL. If existing rows need converting, write an idempotent script in `scripts/` and register it in the `Dockerfile` as the next `NNN-…` data migration (the on-prem updater runs these once per server).
+**A database change.** Edit `prisma/schema.prisma`, run `npx prisma migrate dev --name …`, commit the migration, keep `CHECK` constraints and indexes in the SQL. A **new table** also goes into `TABLES` or `LEFT_BEHIND` in `src/lib/project-transfer/tables.ts` (a test fails until it does), and a new column that holds a stored file's URL goes into that table's `files`. If existing rows need converting, write an idempotent script in `scripts/` and register it in the `Dockerfile` as the next `NNN-…` data migration (the on-prem updater runs these once per server).
 
 **An environment variable.** Add it to `.env.example`, `.env.production.example` and `deploy/onprem/.env.onprem.example`, and to `src/lib/env.ts` if the app cannot work without it.
 
@@ -346,6 +349,7 @@ src/
     documents/ pdf/ pdf.ts pdf-generator.ts docx*.ts template-*.ts html-escape.ts
     comms-content.ts comms-dispatcher.ts email.ts whatsapp.ts scheduler.ts
     storage/                 file storage adapters
+    project-transfer/        moving a project to another server (export file, import, table list)
     license/                 on-prem licence check
     env.ts logger.ts rate-limit.ts internal-auth.ts deployment-config.ts version.ts plain.ts
   styles/                    the stylesheet (§3.3)

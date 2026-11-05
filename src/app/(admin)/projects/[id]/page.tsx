@@ -11,6 +11,7 @@ import { auth } from '@/lib/auth'
 import { can } from '@/lib/authz'
 import { comboLabel, missingCombos, requiredCombos, type Combo } from '@/lib/payment-plans'
 import DeleteProjectButton from '@/components/projects/DeleteProjectButton'
+import ExportProjectButton from '@/components/projects/ExportProjectButton'
 import { Alert, Badge, ButtonLink, Card, CardHeader, EmptyState, PageHeader, StatusBadge } from '@/components/ui'
 
 async function getProject(id: string) {
@@ -87,6 +88,7 @@ export default async function ProjectDetailPage(props: PageProps<'/projects/[id]
               <ButtonLink href={`/projects/${id}/milestones`}>Milestones</ButtonLink>
               <ButtonLink href={`/projects/${id}/templates`}>Templates</ButtonLink>
               {(project.type === 'REDEVELOPMENT' || project.type === 'MIXED') && <ButtonLink href={`/projects/${id}/tenants`}>Tenants</ButtonLink>}
+              {isSuperAdmin && <ExportProjectButton projectId={id} projectName={project.name} />}
               {isSuperAdmin && <DeleteProjectButton projectId={id} projectName={project.name} salesCount={salesOnRecord} />}
             </>
           }

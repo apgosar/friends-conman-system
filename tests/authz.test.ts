@@ -2,8 +2,8 @@ import { describe, it, expect } from 'vitest'
 import { canAccessPath, can } from '@/lib/authz'
 
 describe('who may open what', () => {
-  it('lets only a Super Admin add a project and set up its building', () => {
-    for (const path of ['/projects/new', '/projects/p1/structure', '/projects/p1/structure/anything']) {
+  it('lets only a Super Admin add or import a project and set up its building', () => {
+    for (const path of ['/projects/new', '/projects/import', '/projects/p1/structure', '/projects/p1/structure/anything']) {
       expect(canAccessPath('SUPER_ADMIN', path)).toBe(true)
       for (const role of ['ADMIN', 'SALES', 'VIEWER']) expect(canAccessPath(role, path)).toBe(false)
     }
