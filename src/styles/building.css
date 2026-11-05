@@ -88,7 +88,7 @@
 @media (prefers-reduced-motion: reduce) { .bv-skel, .bv-viewport { animation: none; } }
 
 /* ── Table view ── */
-.bv-table { display: flex; flex-direction: column; height: min(640px, 72vh); background: var(--bg-card); border: 1px solid var(--border-color); border-radius: var(--radius-lg); overflow: hidden; }
+.bv-table { display: flex; flex-direction: column; height: min(640px, 72svh); background: var(--bg-card); border: 1px solid var(--border-color); border-radius: var(--radius-lg); overflow: hidden; }
 .bv-table-bar { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-3); padding: var(--space-3) var(--space-4); border-bottom: 1px solid var(--border-color); }
 .bv-table-scroll { flex: 1; min-height: 0; overflow: auto; }
 .bv-table-scroll thead { position: sticky; top: 0; z-index: 1; background: var(--bg-card); }
@@ -114,7 +114,7 @@
 .bv-plan-config { top: 8px; left: 8px; background: var(--tint-fill); border: 1px solid var(--tint-stroke); color: var(--tint-top); }
 .bv-plan-area { top: 8px; right: 8px; background: rgba(0, 0, 0, 0.6); color: var(--text-secondary); backdrop-filter: blur(4px); }
 .bv-plan-enlarge { bottom: 8px; right: 8px; z-index: 3; padding: 4px 12px; border: none; background: rgba(0, 0, 0, 0.6); color: var(--text-primary); backdrop-filter: blur(4px); cursor: pointer; }
-.bv-plan-large { display: block; max-width: 100%; max-height: 75vh; margin: 0 auto; object-fit: contain; background: #fff; border-radius: var(--radius-md); }
+.bv-plan-large { display: block; max-width: 100%; max-height: 75svh; margin: 0 auto; object-fit: contain; background: #fff; border-radius: var(--radius-md); }
 
 .bv-status-pill { align-self: center; padding: 5px 16px; border-radius: var(--radius-full); background: var(--tint-fill); border: 1px solid var(--tint-stroke); color: var(--tint-top); font-weight: 700; font-size: var(--text-sm); letter-spacing: 0.05em; }
 .bv-box { background: var(--bg-surface); border-radius: var(--radius-md); padding: var(--space-3); }

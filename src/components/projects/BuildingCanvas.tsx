@@ -94,9 +94,10 @@ export default function BuildingCanvas({ wing, title, filterStatus, filterType, 
   const [hoverId, setHoverId] = useState<string | null>(null)
   const [focusId, setFocusId] = useState<string | null>(null)
 
-  // Fit the building to the width that is available. Zoom multiplies on top of that.
+  // Fit the building to the width that is available. Zoom multiplies on top of that. The width is the stage's, not the scrolling view's:
+  // a scroll bar appearing or going away changed the view's width, which changed the fit, which flipped the scroll bar again (the page shook).
   useEffect(() => {
-    const el = viewportRef.current
+    const el = viewportRef.current?.parentElement
     if (!el) return
     const ro = new ResizeObserver(() => setContainerW(el.clientWidth))
     ro.observe(el)
@@ -335,7 +336,7 @@ export default function BuildingCanvas({ wing, title, filterStatus, filterType, 
           onKeyDown={onKeyDown}
           onBlur={() => setFocusId(null)}
           className="bv-viewport"
-          style={{ height: `min(${Math.round(layout.logicalH * scale)}px, 78vh)` }}
+          style={{ height: `min(${Math.round(layout.logicalH * scale)}px, 78svh)` }}
         >
           <div className="bv-scene" style={{ width: layout.logicalW * scale, height: layout.logicalH * scale }}>
             <canvas ref={baseRef} aria-hidden="true" className="bv-layer" />
