@@ -50,7 +50,7 @@ type ScheduleRow = { milestoneId: string; description: string; principalAmount: 
 const emptyBuyer = (): Buyer => ({ fullName: '', panNumber: '', aadhaarNumber: '', address: '', email: '', whatsappNumber: '' })
 
 // ─── Step indicator ──────────────────────────────────────────
-import { Alert, Button, Input, PhoneField, SelectField, StepBar, Stepper, Table, TextField, TextareaField } from '@/components/ui'
+import { Alert, Button, Input, PhoneField, SelectField, StepBar, Stepper, Table, TextField, TextareaField, useConfirm } from '@/components/ui'
 import { ApiError, errorMessage, fetchJson, jsonRequest } from '@/lib/client/api'
 import KycPasswordModal from './KycPasswordModal'
 import NameMismatchModal from './NameMismatchModal'
@@ -76,6 +76,7 @@ type Prefill = { inquiryId: string; projectId: string; unitId: string; agreement
 
 export default function NewSaleWizard({ projects, prefill = null, preselect = null }: { projects: any[]; prefill?: Prefill; preselect?: { projectId: string; unitId: string } | null }) {
   const router = useRouter()
+  const confirm = useConfirm()
   const [step, setStep] = useState(1)
   const [error, setError] = useState('')
   // Field-level errors from the Review step, keyed by field (project, unit, tenant, buyer-0-name ...). Each clears when its field is edited.
@@ -322,7 +323,7 @@ export default function NewSaleWizard({ projects, prefill = null, preselect = nu
     return rows
   }
 
-  const goToStep2 = () => {
+  const goToStep2 = async () => {
     setError('')
     // Check everything at once, mark each wrong field red under its own message, and scroll to the first one
     const errs: Record<string, string> = {}
@@ -332,7 +333,7 @@ export default function NewSaleWizard({ projects, prefill = null, preselect = nu
     buyers.forEach((b, i) => {
       if (!b.fullName.trim()) errs[`buyer-${i}-fullName`] = 'Please enter full name'
       if (validatePan(b.panNumber) || !b.panNumber) errs[`buyer-${i}-panNumber`] = 'Please enter valid PAN number'
-      if (validateAadhaar(b.aadhaarNumber) || !b.aadhaarNumber.trim()) errs[`buyer-${i}-aadhaarNumber`] = 'Please enter valid Aadhar number'
+      if (validateAadhaar(b.aadhaarNumber)) errs[`buyer-${i}-aadhaarNumber`] = 'Please enter valid Aadhar number'
       if (validateEmail(b.email) || !b.email.trim()) errs[`buyer-${i}-email`] = 'Please enter a valid email address'
       if (validatePhone(b.whatsappNumber) || !normalizePhone(b.whatsappNumber).ok || !(normalizePhone(b.whatsappNumber) as { value: string | null }).value) errs[`buyer-${i}-whatsappNumber`] = PHONE_ERROR
       if (!b.address.trim()) errs[`buyer-${i}-address`] = 'Please enter the address'
@@ -340,6 +341,7 @@ export default function NewSaleWizard({ projects, prefill = null, preselect = nu
     if (hasParkingList) parkingSlots.forEach((slot, i) => { if (!slotIdOf(slot)) errs[`parking-${i}`] = 'Please choose the parking space' })
     setFieldErrors(errs)
     if (Object.keys(errs).length > 0) { scrollToFirstInvalid(); return }
+    if (buyers.some(b => !b.aadhaarNumber.trim()) && !(await confirm({ message: 'No Aadhaar card added. Do you want to proceed?', confirmLabel: 'Proceed' }))) return
     if (!paymentPlan) { setError('There is no payment plan for this sale type and unit type. Add one under Payment Plans first'); return }
 
     setSchedules(buildSchedule(paymentPlan))
@@ -570,7 +572,6 @@ export default function NewSaleWizard({ projects, prefill = null, preselect = nu
                 />
                 <TextField
                   label="Aadhaar number"
-                  required
                   value={buyer.aadhaarNumber}
                   onChange={e => updateBuyer(idx, 'aadhaarNumber', formatAadhaar(e.target.value))}
                   placeholder="XXXX XXXX XXXX"

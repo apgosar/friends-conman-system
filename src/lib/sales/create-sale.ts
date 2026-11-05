@@ -33,7 +33,7 @@ const SaleBuyerSchema = z.object({
     return phone.value
   }),
   panNumber: z.string({ error: 'Enter the PAN number' }).trim().toUpperCase().regex(PAN_PATTERN, PAN_ERROR),
-  aadhaarNumber: z.string({ error: 'Enter the Aadhaar number' }).transform((v) => v.replace(/\s/g, '')).pipe(z.string().regex(/^\d{12}$/, AADHAAR_ERROR)),
+  aadhaarNumber: z.string().transform((v) => v.replace(/\s/g, '')).pipe(z.string().regex(/^\d{12}$/, AADHAAR_ERROR).or(z.literal(''))).nullish(), // optional: the form asks first when it is left out
   address: z.string({ error: 'Enter the address' }).trim().min(1, 'Enter the address').max(500, 'The address is too long (maximum 500 characters)'),
   receiveComms: z.boolean().optional(),
 })

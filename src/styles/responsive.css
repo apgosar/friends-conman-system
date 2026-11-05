@@ -28,9 +28,7 @@
 
   .sidebar .sidebar-logo { justify-content: center; padding: var(--space-5) var(--space-2); }
   .sidebar .sidebar-logo-text,
-  .sidebar .nav-item > span:not(.nav-item-icon),
-  .sidebar .sidebar-user,
-  .sidebar .sidebar-version { display: none; }
+  .sidebar .nav-item > span:not(.nav-item-icon) { display: none; }
   .sidebar .nav-section-label { height: 1px; padding: 0; margin: var(--space-3) var(--space-2); background: var(--border-color); font-size: 0; }
   .sidebar .nav-item { justify-content: center; padding: var(--space-3) var(--space-2); }
 
@@ -38,12 +36,22 @@
   .sidebar:hover, .sidebar:focus-within { width: var(--sidebar-width); box-shadow: var(--shadow-xl); }
   .sidebar:hover .sidebar-logo, .sidebar:focus-within .sidebar-logo { justify-content: flex-start; padding: 20px 16px; }
   .sidebar:hover .sidebar-logo-text, .sidebar:focus-within .sidebar-logo-text,
-  .sidebar:hover .nav-item > span:not(.nav-item-icon), .sidebar:focus-within .nav-item > span:not(.nav-item-icon),
-  .sidebar:hover .sidebar-user, .sidebar:focus-within .sidebar-user,
-  .sidebar:hover .sidebar-version, .sidebar:focus-within .sidebar-version { display: block; }
+  .sidebar:hover .nav-item > span:not(.nav-item-icon), .sidebar:focus-within .nav-item > span:not(.nav-item-icon) { display: block; }
   .sidebar:hover .nav-item, .sidebar:focus-within .nav-item { justify-content: flex-start; padding: 9px 10px; }
   .sidebar:hover .nav-item > span:not(.nav-item-icon), .sidebar:focus-within .nav-item > span:not(.nav-item-icon) { display: inline; }
   .sidebar:hover .nav-section-label, .sidebar:focus-within .nav-section-label { height: auto; font-size: 0.6875rem; padding: 12px 8px 4px; margin: 0; background: none; }
+}
+
+/* ── Desktop: side bar collapsed to a rail by the toggle in the top bar ── */
+@media (min-width: 1101px) {
+  .sidebar-toggle-btn { display: inline-flex; }
+  .admin-layout.collapsed .sidebar { width: var(--sidebar-collapsed); }
+  .admin-layout.collapsed .admin-main { margin-left: var(--sidebar-collapsed); }
+  .admin-layout.collapsed .sidebar .sidebar-logo { justify-content: center; padding: var(--space-5) var(--space-2); }
+  .admin-layout.collapsed .sidebar .sidebar-logo-text,
+  .admin-layout.collapsed .sidebar .nav-item > span:not(.nav-item-icon) { display: none; }
+  .admin-layout.collapsed .sidebar .nav-section-label { height: 1px; padding: 0; margin: var(--space-3) var(--space-2); background: var(--border-color); font-size: 0; }
+  .admin-layout.collapsed .sidebar .nav-item { justify-content: center; padding: var(--space-3) var(--space-2); }
 }
 
 /* ── Phone / tablet portrait: drawer ── */
@@ -74,7 +82,6 @@
   .page-header > .page-actions, .page-header > .row { width: 100%; }
   .page-title { font-size: var(--text-xl); }
 
-  .topnav-user-meta { display: none; }
   .topnav-heading { font-size: var(--text-md); }
 
   /* modal: bottom sheet */

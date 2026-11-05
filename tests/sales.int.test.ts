@@ -19,9 +19,9 @@ describe('sale input schema', () => {
     expect(SaleCreateSchema.safeParse({ ...ok, saleType: 'FRESH' }).success).toBe(true)
     expect(SaleCreateSchema.safeParse({ ...ok, saleType: 'NONSENSE' }).success).toBe(false)
   })
-  it('needs every detail of every buyer: name, PAN, Aadhaar, email, WhatsApp and address', () => {
+  it('needs every detail of every buyer except the Aadhaar: name, PAN, email, WhatsApp and address', () => {
     expect(SaleCreateSchema.safeParse(ok).success).toBe(true)
-    for (const field of ['fullName', 'email', 'whatsappNumber', 'panNumber', 'aadhaarNumber', 'address']) {
+    for (const field of ['fullName', 'email', 'whatsappNumber', 'panNumber', 'address']) {
       for (const blank of [undefined, null, '', '  ']) {
         const b = { ...buyer(), [field]: blank }
         expect(SaleCreateSchema.safeParse({ ...ok, buyers: [buyer(), b] }).success, `${field}=${String(blank)}`).toBe(false) // the second buyer counts too
@@ -29,6 +29,7 @@ describe('sale input schema', () => {
     }
     expect(SaleCreateSchema.safeParse({ ...ok, buyers: [buyer({ panNumber: 'nonsense' })] }).success).toBe(false)
     expect(SaleCreateSchema.safeParse({ ...ok, buyers: [buyer({ aadhaarNumber: '1234' })] }).success).toBe(false)
+    for (const blank of [undefined, null, '', '  ']) expect(SaleCreateSchema.safeParse({ ...ok, buyers: [buyer({ aadhaarNumber: blank as never })] }).success, `aadhaarNumber=${String(blank)}`).toBe(true) // the form asks "No Aadhaar card added" first
   })
   it('rejects NaN, negative and non-numeric money', () => {
     for (const bad of ['abc', -5, NaN, '', Infinity]) expect(SaleCreateSchema.safeParse({ ...ok, agreementValue: bad }).success, String(bad)).toBe(false)

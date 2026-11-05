@@ -2,10 +2,9 @@
 
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
-import { signOut, useSession } from 'next-auth/react'
-import { buildTitle, versionLabel } from '@/lib/version'
+import { useSession } from 'next-auth/react'
 import { canAccessPath } from '@/lib/authz'
-import { ROLE_LABELS, normalizeRole } from '@/lib/roles'
+import { normalizeRole } from '@/lib/roles'
 import { useNav } from '@/components/layout/AppShell'
 import { cn } from '@/components/ui/cn'
 
@@ -92,24 +91,6 @@ export default function Sidebar() {
           ))}
         </nav>
 
-        <div className="sidebar-footer">
-          {session?.user && (
-            <div className="sidebar-user">
-              <div className="sidebar-user-name">{session.user.name}</div>
-              <div className="sidebar-user-meta">{ROLE_LABELS[role]}</div>
-              <div className="sidebar-user-meta">{session.user.email}</div>
-            </div>
-          )}
-          <Link href="/account" className={cn('nav-item', pathname.startsWith('/account') && 'active')} onClick={close} title="My Account">
-            <span className="nav-item-icon" aria-hidden="true">🔑</span>
-            <span>My Account</span>
-          </Link>
-          <button className="nav-item sidebar-signout" onClick={() => signOut({ callbackUrl: '/login' })} id="signout-btn" title="Sign Out">
-            <span className="nav-item-icon" aria-hidden="true">↩</span>
-            <span>Sign Out</span>
-          </button>
-          <div className="sidebar-version" title={buildTitle()}>{versionLabel()}</div>
-        </div>
       </aside>
     </>
   )
