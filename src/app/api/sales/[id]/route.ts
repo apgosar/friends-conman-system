@@ -8,7 +8,7 @@ export const GET = route<{ id: string }>('staff', async ({ params }) => {
     include: {
       unit: true,
       project: { select: { company: { select: { partners: { where: { isActive: true }, orderBy: { name: 'asc' }, select: { id: true, name: true } } } } } },
-      documents: { where: { deletedAt: null }, orderBy: { createdAt: 'desc' } },
+      documents: { where: { deletedAt: null }, orderBy: { createdAt: 'desc' }, include: { template: { select: { name: true } } } },
     },
   })
   if (!sale) throw fail('notFound', 'Sale not found')

@@ -8,7 +8,7 @@ import DeleteTemplateButton from './DeleteTemplateButton'
 import TemplateHtmlPreview from '@/components/projects/TemplateHtmlPreview'
 import CopyTemplateButton from '@/components/projects/CopyTemplateButton'
 import TemplateCoverage from '@/components/projects/TemplateCoverage'
-import { TEMPLATE_TYPES } from '@/lib/template-constants'
+import { TEMPLATE_TYPES, templateLabel } from '@/lib/template-constants'
 import { ButtonLink, Card, CardHeader, EmptyRow, PageHeader, Table, Td } from '@/components/ui'
 
 export default async function TemplatesPage(props: PageProps<'/projects/[id]/templates'>) {
@@ -27,10 +27,10 @@ export default async function TemplatesPage(props: PageProps<'/projects/[id]/tem
       include: { user: { select: { name: true } } },
     }),
   ])
-  // Group by document type, newest version first, so a type's history reads top to bottom
+  // Group by document type (possession documents also by name), newest version first, so a template's history reads top to bottom
   const typeOrder = TEMPLATE_TYPES.map((t) => t.value as string)
   const templates = [...rawTemplates].sort(
-    (a, b) => typeOrder.indexOf(a.type) - typeOrder.indexOf(b.type) || b.version - a.version,
+    (a, b) => typeOrder.indexOf(a.type) - typeOrder.indexOf(b.type) || a.name.localeCompare(b.name) || b.version - a.version,
   )
   const ACTION_LABEL: Record<string, string> = { created: 'uploaded', activated: 'activated', deleted: 'deleted', copied: 'copied in' }
 
@@ -60,7 +60,7 @@ export default async function TemplatesPage(props: PageProps<'/projects/[id]/tem
               ) : (
                 templates.map(t => (
                   <tr key={t.id}>
-                    <Td label="Template" className="font-medium">{TEMPLATE_TYPES.find((x) => x.value === t.type)?.label ?? t.type}</Td>
+                    <Td label="Template" className="font-medium">{templateLabel(t.type, t.name)}</Td>
                     <Td label="Version">v{t.version}</Td>
                     <Td label="Status"><ActivateButton projectId={id} templateId={t.id} type={t.type} isActive={t.isActive} /></Td>
                     <Td label="Updated" className="text-muted">{formatDate(t.updatedAt)}</Td>

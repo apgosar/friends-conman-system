@@ -1,4 +1,5 @@
-import { formatDate, formatMoney, numberToWords } from '@/lib/format'
+import { formatDate, formatDateLong, formatMoney, numberToWords } from '@/lib/format'
+import { addressLines } from '@/lib/buyers'
 import { percentOf, sumRupees } from '@/lib/money'
 import { isTdsPayment, paymentKindLabel, paymentModeLabel } from '@/lib/status'
 import { isOfflineCharge, isStandaloneCharge } from '@/lib/payment-plans'
@@ -110,6 +111,7 @@ export function buildSalePayload(sale: SaleForDocument, partners: PartnerForDocu
   })
   const parkingTexts = legacyParkingTexts((sale.parkingSlots ?? []).map((s) => ({ values: (s.values ?? {}) as ParkingValues })))
   const buyerNames = joinNames(buyers.map((b) => b.fullName))
+  const buyer1Lines = addressLines(first?.address) // a letter writes the address on up to three lines
   const balanceAfterAdvance = agreement - advance
 
   return {
@@ -144,6 +146,10 @@ export function buildSalePayload(sale: SaleForDocument, partners: PartnerForDocu
     buyer1Email: first?.email ?? '',
     buyer1Whatsapp: first?.whatsappNumber ?? '',
     buyer1Address: first?.address ?? '',
+    buyer1AddressLines: buyer1Lines.join('\n'), // a Word template prints each line on its own line
+    buyer1AddressLine1: buyer1Lines[0] ?? '',
+    buyer1AddressLine2: buyer1Lines[1] ?? '',
+    buyer1AddressLine3: buyer1Lines[2] ?? '',
     buyer1Pan: revealPii(first?.panNumber),
     buyer1Aadhaar: revealPii(first?.aadhaarNumber),
     buyers: buyers.map((b, i) => ({
@@ -155,6 +161,7 @@ export function buildSalePayload(sale: SaleForDocument, partners: PartnerForDocu
       email: b.email ?? '',
       whatsappNumber: b.whatsappNumber ?? '',
       address: b.address ?? '',
+      addressLines: addressLines(b.address).join('\n'),
       isPrimary: b.isPrimary ? 'Yes' : 'No',
       hasNext: i < buyers.length - 1, // for "; " between buyers written on one line
     })),
@@ -177,6 +184,8 @@ export function buildSalePayload(sale: SaleForDocument, partners: PartnerForDocu
     tdsAmountWords: numberToWords(tds),
     bookingDate: formatDate(sale.bookingDate),
     todayDate: formatDate(new Date()),
+    agreementDate: sale.agreementDate ? formatDateLong(sale.agreementDate) : '',
+    possessionDate: sale.possessionDate ? formatDateLong(sale.possessionDate) : '',
     oldFlatNumber: sale.tenant?.oldFlatNumber ?? '',
     oldArea: sale.tenant?.oldAreaSqft?.toString() ?? '',
     extraArea: sale.tenant?.extraAreaSqft?.toString() ?? '',

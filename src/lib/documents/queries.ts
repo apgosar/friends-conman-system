@@ -24,3 +24,5 @@ export type ReceiptPayment = Omit<PaymentWithContext, 'schedule'>
 export type ReceiptSchedule = NonNullable<PaymentWithContext['schedule']>
 
 export const findActiveTemplate = (projectId: string, type: string) => prisma.template.findFirst({ where: { projectId, type, isActive: true } })
+/** Every active template of a type that holds several documents (the possession documents), by name. */
+export const findActiveTemplates = (projectId: string, type: string) => prisma.template.findMany({ where: { projectId, type, isActive: true }, orderBy: { name: 'asc' } })

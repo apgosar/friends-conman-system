@@ -6,7 +6,7 @@ import { prisma, transaction } from '@/lib/db'
 import { auth } from '@/lib/auth'
 import { requireRole } from '@/lib/guard'
 import { uploadFile } from '@/lib/storage'
-import { DOCX_MIME } from '@/lib/template-constants'
+import { DOCX_MIME, templateSlot } from '@/lib/template-constants'
 import { TemplateValidationError, extractDocxText, templateWarnings, validateDocx, validateHtmlTemplate, validateTemplateMeta } from '@/lib/template-validation'
 import { createAuditLog } from '@/lib/audit'
 
@@ -39,7 +39,7 @@ export async function POST(req: NextRequest, props: { params: Promise<{ id: stri
     if (!project) return apiError('notFound', 'Project not found')
 
     const form = await req.formData()
-    const { name, type } = validateTemplateMeta(form.get('type'))
+    const { name, type } = validateTemplateMeta(form.get('type'), form.get('name'))
 
     const file = form.get('file')
     let fileUrl: string | null = null
@@ -56,10 +56,11 @@ export async function POST(req: NextRequest, props: { params: Promise<{ id: stri
       warnings = templateWarnings(type, 'HTML', templateHtml)
     }
 
-    // Each upload of a document type is the next version; older versions stay available for rollback
+    // Each upload of a document type (or of a named possession document) is the next version; older versions stay available for rollback
+    const slot = templateSlot(projectId, type, name)
     const template = await transaction(async (tx) => {
-      const latest = await tx.template.aggregate({ where: { projectId, type }, _max: { version: true } })
-      await tx.template.updateMany({ where: { projectId, type, isActive: true }, data: { isActive: false } })
+      const latest = await tx.template.aggregate({ where: slot, _max: { version: true } })
+      await tx.template.updateMany({ where: { ...slot, isActive: true }, data: { isActive: false } })
       return tx.template.create({
         data: { projectId, name, type, fileUrl, templateHtml, isActive: true, version: (latest._max.version ?? 0) + 1 },
       })

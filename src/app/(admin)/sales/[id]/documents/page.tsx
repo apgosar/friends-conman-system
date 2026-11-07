@@ -7,6 +7,8 @@ import AgreementPartnerPicker, { type PartnerChoice } from '@/components/sales/A
 import { checkAgreementPartners, namesPartners } from '@/lib/companies'
 import { errorMessage, fetchJson, jsonRequest } from '@/lib/client/api'
 import { formatDate } from '@/lib/format'
+import { POSSESSION_NOT_READY, possessionReady } from '@/lib/status'
+import { isMultiTemplateType, templateLabel } from '@/lib/template-constants'
 
 export default function SaleDocumentsPage(props: { params: Promise<{ id: string }> }) {
   const { id } = use(props.params)
@@ -40,8 +42,15 @@ export default function SaleDocumentsPage(props: { params: Promise<{ id: string 
   const generate = async (type: string, partnerIds?: string[]) => {
     setGenerating(type)
     try {
-      await fetchJson('/api/documents/generate', jsonRequest('POST', { saleId: id, type, ...(partnerIds ? { partnerIds } : {}) }))
-      toast.success('Document generated')
+      const json = await fetchJson('/api/documents/generate', jsonRequest('POST', { saleId: id, type, ...(partnerIds ? { partnerIds } : {}) }))
+      if (Array.isArray(json.data)) {
+        // The possession documents come back together: download them as one .zip
+        const made = json.data as { id: string }[]
+        toast.success(`${made.length} possession document${made.length === 1 ? '' : 's'} generated`)
+        window.location.assign(`/api/sales/${id}/documents/zip?ids=${made.map((d) => d.id).join(',')}`)
+      } else {
+        toast.success('Document generated')
+      }
       fetchDocuments()
     } catch (err) {
       toast.error(errorMessage(err))
@@ -82,10 +91,11 @@ export default function SaleDocumentsPage(props: { params: Promise<{ id: string 
     }
   }
 
-  // Documents are ordered by createdAt desc, so the first occurrence per type is the latest
+  // Documents are ordered by createdAt desc, so the first occurrence per type (per name for possession documents) is the latest
+  const docKey = (doc: { type: string; template?: { name: string } | null }) => (isMultiTemplateType(doc.type) ? `${doc.type}:${doc.template?.name ?? ''}` : doc.type)
   const latestByType: Record<string, string> = {}
   for (const doc of documents) {
-    if (!latestByType[doc.type]) latestByType[doc.type] = doc.id
+    if (!latestByType[docKey(doc)]) latestByType[docKey(doc)] = doc.id
   }
 
   if (loading) {
@@ -127,7 +137,16 @@ export default function SaleDocumentsPage(props: { params: Promise<{ id: string 
               {sale.saleType === 'REDEVELOPMENT' && generateButton('PAAA', 'Generate PAAA (DOCX)')}
               {generateButton('DEMAND_LETTER', 'Generate Demand Letter (PDF)')}
               {generateButton('RECEIPT', 'Generate Receipt (PDF)')}
-              {generateButton('POSSESSION_LETTER', 'Generate Possession Letter (DOCX)', 'primary')}
+            </div>
+            <div className="mt-4 py-4 border-top flex dir-col gap-2">
+              <Button variant="primary" loading={generating === 'POSSESSION_LETTER'} disabled={!!generating || !possessionReady(sale.status)} onClick={() => handleGenerate('POSSESSION_LETTER')}>
+                Generate possession documents
+              </Button>
+              <p className="m-0 text-sm text-muted">
+                {possessionReady(sale.status)
+                  ? 'Makes every active possession document of the project (handover letter, NOCs...) and downloads them as one .zip'
+                  : POSSESSION_NOT_READY}
+              </p>
             </div>
             <p className="mt-4 text-sm text-muted">Upload the matching template under the project&apos;s Templates before generating.</p>
           </Card>
@@ -144,8 +163,8 @@ export default function SaleDocumentsPage(props: { params: Promise<{ id: string 
                     <tr key={doc.id}>
                       <Td label="Type">
                         <div className="flex items-center wrap gap-2">
-                          <Badge variant="info">{doc.type.replace(/_/g, ' ')}</Badge>
-                          {latestByType[doc.type] === doc.id && <Badge variant="success">✦ Latest</Badge>}
+                          <Badge variant="info">{templateLabel(doc.type, doc.template?.name ?? '')}</Badge>
+                          {latestByType[docKey(doc)] === doc.id && <Badge variant="success">✦ Latest</Badge>}
                         </div>
                       </Td>
                       <Td label="Status"><StatusBadge kind="document" status={doc.status} /></Td>

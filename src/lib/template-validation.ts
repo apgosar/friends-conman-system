@@ -1,6 +1,6 @@
 import PizZip from 'pizzip'
 import Docxtemplater from 'docxtemplater'
-import { DOCX_MIME, TEMPLATE_LIMITS, TEMPLATE_TYPES, TEMPLATE_TYPE_VALUES, formatBytes } from '@/lib/template-constants'
+import { DOCX_MIME, TEMPLATE_LIMITS, TEMPLATE_TYPES, TEMPLATE_TYPE_VALUES, formatBytes, isMultiTemplateType } from '@/lib/template-constants'
 import { describeTagIssues, findTagIssues } from '@/lib/template-tags'
 import { formatNumber } from '@/lib/format'
 
@@ -10,9 +10,18 @@ const MAX_UNCOMPRESSED_BYTES = 50 * 1024 * 1024 // zip-bomb guard
 // Browsers sometimes send these for .docx
 const ACCEPTED_MIME = new Set([DOCX_MIME, 'application/octet-stream', ''])
 
-/** A template is known by its document type: the name saved with it is the type's label ("Sale Agreement"). */
-export function validateTemplateMeta(type: unknown): { name: string; type: string } {
+/**
+ * A template is known by its document type: the name saved with it is the type's label ("Sale Agreement"). A possession document is
+ * known by the name the person gives it ("Gas NOC"), so a project can have several.
+ */
+export function validateTemplateMeta(type: unknown, name?: unknown): { name: string; type: string } {
   if (typeof type !== 'string' || !TEMPLATE_TYPE_VALUES.includes(type)) throw new TemplateValidationError('Choose a valid document type')
+  if (isMultiTemplateType(type)) {
+    const given = typeof name === 'string' ? name.trim().replace(/\s+/g, ' ') : ''
+    if (!given) throw new TemplateValidationError('Enter the document name, for example Handover letter')
+    if (given.length > TEMPLATE_LIMITS.nameMax) throw new TemplateValidationError(`The document name is too long (maximum ${TEMPLATE_LIMITS.nameMax} characters)`)
+    return { name: given, type }
+  }
   return { name: TEMPLATE_TYPES.find((t) => t.value === type)?.label ?? type, type }
 }
 

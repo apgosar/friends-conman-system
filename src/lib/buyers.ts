@@ -22,6 +22,30 @@ export const BuyerEditSchema = z.object({
 })
 export type BuyerEditInput = z.input<typeof BuyerEditSchema>
 
+/**
+ * An address kept on one line, broken into at most `max` lines for a letter: it is cut only after a comma, and the lines come out
+ * about the same length. "7-C/34, Shree Jawahar CHS LTD, Sodawala Lane, Opp. Balwant Society, Govind Nagar Borivali (W) - 400092."
+ * gives three lines, each ending at a comma but the last.
+ */
+export function addressLines(text: string | null | undefined, max = 3): string[] {
+  const parts = (text ?? '').split(',').map((p) => p.trim()).filter(Boolean)
+  if (parts.length === 0) return []
+  const pieces = parts.map((p, i) => (i < parts.length - 1 ? `${p},` : p))
+  const total = pieces.reduce((n, p) => n + p.length + 1, 0)
+  const target = total / Math.max(1, max)
+  const lines: string[] = []
+  let line = ''
+  pieces.forEach((piece, i) => {
+    const left = pieces.length - i // pieces still to place, this one included
+    const linesLeft = max - lines.length
+    // start a new line when this one is long enough, or when every remaining piece needs a line of its own to fit
+    if (line && linesLeft > 1 && (line.length + 1 + piece.length > target * 1.15 || left < linesLeft)) { lines.push(line); line = piece }
+    else line = line ? `${line} ${piece}` : piece
+  })
+  if (line) lines.push(line)
+  return lines
+}
+
 /** Aadhaar as it is typed: digits only, in groups of four ("1234 5678 9012"). */
 export function formatAadhaar(value: string): string {
   const digits = value.replace(/\D/g, '').slice(0, 12)

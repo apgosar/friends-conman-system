@@ -56,6 +56,10 @@ export const TAG_GROUPS: TagGroup[] = [
   { group: 'Primary buyer', tags: [
     { tag: 'buyer1Name', desc: 'Primary buyer name' },
     { tag: 'buyer1Address', desc: 'Primary buyer address' },
+    { tag: 'buyer1AddressLines', desc: 'Primary buyer address on up to three lines, broken after commas' },
+    { tag: 'buyer1AddressLine1', desc: 'First line of the primary buyer address' },
+    { tag: 'buyer1AddressLine2', desc: 'Second line of the primary buyer address' },
+    { tag: 'buyer1AddressLine3', desc: 'Third line of the primary buyer address' },
     { tag: 'buyer1Pan', desc: 'Primary buyer PAN' },
     { tag: 'buyer1Aadhaar', desc: 'Primary buyer Aadhaar' },
     { tag: 'buyer1Email', desc: 'Primary buyer email' },
@@ -72,6 +76,8 @@ export const TAG_GROUPS: TagGroup[] = [
     { tag: 'balanceAmountWords', desc: 'Balance in words' },
     { tag: 'bookingDate', desc: 'Booking date' },
     { tag: 'todayDate', desc: 'Date the document is generated' },
+    { tag: 'agreementDate', desc: 'Agreement date, e.g. 15th April 2024 (empty until recorded)' },
+    { tag: 'possessionDate', desc: 'Handover date, e.g. 4th May 2024 (empty until recorded)' },
     { tag: 'stampDuty', desc: 'Stamp duty', types: NOT_RECEIPT },
     { tag: 'registrationCharges', desc: 'Registration charges', types: NOT_RECEIPT },
     { tag: 'carParkingCharges', desc: 'Car parking charges', types: NOT_RECEIPT },
@@ -151,7 +157,7 @@ export const LOOPS: LoopDef[] = [
   { name: 'buyers', desc: 'One block per buyer', fields: [
     { tag: 'index', desc: 'Number (1, 2…)' }, { tag: 'ordinal', desc: '1st, 2nd…' }, { tag: 'fullName', desc: 'Name' },
     { tag: 'panNumber', desc: 'PAN' }, { tag: 'aadhaarNumber', desc: 'Aadhaar' }, { tag: 'email', desc: 'Email' },
-    { tag: 'whatsappNumber', desc: 'WhatsApp number' }, { tag: 'address', desc: 'Address' }, { tag: 'isPrimary', desc: 'Yes / No' },
+    { tag: 'whatsappNumber', desc: 'WhatsApp number' }, { tag: 'address', desc: 'Address' }, { tag: 'addressLines', desc: 'Address on up to three lines' }, { tag: 'isPrimary', desc: 'Yes / No' },
     { tag: 'hasNext', desc: 'Section: {{#hasNext}}; {{/hasNext}} shows its content for every buyer but the last' },
   ] },
   { name: 'parkingSlots', desc: 'One block per parking space of the sale. Besides these, each parking detail of the project (shown on its Parking page, e.g. level, number) is a tag inside the block', fields: [

@@ -1,9 +1,9 @@
 'use client'
 
-import { useState, use } from 'react'
+import { useEffect, useState, use } from 'react'
 import { useRouter } from 'next/navigation'
 import TopNav from '@/components/layout/TopNav'
-import { TEMPLATE_TYPES, TEMPLATE_LIMITS, LETTERHEAD_TYPES, formatBytes } from '@/lib/template-constants'
+import { TEMPLATE_TYPES, TEMPLATE_LIMITS, LETTERHEAD_TYPES, formatBytes, isMultiTemplateType } from '@/lib/template-constants'
 import TemplateTagReference from '@/components/projects/TemplateTagReference'
 import { Alert, Button, ButtonLink, Card, CardHeader, SelectField, TextField, TextareaField } from '@/components/ui'
 import { errorMessage, fetchJson } from '@/lib/client/api'
@@ -20,6 +20,15 @@ export default function NewTemplatePage(props: { params: Promise<{ id: string }>
   const [error, setError] = useState('')
   const [warnings, setWarnings] = useState<string[] | null>(null) // set after a successful save that has warnings
   const isLetterheadType = LETTERHEAD_TYPES.includes(type)
+  const named = isMultiTemplateType(type) // possession documents: each has its own name
+  const [knownNames, setKnownNames] = useState<string[]>([]) // names already used, so a new upload of one becomes its next version
+
+  useEffect(() => {
+    if (!named) return
+    fetchJson(`/api/projects/${params.id}/templates`)
+      .then((json) => setKnownNames([...new Set<string>((json.data as { type: string; name: string }[]).filter((t) => t.type === type).map((t) => t.name))].sort()))
+      .catch(() => setKnownNames([])) // only suggestions
+  }, [named, type, params.id])
 
   // The server repeats these checks; doing them here just gives instant feedback
   const checkFile = (file: File | undefined): string => {
@@ -33,6 +42,7 @@ export default function NewTemplatePage(props: { params: Promise<{ id: string }>
     e.preventDefault()
     setError('')
     const formData = new FormData(e.currentTarget)
+    if (named && !String(formData.get('name') ?? '').trim()) { highlightField('name'); return setError('Enter the document name, for example Handover letter') }
 
     if (format === 'DOCX') {
       const problem = checkFile(formData.get('file') as File)
@@ -90,6 +100,21 @@ export default function NewTemplatePage(props: { params: Promise<{ id: string }>
                 <SelectField label="Document type" name="type" value={type} onChange={(e) => setType(e.target.value)}>
                   {TEMPLATE_TYPES.map((t) => <option key={t.value} value={t.value}>{t.label}</option>)}
                 </SelectField>
+
+                {named && (
+                  <>
+                    <TextField
+                      label="Document name"
+                      name="name"
+                      required
+                      maxLength={TEMPLATE_LIMITS.nameMax}
+                      list="possession-names"
+                      placeholder="Handover letter"
+                      hint="All active possession documents are made together for a fully paid sale. Use an existing name to upload a new version of it"
+                    />
+                    <datalist id="possession-names">{knownNames.map((n) => <option key={n} value={n} />)}</datalist>
+                  </>
+                )}
 
                 <SelectField
                   label="Format"

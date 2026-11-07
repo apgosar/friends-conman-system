@@ -1,4 +1,4 @@
-import { TEMPLATE_TYPES, LETTERHEAD_TYPES } from '@/lib/template-constants'
+import { TEMPLATE_TYPES, LETTERHEAD_TYPES, isMultiTemplateType } from '@/lib/template-constants'
 import { requiredTemplateTypes } from '@/lib/template-tags'
 import { Alert, ButtonLink, Card, cn } from '@/components/ui'
 
@@ -46,11 +46,12 @@ export default function TemplateCoverage({ projectId, projectType, templates, va
         {[...required, ...optional].map((type) => {
           const t = active.get(type)
           const isRequired = required.includes(type)
+          const count = isMultiTemplateType(type) ? templates.filter((x) => x.isActive && x.type === type).length : 0 // possession documents: several can be active
           return (
             <div key={type} className={cn('detail-tile text-sm', !t && isRequired && 'detail-tile-danger')}>
               <div className="font-semibold">{labelOf(type)}</div>
               <div className={t ? 'text-success' : isRequired ? 'text-danger' : 'text-muted'}>
-                {t ? `v${t.version} · ${t.fileUrl ? 'DOCX' : 'HTML'}` : isRequired ? 'Missing' : 'Not set (optional)'}
+                {count > 1 ? `${count} active` : t ? `v${t.version} · ${t.fileUrl ? 'DOCX' : 'HTML'}` : isRequired ? 'Missing' : 'Not set (optional)'}
               </div>
             </div>
           )

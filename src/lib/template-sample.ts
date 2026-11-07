@@ -32,6 +32,15 @@ function body(type: string) {
         p('Total paid so far: {{receipt.cumulativePaid}}    Balance outstanding: {{receipt.balanceOutstanding}}'),
         p('For {{companyName}}'),
       ]
+    case 'POSSESSION_LETTER':
+      return [
+        p('LETTER OF POSSESSION', { bold: true }),
+        p('Date: {{todayDate}}'),
+        p('To,'), p('{{#buyers}}{{fullName}}{{/buyers}}'), p('{{buyer1AddressLines}}'),
+        p('Ref: Agreement for Sale dated {{agreementDate}} for {{unitKind}} No. {{unitNumber}} on the {{floorOrdinal}} floor of {{projectName}}.'),
+        p('We hand over possession of the said {{unitKind}} to you from this date.'),
+        p('For {{companyName}}'),
+      ]
     default:
       return [
         p('Date: {{todayDate}}'),

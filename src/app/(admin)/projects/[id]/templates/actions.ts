@@ -6,6 +6,7 @@ import { createAuditLog } from '@/lib/audit'
 import { can } from '@/lib/authz'
 import { ERROR_KINDS, notFoundMessage } from '@/lib/errors'
 import { revalidatePath } from 'next/cache'
+import { templateSlot } from '@/lib/template-constants'
 
 export async function activateTemplate(projectId: string, templateId: string, type: string) {
   const session = await auth()
@@ -14,11 +15,12 @@ export async function activateTemplate(projectId: string, templateId: string, ty
 
   const target = await prisma.template.findFirst({ where: { id: templateId, projectId, type } })
   if (!target) throw new Error(notFoundMessage('Template'))
-  const previous = await prisma.template.findFirst({ where: { projectId, type, isActive: true } })
+  const slot = templateSlot(projectId, type, target.name) // a possession document replaces only its own earlier versions
+  const previous = await prisma.template.findFirst({ where: { ...slot, isActive: true } })
 
   await prisma.$transaction([
-    // Deactivate all templates of this type in this project, then activate the chosen one
-    prisma.template.updateMany({ where: { projectId, type }, data: { isActive: false } }),
+    // Deactivate the other versions of this template in this project, then activate the chosen one
+    prisma.template.updateMany({ where: slot, data: { isActive: false } }),
     prisma.template.update({ where: { id: templateId }, data: { isActive: true } }),
   ])
 

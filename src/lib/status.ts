@@ -28,6 +28,10 @@ export const SALE_STATUS: Record<string, StatusStyle & { description: string }> 
   CANCELLED:          { label: 'Cancelled',          badge: 'badge-danger',  description: 'Sale cancelled; the unit was released.' },
 }
 
+/** Possession documents (handover letter, NOCs) are made only for a sale that is fully paid. */
+export const possessionReady = (status: string) => status === 'ALL_PAID' || status === 'HANDOVER_COMPLETED'
+export const POSSESSION_NOT_READY = 'Possession documents can be made once every payment of the sale is received'
+
 // ── Unit status = Available / Inquiry Received, or the sale lifecycle ──────────
 
 export const UNIT_STATUS_ORDER = ['AVAILABLE', 'INQUIRY_RECEIVED', ...SALE_LIFECYCLE, 'NOT_FOR_SALE'] as const

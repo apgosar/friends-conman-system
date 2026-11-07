@@ -30,6 +30,14 @@ export function formatCurrency(amount: number | string, maxDecimals = 2): string
 /** 17/10/2026 */
 export const formatDate = (date: DateInput): string => asDate(date).toLocaleDateString(LOCALE, { day: '2-digit', month: '2-digit', year: 'numeric' })
 
+/** 15th April 2024: dates written into letters ("Agreement for Sale dated 15th April 2024") */
+export function formatDateLong(date: DateInput): string {
+  const d = asDate(date)
+  const day = Number(d.toLocaleDateString(LOCALE, { day: 'numeric' }))
+  const suffix = day % 100 >= 11 && day % 100 <= 13 ? 'th' : ({ 1: 'st', 2: 'nd', 3: 'rd' } as Record<number, string>)[day % 10] ?? 'th'
+  return `${day}${suffix} ${d.toLocaleDateString(LOCALE, { month: 'long', year: 'numeric' })}`
+}
+
 /** 17 Oct */
 export const formatDateShort = (date: DateInput): string => asDate(date).toLocaleDateString(LOCALE, { day: 'numeric', month: 'short' })
 

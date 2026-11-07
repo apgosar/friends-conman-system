@@ -4,6 +4,7 @@ import { prisma, transaction } from '@/lib/db'
 import { requireRole } from '@/lib/guard'
 import { createAuditLog } from '@/lib/audit'
 import { parseBody, z } from '@/lib/validate'
+import { templateSlot } from '@/lib/template-constants'
 
 const CopySchema = z.object({ targetProjectId: z.string().min(1) })
 
@@ -29,10 +30,11 @@ export async function POST(req: NextRequest, props: { params: Promise<{ id: stri
   if (!source) return apiError('notFound', 'Template not found')
   if (!target) return apiError('notFound', 'Target project not found')
 
+  const slot = templateSlot(target.id, source.type, source.name)
   const copy = await transaction(async (tx) => {
     const [latest, active] = await Promise.all([
-      tx.template.aggregate({ where: { projectId: target.id, type: source.type }, _max: { version: true } }),
-      tx.template.findFirst({ where: { projectId: target.id, type: source.type, isActive: true }, select: { id: true } }),
+      tx.template.aggregate({ where: slot, _max: { version: true } }),
+      tx.template.findFirst({ where: { ...slot, isActive: true }, select: { id: true } }),
     ])
     return tx.template.create({
       data: {
