@@ -4,7 +4,7 @@ import { nextReceiptNumber } from '@/lib/numbering'
 import { buildCommContent, sanitizeInline } from '@/lib/comms-content'
 import { fromPaise, toPaise } from '@/lib/money'
 import { syncSaleLifecycle } from '@/lib/sale-lifecycle'
-import { OVERDUE_SCHEDULE_STATUSES } from '@/lib/status'
+import { statusAfterPayment } from '@/lib/status'
 import { isOfflineCharge } from '@/lib/payment-plans'
 import { activeSale } from '@/lib/soft-delete'
 import { formatMoney } from '@/lib/format'
@@ -83,8 +83,8 @@ export async function recordPayment(input: RecordPaymentInput, actorId: string) 
     const fullyPaid = principalDue - principal <= 0 && gstDue - gst <= 0 && interestDue - interest <= 0
     await tx.paymentSchedule.update({
       where: { id: input.scheduleId },
-      // A part-payment must not hide that the demand is overdue, so keep the overdue bucket
-      data: { status: fullyPaid ? 'PAID' : OVERDUE_SCHEDULE_STATUSES.includes(schedule.status) ? schedule.status : 'PARTIALLY_PAID' },
+      // An overdue demand keeps its bucket; an advance on a demand not yet raised leaves it Upcoming (see statusAfterPayment)
+      data: { status: statusAfterPayment(schedule.status, fullyPaid) },
     })
 
     // Receipt to every buyer who agreed to be contacted, on the channels they have details for

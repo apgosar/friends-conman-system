@@ -72,6 +72,9 @@ The cost of breaking this is paid later and in bulk: a hand-styled button here, 
 | Interest on a late demand (daily accrual, what a payment clears first, waiver, the sentence for a letter) | `accrualsThrough`, `standingOfSchedule`, `splitPayment`, `interestPolicyOf`; the ledger: `syncAccruals` | `src/lib/interest.ts`, `src/lib/interest-ledger.ts` |
 | A project's parking: its own details (Level, Number, Bay...), its spaces, which are free, and the tags and old text fields built from them; reading an Excel sheet of spaces | `fieldKey`, `slotLabel`, `slotUniqueKey`, `isSlotAvailable`, `legacyParkingTexts`; `claimParkingSlots`; `findBlocks`, `buildSlots` | `src/lib/parking.ts`, `src/lib/parking-sale.ts`, `src/lib/parking-import.ts` |
 | Possession documents: several named templates of one type (Handover letter, Gas NOC...), all made together once a sale is fully paid, downloaded as a .zip | `isMultiTemplateType`, `templateSlot`, `templateLabel`; `possessionReady`; `findActiveTemplates`; `GET /api/sales/[id]/documents/zip` | `src/lib/template-constants.ts`, `src/lib/status.ts`, `src/lib/documents/queries.ts` |
+| A demand's status after a payment or TDS (Paid when cleared; an advance on a demand not yet raised stays Upcoming and its balance is billed when the milestone completes; overdue keeps its bucket) | `statusAfterPayment` | `src/lib/status.ts` |
+| Flat numbers and the wing: a single-wing project numbers flats 101, 102… (no wing prefix), and one set up with A-101 can drop the prefix | `defaultNumbering`, `stripWingPrefix`; `POST /api/projects/[id]/wings/[wingId]/drop-prefix` | `src/lib/building-structure.ts` |
+| Weekly payment reminders (every 7 days from the day a demand was raised while anything on it is outstanding; email and WhatsApp with the demand letter, run by the daily job) | `queuePaymentReminders`, `reminderDue`, `outstandingOf`, `REMINDER_TYPE` | `src/lib/reminders.ts` |
 | Write a one-line address on two or three lines (letters), or a date as "15th April 2024" | `addressLines`; `formatDateLong` | `src/lib/buyers.ts`, `src/lib/format.ts` |
 | A project's other charges (society share money, MCGM charge, legal... due with the last milestone) | `computeOtherCharges`, `DEFAULT_OTHER_CHARGES`, `OTHER_CHARGES_LABEL` | `src/lib/other-charges.ts` |
 | Sale agreement PAYABLES (MCGM charge per sq ft, common area charge, fixed amounts) | `agreementPayables` | `src/lib/documents/payables.ts` |
@@ -249,7 +252,7 @@ All routes live in `src/app/api/**/route.ts`.
 - **Routes:** `POST /api/documents/generate` (store a document on a sale), `GET /api/documents/preview/demand-letter` and `/receipt` (what the dispatcher and the preview page fetch).
 - **Templates** are per project and per type; one is active at a time (`src/app/(admin)/projects/[id]/templates/`).
 - **Messages** (email, WhatsApp) are rows in `communication_logs`, built by `buildCommContent` (`src/lib/comms-content.ts`) with structured attachments. `src/lib/comms-dispatcher.ts` sends them: workers claim one message at a time with `FOR UPDATE SKIP LOCKED`, at most three at once, a message that failed three times waits for a manual retry, and one whose worker died is put back after ten minutes. Email transport: `src/lib/email.ts`; WhatsApp: `src/lib/whatsapp.ts`.
-- **Scheduled work:** `GET`/`POST /api/cron/daily` (secret-protected) runs `src/lib/scheduler.ts` (interest, overdue status, escalations).
+- **Scheduled work:** `GET`/`POST /api/cron/daily` (secret-protected) runs `src/lib/scheduler.ts` (interest, overdue status, escalations) and the weekly payment reminders in `src/lib/reminders.ts`, then dispatches them after answering.
 
 ---
 

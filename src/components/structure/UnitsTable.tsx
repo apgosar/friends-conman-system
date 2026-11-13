@@ -3,7 +3,7 @@
 import { useMemo, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { MANUAL_UNIT_STATUSES, unitStatusLabel } from '@/lib/status'
-import { CATEGORIES, COMMON_AREA_SUGGESTIONS, categoryLabel, floorLabel, wingLabel } from '@/lib/building-structure'
+import { CATEGORIES, COMMERCIAL_WING, COMMON_AREA_SUGGESTIONS, categoryLabel, floorLabel, stripWingPrefix, wingLabel } from '@/lib/building-structure'
 import { BookerFields, fmtNum, type StructureUnit, type UnitTypeRow, type WingRow } from './ui'
 import { Alert, Button, Input, Modal, PhoneInput, Select, SelectField, StatusBadge, Table, TextField, useConfirm } from '@/components/ui'
 import { normalizePhone } from '@/lib/phone'
@@ -258,6 +258,18 @@ export default function UnitsTable({ projectId, units, wings, types }: { project
   const deleteUnit = async (u: StructureUnit) => {
     if (await confirm({ title: 'Delete unit', message: `Delete unit ${u.unitNumber}? This cannot be undone.`, confirmLabel: 'Delete', danger: true })) await act(() => fetchJson(`/api/units/${u.id}`, { method: 'DELETE' }))
   }
+  // A single-wing project set up with A-101 numbering can drop the prefix: the wing is not shown anywhere else
+  const residential = wings.filter((w) => w.name !== COMMERCIAL_WING)
+  const prefixed = (w: WingRow) => units.filter((u) => u.wingId === w.id && u.category === 'FLAT' && stripWingPrefix(u.unitNumber, w.name) !== null)
+  const dropPrefix = async (w: WingRow) => {
+    const flats = prefixed(w)
+    const example = flats[0] ? `${flats[0].unitNumber} becomes ${stripWingPrefix(flats[0].unitNumber, w.name)}` : ''
+    if (!(await confirm({ title: 'Remove the wing prefix', message: `Renumber ${plural(flats.length, 'flat')} of wing ${w.name} without the wing prefix (${example})?`, confirmLabel: 'Remove prefix' }))) return
+    await act(async () => {
+      const res = await fetchJson(`/api/projects/${projectId}/wings/${w.id}/drop-prefix`, { method: 'POST' })
+      setBulkMessage(`Renumbered ${plural(res.data.renamed, 'flat')}`)
+    })
+  }
   const deleteWing = async (w: WingRow) => {
     if (await confirm({ title: 'Delete wing', message: `Delete wing ${w.name} with its ${plural(w.units, 'unit')}? This cannot be undone.`, confirmLabel: 'Delete', danger: true })) await act(() => fetchJson(`/api/projects/${projectId}/wings/${w.id}`, { method: 'DELETE' }))
   }
@@ -271,6 +283,9 @@ export default function UnitsTable({ projectId, units, wings, types }: { project
           {wings.map((w) => (
             <div key={w.id} className="card-flat text-sm flex items-center gap-3 px-3 py-2">
               <span><b>{wingLabel(w.name)}</b> · {plural(w.floors, 'floor')} · {plural(w.units, 'unit')}</span>
+              {residential.length === 1 && residential[0].id === w.id && prefixed(w).length > 0 && (
+                <Button variant="ghost" size="xs" onClick={() => dropPrefix(w)} title="One wing: number the flats 101, 102… without the wing">Remove “{w.name}” prefix</Button>
+              )}
               <Button variant="ghost" size="xs" className="text-danger" onClick={() => deleteWing(w)}>Delete</Button>
             </div>
           ))}

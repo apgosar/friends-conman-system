@@ -9,7 +9,7 @@ import { formatDateTime, formatNumber } from '@/lib/format'
 
 const CHANNELS = [{ value: 'ALL', label: 'All' }, { value: 'EMAIL', label: '✉️ EMAIL' }, { value: 'WHATSAPP', label: '💬 WHATSAPP' }]
 const STATUSES = ['ALL', 'PENDING', 'SENT', 'SIMULATED', 'DELIVERED', 'FAILED'].map((s) => ({ value: s, label: s === 'ALL' ? 'All' : s }))
-const TYPES = ['ALL', 'DEMAND_LETTER', 'RECEIPT', 'MANUAL'].map((t) => ({ value: t, label: t === 'ALL' ? 'All' : t.replace(/_/g, ' ') }))
+const TYPES = ['ALL', 'DEMAND_LETTER', 'PAYMENT_REMINDER', 'RECEIPT', 'MANUAL'].map((t) => ({ value: t, label: t === 'ALL' ? 'All' : t.replace(/_/g, ' ') }))
 const CHANNEL_ICON: Record<string, string> = { EMAIL: '✉️', WHATSAPP: '💬' }
 
 export default function CommunicationsPage() {

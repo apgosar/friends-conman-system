@@ -3,7 +3,7 @@
 import { useMemo, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import {
-  COMMERCIAL_WING, NUMBERING_FORMATS, categoryLabel, generateUnits, nextWingName, summarize, wingLabel,
+  COMMERCIAL_WING, NUMBERING_FORMATS, categoryLabel, defaultNumbering, generateUnits, nextWingName, summarize, wingLabel,
   type ExtraPattern, type FloorPattern, type NumberingFormat, type UnitCategory, type WingSpec,
 } from '@/lib/building-structure'
 import { MANUAL_UNIT_STATUSES, unitStatusLabel } from '@/lib/status'
@@ -107,15 +107,18 @@ function ExtraRows({ extras, types, onChange }: { extras: ExtraPattern[]; types:
   )
 }
 
-export default function StructureBuilder({ projectId, types, existingWings }: { projectId: string; types: UnitTypeRow[]; existingWings: WingRow[] }) {
+export default function StructureBuilder({ projectId, types, existingWings, existingNumbering }: { projectId: string; types: UnitTypeRow[]; existingWings: WingRow[]; existingNumbering?: NumberingFormat }) {
   const router = useRouter()
   const byCategory = (c: UnitCategory) => types.filter((t) => t.category === c)
   const flatTypes = byCategory('FLAT'), shopTypes = byCategory('SHOP'), officeTypes = byCategory('OFFICE'), commonTypes = byCategory('COMMON')
   const suggestName = () => (existingWings.length ? nextWingName(existingWings.filter((w) => w.name !== COMMERCIAL_WING).at(-1)?.name ?? '') || 'A' : 'A')
   const freshWing = (name: string): WingSpec => ({ name, patterns: [{ from: 1, to: 1, unitTypeIds: [flatTypes[0]?.id ?? ''] }], extras: [] })
 
-  const [numbering, setNumbering] = useState<NumberingFormat>('W-FNN')
+  const [chosenNumbering, setNumbering] = useState<NumberingFormat | null>(null)
   const [wings, setWings] = useState<WingSpec[]>(flatTypes.length ? [freshWing(suggestName())] : [])
+  // The wings the project will have: with only one, flats need no wing prefix (101, 102...), unless someone chooses one
+  const residentialWings = new Set([...existingWings.map((w) => w.name), ...wings.map((w) => w.name)].map((n) => n.trim().toLowerCase()).filter((n) => n && n !== COMMERCIAL_WING.toLowerCase())).size
+  const numbering: NumberingFormat = chosenNumbering ?? (residentialWings > 1 ? 'W-FNN' : existingNumbering ?? defaultNumbering(residentialWings))
   const [shops, setShops] = useState<FloorPattern[]>([])
   const [offices, setOffices] = useState<FloorPattern[]>([])
   const [status, setStatus] = useState<string>('AVAILABLE')
@@ -179,6 +182,9 @@ export default function StructureBuilder({ projectId, types, existingWings }: { 
             {NUMBERING_FORMATS.map((n) => <option key={n.value} value={n.value}>{n.label}</option>)}
           </SelectField>
         </div>
+        {residentialWings <= 1 && numbering === 'FNN' && wings.length > 0 && (
+          <p className="text-xs text-muted mt-0 mb-3">One wing, so flats are numbered without a wing prefix (101, 102…). The wing name is only used inside the app.</p>
+        )}
 
         {flatTypes.length === 0 ? noTypesHint('FLAT') : (
           <div className="grid gap-4">

@@ -11,6 +11,7 @@ import UnitsTable from '@/components/structure/UnitsTable'
 import type { StructureUnit, UnitTypeRow, WingRow } from '@/components/structure/ui'
 import { activeSale } from '@/lib/soft-delete'
 import { Alert, ButtonLink, PageHeader } from '@/components/ui'
+import { stripWingPrefix, type NumberingFormat } from '@/lib/building-structure'
 
 export default async function ProjectStructurePage(props: PageProps<'/projects/[id]/structure'>) {
   const { id } = await props.params
@@ -58,6 +59,11 @@ export default async function ProjectStructurePage(props: PageProps<'/projects/[
     ),
   )
 
+  // How the flats already there are numbered, so floors added later match: A-101, A101 or 101
+  const firstFlat = units.find((u) => u.category === 'FLAT')
+  const firstCore = firstFlat ? stripWingPrefix(firstFlat.unitNumber, firstFlat.wingName) : null
+  const existingNumbering: NumberingFormat | undefined = !firstFlat ? undefined : firstCore === null ? 'FNN' : firstFlat.unitNumber.endsWith(`-${firstCore}`) ? 'W-FNN' : 'WFNN'
+
   return (
     <>
       <TopNav title="Building Setup" subtitle={project.name} />
@@ -78,7 +84,7 @@ export default async function ProjectStructurePage(props: PageProps<'/projects/[
         ) : (
           <>
             <UnitTypesPanel projectId={id} types={types} />
-            <StructureBuilder projectId={id} types={types} existingWings={wings} />
+            <StructureBuilder projectId={id} types={types} existingWings={wings} existingNumbering={existingNumbering} />
             <ExcelImport projectId={id} />
             <UnitsTable projectId={id} units={units} wings={wings} types={types} />
           </>

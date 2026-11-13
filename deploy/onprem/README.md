@@ -160,9 +160,9 @@ docker compose start web
 
 If the backup was taken before a data conversion ran, also delete that conversion's line from `data-migrations.applied` (or the whole file), so the next update runs it again.
 
-## Daily job (overdue ageing and interest)
+## Daily job (overdue ageing, interest and payment reminders)
 
-The app posts each late demand's interest once a day and moves overdue demands to their bucket. Something has to start that job: `Run-NeevDailyJob.bat` does, using the app's own `CRON_SECRET` (nothing to type in).
+The app posts each late demand's interest once a day, moves overdue demands to their bucket, and sends the weekly payment reminders (7, 14, 21... days after a demand was raised, while anything on it is outstanding; email and WhatsApp to each buyer who agreed to messages, with the demand letter). Something has to start that job: `Run-NeevDailyJob.bat` does, using the app's own `CRON_SECRET` (nothing to type in).
 
 1. Put `Run-NeevDailyJob.bat` next to `Update-NeevCMS.bat` (`C:\NeevCMS\`) and set `DISTRO` and `APPDIR` the same way.
 2. Run it once by hand: it prints the app's answer (`200`) and `Daily job done.`
@@ -171,7 +171,14 @@ The app posts each late demand's interest once a day and moves overdue demands t
    schtasks /create /tn "Neev CMS daily job" /tr "C:\NeevCMS\Run-NeevDailyJob.bat" /sc daily /st 00:30 /ru "<local-admin-username>" /rp "<that-account's-password>" /rl highest /f
    ```
 
-A day the server was off is not lost: the next run posts every missed day's interest.
+4. **Make a missed run catch up** (`schtasks /create` can't set this, so use the GUI; redo it if you recreate the task): `taskschd.msc` → Task Scheduler Library → `Neev CMS daily job` → right-click → **Properties**:
+   - **Settings** tab → tick **"Run task as soon as possible after a scheduled start is missed"**.
+   - **Conditions** tab → untick **"Stop if the computer switches to battery power"**, then **"Start the task only if the computer is on AC power"** (a UPS blip must not skip the run).
+   - **OK**, and enter the account's password when asked.
+
+**If the server was off (or asleep) at 00:30.** With step 4, Windows starts the job shortly after the server is back on. WSL and the app take a few minutes to come up after a start, so the .bat tries again up to 4 times, 5 minutes apart, before it gives up. Without step 4 the run is skipped and the job runs at the next 00:30. Either way nothing is lost, only delayed: interest is worked out for every day from the payments (a missed day is posted by the next run, at the same amounts), the overdue buckets are counted from the due dates, and a reminder that fell due is sent by the next run, on its usual weekly day after that. A day the server was off is therefore not lost: the next run posts every missed day's interest and sends any reminder that was due.
+
+**Checking it** (the full set of commands is in [DEBUGGING.md](DEBUGGING.md), section 9). Every run adds a line to `C:NeevCMSdaily-job.log` (date, time, exit code and the app's answer, for example `200 {"success":true,"message":"Daily job complete: 42 demands checked, 3 reminded (6 messages)"}`). Exit code `0` is a good run, `1` means the app answered with an error or could not be reached, `91` means `APPDIR` is wrong. Windows keeps the last result too: `schtasks /query /tn "Neev CMS daily job" /v /fo list`. The app's own log has a `Daily job complete` line per run (and `Daily cron failed` with the reason if it failed): `docker compose logs web --since 24h | grep -i "daily"` in WSL. The reminders themselves are on the Communications page (type Payment Reminder), with their status and Retry.
 
 ## ⚠ One-time: lock down the package's visibility
 

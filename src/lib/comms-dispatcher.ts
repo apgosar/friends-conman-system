@@ -108,6 +108,7 @@ function extractSubject(content: string, type: string): string {
     const name = milestoneMatch?.[1] ?? paymentMatch?.[1] ?? 'Payment'
     return `Demand Letter — ${name}`
   }
+  if (type === 'PAYMENT_REMINDER') return `Payment Reminder — ${content.match(/payment for '(.*?)'/i)?.[1] ?? 'Pending payment'}`
   if (type === 'RECEIPT') return 'Payment Receipt — Thank You!'
   return `Important Update from ${companyName()}`
 }
@@ -291,6 +292,8 @@ async function sendClaimed(logId: string): Promise<DispatchResult> {
         const mm = plainText.match(/milestone '(.*?)' is now complete/i)
         const pm = plainText.match(/Payment for '(.*?)' is now due/i)
         milestonePurpose = mm?.[1] ?? pm?.[1] ?? 'Scheduled Payment'
+      } else if (log.type === 'PAYMENT_REMINDER') {
+        milestonePurpose = plainText.match(/payment for '(.*?)'/i)?.[1] ?? 'Pending Payment'
       } else if (log.type === 'RECEIPT') {
         const rcm = plainText.match(/received for '(.*?)'/i)
         milestonePurpose = rcm?.[1] ?? 'Payment Received'
@@ -299,6 +302,7 @@ async function sendClaimed(logId: string): Promise<DispatchResult> {
       // {{6}} Document Type — derived from log.type
       const docTypeMap: Record<string, string> = {
         DEMAND_LETTER: 'Demand Letter',
+        PAYMENT_REMINDER: 'Payment Reminder',
         RECEIPT: 'Payment Receipt',
         BOOKING_CONFIRMATION: 'Booking Confirmation',
         GENERAL: 'Important Notice',

@@ -8,11 +8,13 @@ import { prisma, transaction } from '@/lib/db'
 import { getOverdueBucket } from '@/lib/interest'
 import { syncAccruals } from '@/lib/interest-ledger'
 import { activeSale } from '@/lib/soft-delete'
+import { queuePaymentReminders } from '@/lib/reminders'
 
 /**
  * Run daily: move overdue demands to their overdue bucket (counted from the due date), flag long-overdue ones for
  * escalation, and bring each late demand's interest ledger up to today. Safe to run twice, and a missed day is made up
- * by the next run (the ledger is rebuilt from the payments, not added to).
+ * by the next run (the ledger is rebuilt from the payments, not added to). Then queue the week's payment reminders
+ * (lib/reminders.ts), which read the interest just brought up to date; the caller dispatches them.
  */
 export async function runDailyInterestAndStatus(asOf: Date = new Date()) {
   const schedules = await prisma.paymentSchedule.findMany({
@@ -37,5 +39,6 @@ export async function runDailyInterestAndStatus(asOf: Date = new Date()) {
       await syncAccruals(tx, schedule.id, asOf)
     })
   }
-  return { demands: schedules.length }
+  const reminders = await queuePaymentReminders(asOf)
+  return { demands: schedules.length, reminders }
 }

@@ -123,6 +123,17 @@ export const OVERDUE_SCHEDULE_STATUSES = ['OVERDUE_7', 'OVERDUE_15', 'OVERDUE_30
 /** Demands that have been raised and still have money owed. */
 export const OUTSTANDING_SCHEDULE_STATUSES = ['DUE', 'PARTIALLY_PAID', ...OVERDUE_SCHEDULE_STATUSES]
 
+/**
+ * A demand's status after a payment or TDS against it. Paid once everything on it is cleared. A demand not yet raised
+ * (an advance against a milestone still to come) stays Upcoming: nothing on it is owed yet, and the balance is billed when
+ * the milestone is completed. An overdue demand keeps its bucket, so a part-payment does not hide that it is late.
+ */
+export function statusAfterPayment(current: string, fullyPaid: boolean): string {
+  if (fullyPaid) return 'PAID'
+  if (current === 'UPCOMING' || OVERDUE_SCHEDULE_STATUSES.includes(current)) return current
+  return 'PARTIALLY_PAID'
+}
+
 // ── Payment modes ──────────────────────────────────────────────────────────────
 
 /** How a payment was made. The API validates against these values; every dialog and list shows these labels. */

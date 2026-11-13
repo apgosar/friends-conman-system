@@ -8,6 +8,7 @@ import { buildCommContent, sanitizeInline } from '@/lib/comms-content'
 import type { Prisma } from '@prisma/client'
 import { formatDate, formatRupees } from '@/lib/format'
 import { DEMAND_DUE_DAYS, isStandaloneCharge } from '@/lib/payment-plans'
+import { fromPaise, sumRupees, toPaise } from '@/lib/money'
 
 export async function POST(req: NextRequest, props: { params: Promise<{ id: string }> }) {
   const guard = await requireRole('admin')
@@ -36,50 +37,46 @@ export async function POST(req: NextRequest, props: { params: Promise<{ id: stri
       }
     })
     
-    // Trigger Demands: shift PaymentSchedules from UPCOMING to DUE for this milestone
-    await prisma.paymentSchedule.updateMany({
-      where: { 
-        milestoneId: id,
-        status: 'UPCOMING'
-      },
-      data: {
-        status: 'DUE',
-        demandGeneratedDate: actualDate,
-        dueDate: dueDate
-      }
-    })
-
-    const affectedSchedules = await prisma.paymentSchedule.findMany({
-      where: { milestoneId: id, status: 'DUE' },
+    // Raise this milestone's demands: every one not raised yet. One paid in part in advance (it stayed Upcoming, see
+    // statusAfterPayment) is raised too, as Partially Paid, and only its balance is billed; one paid in full in advance
+    // stays Paid and gets no letter. Demands already raised are left alone, so completing twice sends nothing twice.
+    const toRaise = await prisma.paymentSchedule.findMany({
+      where: { milestoneId: id, demandGeneratedDate: null },
       include: {
-        sale: {
-          include: {
-            buyers: {
-              where: { receiveComms: true }
-            }
-          }
-        }
-      }
+        payments: { where: { deletedAt: null }, select: { amount: true, gstPaid: true } },
+        sale: { select: { deletedAt: true, status: true, buyers: { where: { receiveComms: true } } } },
+      },
     })
+    const affectedSchedules = toRaise.map((schedule) => {
+      const paid = sumRupees(schedule.payments.flatMap((p) => [Number(p.amount), Number(p.gstPaid)]))
+      const balance = fromPaise(Math.max(0, toPaise(sumRupees([Number(schedule.principalAmount), Number(schedule.gstAmount)])) - toPaise(paid)))
+      const status = schedule.status === 'PAID' || balance <= 0 ? 'PAID' : paid > 0 ? 'PARTIALLY_PAID' : 'DUE'
+      return { ...schedule, paid, balance, status }
+    })
+    for (const s of affectedSchedules) {
+      await prisma.paymentSchedule.update({ where: { id: s.id }, data: { status: s.status, demandGeneratedDate: actualDate, dueDate } })
+    }
 
     // Demands were just raised, so refresh the lifecycle of every affected sale
     for (const saleId of new Set(affectedSchedules.map((s) => s.saleId))) await syncSaleLifecycle(saleId)
 
-    // Generate Communication Logs
-    if (affectedSchedules.length > 0) {
+    // Demand letters for what is still to pay, on sales that are not cancelled
+    const toBill = affectedSchedules.filter((s) => s.balance > 0 && !s.sale.deletedAt && s.sale.status !== 'CANCELLED')
+    if (toBill.length > 0) {
       const commLogs: Prisma.CommunicationLogCreateManyInput[] = []
       const dueText = sanitizeInline(formatDate(dueDate))
 
-      affectedSchedules.forEach(schedule => {
-        const amount = Number(schedule.principalAmount) + Number(schedule.gstAmount)
+      toBill.forEach(schedule => {
+        const amount = schedule.balance
+        const advance = schedule.paid > 0 ? ` (the balance after the advance of ${formatRupees(schedule.paid)} already received)` : ''
         const isTaxOrParking = isStandaloneCharge(schedule.description)
 
         schedule.sale.buyers.forEach(buyer => {
           const greeting = `Dear ${sanitizeInline(buyer.fullName) || 'Customer'},`
           const letter = { label: 'Demand Letter', path: `/api/documents/preview/demand-letter?saleId=${schedule.saleId}&milestoneName=${encodeURIComponent(isTaxOrParking ? schedule.description : milestone.name)}` }
           const { messageContent, attachments } = isTaxOrParking
-            ? buildCommContent(`${greeting}\nPayment for '${sanitizeInline(schedule.description)}' is now due. Please find the attached Demand Letter for ${formatRupees(amount)}.\nDue Date: ${dueText}.`, [letter])
-            : buildCommContent(`${greeting}\nThe milestone '${sanitizeInline(milestone.name)}' is now complete. Please find the attached Demand Letter for ${formatRupees(amount)} and the Architect Completion Certificate.\nDue Date: ${dueText}.`, [{ label: 'Architect Certificate', path: architectCertificateUrl }, letter])
+            ? buildCommContent(`${greeting}\nPayment for '${sanitizeInline(schedule.description)}' is now due. Please find the attached Demand Letter for ${formatRupees(amount)}${advance}.\nDue Date: ${dueText}.`, [letter])
+            : buildCommContent(`${greeting}\nThe milestone '${sanitizeInline(milestone.name)}' is now complete. Please find the attached Demand Letter for ${formatRupees(amount)}${advance} and the Architect Completion Certificate.\nDue Date: ${dueText}.`, [{ label: 'Architect Certificate', path: architectCertificateUrl }, letter])
 
           for (const [channel, address] of [['EMAIL', buyer.email], ['WHATSAPP', buyer.whatsappNumber]] as const) {
             if (!address) continue

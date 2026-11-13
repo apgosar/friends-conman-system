@@ -156,6 +156,66 @@ Start everything again if something is stopped:
 docker compose up -d
 ```
 
+## 9. The daily job (interest, overdue ageing, payment reminders)
+
+`C:\NeevCMS\Run-NeevDailyJob.bat` runs once a day from the Windows task "Neev CMS daily job" (README, "Daily job"). It asks the app to run the job, and the app answers with what it did. Unlike the rest of this page, the first three checks are on the **Windows** side.
+
+**a. The run log (Windows).** Every run adds the date and time, the attempt, the exit code and the app's answer to `C:\NeevCMS\daily-job.log`. A good run looks like `[14-Nov-26  0:30:02.15] attempt 1 of 4, exit code 0` followed by `200 {"success":true,"message":"Daily job complete: 42 demands checked, 3 reminded (6 messages)"}`. To see the last few runs, in **PowerShell**:
+
+```powershell
+Get-Content C:\NeevCMS\daily-job.log -Tail 20
+```
+
+| Exit code / answer | Meaning |
+|---|---|
+| `0` and `200 ...` | The job ran |
+| `1` and `401 ...` | `CRON_SECRET` in the app's `.env` is empty or still the placeholder |
+| `1` and `500 ...` | The job failed: the reason is in the app's log (d) |
+| `1` and `fetch failed` / `service "web" is not running` | The app was not up. The .bat tries again 4 times, 5 minutes apart |
+| `91` | `APPDIR` at the top of the .bat is wrong |
+| `There is no distribution with the supplied name` | `DISTRO` at the top of the .bat is wrong (compare with `wsl -l -v`) |
+
+**b. Did Windows start it? (PowerShell)**
+
+```powershell
+schtasks /query /tn "Neev CMS daily job" /v /fo list | Select-String "Last Run Time|Last Result|Next Run Time|Status"
+```
+
+`Last Result: 0` is a good run. For the history of every start, open `taskschd.msc`, select the task and use its **History** tab (if it is empty, click **Enable All Tasks History** in the right-hand pane; runs from then on are listed).
+
+**c. Run it now, and watch (PowerShell)**
+
+```powershell
+cd C:\NeevCMS
+.\Run-NeevDailyJob.bat
+```
+
+or start the scheduled task itself, exactly as the scheduler would, and check (b) a minute later:
+
+```powershell
+schtasks /run /tn "Neev CMS daily job"
+```
+
+Running it twice in a day is safe: interest is rebuilt, not added again, and a demand gets at most one reminder a week.
+
+**d. What the app logged (Ubuntu/WSL, in the app folder)**
+
+```bash
+docker compose logs web --since 24h | grep -i "daily"
+```
+
+Each run logs `Daily job complete` with the counts, then `Daily job: reminders dispatched` when it sent reminders. A failure logs `Daily cron failed` or `Daily job: reminders could not be dispatched` with the reason (`err`). To see a single message that failed to send:
+
+```bash
+docker compose logs web --since 24h | grep -i "could not be sent"
+```
+
+**e. The reminders themselves.** In the app, **Communications**, filter **Type: Payment Reminder**: every reminder with its channel, status and failure reason, and **Retry**. Which demands were reminded, how often and when last, is on the database: open the SQL prompt (section 7) and run
+
+```sql
+SELECT description, status, "reminderCount", "lastReminderAt" FROM payment_schedules WHERE "lastReminderAt" IS NOT NULL ORDER BY "lastReminderAt" DESC LIMIT 20;
+```
+
 ## What to send when asking for help
 
 The output of these three, taken right after repeating the problem:

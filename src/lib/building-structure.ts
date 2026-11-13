@@ -83,6 +83,20 @@ export function ordinal(n: number): string {
 /** "Ground" for the ground floor, else 1st, 2nd...: reads as "on the Ground floor" / "on the 18th floor". */
 export const floorOrdinal = (floor: number): string => (floor === 0 ? 'Ground' : ordinal(floor))
 
+/**
+ * The flat numbering to start with: with a single wing the wing adds nothing, so its flats are just 101, 102...
+ * (the project page does not show the wing either); with two or more, A-101, B-101... keep the numbers apart.
+ */
+export const defaultNumbering = (residentialWings: number): NumberingFormat => (residentialWings <= 1 ? 'FNN' : 'W-FNN')
+
+/** A flat number without its wing prefix ("A-101" or "A101" of wing A gives "101", "A-G01" gives "G01"), or null when it has none. */
+export function stripWingPrefix(unitNumber: string, wing: string): string | null {
+  const name = wing.trim()
+  if (!name || unitNumber.length <= name.length || unitNumber.slice(0, name.length).toLowerCase() !== name.toLowerCase()) return null
+  const rest = unitNumber.slice(name.length).replace(/^\s*[-/ ]\s*/, '')
+  return /^G?\d/i.test(rest) ? rest : null // "A101" -> "101", "A-G01" -> "G01" (ground floor), but "Amenity" stays as it is
+}
+
 export function formatUnitNumber(format: NumberingFormat, wing: string, floor: number, position: number, unitsOnFloor: number): string {
   const pad = unitsOnFloor > 99 ? 3 : 2
   const nn = String(position).padStart(pad, '0')

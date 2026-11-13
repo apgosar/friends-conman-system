@@ -2,7 +2,7 @@ import { randomUUID } from 'node:crypto'
 import { transaction } from '@/lib/db'
 import { fromPaise, percentOf, toPaise } from '@/lib/money'
 import { syncSaleLifecycle } from '@/lib/sale-lifecycle'
-import { OVERDUE_SCHEDULE_STATUSES, TDS_MODE } from '@/lib/status'
+import { TDS_MODE, statusAfterPayment } from '@/lib/status'
 import { activeSale } from '@/lib/soft-delete'
 import { formatMoney } from '@/lib/format'
 import { isOfflineCharge } from '@/lib/payment-plans'
@@ -78,7 +78,7 @@ export async function recordTds(input: RecordTdsInput, actorId: string) {
     const fullyPaid = principalDue - amount <= 0 && gstDue <= 0 && interestDue <= 0
     await tx.paymentSchedule.update({
       where: { id: input.scheduleId },
-      data: { status: fullyPaid ? 'PAID' : OVERDUE_SCHEDULE_STATUSES.includes(schedule.status) ? schedule.status : 'PARTIALLY_PAID' },
+      data: { status: statusAfterPayment(schedule.status, fullyPaid) },
     })
 
     await syncAccruals(tx, input.scheduleId, new Date()) // the principal that interest runs on is now lower
