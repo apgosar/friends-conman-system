@@ -5,6 +5,7 @@ import { formatDate, formatCurrency, formatNumber } from '@/lib/format'
 import { auth } from '@/lib/auth'
 import { can } from '@/lib/authz'
 import DeleteSaleButton from '@/components/sales/DeleteSaleButton'
+import CorrectAgreementValue from '@/components/sales/CorrectAgreementValue'
 import PaymentScheduleTable from '@/components/sales/PaymentScheduleTable'
 import RecordPaymentModal from '@/components/sales/RecordPaymentModal'
 import RecordTdsModal from '@/components/sales/RecordTdsModal'
@@ -111,6 +112,7 @@ export default async function SaleDetailPage(props: PageProps<'/sales/[id]'>) {
             <>
               <ButtonLink href={`/sales/${id}/documents`}>Documents</ButtonLink>
               <ButtonLink href="#payment-schedule" variant="primary">Payments</ButtonLink>
+              {isSuperAdmin && sale.status !== 'CANCELLED' && !sale.deletedAt && <CorrectAgreementValue saleId={id} agreementValue={Number(sale.agreementValue)} />}
               {isSuperAdmin && <DeleteSaleButton saleId={id} />}
             </>
           }

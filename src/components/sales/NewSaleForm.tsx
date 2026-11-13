@@ -50,13 +50,13 @@ type ScheduleRow = { milestoneId: string; description: string; principalAmount: 
 const emptyBuyer = (): Buyer => ({ fullName: '', panNumber: '', aadhaarNumber: '', address: '', email: '', whatsappNumber: '' })
 
 // ─── Step indicator ──────────────────────────────────────────
-import { Alert, Button, Input, PhoneField, SelectField, StepBar, Stepper, Table, TextField, TextareaField, useConfirm } from '@/components/ui'
+import { Alert, AmountInWords, Button, Input, PhoneField, SelectField, StepBar, Stepper, Table, TextField, TextareaField, useConfirm } from '@/components/ui'
 import { ApiError, errorMessage, fetchJson, jsonRequest } from '@/lib/client/api'
 import KycPasswordModal from './KycPasswordModal'
 import NameMismatchModal from './NameMismatchModal'
 import { namesMatch } from '@/lib/names'
 import { NO_CHOICE, choose, explicitPick, pickedSlot, pickText, typesFitting, valuesFor, type Choice, type PickSlot } from '@/lib/parking'
-import { formatCurrency } from '@/lib/format'
+import { amountInWords, formatCurrency } from '@/lib/format'
 
 // ─── Main Wizard ─────────────────────────────────────────────
 // The project's units grouped by wing (A, B ... then the commercial block), each wing's units in natural order
@@ -599,7 +599,7 @@ export default function NewSaleWizard({ projects, prefill = null, preselect = nu
           {/* Financials */}
           <h4 className="mb-5">Financials</h4>
           <div className="grid grid-2 gap-4 mb-4">
-            <TextField label="Agreement Value (₹)" required type="number" min={100000} step={1000} value={agreementValue} onChange={e => setAgreementValue(Number(e.target.value))} />
+            <TextField label="Agreement Value (₹)" required type="number" min={100000} step={1000} value={agreementValue} hint={amountInWords(agreementValue)} onChange={e => setAgreementValue(Number(e.target.value))} />
             <SelectField label="GST" value={String(gstRate)} onChange={e => setGstRateChoice(Number(e.target.value))}>
               {GST_RATE_OPTIONS.map(r => <option key={r} value={r}>{r}%</option>)}
             </SelectField>
@@ -608,6 +608,7 @@ export default function NewSaleWizard({ projects, prefill = null, preselect = nu
               type="number"
               min={0}
               value={stampAmtInput !== null ? stampAmtInput : stampDuty}
+              hint={amountInWords(stampDuty)}
               onChange={e => setStampAmtInput(e.target.value === '' ? '' : Number(e.target.value))}
             />
             <TextField
@@ -618,7 +619,7 @@ export default function NewSaleWizard({ projects, prefill = null, preselect = nu
               value={stampAmtInput !== null ? stampPct : (stampPctInput !== null ? stampPctInput : stampPct)}
               onChange={e => { setStampAmtInput(null); setStampPctInput(e.target.value === '' ? '' : Number(e.target.value)) }}
             />
-            <TextField label="Booking Amount (₹)" type="number" placeholder="Leave blank to use default %" value={bookingAmount} onChange={e => setBookingAmount(e.target.value ? Number(e.target.value) : '')} />
+            <TextField label="Booking Amount (₹)" type="number" placeholder="Leave blank to use default %" value={bookingAmount} hint={amountInWords(bookingAmount)} onChange={e => setBookingAmount(e.target.value ? Number(e.target.value) : '')} />
             <TextField label="Booking Date" required type="date" value={bookingDate} onChange={e => setBookingDate(e.target.value)} />
           </div>
           {unitId && comboPlans.length === 0 && planCombo && (
@@ -695,12 +696,12 @@ export default function NewSaleWizard({ projects, prefill = null, preselect = nu
             ].map(([label, amount]) => (
               <div key={String(label)} className="flex justify-between text-base mb-1">
                 <span className="text-secondary">{label}</span>
-                <span className="font-medium">{fmt(Number(amount))}</span>
+                <div className="font-medium text-right">{fmt(Number(amount))}<AmountInWords value={Number(amount)} /></div>
               </div>
             ))}
             <div className="pt-2 mt-2 flex justify-between font-bold border-top">
               <span>Total Payable</span>
-              <span className="text-brand">{fmt(agreementValue + gst + stampDuty + regCharges + parkingCost + otherCharges.total)}</span>
+              <div className="text-brand text-right">{fmt(agreementValue + gst + stampDuty + regCharges + parkingCost + otherCharges.total)}<AmountInWords value={agreementValue + gst + stampDuty + regCharges + parkingCost + otherCharges.total} /></div>
             </div>
           </div>
 
@@ -797,11 +798,12 @@ export default function NewSaleWizard({ projects, prefill = null, preselect = nu
                           value={row.principalAmount}
                           onChange={e => updateScheduleAmount(idx, Number(e.target.value) || 0)}
                         />}
+                        <AmountInWords value={row.principalAmount} />
                       </td>
                       <td className="text-right text-muted">
-                        {row.gstAmount > 0 ? fmt(row.gstAmount) : <span className="text-muted text-sm">—</span>}
+                        {row.gstAmount > 0 ? <>{fmt(row.gstAmount)}<AmountInWords value={row.gstAmount} /></> : <span className="text-muted text-sm">—</span>}
                       </td>
-                      <td className="text-right font-semibold">{fmt(rowTotal)}</td>
+                      <td className="text-right font-semibold">{fmt(rowTotal)}<AmountInWords value={rowTotal} /></td>
                     </tr>
                   )
                 })}
@@ -809,9 +811,9 @@ export default function NewSaleWizard({ projects, prefill = null, preselect = nu
               <tfoot>
                 <tr className="font-bold">
                   <td colSpan={3} className="text-right pt-3">TOTALS</td>
-                  <td className="text-right pt-3">{fmt(totalPrincipal)}</td>
-                  <td className="text-right pt-3">{fmt(totalGst)}</td>
-                  <td className="text-right pt-3 text-brand text-md">{fmt(grandTotal)}</td>
+                  <td className="text-right pt-3">{fmt(totalPrincipal)}<AmountInWords value={totalPrincipal} /></td>
+                  <td className="text-right pt-3">{fmt(totalGst)}<AmountInWords value={totalGst} /></td>
+                  <td className="text-right pt-3 text-brand text-md">{fmt(grandTotal)}<AmountInWords value={grandTotal} /></td>
                 </tr>
               </tfoot>
           </Table></div>

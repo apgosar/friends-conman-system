@@ -31,9 +31,10 @@ export default function BuyerCard({ buyer, canEdit, footer }: { buyer: BuyerView
         className={canEdit ? 'detail-tile row-link' : 'detail-tile'}
         {...(canEdit && { role: 'button', tabIndex: 0, onClick: open, onKeyDown: (e: React.KeyboardEvent) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); open() } } })}
       >
-        <div className="flex items-center justify-between gap-2 mb-2">
-          <div className="font-semibold">{buyer.fullName}</div>
-          <div className="flex gap-2">
+        {/* A long name pushes the badges onto the next line rather than out of the card */}
+        <div className="flex items-start justify-between gap-2 wrap mb-2">
+          <div className="font-semibold min-w-0 break-words">{buyer.fullName}</div>
+          <div className="flex gap-2 wrap">
             {buyer.isPrimary && <Badge variant="primary">Primary</Badge>}
             {buyer.receiveComms && <Badge variant="success">Comms On</Badge>}
           </div>

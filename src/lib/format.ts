@@ -51,6 +51,20 @@ export const formatMonthYear = (date: DateInput): string => asDate(date).toLocal
 export const formatDateTimeLong = (date: DateInput): string =>
   asDate(date).toLocaleString(LOCALE, { day: 'numeric', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' })
 
+/**
+ * An amount in words under a figure on a form, so the person typing it can check it: 1050000.5 -> "Rupees Ten Lakh Fifty
+ * Thousand and Fifty Paise Only". Empty for nothing, zero or a value that is not a number.
+ */
+export function amountInWords(amount: number | string | null | undefined): string {
+  const n = Number(amount)
+  if (!Number.isFinite(n) || n <= 0) return ''
+  const paise = Math.round(n * 100) % 100
+  const rupees = Math.floor(Math.round(n * 100) / 100)
+  const words = (k: number) => numberToWords(k).replace(/ Only$/, '')
+  if (rupees === 0) return `${words(paise)} Paise Only`
+  return `Rupees ${words(rupees)}${paise ? ` and ${words(paise)} Paise` : ''} Only`
+}
+
 /** Converts a number to Indian words (150000 -> "One Lakh Fifty Thousand Only"). */
 export function numberToWords(amount: number): string {
   if (amount === 0) return 'Zero'
