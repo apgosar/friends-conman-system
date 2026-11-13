@@ -2,11 +2,26 @@ import { prisma } from '@/lib/db'
 import TopNav from '@/components/layout/TopNav'
 import { formatCurrency, formatDate } from '@/lib/format'
 import ClickableRow from '@/components/sales/ClickableRow'
+import SalesFilters from '@/components/sales/SalesFilters'
+import type { Prisma } from '@prisma/client'
 import { Badge, ButtonLink, Card, EmptyRow, PageHeader, StatusBadge, Table, Td } from '@/components/ui'
 
-async function getSales() {
+/**
+ * The sales to list: all of them, or those whose flat number, sale number or any buyer's name contains the search
+ * (ignoring case), and/or in one project.
+ */
+async function getSales(q: string, projectId: string) {
+  const where: Prisma.SaleWhereInput = { deletedAt: null }
+  if (projectId) where.projectId = projectId
+  if (q) {
+    where.OR = [
+      { unit: { unitNumber: { contains: q, mode: 'insensitive' } } },
+      { saleNumber: { contains: q, mode: 'insensitive' } },
+      { buyers: { some: { fullName: { contains: q, mode: 'insensitive' } } } },
+    ]
+  }
   return prisma.sale.findMany({
-    where: { deletedAt: null },
+    where,
     include: {
       project: { select: { name: true } },
       unit: { select: { unitNumber: true, configuration: true } },
@@ -17,8 +32,16 @@ async function getSales() {
   })
 }
 
-export default async function SalesPage() {
-  const sales = await getSales()
+export default async function SalesPage(props: PageProps<'/sales'>) {
+  const { q: rawQ, project: rawProject } = await props.searchParams // a promise in this version of Next.js
+  const q = (typeof rawQ === 'string' ? rawQ : '').trim().slice(0, 100)
+  const projectId = typeof rawProject === 'string' ? rawProject : ''
+  const [sales, total, projects] = await Promise.all([
+    getSales(q, projectId),
+    prisma.sale.count({ where: { deletedAt: null } }),
+    prisma.project.findMany({ select: { id: true, name: true }, orderBy: { name: 'asc' } }),
+  ])
+  const filtered = !!(q || projectId)
 
   return (
     <>
@@ -26,9 +49,10 @@ export default async function SalesPage() {
       <div className="admin-content">
         <PageHeader
           title="All Sales"
-          subtitle={`${sales.length} sale${sales.length !== 1 ? 's' : ''}`}
+          subtitle={filtered ? `${sales.length} of ${total} sales` : `${total} sale${total !== 1 ? 's' : ''}`}
           actions={<ButtonLink href="/sales/new" variant="primary" id="new-sale-btn">+ New Sale</ButtonLink>}
         />
+        <SalesFilters projects={projects} />
         <Card flush>
           <Table flush stack>
             <thead>
@@ -40,7 +64,7 @@ export default async function SalesPage() {
             </thead>
             <tbody>
               {sales.length === 0 ? (
-                <EmptyRow colSpan={9}>No sales yet</EmptyRow>
+                <EmptyRow colSpan={9}>{filtered ? 'No sales match the search' : 'No sales yet'}</EmptyRow>
               ) : sales.map((sale) => (
                 <ClickableRow key={sale.id} href={`/sales/${sale.id}`}>
                   <Td label="Sale #"><Badge>{sale.saleNumber}</Badge></Td>

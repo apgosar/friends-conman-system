@@ -5,7 +5,8 @@ import { formatDate } from '@/lib/format'
 import UnitsView from '@/components/projects/UnitsView'
 import ProjectSalesTable from '@/components/projects/ProjectSalesTable'
 import TemplateCoverage from '@/components/projects/TemplateCoverage'
-import { isSaleable, isUnsold } from '@/lib/status'
+import { PROJECT_TYPE, isSaleable, isUnsold, showsProjectType } from '@/lib/status'
+import { lastCompletedMilestone, progressLabel } from '@/lib/milestones'
 import { activeSale } from '@/lib/soft-delete'
 import { auth } from '@/lib/auth'
 import { can } from '@/lib/authz'
@@ -63,18 +64,19 @@ export default async function ProjectDetailPage(props: PageProps<'/projects/[id]
     : undefined
   // Every sale type and unit type the project sells needs at least one payment plan
   const missingPlans = missingCombos(project.paymentPlans as Combo[], requiredCombos(project.type, allUnits.some((u) => u.category === 'SHOP' || u.category === 'OFFICE'), project.paymentPlanOptOuts))
+  const lastMilestone = lastCompletedMilestone(project.milestones) // where construction has reached, in place of the project status
   const soldPct = saleable.length > 0 ? Math.round((sold / saleable.length) * 100) : 0
 
   return (
     <>
-      <TopNav title={project.name} subtitle={`${project.city} · ${project.type}`} />
+      <TopNav title={project.name} subtitle={showsProjectType(project.type) ? `${project.city} · ${PROJECT_TYPE[project.type]?.label ?? project.type}` : project.city} />
       <div className="admin-content">
         <PageHeader
           eyebrow={
             <>
               <Badge>{project.reraNumber ?? 'No RERA'}</Badge>
-              <StatusBadge kind="project" status={project.status} />
-              <StatusBadge kind="projectType" status={project.type} />
+              <Badge variant={lastMilestone ? 'success' : 'muted'}>{progressLabel(lastMilestone)}</Badge>
+              {showsProjectType(project.type) && <StatusBadge kind="projectType" status={project.type} />}
             </>
           }
           title={project.name}

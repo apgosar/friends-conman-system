@@ -222,6 +222,8 @@ export const PROJECT_TYPE: Record<string, StatusStyle> = {
   REDEVELOPMENT: { label: 'Redevelopment', badge: 'badge-orange' },
   MIXED:         { label: 'Mixed',         badge: 'badge-info' },
 }
+/** A mixed project (fresh and redevelopment sales) shows no type badge: only a single kind is worth pointing out. */
+export const showsProjectType = (type: string) => type !== 'MIXED'
 
 // ── Helpers ────────────────────────────────────────────────────────────────────
 

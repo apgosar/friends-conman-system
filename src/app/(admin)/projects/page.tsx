@@ -5,13 +5,16 @@ import { formatDate } from '@/lib/format'
 import { activeSale } from '@/lib/soft-delete'
 import { auth } from '@/lib/auth'
 import { can } from '@/lib/authz'
-import { ButtonLink, Card, EmptyState, PageHeader, StatusBadge } from '@/components/ui'
+import { Badge, ButtonLink, Card, EmptyState, PageHeader, StatusBadge } from '@/components/ui'
+import { showsProjectType } from '@/lib/status'
+import { lastCompletedMilestone, progressLabel } from '@/lib/milestones'
 
 async function getProjects() {
   return prisma.project.findMany({
     include: {
       _count: { select: { sales: { where: activeSale } } },
       wings: true,
+      milestones: { where: { status: 'COMPLETED' }, select: { name: true, status: true, sequence: true } },
     },
     orderBy: { createdAt: 'desc' },
   })
@@ -48,8 +51,8 @@ export default async function ProjectsPage() {
             {projects.map((project) => (
               <Link key={project.id} href={`/projects/${project.id}`} className="card card-hover card-link">
                 <div className="flex gap-2 mb-4 wrap">
-                  <StatusBadge kind="projectType" status={project.type} />
-                  <StatusBadge kind="project" status={project.status} />
+                  {showsProjectType(project.type) && <StatusBadge kind="projectType" status={project.type} />}
+                  {(() => { const last = lastCompletedMilestone(project.milestones); return <Badge variant={last ? 'success' : 'muted'}>{progressLabel(last)}</Badge> })()}
                 </div>
                 <h3 className="mb-1 text-md">{project.name}</h3>
                 <p className="text-sm text-muted mb-4">{project.city}, {project.state}</p>
