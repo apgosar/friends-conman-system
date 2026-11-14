@@ -1,6 +1,6 @@
 import { z } from 'zod'
 import { PAN_ERROR, PAN_PATTERN } from '@/lib/companies'
-import { PHONE_ERROR, normalizePhone } from '@/lib/phone'
+import { PHONE_ERROR, normalizePhone, whatsappDigits } from '@/lib/phone'
 
 /**
  * Editing a buyer of a sale. Client-safe: the edit screen and the API check the same rules, and the screen sends what
@@ -50,4 +50,26 @@ export function addressLines(text: string | null | undefined, max = 3): string[]
 export function formatAadhaar(value: string): string {
   const digits = value.replace(/\D/g, '').slice(0, 12)
   return digits.replace(/(\d{4})(?=\d)/g, '$1 ').trim()
+}
+
+/** A co-buyer who would get every message twice: same mobile number and/or email as a buyer before them who is contacted. */
+export interface DuplicateContact { buyerId: string; name: string; sameAs: string; mobile: boolean; email: boolean }
+
+/**
+ * Buyers (other than the primary) who are contacted on a mobile number or email that an earlier contacted buyer already has, as
+ * when a husband's details are typed for his wife too. Each demand letter and receipt would then reach the same phone or inbox
+ * twice; turning communication off for the co-buyer stops that.
+ */
+export function duplicateContacts(buyers: { id: string; fullName: string; email: string | null; whatsappNumber: string | null; receiveComms: boolean; isPrimary: boolean }[]): DuplicateContact[] {
+  const email = (v: string | null) => v?.trim().toLowerCase() || null
+  const mobile = (v: string | null) => (v?.trim() ? whatsappDigits(v) : null)
+  const out: DuplicateContact[] = []
+  const contacted: typeof buyers = []
+  for (const b of buyers) {
+    if (!b.receiveComms) continue
+    const twin = b.isPrimary ? undefined : contacted.find((c) => (mobile(b.whatsappNumber) && mobile(c.whatsappNumber) === mobile(b.whatsappNumber)) || (email(b.email) && email(c.email) === email(b.email)))
+    if (twin) out.push({ buyerId: b.id, name: b.fullName, sameAs: twin.fullName, mobile: !!mobile(b.whatsappNumber) && mobile(twin.whatsappNumber) === mobile(b.whatsappNumber), email: !!email(b.email) && email(twin.email) === email(b.email) })
+    contacted.push(b)
+  }
+  return out
 }

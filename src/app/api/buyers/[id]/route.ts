@@ -4,6 +4,7 @@ import { fail } from '@/lib/errors'
 import { isAnonymized } from '@/lib/dpdp-compliance'
 import { BuyerEditSchema } from '@/lib/buyers'
 import { normalizePhone } from '@/lib/phone'
+import { z } from '@/lib/validate'
 
 // PUT /api/buyers/[id]: change a buyer's details. A blank PAN or Aadhaar keeps the saved one (they are never sent to the screen).
 export const PUT = route<{ id: string }>('admin', async ({ params, user, body }) => {
@@ -37,5 +38,19 @@ export const PUT = route<{ id: string }>('admin', async ({ params, user, body })
     })
   })
 
+  return Response.json({ success: true })
+})
+
+// PATCH /api/buyers/[id]: only whether this buyer gets the demand letters and receipts (for example off for a co-buyer who
+// shares the primary buyer's mobile and email, so nothing arrives twice). The primary buyer is always contacted.
+export const PATCH = route<{ id: string }>('admin', async ({ params, user, body }) => {
+  const { receiveComms } = await body(z.object({ receiveComms: z.boolean() }))
+  await transaction(async (tx) => {
+    const buyer = await tx.buyer.findUnique({ where: { id: params.id }, select: { id: true, isPrimary: true, sale: { select: { projectId: true } } } })
+    if (!buyer) throw fail('notFound', 'Buyer not found')
+    if (buyer.isPrimary && !receiveComms) throw fail('invalid', 'Communication cannot be turned off for the primary buyer')
+    await tx.buyer.update({ where: { id: buyer.id }, data: { receiveComms } })
+    await tx.auditLog.create({ data: { userId: user.id, projectId: buyer.sale.projectId, entityType: 'buyer', entityId: buyer.id, action: 'updated', newValues: { receiveComms } } })
+  })
   return Response.json({ success: true })
 })

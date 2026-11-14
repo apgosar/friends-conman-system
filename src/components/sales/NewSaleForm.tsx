@@ -50,7 +50,7 @@ type ScheduleRow = { milestoneId: string; description: string; principalAmount: 
 const emptyBuyer = (): Buyer => ({ fullName: '', panNumber: '', aadhaarNumber: '', address: '', email: '', whatsappNumber: '' })
 
 // ─── Step indicator ──────────────────────────────────────────
-import { Alert, AmountInWords, Button, Input, PhoneField, SelectField, StepBar, Stepper, Table, TextField, TextareaField, useConfirm } from '@/components/ui'
+import { Alert, AmountInWords, Button, Input, PhoneField, SelectField, StepBar, Stepper, Table, Td, TextField, TextareaField, useConfirm } from '@/components/ui'
 import { ApiError, errorMessage, fetchJson, jsonRequest } from '@/lib/client/api'
 import KycPasswordModal from './KycPasswordModal'
 import NameMismatchModal from './NameMismatchModal'
@@ -737,14 +737,14 @@ export default function NewSaleWizard({ projects, prefill = null, preselect = nu
             </SelectField>
           </div>
 
-          <div className="mb-4"><Table flush>
+          <div className="mb-4"><Table flush stack>
               <thead>
                 <tr>
                   <th>#</th>
                   <th>Milestone</th>
-                  <th className="text-right">% of Agreement Value</th>
+                  <th className="text-right" title="% of the agreement value">%</th>
                   <th className="text-right">Amount (₹)</th>
-                  <th className="text-right">GST 5% (₹)</th>
+                  <th className="text-right">GST {gstRate}% (₹)</th>
                   <th className="text-right">Total (₹)</th>
                 </tr>
               </thead>
@@ -753,8 +753,8 @@ export default function NewSaleWizard({ projects, prefill = null, preselect = nu
                   const rowTotal = row.principalAmount + row.gstAmount
                   return (
                     <tr key={idx}>
-                      <td className="text-muted text-sm">{idx + 1}</td>
-                      <td>
+                      <Td label="#" className="text-muted text-sm">{idx + 1}</Td>
+                      <Td label="Milestone">
                         <div className="font-medium">{row.description}</div>
                         {row.description === OTHER_CHARGES_LABEL && (
                           <details className="charge-details">
@@ -769,8 +769,8 @@ export default function NewSaleWizard({ projects, prefill = null, preselect = nu
                         {row.percentOfAV === undefined && row.description !== OTHER_CHARGES_LABEL && (
                           <div className="text-xs text-muted">{row.description === STAMP_DUTY_LABEL ? 'Not a milestone: you raise this demand yourself from the sale page' : 'Excluded from milestone %'}</div>
                         )}
-                      </td>
-                      <td className="text-right">
+                      </Td>
+                      <Td label="% of agreement value" className="text-right">
                         {row.percentOfAV !== undefined ? (
                           <div className="flex items-center justify-end gap-1">
                             <Input
@@ -787,8 +787,8 @@ export default function NewSaleWizard({ projects, prefill = null, preselect = nu
                         ) : (
                           <span className="text-muted">—</span>
                         )}
-                      </td>
-                      <td className="text-right">
+                      </Td>
+                      <Td label="Amount (₹)" className="text-right">
                         {row.description === OTHER_CHARGES_LABEL ? <span className="font-medium">{fmt(row.principalAmount)}</span> : <Input
                           small
                           type="number"
@@ -798,22 +798,21 @@ export default function NewSaleWizard({ projects, prefill = null, preselect = nu
                           value={row.principalAmount}
                           onChange={e => updateScheduleAmount(idx, Number(e.target.value) || 0)}
                         />}
-                        <AmountInWords value={row.principalAmount} />
-                      </td>
-                      <td className="text-right text-muted">
-                        {row.gstAmount > 0 ? <>{fmt(row.gstAmount)}<AmountInWords value={row.gstAmount} /></> : <span className="text-muted text-sm">—</span>}
-                      </td>
-                      <td className="text-right font-semibold">{fmt(rowTotal)}<AmountInWords value={rowTotal} /></td>
+                      </Td>
+                      <Td label={`GST ${gstRate}% (₹)`} className="text-right text-muted">
+                        {row.gstAmount > 0 ? fmt(row.gstAmount) : <span className="text-muted text-sm">—</span>}
+                      </Td>
+                      <Td label="Total (₹)" className="text-right font-semibold">{fmt(rowTotal)}</Td>
                     </tr>
                   )
                 })}
               </tbody>
               <tfoot>
                 <tr className="font-bold">
-                  <td colSpan={3} className="text-right pt-3">TOTALS</td>
-                  <td className="text-right pt-3">{fmt(totalPrincipal)}<AmountInWords value={totalPrincipal} /></td>
-                  <td className="text-right pt-3">{fmt(totalGst)}<AmountInWords value={totalGst} /></td>
-                  <td className="text-right pt-3 text-brand text-md">{fmt(grandTotal)}<AmountInWords value={grandTotal} /></td>
+                  <Td label="" colSpan={3} className="text-right pt-3">TOTALS</Td>
+                  <Td label="Amount (₹)" className="text-right pt-3"><div>{fmt(totalPrincipal)}<AmountInWords value={totalPrincipal} /></div></Td>
+                  <Td label={`GST ${gstRate}% (₹)`} className="text-right pt-3"><div>{fmt(totalGst)}<AmountInWords value={totalGst} /></div></Td>
+                  <Td label="Total (₹)" className="text-right pt-3 text-brand text-md"><div>{fmt(grandTotal)}<AmountInWords value={grandTotal} /></div></Td>
                 </tr>
               </tfoot>
           </Table></div>

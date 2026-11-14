@@ -17,6 +17,8 @@ import SaleLifecycleCard from '@/components/sales/SaleLifecycleCard'
 import { plain } from '@/lib/plain'
 import { maskedAadhaar, maskedPan } from '@/lib/pii'
 import { isAnonymized } from '@/lib/dpdp-compliance'
+import { duplicateContacts } from '@/lib/buyers'
+import DuplicateContactsAlert from '@/components/sales/DuplicateContactsAlert'
 import AnonymizeBuyerButton from '@/components/sales/AnonymizeBuyerButton'
 import BuyerCard from '@/components/sales/BuyerCard'
 import { SCHEDULE_ORDER, isOfflineCharge } from '@/lib/payment-plans'
@@ -37,7 +39,7 @@ async function getSale(id: string) {
         include: { milestone: true, payments: true, interestWaivers: true },
         orderBy: SCHEDULE_ORDER,
       },
-      documents: { orderBy: { createdAt: 'desc' } },
+      documents: { where: { deletedAt: null }, orderBy: { createdAt: 'desc' } }, // deleted ones are gone from the list, as on the Documents page
       communicationLogs: {
         orderBy: { createdAt: 'desc' },
         take: 40,
@@ -120,6 +122,7 @@ export default async function SaleDetailPage(props: PageProps<'/sales/[id]'>) {
 
         <Card className="mb-6">
           <CardHeader title={`Buyers (${sale.buyers.length})`} />
+          <DuplicateContactsAlert duplicates={duplicateContacts(sale.buyers)} canEdit={canEditSale} />
           <div className="grid grid-auto gap-4">
             {sale.buyers.map((buyer) => (
               <BuyerCard
