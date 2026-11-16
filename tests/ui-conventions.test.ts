@@ -62,3 +62,50 @@ describe('shared helpers are the only implementation', () => {
     expect(raw.map((f) => f.name).filter((n) => !allow.includes(n) && !n.endsWith('NewSaleForm.tsx'))).toEqual([])
   })
 })
+
+// The rules in src/styles that keep every screen inside a phone's width with large figures and long names.
+// The full check (every screen at 320-1440 px on empty and stress data) is scripts/visual-check.mjs, run in CI.
+const STYLES = join(process.cwd(), 'src', 'styles')
+const rules = readdirSync(STYLES).flatMap((file) => {
+  const css = readFileSync(join(STYLES, file), 'utf8').replace(/\/\*[\s\S]*?\*\//g, '')
+  return [...css.matchAll(/([^{}]+)\{([^{}]*)\}/g)].map((m) => ({ file, selector: m[1].trim().replace(/\s+/g, ' '), body: m[2] }))
+})
+const rule = (selector: string) => rules.filter((r) => r.selector === selector).map((r) => r.body).join(';')
+
+describe('layout survives a narrow screen and large figures', () => {
+  it('finds the stylesheets', () => expect(rules.length).toBeGreaterThan(200))
+
+  it('text that must stay on one line either truncates, or is a short label on the reviewed list', () => {
+    // white-space: nowrap is how a long amount or name runs out of its box. New uses: add `overflow: hidden;
+    // text-overflow: ellipsis`, or (for a label that is always short) add the selector here with the reason.
+    const shortLabels = [
+      '.badge', '.bv-chip', '.bv-tag', '.tab', '.stepper-label', // a few words, and their containers wrap
+      'thead th', 'td .btn', // inside a table, which widens or scrolls (.table-wrapper)
+      '.sidebar-logo-text', '.nav-section-label', '.nav-item', // the side menu, a fixed list of names
+      '.nowrap', // the utility: for short text (a date, a unit number) only
+    ]
+    const unbounded = rules
+      .filter((r) => /white-space:\s*nowrap/.test(r.body) && !/text-overflow:\s*ellipsis|overflow(-x)?:\s*(hidden|auto|scroll)/.test(r.body))
+      .map((r) => r.selector)
+      .filter((s) => !shortLabels.includes(s))
+    expect(unbounded).toEqual([])
+  })
+
+  it('buttons, fields and card headers give way on a narrow screen', () => {
+    expect(rule('.btn')).toMatch(/max-width:\s*100%/) // a long label wraps inside the button
+    expect(rule('.btn')).not.toMatch(/white-space:\s*nowrap/)
+    expect(rule('.form-input, .form-select, .form-textarea')).toMatch(/max-width:\s*100%/) // a select is as wide as its longest option
+    expect(rule('.card-header')).toMatch(/flex-wrap:\s*wrap/)
+    expect(rule('body')).toMatch(/overflow-wrap:\s*(break-word|anywhere)/) // long emails and reference numbers
+  })
+
+  it('headline figures are sized to their box, and stack one per row on a phone', () => {
+    expect(rule('.figure')).toMatch(/font-size:\s*clamp\([^;]*cqi[^;]*var\(--figure-em/)
+    expect(rule('.figure-box')).toMatch(/container-type:\s*inline-size/)
+    expect(rules.some((r) => r.file === 'responsive.css' && r.selector === '.grid-stats' && /minmax\(0, 1fr\)\s*;?\s*$/.test(r.body.trim()))).toBe(true)
+  })
+
+  it('a stat-value is always drawn by Figure (no fixed-size headline numbers)', () => {
+    expect(offenders(pages, /stat-value/).filter((name) => !/<Figure/.test(files.find((f) => f.name === name)!.src))).toEqual([])
+  })
+})

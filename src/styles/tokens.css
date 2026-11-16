@@ -76,6 +76,7 @@
   --text-lg:  1.125rem;
   --text-xl:  1.25rem;
   --text-2xl: 1.5rem;
+  --text-3xl: 1.75rem; /* headline figures */
 
   /* Spacing scale (4px steps; the .m*-N / .p*-N / .gap-N utilities use the same numbers) */
   --space-1: 4px;  --space-2: 8px;  --space-3: 12px; --space-4: 16px;

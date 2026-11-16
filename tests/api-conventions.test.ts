@@ -10,7 +10,7 @@ const walk = (dir: string): string[] => readdirSync(dir).flatMap((f) => {
   const p = join(dir, f)
   return statSync(p).isDirectory() ? walk(p) : p.endsWith('route.ts') ? [p] : []
 })
-const routes = walk(API).map((file) => ({ name: relative(API, file), src: readFileSync(file, 'utf8') }))
+const routes = walk(API).map((file) => ({ name: relative(API, file).replace(/\\/g, '/'), src: readFileSync(file, 'utf8') })) // forward slashes on Windows too
 
 // Routes that are public on purpose, or authenticate some other way (cron secret, NextAuth, webhooks of a provider)
 const PUBLIC = [/^auth\//, /^health\//, /^cron\//]

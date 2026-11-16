@@ -40,7 +40,7 @@ export default function EscalationAlerts({ escalations }: { escalations: any[] }
       <div className="flex dir-col gap-3">
         {visible.map((esc) => (
           <div key={esc.id} className="list-row wrap">
-            <div className="flex-1 min-w-0">
+            <div className="list-row-main">
               <div className="font-semibold">{esc.sale?.project?.name} — {esc.sale?.unit?.unitNumber}</div>
               <div className="text-sm text-muted">{esc.sale?.buyers?.[0]?.fullName} · Demand: {esc.demandGeneratedDate ? formatDate(esc.demandGeneratedDate) : '-'}</div>
               <div className="text-sm text-danger mt-1 font-semibold">

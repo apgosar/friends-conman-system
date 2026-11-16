@@ -10,6 +10,7 @@ export default function ClickableRow({ href, children }: { href: string; childre
     <tr
       className="row-link"
       tabIndex={0}
+      data-href={href} // lets scripts/visual-check.mjs find the pages behind the rows
       onClick={() => router.push(href)}
       onKeyDown={(e) => { if (e.key === 'Enter') router.push(href) }}
     >

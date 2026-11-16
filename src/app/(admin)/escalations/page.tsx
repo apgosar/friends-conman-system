@@ -4,6 +4,7 @@ import EscalationAlerts from '@/components/dashboard/EscalationAlerts'
 import { formatCurrency } from '@/lib/format'
 import { activeSale } from '@/lib/soft-delete'
 import { Badge, Card, CardHeader, EmptyState, PageHeader } from '@/components/ui'
+import { plain } from '@/lib/plain'
 
 async function getEscalations() {
   return prisma.paymentSchedule.findMany({
@@ -39,7 +40,7 @@ export default async function EscalationsPage() {
         {pendingApproval.length > 0 && (
           <div className="mb-6">
             <h3 className="mb-4 text-danger">⚠ Pending Management Approval</h3>
-            <EscalationAlerts escalations={pendingApproval} />
+            <EscalationAlerts escalations={plain(pendingApproval)} />
           </div>
         )}
 
@@ -49,7 +50,7 @@ export default async function EscalationsPage() {
             <div className="flex dir-col gap-2">
               {sternSent.map((e) => (
                 <div key={e.id} className="list-row wrap">
-                  <div className="min-w-0">
+                  <div className="list-row-main">
                     <div className="font-medium">{e.sale?.project?.name} — {e.sale?.unit?.unitNumber}</div>
                     <div className="text-sm text-muted">{e.sale?.buyers?.[0]?.fullName}</div>
                   </div>

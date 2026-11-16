@@ -8,7 +8,8 @@ import RecentPayments from '@/components/dashboard/RecentPayments'
 import UpcomingDues from '@/components/dashboard/UpcomingDues'
 import EscalationAlerts from '@/components/dashboard/EscalationAlerts'
 import { activeSale } from '@/lib/soft-delete'
-import { Badge, Card, StatCard, cn } from '@/components/ui'
+import { Badge, Card, Figure, StatCard, cn } from '@/components/ui'
+import { plain } from '@/lib/plain'
 
 async function getDashboardData() {
   const now = new Date()
@@ -162,7 +163,7 @@ export default async function DashboardPage() {
 
         {escalations.length > 0 && (
           <div className="mb-6">
-            <EscalationAlerts escalations={escalations} />
+            <EscalationAlerts escalations={plain(escalations)} />
           </div>
         )}
 
@@ -199,12 +200,17 @@ function AgingBucketCard({ label, amount, color, critical, bucket }: {
   return (
     <Link href={`/receivables?bucket=${bucket}`} className="card-link">
       <Card className={cn('hoverable-card', alarming && 'card-danger-soft')}>
-        <div className="flex items-center gap-2 mb-2">
-          <div className="status-dot" style={{ background: color }} />
-          <span className="text-base text-secondary">{label}</span>
-          {alarming && <Badge variant="danger" className="ml-auto">Action Needed</Badge>}
+        {/* the badge drops under the label when the card is narrow; the dot stays with the label */}
+        <div className="flex items-center justify-between gap-2 mb-2 wrap">
+          <div className="flex items-center gap-2 min-w-0">
+            <div className="status-dot" style={{ background: color }} />
+            <span className="text-base text-secondary">{label}</span>
+          </div>
+          {alarming && <Badge variant="danger">Action Needed</Badge>}
         </div>
-        <div className="bucket-amount" style={{ color: amount > 0 ? color : 'var(--text-muted)' }}>{formatCurrency(amount)}</div>
+        <div style={{ color: amount > 0 ? color : 'var(--text-muted)' }}>
+          <Figure size="md">{formatCurrency(amount)}</Figure>
+        </div>
       </Card>
     </Link>
   )
