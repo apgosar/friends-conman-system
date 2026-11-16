@@ -39,7 +39,7 @@ export default function BuyerCard({ buyer, canEdit, footer }: { buyer: BuyerView
             {buyer.receiveComms && <Badge variant="success">Comms On</Badge>}
           </div>
         </div>
-        <div className="text-sm text-muted">
+        <div className="text-sm text-muted break-words">
           {buyer.email && <div>✉ {buyer.email}</div>}
           {buyer.whatsappNumber && <div>📱 {formatPhone(buyer.whatsappNumber)}</div>}
           {buyer.maskedPan && <div>PAN: {buyer.maskedPan}</div>}

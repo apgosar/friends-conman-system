@@ -69,3 +69,4 @@ license*.jwt
 
 # local dev file storage (STORAGE_PROVIDER=local)
 .storage/
+visual-out/

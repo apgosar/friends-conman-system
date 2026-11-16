@@ -13,7 +13,7 @@ import { can } from '@/lib/authz'
 import { comboLabel, missingCombos, requiredCombos, type Combo } from '@/lib/payment-plans'
 import DeleteProjectButton from '@/components/projects/DeleteProjectButton'
 import ExportProjectButton from '@/components/projects/ExportProjectButton'
-import { Alert, Badge, ButtonLink, Card, CardHeader, EmptyState, PageHeader, StatusBadge } from '@/components/ui'
+import { Alert, Badge, ButtonLink, Card, CardHeader, EmptyState, Figure, PageHeader, StatusBadge } from '@/components/ui'
 
 async function getProject(id: string) {
   return prisma.project.findUnique({
@@ -116,7 +116,7 @@ export default async function ProjectDetailPage(props: PageProps<'/projects/[id]
           ].map((s) => (
             <Card key={s.label}>
               <div className="stat-label">{s.label}</div>
-              <div className="stat-value" style={s.color ? { color: s.color } : undefined}>{s.value}</div>
+              <div className="stat-value" style={s.color ? { color: s.color } : undefined}><Figure>{s.value}</Figure></div>
               {s.note && <div className="text-xs text-muted">{s.note}</div>}
             </Card>
           ))}

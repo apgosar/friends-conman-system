@@ -118,7 +118,8 @@ If the thing you need is not in this table, search `src/lib` and `src/components
 | `Badge`, `StatusBadge` | Pills | `StatusBadge` reads label and colour from `lib/status.ts`; kinds: `unit` `sale` `schedule` `comm` `document` `milestone` `kyc` `project` `projectType` |
 | `Card`, `CardHeader` | A panel and its title row | `Card flush` has no padding (for a table that fills the card) |
 | `PageHeader` | Page title, subtitle, actions, optional badges (`eyebrow`) | Stacks on a phone |
-| `StatCard` | Headline number | `grid grid-stats` keeps them two across on a phone |
+| `StatCard` | Headline number | `grid grid-stats`: two across on a tablet, one per row on a phone (≤ 480 px) |
+| `Figure` | A big amount or count outside a `StatCard` | Sized to fit its box; wraps at the commas rather than leaving the card. Never put a large figure in a fixed font size |
 | `Table`, `Td`, `EmptyRow`, `EmptyState` | Tables | `Table stack` + `Td label="Column"` turns rows into cards on a phone; `label=""` for action cells |
 | `Tabs`, `FilterChips`, `Pagination`, `StepBar` | Navigation inside a page | |
 | `Stepper` | A − / + counter. Not the progress bar (`StepBar`) | |
@@ -286,7 +287,7 @@ CI runs the tests with `connection_limit=5` on purpose: a small pool exposes cod
 | Personal data | `tests/pii.test.ts`, `pii.int.test.ts`, `dpdp.int.test.ts` | encryption, masking, erasure |
 | Migrations | `tests/migration-upgrade.int.test.ts` + CI schema-drift check | the committed migrations give exactly `schema.prisma` and upgrade an old database |
 
-**Looking at the screens:** `scripts/visual-check.mjs` signs in, opens a list of pages at phone, tablet and desktop size, saves screenshots and reports sideways overflow and console errors. Usage is in the file's header. It needs a running app and a Chromium (`CHROMIUM_PATH`).
+**Looking at the screens:** `scripts/visual-check.mjs` signs in and opens **every screen** (each `page.tsx`; a page with an `[id]` is opened for the first ids linked from its list page) at 320 px (small phone, or a phone with a large text setting), 360, 390, tablet and desktop size. It saves screenshots and fails on sideways overflow, text that spills out of or is cut off by its own box (`SPILL`), and console errors. CI runs it (job "Screens fit a phone") on an empty database and on the stress data from `scripts/seed-ui-check.ts` (crore figures, long names and emails, three co-buyers, every overdue bucket), and a deploy waits for it. To run it locally: a disposable database (its name must contain test, ui, ci or demo), `npx tsx scripts/seed-ui-check.ts users`, then `npx tsx prisma/seed.ts` and `npx tsx scripts/seed-ui-check.ts stress`, start the app, and run the script (usage in its header; it needs a Chromium, `CHROMIUM_PATH`). The fast part of the same rules (no unbounded `white-space: nowrap`, buttons, fields and card headers that give way, figures through `Figure`) is in `tests/ui-conventions.test.ts`.
 
 **Test helpers:** `tests/helpers/db.ts` (`describeDb`, `resetDb`, `seedProject`), `tests/helpers/global-setup.ts` (applies the migrations to the test database).
 
@@ -294,7 +295,7 @@ CI runs the tests with `connection_limit=5` on purpose: a small pool exposes cod
 
 ## 10. Recipes: how to add…
 
-**A screen.** Create `src/app/(admin)/<name>/page.tsx` (server component). Start from `TopNav` + `PageHeader`, put content in `Card`s, lists in `Table stack` with labelled `Td`s, empty states in `EmptyRow`/`EmptyState`. Add it to the sidebar in `src/components/layout/Sidebar.tsx` and, if it needs more than "signed in", a rule in `PAGE_RULES` in `src/lib/authz.ts`. Add its path to the visual-check list and run it.
+**A screen.** Create `src/app/(admin)/<name>/page.tsx` (server component). Start from `TopNav` + `PageHeader`, put content in `Card`s, lists in `Table stack` with labelled `Td`s, empty states in `EmptyRow`/`EmptyState`. Add it to the sidebar in `src/components/layout/Sidebar.tsx` and, if it needs more than "signed in", a rule in `PAGE_RULES` in `src/lib/authz.ts`. The layout check finds it by itself; run it locally before pushing. If the screen has an `[id]`, its list page must link to it (a link, or a row with `data-href`), or the check cannot open it. If the screen shows data the stress seed does not create, add some to `scripts/seed-ui-check.ts`.
 
 **A form that saves.** Client component using `TextField` etc. Submit with `fetchJson(url, jsonRequest('POST', body))` inside `try/catch`; on success `toast.success(...)` and `router.refresh()` (or navigate); on failure `toast.error(errorMessage(err))` or an `<Alert>` for a form-level message. Use `Button loading={busy}`.
 

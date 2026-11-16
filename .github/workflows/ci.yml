@@ -102,3 +102,103 @@ jobs:
           NEXTAUTH_SECRET: ci-build-secret-ci-build-secret-123456
           NEXTAUTH_URL: http://localhost:3000
           APP_URL: http://localhost:3000
+
+  layout:
+    # Every screen at 320 / 360 / 390 / 820 / 1440 px, on an empty database and on stress data (crore figures, long
+    # names). Fails when a page scrolls sideways, text runs out of (or is cut off by) its box, or a page logs an error.
+    # New screens are found by themselves (scripts/visual-check.mjs). On failure the screenshots are attached to the run.
+    name: Screens fit a phone (layout check)
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: neev_ui
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+
+    env:
+      DATABASE_URL: postgresql://postgres:postgres@localhost:5432/neev_ui
+      NEXTAUTH_SECRET: ci-layout-secret-ci-layout-secret-123456
+      NEXTAUTH_URL: http://localhost:3000
+      AUTH_URL: http://localhost:3000
+      APP_URL: http://localhost:3000
+      AUTH_TRUST_HOST: 'true'
+      STORAGE_PROVIDER: local
+      LOCAL_STORAGE_DIR: /tmp/neev-files
+      SEED_PASSWORD: ci-layout-Check-2026
+      # what the check signs in with and where it looks
+      BASE: http://localhost:3000
+      PASSWORD: ci-layout-Check-2026
+      CHROMIUM_PATH: /usr/bin/google-chrome # preinstalled on the GitHub Ubuntu runners
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - run: npm ci
+
+      - run: npx prisma generate
+
+      - name: Build (standalone, as the Docker image runs it)
+        run: |
+          npm run build
+          cp -r .next/static .next/standalone/.next/static
+          cp -r public .next/standalone/public
+        env:
+          BUILDING: 'true'
+
+      - name: Empty database with the sign-ins only
+        run: |
+          npx prisma migrate deploy
+          npx tsx scripts/seed-ui-check.ts users
+
+      - name: Start the app
+        run: |
+          mkdir -p "$LOCAL_STORAGE_DIR"
+          export PII_ENCRYPTION_KEY="$(openssl rand -base64 32)" # a throwaway key for this run's test data
+          PORT=3000 HOSTNAME=127.0.0.1 nohup node .next/standalone/server.js > /tmp/app.log 2>&1 &
+          for i in $(seq 1 60); do curl -fs "$BASE/api/health" > /dev/null && exit 0; sleep 2; done
+          cat /tmp/app.log; exit 1
+
+      - name: Layout check, no data yet
+        run: node scripts/visual-check.mjs
+        env:
+          OUT: visual-out/empty
+
+      - name: Demo data plus stress data
+        run: |
+          npx tsx prisma/seed.ts > /dev/null
+          npx tsx scripts/seed-ui-check.ts stress
+
+      - name: Layout check, large figures and long names
+        run: node scripts/visual-check.mjs
+        env:
+          OUT: visual-out/data
+          REQUIRE_DATA: '1'
+          EXTRA_PATHS: '["/receivables?bucket=30plus"]'
+
+      - name: Screenshots
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: layout-screenshots
+          path: visual-out
+          retention-days: 7
+
+      - name: App log
+        if: failure()
+        run: tail -n 100 /tmp/app.log || true

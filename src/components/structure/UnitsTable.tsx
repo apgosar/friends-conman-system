@@ -281,7 +281,7 @@ export default function UnitsTable({ projectId, units, wings, types }: { project
       {wings.length > 0 && (
         <div className="flex wrap gap-3 mb-4">
           {wings.map((w) => (
-            <div key={w.id} className="card-flat text-sm flex items-center gap-3 px-3 py-2">
+            <div key={w.id} className="card-flat text-sm flex items-center wrap gap-3 px-3 py-2">
               <span><b>{wingLabel(w.name)}</b> · {plural(w.floors, 'floor')} · {plural(w.units, 'unit')}</span>
               {residential.length === 1 && residential[0].id === w.id && prefixed(w).length > 0 && (
                 <Button variant="ghost" size="xs" onClick={() => dropPrefix(w)} title="One wing: number the flats 101, 102… without the wing">Remove “{w.name}” prefix</Button>
