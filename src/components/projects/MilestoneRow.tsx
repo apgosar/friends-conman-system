@@ -77,15 +77,14 @@ export default function MilestoneRow({ m }: { m: any }) {
       <Td label="Planned" className="text-muted">{m.plannedDate ? formatDate(m.plannedDate) : '—'}</Td>
       <Td label="Actual" className="text-muted">{m.actualDate ? formatDate(m.actualDate) : '—'}</Td>
       <Td label="">
-        <div className="flex gap-2 items-center wrap">
+        <div className="milestone-actions">
           {m.architectCertificateUrl ? (
             <a href={m.architectCertificateUrl} target="_blank" rel="noreferrer" className="btn btn-ghost btn-sm">View certificate</a>
           ) : (
-            <span className="text-muted text-sm">No certificate</span>
+            <span className="text-muted text-sm milestone-actions-note">No certificate</span>
           )}
-          {m.status !== 'COMPLETED' && <Button size="sm" onClick={() => setShowComplete(true)}>Mark Complete</Button>}
-          {m.status === 'COMPLETED' && isSuperAdmin && <Button size="sm" onClick={() => setShowUncomplete(true)}>Uncomplete</Button>}
-          {isSuperAdmin && <Button size="sm" variant="danger" onClick={() => setShowDelete(true)}>🗑️ Delete</Button>}
+          {m.status !== 'COMPLETED' ? <Button size="sm" onClick={() => setShowComplete(true)}>Mark Complete</Button> : isSuperAdmin ? <Button size="sm" onClick={() => setShowUncomplete(true)}>Uncomplete</Button> : <span />}
+          {isSuperAdmin ? <Button size="sm" variant="danger" onClick={() => setShowDelete(true)}>🗑️ Delete</Button> : <span />}
         </div>
 
         {showComplete && (

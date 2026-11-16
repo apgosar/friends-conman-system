@@ -1040,3 +1040,9 @@ a.list-row:hover { background: var(--bg-card-hover); }
 /* Payment plan editor: milestone, percentage, remove */
 .plan-row { display: grid; grid-template-columns: minmax(0, 1fr) 120px 36px; gap: var(--space-2); align-items: start; }
 @media (max-width: 520px) { .plan-row { grid-template-columns: minmax(0, 1fr) 100px 36px; } }
+
+/* Milestone row actions: three fixed slots so the buttons line up from row to row */
+.milestone-actions { display: grid; grid-template-columns: 9rem 7.5rem 6.5rem; gap: var(--space-2, 0.5rem); align-items: center; justify-content: end; }
+.milestone-actions > * { justify-self: stretch; text-align: center; }
+.milestone-actions > .milestone-actions-note { text-align: right; }
+@media (max-width: 640px) { .milestone-actions { grid-template-columns: repeat(auto-fit, minmax(7rem, 1fr)); justify-content: stretch; } }
