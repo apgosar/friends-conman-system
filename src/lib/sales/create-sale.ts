@@ -4,7 +4,7 @@ import { z } from '@/lib/validate'
 import { nextSaleNumber } from '@/lib/numbering'
 import { buildCommContent, sanitizeInline } from '@/lib/comms-content'
 import { GST_RATE_OPTIONS, computeCharges, pricingFromProject } from '@/lib/pricing'
-import { BOOKING_DUE_DAYS, DEMAND_DUE_DAYS, isStandaloneCharge } from '@/lib/payment-plans'
+import { dueDateAfter, isStandaloneCharge } from '@/lib/payment-plans'
 import { OTHER_CHARGES_LABEL, computeOtherCharges } from '@/lib/other-charges'
 import { sumRupees } from '@/lib/money'
 import { PHONE_ERROR, normalizePhone } from '@/lib/phone'
@@ -191,18 +191,12 @@ export async function createSale(input: SaleCreateInput, actorId: string) {
       const created = await tx.paymentSchedule.createManyAndReturn({
         data: schedules.map((ps) => {
           const isCompleted = !!ps.milestoneId && completed.has(ps.milestoneId)
-          // The booking is not a construction milestone: its demand goes out with the sale, and it is due BOOKING_DUE_DAYS later
+          // The booking is not a construction milestone: its demand goes out with the sale, and it is due the project's booking due days later
           const isBooking = ps.isBooking === true && !ps.milestoneId
           const actualDate = isCompleted ? (completed.get(ps.milestoneId!) || new Date()) : null
           let dueDate = ps.dueDate ? new Date(ps.dueDate) : null
-          if (isBooking) {
-            dueDate = new Date()
-            dueDate.setDate(dueDate.getDate() + BOOKING_DUE_DAYS)
-          }
-          if (isCompleted && actualDate) {
-            dueDate = new Date(actualDate)
-            dueDate.setDate(dueDate.getDate() + DEMAND_DUE_DAYS)
-          }
+          if (isBooking) dueDate = dueDateAfter(new Date(), project.bookingDueDays)
+          if (isCompleted && actualDate) dueDate = dueDateAfter(actualDate, project.demandDueDays)
           return {
             saleId: newSale.id,
             milestoneId: ps.milestoneId || null,

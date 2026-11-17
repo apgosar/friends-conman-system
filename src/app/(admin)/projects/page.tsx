@@ -58,7 +58,8 @@ export default async function ProjectsPage() {
                 <p className="text-sm text-muted mb-4">{project.city}, {project.state}</p>
                 <div className="divider" />
                 <div className="grid grid-3 gap-2">
-                  <div className="text-center"><div className="font-bold text-lg">{project.wings.length}</div><div className="text-xs text-muted">Wings</div></div>
+                  {/* A single-wing project has no wings to count */}
+                  <div className="text-center"><div className="font-bold text-lg">{project.singleWing ? project.wings.reduce((n, w) => n + w.totalFloors, 0) : project.wings.length}</div><div className="text-xs text-muted">{project.singleWing ? 'Floors' : 'Wings'}</div></div>
                   <div className="text-center"><div className="font-bold text-lg">{project._count.sales}</div><div className="text-xs text-muted">Sales</div></div>
                   <div className="text-center">
                     <div className={`font-bold text-lg ${project.reraNumber ? 'text-success' : 'text-muted'}`}>{project.reraNumber ? '✓' : '—'}</div>

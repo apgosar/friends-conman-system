@@ -12,12 +12,18 @@ const rupees = (label: string) =>
   z.union([z.number(), z.string().trim().min(1).transform(Number)], { message: `${label} is required` })
     .pipe(z.number({ message: `${label} must be a number` }).finite(`${label} must be a number`).min(0, `${label} cannot be negative`).max(1_000_000_000, `${label} is too large`))
 
+const days = (label: string) =>
+  z.union([z.number(), z.string().trim().min(1).transform(Number)], { message: `${label} is required` })
+    .pipe(z.number({ message: `${label} must be a number` }).int(`${label} must be a whole number`).min(0, `${label} cannot be negative`).max(365, `${label} cannot be more than 365`))
+
 export const PricingSettingsSchema = z.object({
   gstRatePercent: percent('GST rate').optional(),
   stampDutyPercent: percent('Stamp duty').optional(),
   regChargesPercent: percent('Registration charges').optional(),
   tdsRatePercent: percent('TDS rate').optional(),
   interestRatePercent: percent('Interest rate').optional(),
+  demandDueDays: days('Days to pay a demand').optional(),
+  bookingDueDays: days('Days to pay the booking amount').optional(),
   regParkingCharges: rupees('Registration charge for parking').optional(),
   regChargesCap: z.union([z.literal(''), z.null(), rupees('Registration charges cap')]).transform((v) => (v === '' ? null : v)).optional(),
 })

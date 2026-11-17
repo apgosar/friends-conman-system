@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest'
 import { buildSlots, columnNames, findBlocks, suggestTarget } from '@/lib/parking-import'
-import { NO_CHOICE, NO_VALUE, choose, explicitPick, fieldKey, isSlotAvailable, pickText, pickedSlot, typesFitting, valuesFor, legacyParkingTexts, parkingFieldsProblem, slotLabel, parkingTypeName, slotStatus, slotUniqueKey } from '@/lib/parking'
+import { NO_CHOICE, NO_VALUE, choose, explicitPick, fieldKey, isSlotAvailable, pickText, pickedSlot, typesFitting, valuesFor, legacyParkingTexts, parkingFieldsProblem, slotLabel, slotDetailLabel, parkingTypeName, slotStatus, slotUniqueKey } from '@/lib/parking'
 import { findTagIssues } from '@/lib/template-tags'
 import { buildSalePayload } from '@/lib/documents/payload'
 
@@ -27,6 +27,11 @@ describe('parking details', () => {
     expect(a).toBe(slotUniqueKey([...fields].reverse(), { number: '2', level: ' p-1 ' }))
     expect(slotUniqueKey([...fields, { name: 'Bay', key: 'bay' }], { level: 'P-1', number: '2' })).toBe(a)
     expect(slotUniqueKey(fields, {})).toBe('')
+  })
+  it('names each parameter of a space for a screen', () => {
+    expect(slotDetailLabel(fields, { level: '5th', number: '9' }, 'Stack')).toBe('Level: 5th, Number: 9 (Stack)')
+    expect(slotDetailLabel(fields, { number: '9' })).toBe('Number: 9')
+    expect(slotDetailLabel(fields, {})).toBe('Parking space')
   })
   it('names a space and knows whether it is free', () => {
     expect(slotLabel(fields, { level: 'P -1 1st Floor Parking', number: '2' }, 'Surface Parking')).toBe('P -1 1st Floor Parking, 2 (Surface Parking)')

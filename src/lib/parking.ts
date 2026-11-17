@@ -69,6 +69,12 @@ export function slotLabel(fields: ParkingFieldDef[], values: ParkingValues, type
   return type?.trim() ? `${text} (${type.trim()})` : text
 }
 
+/** A space with each parameter named, for a screen: "Level: 5th, Floor: 3, Number: 9 (Stack)". Letters use slotLabel. */
+export function slotDetailLabel(fields: ParkingFieldDef[], values: ParkingValues, type?: string | null): string {
+  const text = fields.flatMap((f) => { const v = (values[f.key] ?? '').trim(); return v ? [`${f.name}: ${v}`] : [] }).join(', ') || 'Parking space'
+  return type?.trim() ? `${text} (${type.trim()})` : text
+}
+
 export interface ParkingSlotLike { saleId: string | null; allottedTo: string | null }
 
 /** Free to sell: no sale holds it and it was not allotted outside the app. */

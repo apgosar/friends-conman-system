@@ -3,12 +3,12 @@
 import { useMemo, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import {
-  COMMERCIAL_WING, NUMBERING_FORMATS, categoryLabel, defaultNumbering, generateUnits, nextWingName, summarize, wingLabel,
+  COMMERCIAL_WING, NUMBERING_FORMATS, categoryLabel, defaultNumbering, generateUnits, nextWingName, residentialWingNames, summarize, wingTitle,
   type ExtraPattern, type FloorPattern, type NumberingFormat, type UnitCategory, type WingSpec,
 } from '@/lib/building-structure'
 import { MANUAL_UNIT_STATUSES, unitStatusLabel } from '@/lib/status'
 import type { UnitTypeRow, WingRow } from './ui'
-import { Alert, Button, Input, Select, SelectField, cn } from '@/components/ui'
+import { Alert, Button, Input, RadioGroupField, Select, SelectField, cn, useConfirm, useToast } from '@/components/ui'
 import { errorMessage, fetchJson, jsonRequest } from '@/lib/client/api'
 import { plural } from '@/lib/errors'
 
@@ -107,18 +107,46 @@ function ExtraRows({ extras, types, onChange }: { extras: ExtraPattern[]; types:
   )
 }
 
-export default function StructureBuilder({ projectId, types, existingWings, existingNumbering }: { projectId: string; types: UnitTypeRow[]; existingWings: WingRow[]; existingNumbering?: NumberingFormat }) {
+export default function StructureBuilder({ projectId, types, existingWings, existingNumbering, singleWing }: { projectId: string; types: UnitTypeRow[]; existingWings: WingRow[]; existingNumbering?: NumberingFormat; singleWing: boolean }) {
   const router = useRouter()
+  const confirm = useConfirm()
+  const toast = useToast()
   const byCategory = (c: UnitCategory) => types.filter((t) => t.category === c)
   const flatTypes = byCategory('FLAT'), shopTypes = byCategory('SHOP'), officeTypes = byCategory('OFFICE'), commonTypes = byCategory('COMMON')
   const suggestName = () => (existingWings.length ? nextWingName(existingWings.filter((w) => w.name !== COMMERCIAL_WING).at(-1)?.name ?? '') || 'A' : 'A')
   const freshWing = (name: string): WingSpec => ({ name, patterns: [{ from: 1, to: 1, unitTypeIds: [flatTypes[0]?.id ?? ''] }], extras: [] })
 
+  // One building with no wings, or several. Chosen here for a project with no building yet; changed afterwards with the button below
+  const hasBuilding = existingWings.length > 0
+  const [single, setSingle] = useState(hasBuilding ? singleWing : true)
+  const singleName = existingWings.find((w) => w.name !== COMMERCIAL_WING)?.name ?? 'A' // the one wing exists only inside the app: no screen shows its name
   const [chosenNumbering, setNumbering] = useState<NumberingFormat | null>(null)
-  const [wings, setWings] = useState<WingSpec[]>(flatTypes.length ? [freshWing(suggestName())] : [])
+  const [wings, setWings] = useState<WingSpec[]>(flatTypes.length ? [freshWing(hasBuilding && !singleWing ? suggestName() : single ? singleName : suggestName())] : [])
+  const chooseMode = (isSingle: boolean) => {
+    setSingle(isSingle)
+    setNumbering(null)
+    // Single: keep the first wing's floors and flats, under the one wing's name
+    setWings((ws) => (isSingle ? ws.slice(0, 1).map((w) => ({ ...w, name: singleName })) : ws))
+  }
+  const switchMode = async (toSingle: boolean) => {
+    const ok = await confirm({
+      title: toSingle ? 'Make this a single-wing project?' : 'Make this a multi-wing project?',
+      message: toSingle ? 'No wing name will be shown anywhere for this project. No unit, sale or document changes.' : 'Wing names will be shown for this project, and you can add more wings. No unit, sale or document changes.',
+      confirmLabel: toSingle ? 'Make single wing' : 'Make multi wing',
+    })
+    if (!ok) return
+    try {
+      await fetchJson(`/api/projects/${projectId}/structure/mode`, jsonRequest('PUT', { singleWing: toSingle }))
+      toast.success(toSingle ? 'This is now a single-wing project' : 'This is now a multi-wing project')
+      router.refresh()
+    } catch (err) {
+      toast.error(errorMessage(err))
+    }
+  }
   // The wings the project will have: with only one, flats need no wing prefix (101, 102...), unless someone chooses one
-  const residentialWings = new Set([...existingWings.map((w) => w.name), ...wings.map((w) => w.name)].map((n) => n.trim().toLowerCase()).filter((n) => n && n !== COMMERCIAL_WING.toLowerCase())).size
-  const numbering: NumberingFormat = chosenNumbering ?? (residentialWings > 1 ? 'W-FNN' : existingNumbering ?? defaultNumbering(residentialWings))
+  const residentialWings = residentialWingNames([...existingWings.map((w) => w.name), ...wings.map((w) => w.name)]).length
+  // A single-wing project has no wing to put in front of a flat number
+  const numbering: NumberingFormat = single ? 'FNN' : chosenNumbering ?? (residentialWings > 1 ? 'W-FNN' : existingNumbering ?? defaultNumbering(residentialWings))
   const [shops, setShops] = useState<FloorPattern[]>([])
   const [offices, setOffices] = useState<FloorPattern[]>([])
   const [status, setStatus] = useState<string>('AVAILABLE')
@@ -138,9 +166,9 @@ export default function StructureBuilder({ projectId, types, existingWings, exis
     setBusy(true)
     setMessage(null)
     try {
-      const res = await fetchJson(`/api/projects/${projectId}/structure/generate`, jsonRequest('POST', { numbering, status, wings, shops, offices }))
+      const res = await fetchJson(`/api/projects/${projectId}/structure/generate`, jsonRequest('POST', { numbering, singleWing: single, status, wings, shops, offices }))
       const skipped = res.skipped.length ? ` ${plural(res.skipped.length, 'unit number')} already existed and ${res.skipped.length === 1 ? 'was' : 'were'} left unchanged.` : ''
-      setMessage({ ok: true, text: `Created ${plural(res.created, 'unit')}. ${plural(res.wingsCreated, 'new wing/block')}, ${plural(res.floorsCreated, 'new floor')}.${skipped}` })
+      setMessage({ ok: true, text: `Created ${plural(res.created, 'unit')}. ${single ? '' : plural(res.wingsCreated, 'new wing/block') + ', '}${plural(res.floorsCreated, 'new floor')}.${skipped}` })
       setWings([]); setShops([]); setOffices([])
       router.refresh()
     } catch (err) {
@@ -169,28 +197,51 @@ export default function StructureBuilder({ projectId, types, existingWings, exis
         <div>
           <span className="card-title">2. Build the structure</span>
           <p className="text-sm text-muted mt-1 mb-0">
-            Flats are set up wing by wing. Shops and offices are one continuous block for the whole project. Use floor 0 for the ground floor.
+            {single ? 'Describe the building floor by floor.' : 'Flats are set up wing by wing.'} Shops and offices are one continuous block for the whole project. Use floor 0 for the ground floor.
           </p>
         </div>
+      </div>
+
+      {/* ── One building or several wings ── */}
+      <div className="mb-5">
+        {hasBuilding ? (
+          <div className="flex items-center gap-3 wrap">
+            <span className="text-sm">{single ? 'This is a single-wing project: one building, no wings.' : 'This is a multi-wing project.'}</span>
+            {single
+              ? <Button size="sm" onClick={() => switchMode(false)}>Switch to multiple wings</Button>
+              : residentialWings <= 1 && <Button size="sm" onClick={() => switchMode(true)}>Switch to a single wing</Button>}
+          </div>
+        ) : (
+          <RadioGroupField
+            label="Is this one building or several wings?"
+            name="wingMode"
+            value={single ? 'single' : 'multi'}
+            onChange={(v) => chooseMode(v === 'single')}
+            options={[{ value: 'single', label: 'Single wing (one building or tower)' }, { value: 'multi', label: 'Multiple wings (A, B, C…)' }]}
+            hint={single ? 'No wing name is shown anywhere for this project, and flats are numbered 101, 102…' : 'Each wing is named, and shown in the unit list and the building view'}
+          />
+        )}
       </div>
 
       {/* ── Flats ── */}
       <div className="mb-5">
         <div className="flex justify-between items-end gap-3 wrap mb-3">
           <div className="text-md font-bold">Flats</div>
-          <SelectField label="Flat numbering" wrapperClassName="max-w-sm w-full" value={numbering} onChange={(e) => setNumbering(e.target.value as NumberingFormat)}>
-            {NUMBERING_FORMATS.map((n) => <option key={n.value} value={n.value}>{n.label}</option>)}
-          </SelectField>
+          {!single && (
+            <SelectField label="Flat numbering" wrapperClassName="max-w-sm w-full" value={numbering} onChange={(e) => setNumbering(e.target.value as NumberingFormat)}>
+              {NUMBERING_FORMATS.map((n) => <option key={n.value} value={n.value}>{n.label}</option>)}
+            </SelectField>
+          )}
         </div>
-        {residentialWings <= 1 && numbering === 'FNN' && wings.length > 0 && (
-          <p className="text-xs text-muted mt-0 mb-3">One wing, so flats are numbered without a wing prefix (101, 102…). The wing name is only used inside the app.</p>
+        {!single && residentialWings <= 1 && numbering === 'FNN' && wings.length > 0 && (
+          <p className="text-xs text-muted mt-0 mb-3">One wing, so flats are numbered without a wing prefix (101, 102…).</p>
         )}
 
         {flatTypes.length === 0 ? noTypesHint('FLAT') : (
           <div className="grid gap-4">
             {wings.map((wing, wi) => (
               <div key={wi} className="panel">
-                <div className="flex gap-3 items-end wrap mb-3">
+                {!single && <div className="flex gap-3 items-end wrap mb-3">
                   <div className="form-group" style={{ width: 160 }}>
                     <label className="form-label" htmlFor={`wing-name-${wi}`}>Wing / tower name</label>
                     <Input id={`wing-name-${wi}`} value={wing.name} onChange={(e) => setWing(wi, (w) => ({ ...w, name: e.target.value }))} placeholder="A" />
@@ -201,11 +252,11 @@ export default function StructureBuilder({ projectId, types, existingWings, exis
                   <div className="flex-1" />
                   <Button variant="ghost" size="sm" onClick={() => duplicateWing(wi)} title="Copy this wing, e.g. for an identical tower">Duplicate wing</Button>
                   <Button variant="ghost" size="sm" className="text-danger" onClick={() => setWings((ws) => ws.filter((_, i) => i !== wi))}>Remove wing</Button>
-                </div>
+                </div>}
                 <div className="section-label mb-2">Floors and the flats on each</div>
                 <PatternRows patterns={wing.patterns} types={flatTypes} onChange={(patterns) => setWing(wi, (w) => ({ ...w, patterns }))} />
 
-                <div className="section-label mt-5 mb-2">Common areas in this wing <small>(refuge area, society office… not for sale)</small></div>
+                <div className="section-label mt-5 mb-2">Common areas {single ? 'in this building' : 'in this wing'} <small>(refuge area, society office… not for sale)</small></div>
                 {commonTypes.length === 0 ? (
                   <p className="m-0 text-sm text-muted">Add a common-area type in step 1 first (for example “Refuge Area”).</p>
                 ) : (
@@ -213,7 +264,7 @@ export default function StructureBuilder({ projectId, types, existingWings, exis
                 )}
               </div>
             ))}
-            <div><Button onClick={() => setWings((ws) => [...ws, freshWing(ws.length ? nextWingName(ws[ws.length - 1].name) : suggestName())])}>+ {wings.length ? 'Add another wing' : 'Add a wing'}</Button></div>
+            {(!single || wings.length === 0) && <div><Button onClick={() => setWings((ws) => [...ws, freshWing(single ? singleName : ws.length ? nextWingName(ws[ws.length - 1].name) : suggestName())])}>+ {single ? 'Add the floors' : wings.length ? 'Add another wing' : 'Add a wing'}</Button></div>}
           </div>
         )}
       </div>
@@ -251,7 +302,7 @@ export default function StructureBuilder({ projectId, types, existingWings, exis
           <>
             <div className="text-md font-bold mb-2">{plural(units.length, 'unit')} will be created</div>
             <div className="flex gap-6 wrap text-sm text-secondary">
-              <div>{summary.perWing.map((w) => <div key={w.wing}>{wingLabel(w.wing)}: {plural(w.floors, 'floor')}, {plural(w.units, 'unit')}</div>)}</div>
+              <div>{summary.perWing.map((w) => <div key={w.wing}>{wingTitle(single, w.wing)}: {plural(w.floors, 'floor')}, {plural(w.units, 'unit')}</div>)}</div>
               <div>{[...summary.perType].map(([id, n]) => <div key={id}>{typeName(id)}: {n}</div>)}</div>
               <div className="text-muted">
                 e.g. {units.slice(0, 8).map((u) => u.unitNumber).join(', ')}{units.length > 8 ? ', …' : ''}

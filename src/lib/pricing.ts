@@ -53,3 +53,7 @@ export function computeCharges(config: PricingConfig, agreementValue: number, ca
 
 /** GST on a single demand line (not on stamp duty, registration or parking, which carry none). */
 export const gstOn = (config: PricingConfig, principal: number): number => percentOf(principal, config.gstRatePercent)
+
+/** The GST rate a sale was made at, as a number of percent (5, 12, 0), worked back from its agreement value and GST. Empty when there is no agreement value. */
+export const gstRateOfSale = (agreementValue: number, gstAmount: number): string =>
+  agreementValue > 0 ? String(Math.round((gstAmount / agreementValue) * 10000) / 100) : ''

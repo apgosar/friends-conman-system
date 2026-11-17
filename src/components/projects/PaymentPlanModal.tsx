@@ -6,7 +6,7 @@ import { errorMessage, fetchJson, jsonRequest } from '@/lib/client/api'
 import { scrollToFirstInvalid } from '@/lib/client/forms'
 import { formatNumber } from '@/lib/format'
 import {
-  BOOKING_DUE_DAYS, BOOKING_LABEL, PLAN_UNIT_TYPES, PaymentPlanSchema, SALE_TYPE_LABEL, UNIT_TYPE_LABEL, saleTypesOfProject, sameCombo,
+  BOOKING_LABEL, PLAN_UNIT_TYPES, PaymentPlanSchema, SALE_TYPE_LABEL, UNIT_TYPE_LABEL, saleTypesOfProject, sameCombo,
   type PlanSaleType, type PlanUnitType,
 } from '@/lib/payment-plans'
 
@@ -135,7 +135,7 @@ export default function PaymentPlanModal({ projectId, projectType, milestoneName
           <div className="plan-row mb-3">
             <div className="flex dir-col">
               <span className="font-semibold">{BOOKING_LABEL}</span>
-              <span className="text-sm text-muted">{`Demanded as soon as the sale is created, due ${BOOKING_DUE_DAYS} days later. Not a construction milestone`}</span>
+              <span className="text-sm text-muted">{"Demanded as soon as the sale is created, and due after the days set in Edit project. Not a construction milestone"}</span>
             </div>
             <div className="flex items-center gap-1">
               <Input aria-label="Booking percentage" type="number" inputMode="decimal" min={0} max={100} step={0.5} className="text-right" value={booking} onChange={(e) => setBooking(e.target.value)} placeholder="0" />

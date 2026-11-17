@@ -37,7 +37,8 @@ export const TAG_GROUPS: TagGroup[] = [
     { tag: 'partner2Pan', desc: 'Second partner: PAN', types: PARTNER_DOCS },
   ] },
   { group: 'Unit', tags: [
-    { tag: 'wingName', desc: 'Wing' },
+    { tag: 'wingName', desc: 'Wing (empty for a single-wing project)' },
+    { tag: 'hasWings', desc: 'Section: {{#hasWings}}Wing {{wingName}}, {{/hasWings}} shows its content only when the project has wings (not for a single-wing project)' },
     { tag: 'floorNumber', desc: 'Floor number' },
     { tag: 'floorOrdinal', desc: 'Floor as 1st, 2nd, 3rd…' },
     { tag: 'unitNumber', desc: 'Unit / flat number' },
@@ -70,6 +71,8 @@ export const TAG_GROUPS: TagGroup[] = [
     { tag: 'agreementValue', desc: 'Agreement value' },
     { tag: 'agreementValueWords', desc: 'Agreement value in words' },
     { tag: 'gstAmount', desc: 'GST on agreement value' },
+    { tag: 'gstRate', desc: 'GST rate of the sale as a number, e.g. 5 (write it as "{{gstRate}}%")' },
+    { tag: 'gstRatePercent', desc: 'GST rate of the sale with the percent sign, e.g. 5%' },
     { tag: 'bookingAmount', desc: 'Booking amount' },
     { tag: 'bookingAmountWords', desc: 'Booking amount in words' },
     { tag: 'balanceAmount', desc: 'Balance after booking' },

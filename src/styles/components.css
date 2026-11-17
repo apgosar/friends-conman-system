@@ -1046,3 +1046,10 @@ a.list-row:hover { background: var(--bg-card-hover); }
 .milestone-actions > * { justify-self: stretch; text-align: center; }
 .milestone-actions > .milestone-actions-note { text-align: right; }
 @media (max-width: 640px) { .milestone-actions { grid-template-columns: repeat(auto-fit, minmax(7rem, 1fr)); justify-content: stretch; } }
+
+/* The plan totals in words, one per line under the payment plan table */
+.totals-words { margin: var(--space-3) 0 var(--space-4); display: grid; gap: var(--space-2); font-size: var(--text-sm); }
+.totals-words > div { display: grid; grid-template-columns: 6rem minmax(0, 1fr); gap: var(--space-3); }
+.totals-words dt { color: var(--text-muted); }
+.totals-words dd { margin: 0; overflow-wrap: anywhere; font-weight: 600; }
+.totals-words dd .text-muted { font-weight: 400; }

@@ -28,7 +28,7 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ id: 
   const format = sp.get('format') === 'csv' ? 'csv' : 'xlsx'
   const status = sp.get('status') ?? 'ALL'
 
-  const project = await prisma.project.findUnique({ where: { id }, select: { name: true } })
+  const project = await prisma.project.findUnique({ where: { id }, select: { name: true, singleWing: true } })
   if (!project) return new Response('Project not found', { status: 404 })
 
   const inquiries = await prisma.inquiry.findMany({
@@ -51,7 +51,7 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ id: 
 
   const rows = inquiries.map((q) => [
     formatDate(q.createdAt),
-    q.unit.floor.wing.name,
+    project.singleWing ? '' : q.unit.floor.wing.name, // a single-wing project has no wings
     floorLabel(q.unit.floor.floorNumber),
     q.unit.unitNumber,
     q.unit.configuration,

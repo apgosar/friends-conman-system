@@ -2,7 +2,7 @@
 
 import type { CSSProperties } from 'react'
 import { Button, cn } from '@/components/ui'
-import { wingLabel } from '@/lib/building-structure'
+import { wingTitle } from '@/lib/building-structure'
 import { UNIT_COLORS } from '@/lib/status'
 import { STATUS_COLOR, type WingData } from './building-model'
 
@@ -10,6 +10,7 @@ export interface FilterState { status: string; type: string }
 
 interface Props {
   wings: WingData[]
+  singleWing: boolean // the project has no wings: its blocks are named without one
   selectedWingIdx: number
   onSelectWing: (idx: number) => void
   types: string[]
@@ -28,7 +29,7 @@ const statusStyle = (status: string): CSSProperties => ({
 } as CSSProperties)
 
 /** Wing tabs plus the unit-type and status filters above the building. Counts say how many units each choice would show. */
-export default function UnitFilters({ wings, selectedWingIdx, onSelectWing, types, filters, onStatus, onType, typeCount, statusCount }: Props) {
+export default function UnitFilters({ wings, singleWing, selectedWingIdx, onSelectWing, types, filters, onStatus, onType, typeCount, statusCount }: Props) {
   const typeChip = (type: string, label: string) => (
     <button key={type} type="button" className={cn('bv-chip', filters.type === type && 'is-active')} aria-pressed={filters.type === type} onClick={() => onType(type)}>
       {label}<Count n={typeCount(type)} />
@@ -46,7 +47,7 @@ export default function UnitFilters({ wings, selectedWingIdx, onSelectWing, type
         <div className="bv-wings" role="group" aria-label="Wing">
           {wings.map((wing, idx) => (
             <Button key={wing.id} variant={idx === selectedWingIdx ? 'primary' : 'secondary'} aria-pressed={idx === selectedWingIdx} onClick={() => onSelectWing(idx)}>
-              {wingLabel(wing.name)}
+              {wingTitle(singleWing, wing.name)}
             </Button>
           ))}
         </div>

@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { useSession } from 'next-auth/react'
 import { Alert, EmptyState, Modal, useConfirm, useToast } from '@/components/ui'
-import { wingLabel } from '@/lib/building-structure'
+import { wingTitle } from '@/lib/building-structure'
 import { isSaleable } from '@/lib/status'
 import { can } from '@/lib/authz'
 import { errorMessage, fetchJson, jsonRequest } from '@/lib/client/api'
@@ -38,6 +38,7 @@ export default function BuildingViewer({ projectId, view = '3d' }: { projectId: 
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [selectedWingIdx, setSelectedWingIdx] = useState(0)
+  const [projectSingleWing, setProjectSingleWing] = useState(false) // the project has no wings: no wing name is shown
   const [selectedUnit, setSelectedUnit] = useState<UnitData | null>(null)
   const [filterStatus, setFilterStatus] = useState('ALL')
   const [typeFilter, setFilterType] = useState('ALL')
@@ -71,6 +72,7 @@ export default function BuildingViewer({ projectId, view = '3d' }: { projectId: 
   // ── Data ──
   const applyBuilding = useCallback((data: any) => {
     if (data.wings) setWings(data.wings)
+    if (typeof data.singleWing === 'boolean') setProjectSingleWing(data.singleWing)
     if (data.projectParkingCharge) setProjectParkingCharge(data.projectParkingCharge)
     if (typeof data.projectParkingIncluded === 'boolean') setParkingInAgreement(data.projectParkingIncluded)
     setRepeatMobiles(data.repeatMobiles ?? {})
@@ -198,7 +200,7 @@ export default function BuildingViewer({ projectId, view = '3d' }: { projectId: 
   }
 
   const activeWing = wings[selectedWingIdx]
-  const singleWing = wings.length === 1
+  const singleWing = projectSingleWing || wings.length === 1
   // A type filter chosen in one wing may not exist in another (e.g. "Shop" in the commercial block): treat it as All Types
   const typesInWing = new Set(activeWing.floors.flatMap((f) => f.units.map((u) => u.configuration)))
   const filterType = typeFilter !== 'ALL' && !typesInWing.has(typeFilter) ? 'ALL' : typeFilter
@@ -230,6 +232,7 @@ export default function BuildingViewer({ projectId, view = '3d' }: { projectId: 
     <div className="bv">
       <UnitFilters
         wings={wings}
+        singleWing={singleWing}
         selectedWingIdx={selectedWingIdx}
         onSelectWing={(idx) => { setSelectedWingIdx(idx); setSelectedUnit(null); setFilterType('ALL') }}
         types={availableTypes}
@@ -249,7 +252,7 @@ export default function BuildingViewer({ projectId, view = '3d' }: { projectId: 
               key={activeWing.id}
               outerRef={stageRef}
               wing={activeWing}
-              title={singleWing ? 'Building' : wingLabel(activeWing.name)}
+              title={wingTitle(singleWing, activeWing.name)}
               filterStatus={filterStatus}
               filterType={filterType}
               selectedUnitId={selectedUnit?.id ?? null}
@@ -263,7 +266,7 @@ export default function BuildingViewer({ projectId, view = '3d' }: { projectId: 
           <div ref={panelRef} className="bv-panel-wrap">
             <UnitDetailPanel
               unit={selectedUnit}
-              wingName={wingLabel(activeWing.name)}
+              wingName={wingTitle(singleWing, activeWing.name)}
               singleWing={singleWing}
               height={stageHeight}
               inquiries={unitInquiries}

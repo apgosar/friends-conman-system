@@ -85,6 +85,9 @@ model Project {
   regParkingCharges    Decimal   @default(20000) @db.Decimal(15, 2) // extra registration fee when a car park is included
   gstRatePercent       Float     @default(5)
   tdsRatePercent       Float     @default(1)
+  demandDueDays        Int       @default(14) // a milestone demand (and stamp duty / registration) falls due this many days after it is raised
+  singleWing           Boolean   @default(false) // one building with no wings: no wing name is shown anywhere for the project (flats are numbered 101, 102…)
+  bookingDueDays       Int       @default(15) // the booking amount falls due this many days after the sale is created
   interestRatePercent  Float     @default(12) // simple interest per annum on overdue demands
   /// Interest on late demands: switched on, days of grace after the due date, what a payment clears first (INTEREST_FIRST | PRINCIPAL_FIRST), and whether a demand letter shows it (WHEN_ACCRUED | ALWAYS | NEVER)
   interestEnabled      Boolean   @default(true)

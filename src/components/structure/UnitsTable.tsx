@@ -3,7 +3,7 @@
 import { useMemo, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { MANUAL_UNIT_STATUSES, unitStatusLabel } from '@/lib/status'
-import { CATEGORIES, COMMERCIAL_WING, COMMON_AREA_SUGGESTIONS, categoryLabel, floorLabel, stripWingPrefix, wingLabel } from '@/lib/building-structure'
+import { CATEGORIES, COMMERCIAL_WING, COMMON_AREA_SUGGESTIONS, categoryLabel, floorLabel, stripWingPrefix, wingLabel, wingTitle } from '@/lib/building-structure'
 import { BookerFields, fmtNum, type StructureUnit, type UnitTypeRow, type WingRow } from './ui'
 import { Alert, Button, Input, Modal, PhoneInput, Select, SelectField, StatusBadge, Table, TextField, useConfirm } from '@/components/ui'
 import { normalizePhone } from '@/lib/phone'
@@ -32,7 +32,7 @@ function CommonAreaPicker({ value, onChange, autoFocus, label }: { value: string
   )
 }
 
-function EditUnit({ unit, types, onClose }: { unit: StructureUnit; types: UnitTypeRow[]; onClose: () => void }) {
+function EditUnit({ unit, types, singleWing, onClose }: { unit: StructureUnit; types: UnitTypeRow[]; singleWing: boolean; onClose: () => void }) {
   const router = useRouter()
   const [f, setF] = useState({
     unitNumber: unit.unitNumber,
@@ -94,7 +94,7 @@ function EditUnit({ unit, types, onClose }: { unit: StructureUnit; types: UnitTy
   return (
     <Modal
       title={`Edit unit ${unit.unitNumber}`}
-      subtitle={`${wingLabel(unit.wingName)}, floor ${floorLabel(unit.floorNumber)}`}
+      subtitle={singleWing ? `Floor ${floorLabel(unit.floorNumber)}` : `${wingLabel(unit.wingName)}, floor ${floorLabel(unit.floorNumber)}`}
       size="lg"
       onClose={onClose}
       dismissible={!busy}
@@ -214,7 +214,7 @@ function KindModal({ projectId, kind, unitIds, onClose, onDone }: {
   )
 }
 
-export default function UnitsTable({ projectId, units, wings, types }: { projectId: string; units: StructureUnit[]; wings: WingRow[]; types: UnitTypeRow[] }) {
+export default function UnitsTable({ projectId, units, wings, types, singleWing }: { projectId: string; units: StructureUnit[]; wings: WingRow[]; types: UnitTypeRow[]; singleWing: boolean }) {
   const router = useRouter()
   const confirm = useConfirm()
   const [query, setQuery] = useState('')
@@ -271,7 +271,7 @@ export default function UnitsTable({ projectId, units, wings, types }: { project
     })
   }
   const deleteWing = async (w: WingRow) => {
-    if (await confirm({ title: 'Delete wing', message: `Delete wing ${w.name} with its ${plural(w.units, 'unit')}? This cannot be undone.`, confirmLabel: 'Delete', danger: true })) await act(() => fetchJson(`/api/projects/${projectId}/wings/${w.id}`, { method: 'DELETE' }))
+    if (await confirm({ title: singleWing ? 'Delete the building' : 'Delete wing', message: `Delete ${singleWing ? wingTitle(true, w.name).toLowerCase() : `wing ${w.name}`} with its ${plural(w.units, 'unit')}? This cannot be undone.`, confirmLabel: 'Delete', danger: true })) await act(() => fetchJson(`/api/projects/${projectId}/wings/${w.id}`, { method: 'DELETE' }))
   }
 
   return (
@@ -282,7 +282,7 @@ export default function UnitsTable({ projectId, units, wings, types }: { project
         <div className="flex wrap gap-3 mb-4">
           {wings.map((w) => (
             <div key={w.id} className="card-flat text-sm flex items-center wrap gap-3 px-3 py-2">
-              <span><b>{wingLabel(w.name)}</b> · {plural(w.floors, 'floor')} · {plural(w.units, 'unit')}</span>
+              <span><b>{wingTitle(singleWing, w.name)}</b> · {plural(w.floors, 'floor')} · {plural(w.units, 'unit')}</span>
               {residential.length === 1 && residential[0].id === w.id && prefixed(w).length > 0 && (
                 <Button variant="ghost" size="xs" onClick={() => dropPrefix(w)} title="One wing: number the flats 101, 102… without the wing">Remove “{w.name}” prefix</Button>
               )}
@@ -304,7 +304,7 @@ export default function UnitsTable({ projectId, units, wings, types }: { project
               <option value="ALL">Flats, shops and offices</option>
               {CATEGORIES.map((c) => <option key={c.value} value={c.value}>{c.plural}</option>)}
             </Select>
-            {wings.length > 1 && (
+            {!singleWing && wings.length > 1 && (
               <Select className="w-auto" aria-label="Wing" value={wingFilter} onChange={(e) => setWingFilter(e.target.value)}>
                 <option value="ALL">All wings</option>
                 {wings.map((w) => <option key={w.id} value={w.id}>{wingLabel(w.name)}</option>)}
@@ -334,7 +334,7 @@ export default function UnitsTable({ projectId, units, wings, types }: { project
           )}
           {bulkMessage && selected.size === 0 && <Alert variant="success" className="mb-3">{bulkMessage}</Alert>}
           <Table flush>
-            <thead><tr><th style={{ width: 32 }}><input type="checkbox" aria-label="Select all shown units" checked={allVisibleSelected} onChange={toggleAll} /></th><th>Unit</th><th>Kind</th>{wings.length > 1 && <th>Wing</th>}<th>Floor</th><th>Type</th><th>Configuration</th><th>Carpet</th><th>Price / sqft</th><th>Status</th><th></th></tr></thead>
+            <thead><tr><th style={{ width: 32 }}><input type="checkbox" aria-label="Select all shown units" checked={allVisibleSelected} onChange={toggleAll} /></th><th>Unit</th><th>Kind</th>{!singleWing && wings.length > 1 && <th>Wing</th>}<th>Floor</th><th>Type</th><th>Configuration</th><th>Carpet</th><th>Price / sqft</th><th>Status</th><th></th></tr></thead>
             <tbody>
               {visible.map((u) => {
                 const locked = u.hasSale
@@ -343,7 +343,7 @@ export default function UnitsTable({ projectId, units, wings, types }: { project
                     <td><input type="checkbox" aria-label={`Select ${u.unitNumber}`} disabled={!selectable(u)} checked={selected.has(u.id)} onChange={() => toggleOne(u.id)} title={u.hasSale ? 'Status follows its sale' : undefined} /></td>
                     <td className="font-semibold">{u.unitNumber}</td>
                     <td>{categoryLabel(u.category)}</td>
-                    {wings.length > 1 && <td>{u.wingName === 'Commercial' ? 'Commercial' : u.wingName}</td>}
+                    {!singleWing && wings.length > 1 && <td>{u.wingName === 'Commercial' ? 'Commercial' : u.wingName}</td>}
                     <td>{floorLabel(u.floorNumber)}</td>
                     <td>{u.typeName ?? <span className="text-muted">—</span>}</td>
                     <td>{u.configuration}</td>
@@ -371,7 +371,7 @@ export default function UnitsTable({ projectId, units, wings, types }: { project
         </>
       )}
 
-      {editing && <EditUnit unit={editing} types={types} onClose={() => setEditing(null)} />}
+      {editing && <EditUnit unit={editing} types={types} singleWing={singleWing} onClose={() => setEditing(null)} />}
       {kindModal && (
         <KindModal
           projectId={projectId}

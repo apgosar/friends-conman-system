@@ -23,7 +23,7 @@ import AnonymizeBuyerButton from '@/components/sales/AnonymizeBuyerButton'
 import BuyerCard from '@/components/sales/BuyerCard'
 import { SCHEDULE_ORDER, isOfflineCharge } from '@/lib/payment-plans'
 import { floorLabel } from '@/lib/building-structure'
-import { slotLabel, type ParkingValues } from '@/lib/parking'
+import { slotDetailLabel, type ParkingValues } from '@/lib/parking'
 import { interestPolicyOf, standingOfSchedule, withInterestPolicy } from '@/lib/interest'
 import { Badge, ButtonLink, Card, CardHeader, PageHeader, StatusBadge } from '@/components/ui'
 
@@ -70,9 +70,9 @@ export default async function SaleDetailPage(props: PageProps<'/sales/[id]'>) {
   // What the sale comes to in all, and what has actually fallen due so far (demands still upcoming are not due yet).
   // Stamp duty and registration are paid outside the application, so they are never part of what is due or outstanding.
   // Where the car parks are: the spaces taken from the project's list, else what was typed when the sale was made
-  const parkingText = sale.parkingSlots.length > 0
-    ? sale.parkingSlots.map((s) => slotLabel(sale.project.parkingFields, (s.values ?? {}) as ParkingValues, s.type)).join('; ')
-    : [sale.parkingPodiumLevel, sale.parkingFloor, sale.parkingNumber].filter(Boolean).join(' · ') || `${sale.carParkingCount} car ${sale.carParkingCount === 1 ? 'park' : 'parks'}`
+  const parkingLines: string[] = sale.parkingSlots.length > 0
+    ? sale.parkingSlots.map((s) => slotDetailLabel(sale.project.parkingFields, (s.values ?? {}) as ParkingValues, s.type))
+    : [[sale.parkingPodiumLevel, sale.parkingFloor, sale.parkingNumber].filter(Boolean).join(' · ') || `${sale.carParkingCount} car ${sale.carParkingCount === 1 ? 'park' : 'parks'}`]
   const saleTotal = sale.paymentSchedules.reduce((sum, s) => sum + Number(s.principalAmount) + Number(s.gstAmount ?? 0), 0)
   const raised = sale.paymentSchedules.filter((s) => s.status !== 'UPCOMING' && !isOfflineCharge(s.description))
   const principalDue = raised.reduce((sum, s) => sum + Number(s.principalAmount), 0)
@@ -109,7 +109,7 @@ export default async function SaleDetailPage(props: PageProps<'/sales/[id]'>) {
             </>
           }
           title={`${sale.saleNumber} — ${sale.unit.unitNumber}`}
-          subtitle={`${sale.unit.floor.wing.name} Wing, Floor ${floorLabel(sale.unit.floor.floorNumber)} · ${sale.unit.configuration} · ${sale.unit.carpetAreaSqft.toString()} sqft`}
+          subtitle={`${sale.project.singleWing ? '' : `${sale.unit.floor.wing.name} Wing, `}Floor ${floorLabel(sale.unit.floor.floorNumber)} · ${sale.unit.configuration} · ${sale.unit.carpetAreaSqft.toString()} sqft`}
           actions={
             <>
               <ButtonLink href={`/sales/${id}/documents`}>Documents</ButtonLink>
@@ -149,12 +149,12 @@ export default async function SaleDetailPage(props: PageProps<'/sales/[id]'>) {
                 ['Stamp Duty', sale.stampDuty ? formatCurrency(Number(sale.stampDuty)) : '—'],
                 ['Reg. Charges', sale.registrationCharges ? formatCurrency(Number(sale.registrationCharges)) : '—'],
                 ['Total', formatCurrency(saleTotal), 'kv-row-total'],
-                ...(sale.carParkingCount > 0 ? [['Parking', parkingText]] : []),
+                ...(sale.carParkingCount > 0 ? [['Parking', <>{parkingLines.map((l) => <div key={l}>{l}</div>)}</>]] : []),
                 ['Booking Date', formatDate(sale.bookingDate)],
                 ['Agreement Date', sale.agreementDate ? formatDate(sale.agreementDate) : 'Pending'],
                 ['Handover Date', sale.possessionDate ? formatDate(sale.possessionDate) : 'Pending'],
               ].map(([label, value, rowClass]) => (
-                <div key={label} className={rowClass ? `kv-row ${rowClass}` : 'kv-row'}><span className="kv-label">{label}</span><span className="kv-value">{value}</span></div>
+                <div key={String(label)} className={rowClass ? `kv-row ${rowClass}` : 'kv-row'}><span className="kv-label">{label}</span><span className="kv-value">{value}</span></div>
               ))}
             </div>
           </Card>

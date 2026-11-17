@@ -230,3 +230,18 @@ describe('floors in documents', () => {
     expect(got).toEqual(['1st', '2nd', '3rd', '4th', '11th', '12th', '13th', '21st', '22nd', '23rd', '101st', '111th'])
   })
 })
+
+describe('gstRate tags', () => {
+  it('gives the GST rate of the sale, worked back from its GST and agreement value', () => {
+    expect(buildSalePayload(sale)).toMatchObject({ gstRate: '5', gstRatePercent: '5%' })
+    expect(buildSalePayload({ ...sale, gstAmount: 120000 })).toMatchObject({ gstRate: '12', gstRatePercent: '12%' })
+    expect(buildSalePayload({ ...sale, gstAmount: 0 })).toMatchObject({ gstRate: '0', gstRatePercent: '0%' })
+  })
+})
+
+describe('wing tags', () => {
+  it('print the wing for a project with wings, and nothing for a single-wing project', () => {
+    expect(buildSalePayload(sale)).toMatchObject({ wingName: 'A', hasWings: true })
+    expect(buildSalePayload({ ...sale, project: { ...sale.project, singleWing: true } })).toMatchObject({ wingName: '', hasWings: false })
+  })
+})

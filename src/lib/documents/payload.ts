@@ -1,6 +1,7 @@
 import { formatDate, formatDateLong, formatMoney, numberToWords } from '@/lib/format'
 import { addressLines } from '@/lib/buyers'
 import { percentOf, sumRupees } from '@/lib/money'
+import { gstRateOfSale } from '@/lib/pricing'
 import { isTdsPayment, paymentKindLabel, paymentModeLabel } from '@/lib/status'
 import { isOfflineCharge, isStandaloneCharge } from '@/lib/payment-plans'
 import { floorLabel, floorOrdinal, ordinal } from '@/lib/building-structure'
@@ -130,7 +131,8 @@ export function buildSalePayload(sale: SaleForDocument, partners: PartnerForDocu
     partner2Pan: revealPii(partners[1]?.panNumber),
     projectName: project.name,
     reraNumber: project.reraNumber ?? '',
-    wingName: unit.floor.wing.name,
+    wingName: project.singleWing ? '' : unit.floor.wing.name, // a single-wing project has no wings: empty
+    hasWings: !project.singleWing, // for {{#hasWings}}Wing {{wingName}}, {{/hasWings}}
     floorNumber: floorLabel(unit.floor.floorNumber), // G for the ground floor
     floorOrdinal: floorOrdinal(unit.floor.floorNumber), // Ground, 1st, 2nd ...: reads as "on the Ground floor"
     unitNumber: unit.unitNumber,
@@ -168,6 +170,8 @@ export function buildSalePayload(sale: SaleForDocument, partners: PartnerForDocu
     agreementValue: formatMoney(agreement),
     agreementValueWords: numberToWords(agreement),
     gstAmount: formatMoney(sale.gstAmount),
+    gstRate: gstRateOfSale(agreement, Number(sale.gstAmount)), // the rate chosen on the new sale screen, e.g. "5"
+    gstRatePercent: gstRateOfSale(agreement, Number(sale.gstAmount)) ? gstRateOfSale(agreement, Number(sale.gstAmount)) + '%' : '', // e.g. "5%"
     stampDuty: formatMoney(sale.stampDuty),
     registrationCharges: formatMoney(sale.registrationCharges),
     carParkingCharges: formatMoney(sale.carParkingCharges),

@@ -26,6 +26,13 @@ export const isCategory = (c: string): c is UnitCategory => CATEGORIES.some((x) 
 export const COMMERCIAL_WING = 'Commercial'
 export const wingLabel = (name: string) => (name === COMMERCIAL_WING ? 'Commercial block' : `Wing ${name}`)
 
+/** A wing as a screen names it. A single-wing project has no wings to name: its building is just "Building" (and its shops and offices "Shops and offices"). */
+export const wingTitle = (singleWing: boolean | null | undefined, name: string) =>
+  singleWing ? (name === COMMERCIAL_WING ? 'Shops and offices' : 'Building') : wingLabel(name)
+
+/** The names of the wings a project has, not counting the commercial block, ignoring case. */
+export const residentialWingNames = (names: string[]) => [...new Set(names.map((n) => n.trim().toLowerCase()).filter((n) => n && n !== COMMERCIAL_WING.toLowerCase()))]
+
 export interface FloorPattern {
   from: number // first floor of the range (0 = ground)
   to: number // last floor of the range

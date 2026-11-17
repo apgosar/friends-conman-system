@@ -64,6 +64,7 @@ export default async function NewSalePage(props: PageProps<'/sales/new'>) {
       parkingSlots: p.parkingSlots.map((s) => ({ id: s.id, values: (s.values ?? {}) as ParkingValues, type: s.type })),
       partners: p.company.partners, // the active partners a sale agreement can name
       pricing: pricingFromProject(p),
+      singleWing: p.singleWing, // no wing name is shown for the project
       units,
       tenants: p.tenants.map(t => ({ id: t.id, name: t.name, oldFlatNumber: t.oldFlatNumber })),
       // The plans a sale can follow: the form picks the default for the sale type and unit type, and lets the user switch

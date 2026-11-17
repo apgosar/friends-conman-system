@@ -4,7 +4,7 @@ import { NextRequest } from 'next/server'
 import ExcelJS from 'exceljs'
 import { prisma } from '@/lib/db'
 import { createAuditLog } from '@/lib/audit'
-import { createUnits, type UnitRow } from '@/lib/building-create'
+import { createUnits, singleWingProblem, type UnitRow } from '@/lib/building-create'
 import { COMMERCIAL_WING, LIMITS, isCategory, type UnitCategory } from '@/lib/building-structure'
 import { NOT_FOR_SALE_STATUS, parseBooker, parseManualUnitStatus } from '@/lib/status'
 
@@ -107,6 +107,8 @@ export async function POST(req: NextRequest, props: { params: Promise<{ id: stri
     return apiError('invalid', errors[0], { errors: errors.slice(0, 25), totalErrors: errors.length })
   }
 
+  const problem = await singleWingProblem(projectId, rows)
+  if (problem) return apiError('invalid', problem)
   const result = await createUnits(projectId, rows)
   await createAuditLog({ userId: guard.user.id, projectId, entityType: 'structure', entityId: projectId, action: 'imported', newValues: { ...result, skipped: result.skipped.length, file: file.name } })
   return Response.json({ success: true, ...result }, { status: 201 })

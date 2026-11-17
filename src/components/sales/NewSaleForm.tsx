@@ -6,7 +6,7 @@ import { useRouter } from 'next/navigation'
 import { DEFAULT_PRICING, GST_RATE_OPTIONS, computeCharges, gstOn, type PricingConfig } from '@/lib/pricing'
 import { percentOf, round2 } from '@/lib/money'
 import { PHONE_ERROR, normalizePhone } from '@/lib/phone'
-import { wingLabel } from '@/lib/building-structure'
+import { wingTitle } from '@/lib/building-structure'
 import { checkAgreementPartners } from '@/lib/companies'
 import { formatAadhaar } from '@/lib/buyers'
 import { OTHER_CHARGES_LABEL, computeOtherCharges } from '@/lib/other-charges'
@@ -485,12 +485,13 @@ export default function NewSaleWizard({ projects, prefill = null, preselect = nu
             <div className="form-group">
               <SelectField label="Unit" value={unitId} required hint={selectedProject ? undefined : 'Select project first'} error={fieldErrors.unit} disabled={!selectedProject} onChange={e => { clearFieldError('unit'); setUnitId(e.target.value) }}>
                 <option value="">Select unit</option>
-                {/* Grouped by wing (the unit number already says which wing), in natural order: B-601, B-602 ... B-1001 */}
-                {unitsByWing.map(([wingName, wingUnits]) => (
-                  <optgroup key={wingName} label={wingLabel(wingName)}>
-                    {wingUnits.map((u: any) => <option key={u.id} value={u.id}>{u.unitNumber} ({u.configuration})</option>)}
-                  </optgroup>
-                ))}
+                {/* Grouped by wing (the unit number already says which wing), in natural order: B-601, B-602 ... B-1001. A project with no wings has nothing to group by */}
+                {unitsByWing.map(([wingName, wingUnits]) => {
+                  const options = wingUnits.map((u: any) => <option key={u.id} value={u.id}>{u.unitNumber} ({u.configuration})</option>)
+                  return selectedProject?.singleWing && unitsByWing.length === 1
+                    ? options
+                    : <optgroup key={wingName} label={wingTitle(selectedProject?.singleWing, wingName)}>{options}</optgroup>
+                })}
               </SelectField>
               {unitId && (() => {
                 const selectedUnit = chosenUnit
@@ -810,12 +811,19 @@ export default function NewSaleWizard({ projects, prefill = null, preselect = nu
               <tfoot>
                 <tr className="font-bold">
                   <Td label="" colSpan={3} className="text-right pt-3">TOTALS</Td>
-                  <Td label="Amount (₹)" className="text-right pt-3"><div>{fmt(totalPrincipal)}<AmountInWords value={totalPrincipal} /></div></Td>
-                  <Td label={`GST ${gstRate}% (₹)`} className="text-right pt-3"><div>{fmt(totalGst)}<AmountInWords value={totalGst} /></div></Td>
-                  <Td label="Total (₹)" className="text-right pt-3 text-brand text-md"><div>{fmt(grandTotal)}<AmountInWords value={grandTotal} /></div></Td>
+                  <Td label="Amount (₹)" className="text-right pt-3">{fmt(totalPrincipal)}</Td>
+                  <Td label={`GST ${gstRate}% (₹)`} className="text-right pt-3">{fmt(totalGst)}</Td>
+                  <Td label="Total (₹)" className="text-right pt-3 text-brand text-md">{fmt(grandTotal)}</Td>
                 </tr>
               </tfoot>
           </Table></div>
+
+          {/* The totals in words, one per line at full width: a narrow column cannot hold them without running into its neighbour */}
+          <dl className="totals-words">
+            {([['Amount', totalPrincipal], [`GST ${gstRate}%`, totalGst], ['Total', grandTotal]] as const).map(([label, value]) => amountInWords(value) && (
+              <div key={label}><dt>{label}</dt><dd>{fmt(value)} <span className="text-muted">· {amountInWords(value)}</span></dd></div>
+            ))}
+          </dl>
 
           {!isValidPlan && (
             <Alert variant="danger" className="mb-4" title={`The milestone payment plan does not match the agreement value (${fmt(agreementValue)})`}>

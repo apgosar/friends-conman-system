@@ -1,4 +1,5 @@
 import { DEFAULT_PRICING } from '@/lib/pricing'
+import { BOOKING_DUE_DAYS, DEMAND_DUE_DAYS } from '@/lib/payment-plans'
 import { Input } from '@/components/ui'
 
 interface Values {
@@ -8,6 +9,8 @@ interface Values {
   regChargesCap?: number | null
   regParkingCharges?: number | null
   tdsRatePercent?: number | null
+  demandDueDays?: number | null
+  bookingDueDays?: number | null
 }
 
 const DEFAULT_TDS = 1
@@ -48,6 +51,18 @@ export default function PricingFields({ values = {} }: { values?: Values }) {
         <div className="form-group">
           <label className="form-label" htmlFor="regParkingCharges">Extra registration with parking (₹)</label>
           <Input id="regParkingCharges" name="regParkingCharges" type="number" min="0" step="1" defaultValue={v(values.regParkingCharges, DEFAULT_PRICING.regParkingCharges)} />
+        </div>
+      </div>
+      <div className="grid grid-3 gap-4 mb-4">
+        <div className="form-group">
+          <label className="form-label" htmlFor="demandDueDays">Days to pay a demand</label>
+          <Input id="demandDueDays" name="demandDueDays" type="number" min="0" max="365" step="1" defaultValue={v(values.demandDueDays, DEMAND_DUE_DAYS)} />
+          <span className="form-hint">A milestone demand falls due this many days after the milestone is completed</span>
+        </div>
+        <div className="form-group">
+          <label className="form-label" htmlFor="bookingDueDays">Days to pay the booking amount</label>
+          <Input id="bookingDueDays" name="bookingDueDays" type="number" min="0" max="365" step="1" defaultValue={v(values.bookingDueDays, BOOKING_DUE_DAYS)} />
+          <span className="form-hint">The booking amount falls due this many days after the sale is created</span>
         </div>
       </div>
     </>

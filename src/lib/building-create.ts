@@ -1,5 +1,6 @@
 import type { Prisma } from '@prisma/client'
-import { transaction } from '@/lib/db'
+import { prisma, transaction } from '@/lib/db'
+import { residentialWingNames } from '@/lib/building-structure'
 
 export interface UnitRow {
   category?: 'FLAT' | 'SHOP' | 'OFFICE' | 'COMMON'
@@ -28,8 +29,20 @@ export interface CreateResult {
  * and a unit number that already exists in the project is skipped (never overwritten), so it is safe to run
  * again or to extend a building later.
  */
-export async function createUnits(projectId: string, rows: UnitRow[]): Promise<CreateResult> {
+/**
+ * Why these rows cannot be added to a single-wing project: it can have only one wing. `singleWing` is what the caller is about
+ * to set (else the project's own setting is used). Null when they can.
+ */
+export async function singleWingProblem(projectId: string, rows: { wing: string }[], singleWing?: boolean): Promise<string | null> {
+  const project = await prisma.project.findUnique({ where: { id: projectId }, select: { singleWing: true, wings: { select: { name: true } } } })
+  if (!(singleWing ?? project?.singleWing)) return null
+  const names = residentialWingNames([...(project?.wings ?? []).map((w) => w.name), ...rows.map((r) => r.wing)])
+  return names.length > 1 ? 'A single-wing project can have only one wing. Choose multiple wings for this project, or keep one wing' : null
+}
+
+export async function createUnits(projectId: string, rows: UnitRow[], options: { singleWing?: boolean } = {}): Promise<CreateResult> {
   return transaction(async (tx) => {
+    if (options.singleWing !== undefined) await tx.project.update({ where: { id: projectId }, data: { singleWing: options.singleWing } })
     const existing = await tx.unit.findMany({ where: { floor: { wing: { projectId } } }, select: { unitNumber: true } })
     const taken = new Set(existing.map((u) => u.unitNumber.toLowerCase()))
 

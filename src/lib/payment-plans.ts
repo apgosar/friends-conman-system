@@ -102,10 +102,17 @@ export const isStandaloneCharge = (description: string): boolean => /stamp duty|
  */
 export const isOfflineCharge = (description: string): boolean => /stamp duty|registration/i.test(description)
 
-/** A demand raised by hand (stamp duty and registration) is due this many days later, like a milestone demand. */
+/** Days to pay a demand (a milestone demand, stamp duty, registration): what a new project starts with; each project sets its own (Edit project). */
 export const DEMAND_DUE_DAYS = 14
-/** The booking amount is due this many days after the sale is created. */
+/** Days to pay the booking amount after the sale is created: what a new project starts with; each project sets its own. */
 export const BOOKING_DUE_DAYS = 15
+
+/** The day a demand falls due: this many days after it was raised. */
+export function dueDateAfter(raisedOn: Date, days: number): Date {
+  const due = new Date(raisedOn)
+  due.setDate(due.getDate() + days)
+  return due
+}
 const bookingPercent = z.union([z.number(), z.string().trim().min(1).transform(Number)]).pipe(
   z.number().finite('Enter the booking percentage').min(0, 'The booking percentage cannot be negative').max(100, 'A percentage cannot be more than 100'),
 )

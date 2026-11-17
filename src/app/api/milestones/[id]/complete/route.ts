@@ -7,7 +7,7 @@ import { dispatchAllPending } from '@/lib/comms-dispatcher'
 import { buildCommContent, sanitizeInline } from '@/lib/comms-content'
 import type { Prisma } from '@prisma/client'
 import { formatDate, formatRupees } from '@/lib/format'
-import { DEMAND_DUE_DAYS, isStandaloneCharge } from '@/lib/payment-plans'
+import { DEMAND_DUE_DAYS, dueDateAfter, isStandaloneCharge } from '@/lib/payment-plans'
 import { fromPaise, sumRupees, toPaise } from '@/lib/money'
 
 export async function POST(req: NextRequest, props: { params: Promise<{ id: string }> }) {
@@ -25,8 +25,6 @@ export async function POST(req: NextRequest, props: { params: Promise<{ id: stri
     }
 
     const actualDate = new Date()
-    const dueDate = new Date(actualDate)
-    dueDate.setDate(dueDate.getDate() + DEMAND_DUE_DAYS)
 
     const milestone = await prisma.constructionMilestone.update({
       where: { id },
@@ -37,6 +35,10 @@ export async function POST(req: NextRequest, props: { params: Promise<{ id: stri
       }
     })
     
+    // Its demands fall due the project's number of days after today
+    const dueDays = await prisma.project.findUnique({ where: { id: milestone.projectId }, select: { demandDueDays: true } })
+    const dueDate = dueDateAfter(actualDate, dueDays?.demandDueDays ?? DEMAND_DUE_DAYS)
+
     // Raise this milestone's demands: every one not raised yet. One paid in part in advance (it stayed Upcoming, see
     // statusAfterPayment) is raised too, as Partially Paid, and only its balance is billed; one paid in full in advance
     // stays Paid and gets no letter. Demands already raised are left alone, so completing twice sends nothing twice.

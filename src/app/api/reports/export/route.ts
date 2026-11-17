@@ -104,7 +104,7 @@ export async function GET(req: NextRequest) {
           floor: {
             include: {
               wing: {
-                include: { project: { select: { name: true } } }
+                include: { project: { select: { name: true, singleWing: true } } }
               }
             }
           }
@@ -118,7 +118,7 @@ export async function GET(req: NextRequest) {
         const totalValue = (u.carpetAreaSqft ?? 0) * (u.basePricePerSqft ?? 0)
         return [
           project.name,
-          wing.name,
+          project.singleWing ? '' : wing.name, // a single-wing project has no wings
           floorLabel(u.floor.floorNumber),
           u.unitNumber,
           u.configuration,

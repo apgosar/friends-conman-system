@@ -68,7 +68,7 @@ export default async function ProjectStructurePage(props: PageProps<'/projects/[
     <>
       <TopNav title="Building Setup" subtitle={project.name} />
       <div className="admin-content">
-        <PageHeader title="Building Setup" subtitle={`Define the wings, floors and units of ${project.name}`} actions={<BackToProject projectId={id} />} />
+        <PageHeader title="Building Setup" subtitle={project.singleWing ? `Define the floors and units of ${project.name}` : `Define the wings, floors and units of ${project.name}`} actions={<BackToProject projectId={id} />} />
 
         {isNew && (
           <Alert variant="success" className="mb-6" title="Project created">
@@ -84,9 +84,9 @@ export default async function ProjectStructurePage(props: PageProps<'/projects/[
         ) : (
           <>
             <UnitTypesPanel projectId={id} types={types} />
-            <StructureBuilder projectId={id} types={types} existingWings={wings} existingNumbering={existingNumbering} />
+            <StructureBuilder key={String(project.singleWing)} projectId={id} types={types} existingWings={wings} existingNumbering={existingNumbering} singleWing={project.singleWing} />
             <ExcelImport projectId={id} />
-            <UnitsTable projectId={id} units={units} wings={wings} types={types} />
+            <UnitsTable projectId={id} units={units} wings={wings} types={types} singleWing={project.singleWing} />
           </>
         )}
       </div>
