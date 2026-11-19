@@ -25,12 +25,12 @@ export const zMoney = z
 
 export const SaleBuyerSchema = z.object({
   fullName: z.string().trim().min(1, 'Buyer full name is required').max(200),
-  // Every detail of a buyer is required: the agreement, the receipts and the messages all need them
-  email: z.string({ error: 'Enter the email address' }).trim().min(1, 'Enter the email address').email(EMAIL_ERROR),
-  whatsappNumber: z.string({ error: 'Enter the WhatsApp number' }).transform((v, ctx) => {
+  // Email and WhatsApp may be left blank here; only the primary buyer must have them (see requirePrimaryContact)
+  email: z.string().trim().email(EMAIL_ERROR).or(z.literal('')).nullish(),
+  whatsappNumber: z.string().nullish().transform((v, ctx) => {
     const phone = normalizePhone(v)
-    if (!phone.ok || !phone.value) { ctx.addIssue({ code: 'custom', message: phone.ok ? 'Enter the WhatsApp number' : PHONE_ERROR }); return z.NEVER }
-    return phone.value
+    if (!phone.ok) { ctx.addIssue({ code: 'custom', message: PHONE_ERROR }); return z.NEVER }
+    return phone.value ?? ''
   }),
   panNumber: z.string({ error: 'Enter the PAN number' }).trim().toUpperCase().regex(PAN_PATTERN, PAN_ERROR),
   aadhaarNumber: z.string().transform((v) => v.replace(/\s/g, '')).pipe(z.string().regex(/^\d{12}$/, AADHAAR_ERROR).or(z.literal(''))).nullish(), // optional: the form asks first when it is left out
@@ -38,7 +38,15 @@ export const SaleBuyerSchema = z.object({
   receiveComms: z.boolean().optional(),
 })
 
-export const PaymentScheduleSchema = z.object({
+/** The first buyer is the primary one: the agreement, receipts and messages go to them, so their email and WhatsApp are required. */
+export function requirePrimaryContact(buyers: { email?: string | null; whatsappNumber?: string | null }[], ctx: z.RefinementCtx) {
+  const primary = buyers[0]
+  if (!primary) return
+  if (!primary.email?.trim()) ctx.addIssue({ code: 'custom', path: [0, 'email'], message: 'Enter the email address' })
+  if (!primary.whatsappNumber?.trim()) ctx.addIssue({ code: 'custom', path: [0, 'whatsappNumber'], message: 'Enter the WhatsApp number' })
+}
+
+export const PaymentScheduleSchema =z.object({
   milestoneId: z.string().optional().nullable(),
   description: z.string().trim().min(1, 'Milestone description is required').max(200),
   principalAmount: zMoney,
@@ -66,7 +74,7 @@ export const SaleCreateSchema = z.object({
   parkingSlotIds: z.array(z.string().min(1)).max(20).optional(), // the spaces chosen from the project's parking list
   bookingAmount: zMoney.optional().nullable(),
   bookingDate: z.string().refine((v) => !isNaN(Date.parse(v)), 'Invalid bookingDate'),
-  buyers: z.array(SaleBuyerSchema).min(1, 'At least one buyer is required'),
+  buyers: z.array(SaleBuyerSchema).min(1, 'At least one buyer is required').superRefine(requirePrimaryContact),
   paymentSchedules: z.array(PaymentScheduleSchema).optional(),
   inquiryId: z.string().optional().nullable(), // set when the sale is converted from an inquiry
 })

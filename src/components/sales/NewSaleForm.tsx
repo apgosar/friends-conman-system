@@ -392,8 +392,9 @@ export default function NewSaleWizard({ projects, prefill = null, preselect = nu
       if (!b.fullName.trim()) errs[`buyer-${i}-fullName`] = 'Please enter full name'
       if (validatePan(b.panNumber) || (!b.panNumber && !b.savedPan)) errs[`buyer-${i}-panNumber`] = 'Please enter valid PAN number'
       if (validateAadhaar(b.aadhaarNumber)) errs[`buyer-${i}-aadhaarNumber`] = 'Please enter valid Aadhar number'
-      if (validateEmail(b.email) || !b.email.trim()) errs[`buyer-${i}-email`] = 'Please enter a valid email address'
-      if (validatePhone(b.whatsappNumber) || !normalizePhone(b.whatsappNumber).ok || !(normalizePhone(b.whatsappNumber) as { value: string | null }).value) errs[`buyer-${i}-whatsappNumber`] = PHONE_ERROR
+      // Only the primary buyer needs an email and a WhatsApp number; for the others they are optional but must be valid if given
+      if (validateEmail(b.email) || (i === 0 && !b.email.trim())) errs[`buyer-${i}-email`] = 'Please enter a valid email address'
+      if (validatePhone(b.whatsappNumber) || (i === 0 && !(normalizePhone(b.whatsappNumber) as { value: string | null }).value)) errs[`buyer-${i}-whatsappNumber`] = PHONE_ERROR
       if (!b.address.trim()) errs[`buyer-${i}-address`] = 'Please enter the address'
     })
     if (hasParkingList) parkingSlots.forEach((slot, i) => { if (!slotIdOf(slot)) errs[`parking-${i}`] = 'Please choose the parking space' })
@@ -658,14 +659,14 @@ export default function NewSaleWizard({ projects, prefill = null, preselect = nu
                 />
                 <TextField
                   label="Email"
-                  required
+                  required={idx === 0}
                   type="email"
                   value={buyer.email}
                   onChange={e => updateBuyer(idx, 'email', e.target.value)}
                   placeholder="john@example.com"
                   error={fieldErrors[`buyer-${idx}-email`] ?? (buyer.email ? validateEmail(buyer.email) || undefined : undefined)}
                 />
-                <PhoneField label="WhatsApp" required value={buyer.whatsappNumber} onValueChange={v => updateBuyer(idx, 'whatsappNumber', v)} error={fieldErrors[`buyer-${idx}-whatsappNumber`] ?? (validatePhone(buyer.whatsappNumber) || undefined)} />
+                <PhoneField label="WhatsApp" required={idx === 0} value={buyer.whatsappNumber} onValueChange={v => updateBuyer(idx, 'whatsappNumber', v)} error={fieldErrors[`buyer-${idx}-whatsappNumber`] ?? (validatePhone(buyer.whatsappNumber) || undefined)} />
               </div>
               <TextareaField label="Address" required rows={2} value={buyer.address} error={fieldErrors[`buyer-${idx}-address`]} onChange={e => updateBuyer(idx, 'address', e.target.value)} />
             </div>

@@ -25,7 +25,7 @@ import { isAnonymized } from '@/lib/dpdp-compliance'
 import { PAN_ERROR, PAN_PATTERN } from '@/lib/companies'
 import { buildCommContent, sanitizeInline } from '@/lib/comms-content'
 import { formatCurrency, formatDate, formatNumber } from '@/lib/format'
-import { PLAN_TOLERANCE_RATIO, PaymentScheduleSchema, SALE_TYPES, SaleBuyerSchema, zMoney } from '@/lib/sales/create-sale'
+import { PLAN_TOLERANCE_RATIO, PaymentScheduleSchema, SALE_TYPES, SaleBuyerSchema, requirePrimaryContact, zMoney } from '@/lib/sales/create-sale'
 
 const EditBuyerSchema = SaleBuyerSchema.extend({
   id: z.string().optional(), // set for a buyer the sale already has
@@ -50,7 +50,7 @@ export const SaleEditSchema = z.object({
   parkingSlotIds: z.array(z.string().min(1)).max(20).optional(),
   bookingAmount: zMoney.optional().nullable(),
   bookingDate: z.string().refine((v) => !isNaN(Date.parse(v)), 'Invalid bookingDate'),
-  buyers: z.array(EditBuyerSchema).min(1, 'At least one buyer is required'),
+  buyers: z.array(EditBuyerSchema).min(1, 'At least one buyer is required').superRefine(requirePrimaryContact),
   paymentSchedules: z.array(PaymentScheduleSchema.extend({ id: z.string().optional() })).max(100),
   reason: z.string().trim().min(3, 'Say why the sale is being changed').max(500),
   sendRevisedLetters: z.boolean().default(true),
