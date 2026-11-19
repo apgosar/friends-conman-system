@@ -58,7 +58,7 @@ export function reminderText(args: { buyerName: string; description: string; out
  */
 export async function queuePaymentReminders(asOf: Date = new Date()): Promise<{ demands: number; messages: number }> {
   const schedules = await prisma.paymentSchedule.findMany({
-    where: { status: { notIn: ['PAID', 'UPCOMING'] }, demandGeneratedDate: { not: null }, sale: activeSale },
+    where: { status: { notIn: ['PAID', 'UPCOMING'] }, demandGeneratedDate: { not: null }, sale: { ...activeSale, commsEnabled: true } }, // a sale with communication off is not reminded
     select: {
       id: true, saleId: true, description: true, principalAmount: true, gstAmount: true, interestAmount: true,
       dueDate: true, demandGeneratedDate: true, lastReminderAt: true,

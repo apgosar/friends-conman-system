@@ -43,19 +43,44 @@ function validatePhone(phone: string) {
 
 type PlanOption = PlanSummary & { bookingPercent: number; items: { milestoneId: string; name: string; sequence: number; percentOfAV: number; status: string }[] }
 type ParkingSlot = { podium: string; floor: string; number: string; choice: Choice }
-type Buyer = { fullName: string; panNumber: string; aadhaarNumber: string; address: string; email: string; whatsappNumber: string }
+// A buyer the sale already has (editing) carries its id, and the masked PAN / Aadhaar saved: the real ones are never sent to the screen
+type Buyer = { id?: string; fullName: string; panNumber: string; aadhaarNumber: string; address: string; email: string; whatsappNumber: string; receiveComms?: boolean; savedPan?: string | null; savedAadhaar?: string | null }
 // The stamp duty + registration row has no milestone: it is demanded by hand from the sale page
-type ScheduleRow = { milestoneId: string; description: string; principalAmount: number; gstAmount: number; isBooking?: boolean; sequence: number; percentOfAV?: number }
+type ScheduleRow = { id?: string; milestoneId: string; description: string; principalAmount: number; gstAmount: number; isBooking?: boolean; sequence: number; percentOfAV?: number; paidPrincipal?: number; paidGst?: number }
+
+/** A sale being edited: what the screen starts with. Money and parking are as saved; buyers carry only the masked PAN and Aadhaar. */
+export interface EditingSale {
+  saleId: string
+  saleNumber: string
+  projectId: string
+  unitId: string
+  saleType: string
+  tenantId: string
+  agreementValue: number
+  gstRate: number
+  gstAmount: number
+  stampDuty: number
+  registrationCharges: number
+  carParkingCharges: number
+  bookingAmount: number | null
+  bookingDate: string
+  parkingCount: number
+  parkingSlotIds: string[]
+  parkingTexts: { podium: string; floor: string; number: string }
+  buyers: Buyer[]
+  rows: ScheduleRow[]
+  commsEnabled: boolean
+}
 
 const emptyBuyer = (): Buyer => ({ fullName: '', panNumber: '', aadhaarNumber: '', address: '', email: '', whatsappNumber: '' })
 
 // ─── Step indicator ──────────────────────────────────────────
-import { Alert, AmountInWords, Button, Input, PhoneField, SelectField, StepBar, Stepper, Table, Td, TextField, TextareaField, useConfirm } from '@/components/ui'
+import { Alert, AmountInWords, Button, CheckboxField, Input, PhoneField, SelectField, StepBar, Stepper, Table, Td, TextField, TextareaField, useConfirm } from '@/components/ui'
 import { ApiError, errorMessage, fetchJson, jsonRequest } from '@/lib/client/api'
 import KycPasswordModal from './KycPasswordModal'
 import NameMismatchModal from './NameMismatchModal'
 import { namesMatch } from '@/lib/names'
-import { NO_CHOICE, choose, explicitPick, pickedSlot, pickText, typesFitting, valuesFor, type Choice, type PickSlot } from '@/lib/parking'
+import { NO_CHOICE, NO_VALUE, choose, explicitPick, pickedSlot, pickText, typesFitting, valuesFor, type Choice, type PickSlot } from '@/lib/parking'
 import { amountInWords, formatCurrency } from '@/lib/format'
 
 // ─── Main Wizard ─────────────────────────────────────────────
@@ -74,7 +99,7 @@ const joinSlots = (slots: ParkingSlot[], field: 'podium' | 'floor' | 'number') =
 
 type Prefill = { inquiryId: string; projectId: string; unitId: string; agreementValue: number; carParking: boolean; buyerName: string; mobileNumber: string } | null
 
-export default function NewSaleWizard({ projects, prefill = null, preselect = null }: { projects: any[]; prefill?: Prefill; preselect?: { projectId: string; unitId: string } | null }) {
+export default function NewSaleWizard({ projects, prefill = null, preselect = null, editing = null }: { projects: any[]; prefill?: Prefill; preselect?: { projectId: string; unitId: string } | null; editing?: EditingSale | null }) {
   const router = useRouter()
   const confirm = useConfirm()
   const [step, setStep] = useState(1)
@@ -84,14 +109,14 @@ export default function NewSaleWizard({ projects, prefill = null, preselect = nu
   const clearFieldError = (key: string) => setFieldErrors(prev => (key in prev ? Object.fromEntries(Object.entries(prev).filter(([k]) => k !== key)) : prev))
 
   // Step 1 state
-  const [projectId, setProjectId] = useState(prefill?.projectId ?? preselect?.projectId ?? '')
+  const [projectId, setProjectId] = useState(editing?.projectId ?? prefill?.projectId ?? preselect?.projectId ?? '')
   const selectedProject = projects.find(p => p.id === projectId)
   const unitsByWing = unitsGroupedByWing(selectedProject?.units ?? [])
   // The payment plan follows the sale type and the kind of unit: its default is chosen, and the user can switch to another plan
   const [planChoice, setPlanChoice] = useState('')
   const prefillProjectType = projects.find(p => p.id === (prefill?.projectId ?? preselect?.projectId))?.type
-  const [saleType, setSaleType] = useState(prefillProjectType && prefillProjectType !== 'MIXED' ? prefillProjectType : 'FRESH')
-  const [unitId, setUnitId] = useState(prefill?.unitId ?? preselect?.unitId ?? '')
+  const [saleType, setSaleType] = useState(editing?.saleType ?? (prefillProjectType && prefillProjectType !== 'MIXED' ? prefillProjectType : 'FRESH'))
+  const [unitId, setUnitId] = useState(editing?.unitId ?? prefill?.unitId ?? preselect?.unitId ?? '')
   const chosenUnit = selectedProject?.units.find((u: { id: string }) => u.id === unitId) as { category: string; carpetAreaSqft: number } | undefined
   // What the buyer pays besides the price: due with the last milestone, and shown on the review step as one expandable row
   const otherCharges = chosenUnit && selectedProject
@@ -100,12 +125,22 @@ export default function NewSaleWizard({ projects, prefill = null, preselect = nu
   const planCombo = chosenUnit ? { saleType: (saleType === 'REDEVELOPMENT' ? 'REDEVELOPMENT' : 'FRESH') as PlanSaleType, unitType: unitTypeOfCategory(chosenUnit.category) } : null
   const comboPlans = planCombo ? plansFor<PlanOption>(selectedProject?.paymentPlans ?? [], planCombo) : []
   const paymentPlan = comboPlans.find((p) => p.id === planChoice) ?? comboPlans[0] ?? null
-  const [tenantId, setTenantId] = useState('')
-  const [agreementValue, setAgreementValue] = useState(prefill?.agreementValue ?? 10000000)
-  const [bookingAmount, setBookingAmount] = useState<number | ''>('')
+  const [tenantId, setTenantId] = useState(editing?.tenantId ?? '')
+  const [agreementValue, setAgreementValue] = useState(editing?.agreementValue ?? prefill?.agreementValue ?? 10000000)
+  const [bookingAmount, setBookingAmount] = useState<number | ''>(editing?.bookingAmount ?? '')
   // Car parking: how many, whether it is inside the agreement value, and where each one is
   const emptySlot = (): ParkingSlot => ({ podium: '', floor: '', number: '', choice: NO_CHOICE })
-  const [parkingSlots, setParkingSlots] = useState<ParkingSlot[]>(prefill?.carParking ? [emptySlot()] : [])
+  const [parkingSlots, setParkingSlots] = useState<ParkingSlot[]>(() => {
+    if (!editing) return prefill?.carParking ? [emptySlot()] : []
+    // The spaces the sale has: from the project's parking list when it has one, else the text that was typed
+    const proj = projects.find(p => p.id === editing.projectId)
+    const fields: { key: string }[] = proj?.parkingFields ?? []
+    return Array.from({ length: editing.parkingCount }, (_, i) => {
+      const slot = (proj?.parkingSlots ?? []).find((a: PickSlot) => a.id === editing.parkingSlotIds[i])
+      const pick = slot ? Object.fromEntries(fields.map(f => [f.key, (slot.values[f.key] ?? '').trim() || NO_VALUE])) : {}
+      return { podium: editing.parkingTexts.podium, floor: editing.parkingTexts.floor, number: editing.parkingTexts.number, choice: slot ? { pick, explicit: fields.map(f => f.key) } : NO_CHOICE }
+    })
+  })
   const carParkingCount = parkingSlots.length
   const parkingIncluded: boolean = selectedProject?.carParkingIncluded ?? false // a project setting
   const carParking = carParkingCount > 0
@@ -119,17 +154,17 @@ export default function NewSaleWizard({ projects, prefill = null, preselect = nu
   const chooseDetail = (i: number, key: string, value: string) => setParkingSlots(prev => prev.map((p, k) => (k === i ? { ...p, choice: choose(freeFor(i), parkingFields, p.choice, key, value) } : p)))
   const setParkingCount = (n: number) => setParkingSlots(prev => (n <= prev.length ? prev.slice(0, n) : [...prev, ...Array.from({ length: n - prev.length }, emptySlot)]))
   const updateSlot = (i: number, field: 'podium' | 'floor' | 'number', value: string) => setParkingSlots(prev => prev.map((p, k) => (k === i ? { ...p, [field]: value } : p)))
-  const [bookingDate, setBookingDate] = useState(new Date().toISOString().split('T')[0])
-  const [buyers, setBuyers] = useState<Buyer[]>([prefill ? { ...emptyBuyer(), fullName: prefill.buyerName, whatsappNumber: prefill.mobileNumber } : emptyBuyer()])
+  const [bookingDate, setBookingDate] = useState(editing?.bookingDate ?? new Date().toISOString().split('T')[0])
+  const [buyers, setBuyers] = useState<Buyer[]>(editing ? editing.buyers : [prefill ? { ...emptyBuyer(), fullName: prefill.buyerName, whatsappNumber: prefill.mobileNumber } : emptyBuyer()])
 
   // Derived financials. GST is chosen here (0 / 5 / 12) and starts at the project's rate; stamp duty starts at the project's %
   // but can be typed as a rupee amount (then the % is worked out) or as a %
   const projectPricing: PricingConfig = selectedProject?.pricing ?? DEFAULT_PRICING
   const defaultGstRate = (GST_RATE_OPTIONS as readonly number[]).includes(projectPricing.gstRatePercent) ? projectPricing.gstRatePercent : 5
-  const [gstRateChoice, setGstRateChoice] = useState<number | null>(null)
+  const [gstRateChoice, setGstRateChoice] = useState<number | null>(editing?.gstRate ?? null)
   const gstRate = gstRateChoice ?? defaultGstRate
   const [stampPctInput, setStampPctInput] = useState<number | '' | null>(null) // null = the project's %
-  const [stampAmtInput, setStampAmtInput] = useState<number | '' | null>(null) // set when a rupee amount was typed
+  const [stampAmtInput, setStampAmtInput] = useState<number | '' | null>(editing ? editing.stampDuty : null) // set when a rupee amount was typed
   const pricing: PricingConfig = { ...projectPricing, gstRatePercent: gstRate }
   // Parking inside the agreement value adds no parking charge and no extra registration fee
   const separateParking = carParking && !parkingIncluded
@@ -142,6 +177,13 @@ export default function NewSaleWizard({ projects, prefill = null, preselect = nu
 
   // Step 2 state — editable payment schedule
   const [schedules, setSchedules] = useState<ScheduleRow[]>([])
+  // Editing: why the sale is being changed, and whether the buyers get a revised demand letter for demands that changed
+  const [reason, setReason] = useState('')
+  const [reasonError, setReasonError] = useState('')
+  const [sendRevised, setSendRevised] = useState(true)
+  // Whether anything that decides the payment plan was changed: if not, the plan stays exactly as saved
+  const moneyChanged = !!editing && (unitId !== editing.unitId || saleType !== editing.saleType || agreementValue !== editing.agreementValue || gstRate !== editing.gstRate
+    || round2(stampDuty) !== round2(editing.stampDuty) || carParkingCount !== editing.parkingCount || (bookingAmount === '' ? 0 : Number(bookingAmount)) !== (editing.bookingAmount ?? 0))
 
   // Step 3 state
   const [createdSaleId, setCreatedSaleId] = useState('')
@@ -323,6 +365,22 @@ export default function NewSaleWizard({ projects, prefill = null, preselect = nu
     return rows
   }
 
+  // Editing: the plan built again keeps each demand the sale already has (so its payments stay with it), never goes below what was
+  // received, and keeps a demand with payments even if the plan no longer has it
+  const rowsFor = (plan: PlanOption | null): ScheduleRow[] => {
+    const built = buildSchedule(plan)
+    if (!editing) return built
+    const left = new Map(editing.rows.map(r => [r.id!, r]))
+    const out = built.map(b => {
+      const match = [...left.values()].find(r => r.description === b.description && (r.milestoneId || '') === (b.milestoneId || ''))
+      if (!match) return b
+      left.delete(match.id!)
+      return { ...b, id: match.id, paidPrincipal: match.paidPrincipal, paidGst: match.paidGst, principalAmount: Math.max(b.principalAmount, match.paidPrincipal ?? 0), gstAmount: Math.max(b.gstAmount, match.paidGst ?? 0) }
+    })
+    for (const r of left.values()) if ((r.paidPrincipal ?? 0) > 0 || (r.paidGst ?? 0) > 0) out.push(r)
+    return out
+  }
+
   const goToStep2 = async () => {
     setError('')
     // Check everything at once, mark each wrong field red under its own message, and scroll to the first one
@@ -332,7 +390,7 @@ export default function NewSaleWizard({ projects, prefill = null, preselect = nu
     if (saleType === 'REDEVELOPMENT' && !tenantId) errs.tenant = 'Please link a tenant'
     buyers.forEach((b, i) => {
       if (!b.fullName.trim()) errs[`buyer-${i}-fullName`] = 'Please enter full name'
-      if (validatePan(b.panNumber) || !b.panNumber) errs[`buyer-${i}-panNumber`] = 'Please enter valid PAN number'
+      if (validatePan(b.panNumber) || (!b.panNumber && !b.savedPan)) errs[`buyer-${i}-panNumber`] = 'Please enter valid PAN number'
       if (validateAadhaar(b.aadhaarNumber)) errs[`buyer-${i}-aadhaarNumber`] = 'Please enter valid Aadhar number'
       if (validateEmail(b.email) || !b.email.trim()) errs[`buyer-${i}-email`] = 'Please enter a valid email address'
       if (validatePhone(b.whatsappNumber) || !normalizePhone(b.whatsappNumber).ok || !(normalizePhone(b.whatsappNumber) as { value: string | null }).value) errs[`buyer-${i}-whatsappNumber`] = PHONE_ERROR
@@ -341,10 +399,12 @@ export default function NewSaleWizard({ projects, prefill = null, preselect = nu
     if (hasParkingList) parkingSlots.forEach((slot, i) => { if (!slotIdOf(slot)) errs[`parking-${i}`] = 'Please choose the parking space' })
     setFieldErrors(errs)
     if (Object.keys(errs).length > 0) { scrollToFirstInvalid(); return }
-    if (buyers.some(b => !b.aadhaarNumber.trim()) && !(await confirm({ message: 'No Aadhaar card added. Do you want to proceed?', confirmLabel: 'Proceed' }))) return
+    if (buyers.some(b => !b.aadhaarNumber.trim() && !b.savedAadhaar) && !(await confirm({ message: 'No Aadhaar card added. Do you want to proceed?', confirmLabel: 'Proceed' }))) return
+    // Editing and nothing that sets the plan changed: the plan stays as saved. Otherwise it is worked out again.
+    if (editing && !moneyChanged) { setSchedules(editing.rows); setStep(2); return }
     if (!paymentPlan) { setError('There is no payment plan for this sale type and unit type. Add one under Payment Plans first'); return }
 
-    setSchedules(buildSchedule(paymentPlan))
+    setSchedules(rowsFor(paymentPlan))
     setStep(2)
   }
 
@@ -352,24 +412,26 @@ export default function NewSaleWizard({ projects, prefill = null, preselect = nu
   const updateScheduleAmount = (idx: number, newAmt: number) => {
     setSchedules(prev => prev.map((r, i) => {
       if (i !== idx) return r
-      const newGst = r.percentOfAV !== undefined ? gstOn(pricing, newAmt) : 0
-      const newPct = r.percentOfAV !== undefined ? Number(((newAmt / agreementValue) * 100).toFixed(2)) : undefined
-      return { ...r, principalAmount: newAmt, gstAmount: newGst, percentOfAV: newPct }
+      const amount = Math.max(newAmt, r.paidPrincipal ?? 0) // not below what was already received
+      const newGst = r.percentOfAV !== undefined ? Math.max(gstOn(pricing, amount), r.paidGst ?? 0) : r.gstAmount
+      const newPct = r.percentOfAV !== undefined ? Number(((amount / agreementValue) * 100).toFixed(2)) : undefined
+      return { ...r, principalAmount: amount, gstAmount: newGst, percentOfAV: newPct }
     }))
   }
 
   const updateSchedulePercent = (idx: number, newPct: number) => {
     setSchedules(prev => prev.map((r, i) => {
       if (i !== idx) return r
-      const newAmt = Math.round((newPct / 100) * agreementValue)
-      const newGst = r.percentOfAV !== undefined ? gstOn(pricing, newAmt) : 0
-      return { ...r, principalAmount: newAmt, gstAmount: newGst, percentOfAV: newPct }
+      const newAmt = Math.max(Math.round((newPct / 100) * agreementValue), r.paidPrincipal ?? 0) // not below what was already received
+      const newGst = r.percentOfAV !== undefined ? Math.max(gstOn(pricing, newAmt), r.paidGst ?? 0) : r.gstAmount
+      return { ...r, principalAmount: newAmt, gstAmount: newGst, percentOfAV: newAmt === Math.round((newPct / 100) * agreementValue) ? newPct : Number(((newAmt / agreementValue) * 100).toFixed(2)) }
     }))
   }
 
   // ── Step 2 → create sale + schedules ────────────────────
   const goToStep3 = async () => {
     setError('')
+    if (editing && reason.trim().length < 3) { setReasonError('Say why the sale is being changed'); scrollToFirstInvalid(); return }
     setGenerating(true)
     try {
       const payload = {
@@ -379,26 +441,37 @@ export default function NewSaleWizard({ projects, prefill = null, preselect = nu
         saleType,
         agreementValue,
         gstRatePercent: gstRate,
-        gstAmount: gst,
+        // Editing and nothing that sets the charges changed: the amounts saved stay (a figure that was negotiated is not reset)
+        gstAmount: editing && !moneyChanged ? editing.gstAmount : gst,
         stampDuty,
-        registrationCharges: regCharges,
+        registrationCharges: editing && !moneyChanged ? editing.registrationCharges : regCharges,
         carParking,
         carParkingCount,
-        carParkingCharges: parkingCost,
+        carParkingCharges: editing && !moneyChanged ? editing.carParkingCharges : parkingCost,
         ...(hasParkingList
           ? { parkingSlotIds: parkingSlots.map(slotIdOf) } // the server fills the agreement's parking text from the chosen spaces
           : { parkingPodiumLevel: joinSlots(parkingSlots, 'podium'), parkingFloor: joinSlots(parkingSlots, 'floor'), parkingNumber: joinSlots(parkingSlots, 'number') }),
         bookingAmount: bookingAmount !== '' ? Number(bookingAmount) : undefined,
         bookingDate,
         inquiryId: prefill?.inquiryId,
-        buyers: buyers.map((b, i) => ({ ...b, whatsappNumber: normalizePhone(b.whatsappNumber).ok ? (normalizePhone(b.whatsappNumber) as { value: string | null }).value ?? '' : '', isPrimary: i === 0, sequence: i + 1 })),
+        buyers: buyers.map((b, i) => ({ id: b.id, fullName: b.fullName, panNumber: b.panNumber, aadhaarNumber: b.aadhaarNumber, address: b.address, email: b.email, receiveComms: b.receiveComms, whatsappNumber: normalizePhone(b.whatsappNumber).ok ? (normalizePhone(b.whatsappNumber) as { value: string | null }).value ?? '' : '', isPrimary: i === 0, sequence: i + 1 })),
         paymentSchedules: schedules.filter(s => s.principalAmount > 0).map(s => ({
+          id: s.id,
           milestoneId: s.milestoneId || undefined,
           isBooking: s.isBooking || undefined,
           description: s.description,
           principalAmount: s.principalAmount,
           gstAmount: s.gstAmount,
         }))
+      }
+      if (editing) {
+        const changes: Record<string, unknown> = { ...payload, reason: reason.trim(), sendRevisedLetters: sendRevised }
+        delete changes.inquiryId // the project and the buyers' details were not chosen again; the server keeps the sale's project
+        delete changes.projectId
+        await fetchJson('/api/sales/' + editing.saleId, jsonRequest('PUT', changes))
+        setCreatedSaleId(editing.saleId)
+        setStep(3)
+        return
       }
       const data = await fetchJson('/api/sales', jsonRequest('POST', payload))
       setCreatedSaleId(data.data.id)
@@ -435,7 +508,8 @@ export default function NewSaleWizard({ projects, prefill = null, preselect = nu
 
   const totalPercent = Number(schedules.reduce((s, r) => s + (r.percentOfAV || 0), 0).toFixed(2))
   const totalMilestoneAmount = schedules.reduce((s, r) => s + (r.percentOfAV !== undefined ? r.principalAmount : 0), 0)
-  const isValidPlan = totalPercent === 100 && totalMilestoneAmount === agreementValue
+  // Editing: the amounts must add up to the agreement value (within a rupee: percentages of an existing plan are rounded)
+  const isValidPlan = editing ? Math.abs(totalMilestoneAmount - agreementValue) <= 1 : totalPercent === 100 && totalMilestoneAmount === agreementValue
 
   // ── Render ────────────────────────────────────────────────
   return (
@@ -470,7 +544,7 @@ export default function NewSaleWizard({ projects, prefill = null, preselect = nu
           {/* Unit Details */}
           <h4 className="mb-5">Unit Details</h4>
           <div className="grid grid-2 gap-4 mb-4">
-            <SelectField label="Project" value={projectId} required error={fieldErrors.project} onChange={e => {
+            <SelectField label="Project" value={projectId} required error={fieldErrors.project} disabled={!!editing} onChange={e => {
  clearFieldError('project')
  setProjectId(e.target.value)
  setUnitId('')
@@ -481,7 +555,7 @@ export default function NewSaleWizard({ projects, prefill = null, preselect = nu
  setStampPctInput(null)
  setStampAmtInput(null)
  }}><option value="">Select project</option>{projects.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}</SelectField>
-            <SelectField label="Sale Type" required hint={selectedProject ? undefined : 'Select project first'} value={saleType} onChange={e => setSaleType(e.target.value)} disabled={!selectedProject || selectedProject.type !== 'MIXED'}><option value="FRESH">Fresh Sale</option><option value="REDEVELOPMENT">Redevelopment (PAAA)</option></SelectField>
+            <SelectField label="Sale Type" required hint={selectedProject ? undefined : 'Select project first'} value={saleType} onChange={e => setSaleType(e.target.value)} disabled={!selectedProject || selectedProject.type !== 'MIXED' || !!editing}><option value="FRESH">Fresh Sale</option><option value="REDEVELOPMENT">Redevelopment (PAAA)</option></SelectField>
             <div className="form-group">
               <SelectField label="Unit" value={unitId} required hint={selectedProject ? undefined : 'Select project first'} error={fieldErrors.unit} disabled={!selectedProject} onChange={e => { clearFieldError('unit'); setUnitId(e.target.value) }}>
                 <option value="">Select unit</option>
@@ -563,7 +637,8 @@ export default function NewSaleWizard({ projects, prefill = null, preselect = nu
                 <TextField label="Full Name" value={buyer.fullName} required error={fieldErrors[`buyer-${idx}-fullName`]} onChange={e => updateBuyer(idx, 'fullName', e.target.value)} placeholder="John Doe" />
                 <TextField
                   label="PAN number"
-                  required
+                  required={!buyer.savedPan}
+                  hint={buyer.savedPan ? 'Saved: ' + buyer.savedPan + '. Leave empty to keep it' : undefined}
                   value={buyer.panNumber}
                   onChange={e => updateBuyer(idx, 'panNumber', e.target.value.toUpperCase().replace(/[^A-Z0-9]/g, ''))}
                   placeholder="ABCDE1234F"
@@ -573,6 +648,7 @@ export default function NewSaleWizard({ projects, prefill = null, preselect = nu
                 />
                 <TextField
                   label="Aadhaar number"
+                  hint={buyer.savedAadhaar ? 'Saved: ' + buyer.savedAadhaar + '. Leave empty to keep it' : undefined}
                   value={buyer.aadhaarNumber}
                   onChange={e => updateBuyer(idx, 'aadhaarNumber', formatAadhaar(e.target.value))}
                   placeholder="XXXX XXXX XXXX"
@@ -723,7 +799,9 @@ export default function NewSaleWizard({ projects, prefill = null, preselect = nu
           </div>
           {error && <Alert variant="danger" className="mb-4">{error}</Alert>}
           <p className="text-base text-muted mb-5">
-            Review the milestone-based payment schedule below. Amounts are pre-calculated from the project&apos;s payment plan and your Agreement Value. You may adjust them before confirming.
+            {editing
+              ? 'These are the demands of the sale. A demand that has had payments cannot be made smaller than what was received. If you changed the price, the unit or the charges, the amounts below are worked out again from the payment plan: check them before saving.'
+              : "Review the milestone-based payment schedule below. Amounts are pre-calculated from the project's payment plan and your Agreement Value. You may adjust them before confirming."}
           </p>
 
           <div className="mb-5">
@@ -732,7 +810,7 @@ export default function NewSaleWizard({ projects, prefill = null, preselect = nu
               required
               value={paymentPlan?.id ?? ''}
               hint={paymentPlan ? `${schemeOf(paymentPlan.items.map((i) => i.percentOfAV))}${planCombo ? ` · ${comboLabel(planCombo)}` : ''}${paymentPlan.isDefault ? ' · default' : ''}. Changing the plan recalculates the schedule below` : undefined}
-              onChange={e => { setPlanChoice(e.target.value); setSchedules(buildSchedule(comboPlans.find((p) => p.id === e.target.value) ?? null)) }}
+              onChange={e => { setPlanChoice(e.target.value); setSchedules(rowsFor(comboPlans.find((p) => p.id === e.target.value) ?? null)) }}
             >
               {comboPlans.map((p) => <option key={p.id} value={p.id}>{p.name}{p.isDefault ? ' (default)' : ''}</option>)}
             </SelectField>
@@ -757,6 +835,7 @@ export default function NewSaleWizard({ projects, prefill = null, preselect = nu
                       <Td label="#" className="text-muted text-sm">{idx + 1}</Td>
                       <Td label="Milestone">
                         <div className="font-medium">{row.description}</div>
+                        {(row.paidPrincipal ?? 0) > 0 && <div className="text-xs text-muted">{fmt(row.paidPrincipal ?? 0)} already received: it cannot be made smaller</div>}
                         {row.description === OTHER_CHARGES_LABEL && (
                           <details className="charge-details">
                             <summary>Due with the last milestone · {otherCharges.items.length} charges</summary>
@@ -834,10 +913,19 @@ export default function NewSaleWizard({ projects, prefill = null, preselect = nu
             </Alert>
           )}
 
+          {editing && (
+            <div className="panel mb-4 flex dir-col gap-3">
+              <TextField label="Why is the sale being changed?" required value={reason} error={reasonError || undefined} onChange={e => { setReason(e.target.value); setReasonError('') }} placeholder="e.g. Agreement value entered wrongly" hint="Kept in the audit log" />
+              {editing.commsEnabled
+                ? <CheckboxField label="Send each buyer a revised demand letter for the demands that changed" hint="Only for demands already raised that still have something to pay" checked={sendRevised} onChange={e => setSendRevised(e.target.checked)} />
+                : <p className="text-sm text-muted m-0">Communication is off for this sale, so no revised letters are sent. They go out, made from the saved amounts, when communication is turned on.</p>}
+            </div>
+          )}
+
           <div className="flex justify-end gap-3">
             <Button type="button" variant="secondary" onClick={() => setStep(1)}>← Back</Button>
             <Button type="button" variant="primary" onClick={goToStep3} disabled={generating || !isValidPlan}>
-              {generating ? 'Creating Sale...' : `Confirm & Continue →`}
+              {generating ? (editing ? 'Saving...' : 'Creating Sale...') : editing ? 'Save changes' : `Confirm & Continue →`}
             </Button>
           </div>
         </div>
@@ -854,9 +942,11 @@ export default function NewSaleWizard({ projects, prefill = null, preselect = nu
           {!generatedDoc ? (
             <div className="centered-panel">
               <div className="big-emoji mb-4" aria-hidden="true">🎉</div>
-              <h2 className="mb-2">Sale Created Successfully!</h2>
+              <h2 className="mb-2">{editing ? 'Sale Updated' : 'Sale Created Successfully!'}</h2>
               <p className="text-muted mb-8">
-                The sale has been recorded with all {schedules.length} payment milestones. Now generate the agreement document.
+                {editing
+                  ? 'The changes are saved. The agreement made earlier does not change: generate it again if it should show the new details.'
+                  : `The sale has been recorded with all ${schedules.length} payment milestones. Now generate the agreement document.`}
               </p>
               <AgreementPartnerPicker partners={agreementPartners} value={partnerIds} error={partnerError} onChange={(ids) => { setPartnerError(''); setPartnerChoice(ids) }} />
               <Button
@@ -869,7 +959,7 @@ export default function NewSaleWizard({ projects, prefill = null, preselect = nu
               </Button>
               <div className="mt-4">
                 <Button type="button" variant="ghost" onClick={() => router.push(`/sales/${createdSaleId}`)}>
-                  Skip — Go to Sale →
+                  {editing ? 'Go to Sale →' : 'Skip — Go to Sale →'}
                 </Button>
               </div>
             </div>

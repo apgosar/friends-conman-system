@@ -179,6 +179,8 @@ export const COMM_STATUS: Record<string, StatusStyle> = {
   DELIVERED: { label: 'Delivered', badge: 'badge-success' },
   READ:      { label: 'Read',      badge: 'badge-success' },
   FAILED:    { label: 'Failed',    badge: 'badge-danger' },
+  HELD:      { label: 'Held',      badge: 'badge-muted' }, // communication is off for the sale: kept, not sent
+  SKIPPED:   { label: 'Not sent',  badge: 'badge-muted' }, // held, then replaced by fresh letters when communication was turned on
 }
 
 export const DOCUMENT_STATUS: Record<string, StatusStyle> = {

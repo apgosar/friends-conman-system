@@ -57,7 +57,7 @@ describe('shared helpers are the only implementation', () => {
   })
 
   it('PAN and Aadhaar are read through lib/pii.ts (masked for screens, revealed for documents)', () => {
-    const allow = ['src/lib/pii.ts', 'src/lib/pii-migration.ts', 'src/lib/dpdp-compliance.ts', 'src/lib/sales/create-sale.ts', 'src/lib/redact.ts', 'src/lib/template-tags.ts', 'src/lib/template-sample.ts', 'src/lib/documents/payload.ts', 'src/types/globals.d.ts']
+    const allow = ['src/lib/pii.ts', 'src/lib/pii-migration.ts', 'src/lib/dpdp-compliance.ts', 'src/lib/sales/create-sale.ts', 'src/lib/sales/edit-sale.ts', 'src/lib/redact.ts', 'src/lib/template-tags.ts', 'src/lib/template-sample.ts', 'src/lib/documents/payload.ts', 'src/types/globals.d.ts']
     const raw = files.filter((f) => /\b(buyer|b)\.(panNumber|aadhaarNumber)\b/.test(f.src) && !/maskedPan|maskedAadhaar|revealPii/.test(f.src))
     expect(raw.map((f) => f.name).filter((n) => !allow.includes(n) && !n.endsWith('NewSaleForm.tsx'))).toEqual([])
   })

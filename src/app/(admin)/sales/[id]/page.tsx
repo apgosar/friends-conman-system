@@ -5,7 +5,7 @@ import { formatDate, formatCurrency, formatNumber } from '@/lib/format'
 import { auth } from '@/lib/auth'
 import { can } from '@/lib/authz'
 import DeleteSaleButton from '@/components/sales/DeleteSaleButton'
-import CorrectAgreementValue from '@/components/sales/CorrectAgreementValue'
+import SaleCommsSwitch from '@/components/sales/SaleCommsSwitch'
 import PaymentScheduleTable from '@/components/sales/PaymentScheduleTable'
 import RecordPaymentModal from '@/components/sales/RecordPaymentModal'
 import RecordTdsModal from '@/components/sales/RecordTdsModal'
@@ -25,7 +25,7 @@ import { SCHEDULE_ORDER, isOfflineCharge } from '@/lib/payment-plans'
 import { floorLabel } from '@/lib/building-structure'
 import { slotDetailLabel, type ParkingValues } from '@/lib/parking'
 import { interestPolicyOf, standingOfSchedule, withInterestPolicy } from '@/lib/interest'
-import { Badge, ButtonLink, Card, CardHeader, PageHeader, StatusBadge } from '@/components/ui'
+import { Alert, Badge, ButtonLink, Card, CardHeader, PageHeader, StatusBadge } from '@/components/ui'
 
 async function getSale(id: string) {
   return prisma.sale.findUnique({
@@ -114,14 +114,15 @@ export default async function SaleDetailPage(props: PageProps<'/sales/[id]'>) {
             <>
               <ButtonLink href={`/sales/${id}/documents`}>Documents</ButtonLink>
               <ButtonLink href="#payment-schedule" variant="primary">Payments</ButtonLink>
-              {isSuperAdmin && sale.status !== 'CANCELLED' && !sale.deletedAt && <CorrectAgreementValue saleId={id} agreementValue={Number(sale.agreementValue)} />}
+              {canEditSale && sale.status !== 'CANCELLED' && !sale.deletedAt && <ButtonLink href={`/sales/${id}/edit`}>Edit sale</ButtonLink>}
               {isSuperAdmin && <DeleteSaleButton saleId={id} />}
             </>
           }
         />
 
         <Card className="mb-6">
-          <CardHeader title={`Buyers (${sale.buyers.length})`} />
+          <CardHeader title={`Buyers (${sale.buyers.length})`} actions={sale.status !== 'CANCELLED' && !sale.deletedAt ? <SaleCommsSwitch saleId={id} enabled={sale.commsEnabled} canEdit={canEditSale} /> : undefined} />
+          {!sale.commsEnabled && sale.status !== 'CANCELLED' && !sale.deletedAt && <Alert variant="info" className="mb-4">Communication is off for this sale: nothing is sent to the buyers yet. Check the details, then turn it on.</Alert>}
           <DuplicateContactsAlert duplicates={duplicateContacts(sale.buyers)} canEdit={canEditSale} />
           <div className="grid grid-auto gap-4">
             {sale.buyers.map((buyer) => (

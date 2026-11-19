@@ -189,6 +189,12 @@ async function sendClaimed(logId: string): Promise<DispatchResult> {
     },
   })
 
+  // Communication is off for this sale: the message is kept, not sent. A message written by hand is always sent.
+  if (log.sale && !log.sale.commsEnabled && log.type !== 'MANUAL') {
+    await finish(logId, { status: 'HELD' })
+    return { id: logId, channel: log.channel, status: 'skipped', reason: 'Communication is off for this sale' }
+  }
+
   const buyer = log.buyer ?? log.sale?.buyers?.[0]
   const rawContent = log.messageContent ?? ''
   const text = stripAttachmentBlock(rawContent)

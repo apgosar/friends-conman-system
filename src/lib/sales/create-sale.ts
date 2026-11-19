@@ -19,11 +19,11 @@ import { formatDate, formatNumber, formatRupees } from '@/lib/format'
 export const SALE_TYPES = ['FRESH', 'REDEVELOPMENT', 'RESALE'] as const
 
 // A non-negative rupee amount, given as a number or a numeric string. NaN / Infinity / negatives are rejected.
-const zMoney = z
+export const zMoney = z
   .union([z.number(), z.string().trim().min(1).transform(Number)])
   .pipe(z.number().finite('Enter a valid amount').min(0, 'Amount cannot be negative').max(100_000_000_000, 'Amount is too large'))
 
-const SaleBuyerSchema = z.object({
+export const SaleBuyerSchema = z.object({
   fullName: z.string().trim().min(1, 'Buyer full name is required').max(200),
   // Every detail of a buyer is required: the agreement, the receipts and the messages all need them
   email: z.string({ error: 'Enter the email address' }).trim().min(1, 'Enter the email address').email(EMAIL_ERROR),
@@ -38,7 +38,7 @@ const SaleBuyerSchema = z.object({
   receiveComms: z.boolean().optional(),
 })
 
-const PaymentScheduleSchema = z.object({
+export const PaymentScheduleSchema = z.object({
   milestoneId: z.string().optional().nullable(),
   description: z.string().trim().min(1, 'Milestone description is required').max(200),
   principalAmount: zMoney,
@@ -81,7 +81,7 @@ export class SaleError extends Error {
 }
 
 /** Largest amount by which the payment plan may exceed what the buyer owes before it is rejected (rounding slack). */
-const PLAN_TOLERANCE_RATIO = 0.01
+export const PLAN_TOLERANCE_RATIO = 0.01
 
 /**
  * Create a sale. Everything that decides whether the sale is allowed happens inside ONE transaction that holds a lock on
@@ -162,6 +162,7 @@ export async function createSale(input: SaleCreateInput, actorId: string) {
         parkingNumber: input.parkingNumber || null,
         bookingAmount: input.bookingAmount || null,
         bookingDate: new Date(input.bookingDate), status: 'BOOKED',
+        commsEnabled: false, // a new sale sends nothing until an administrator turns communication on (sale page)
       },
     })
 
