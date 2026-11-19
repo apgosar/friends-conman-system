@@ -19,12 +19,18 @@ describe('sale input schema', () => {
     expect(SaleCreateSchema.safeParse({ ...ok, saleType: 'FRESH' }).success).toBe(true)
     expect(SaleCreateSchema.safeParse({ ...ok, saleType: 'NONSENSE' }).success).toBe(false)
   })
-  it('needs every detail of every buyer except the Aadhaar: name, PAN, email, WhatsApp and address', () => {
+  it('needs name, PAN and address of every buyer, and email and WhatsApp of the primary buyer only', () => {
     expect(SaleCreateSchema.safeParse(ok).success).toBe(true)
-    for (const field of ['fullName', 'email', 'whatsappNumber', 'panNumber', 'address']) {
+    for (const field of ['fullName', 'panNumber', 'address']) {
       for (const blank of [undefined, null, '', '  ']) {
         const b = { ...buyer(), [field]: blank }
         expect(SaleCreateSchema.safeParse({ ...ok, buyers: [buyer(), b] }).success, `${field}=${String(blank)}`).toBe(false) // the second buyer counts too
+      }
+    }
+    for (const field of ['email', 'whatsappNumber']) {
+      for (const blank of [undefined, null, '', '  ']) {
+        expect(SaleCreateSchema.safeParse({ ...ok, buyers: [buyer({ [field]: blank })] }).success, `primary ${field}=${String(blank)}`).toBe(false)
+        expect(SaleCreateSchema.safeParse({ ...ok, buyers: [buyer(), buyer({ [field]: blank })] }).success, `co-buyer ${field}=${String(blank)}`).toBe(true) // optional for a co-buyer
       }
     }
     expect(SaleCreateSchema.safeParse({ ...ok, buyers: [buyer({ panNumber: 'nonsense' })] }).success).toBe(false)

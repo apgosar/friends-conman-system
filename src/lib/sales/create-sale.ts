@@ -26,7 +26,7 @@ export const zMoney = z
 export const SaleBuyerSchema = z.object({
   fullName: z.string().trim().min(1, 'Buyer full name is required').max(200),
   // Email and WhatsApp may be left blank here; only the primary buyer must have them (see requirePrimaryContact)
-  email: z.string().trim().email(EMAIL_ERROR).or(z.literal('')).nullish(),
+  email: z.string().trim().pipe(z.string().email(EMAIL_ERROR).or(z.literal(''))).nullish(),
   whatsappNumber: z.string().nullish().transform((v, ctx) => {
     const phone = normalizePhone(v)
     if (!phone.ok) { ctx.addIssue({ code: 'custom', message: PHONE_ERROR }); return z.NEVER }
