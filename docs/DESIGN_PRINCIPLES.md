@@ -90,6 +90,8 @@ The cost of breaking this is paid later and in bulk: a hand-styled button here, 
 | Turn HTML into a PDF | `renderHtmlToPdf` | `src/lib/pdf/renderer.ts` |
 | Log something | `logger` | `src/lib/logger.ts` |
 | Rate limit an endpoint | `rateLimit` helpers | `src/lib/rate-limit.ts` |
+| Call a Google AI model (Gemini on Vertex AI, in our own Google Cloud project; no API key: the service account signs the call). Model and region are set only by `GEMINI_MODEL` / `GOOGLE_CLOUD_LOCATION` | `geminiClient()`, `GEMINI_MODEL`, `googleErrorStatus` | `src/lib/google-ai.ts` |
+| Read a PAN or Aadhaar card to pre-fill a buyer (Gemini with a strict response schema; the answer is checked: PAN shape, Aadhaar Verhoeff checksum; what fails is left empty and reported in `missing`) | `extractKyc`; checks: `cleanPan`, `cleanAadhaar`, `verhoeffValid`, `sniffMimeType` | `src/lib/kyc-extract.ts`, `src/lib/kyc-fields.ts`, `POST /api/extract-kyc` |
 | Colour a chart | chart tokens and helpers | `src/lib/chart-theme.ts` |
 | Pass database rows from a server page to a client component | `plain(rows)` | `src/lib/plain.ts` |
 

@@ -5,18 +5,19 @@ import { requireRole } from '@/lib/guard'
 import { kycRateLimit, rateLimitExceeded } from '@/lib/rate-limit'
 import { HttpError } from '@/lib/errors'
 import { openForReading } from '@/lib/pdf-password'
+import { geminiConfigured } from '@/lib/google-ai'
+import { extractKyc, MAX_KYC_BYTES, type KycDocType } from '@/lib/kyc-extract'
 
 export async function POST(req: NextRequest) {
   const guard = await requireRole('staff')
   if ('error' in guard) return guard.error
 
-  // Rate limit: 20 OCR calls per hour per IP (protects paid AZAPI token)
+  // Rate limit: 20 document readings per hour per user (each one is a paid Gemini call)
   const rl = await kycRateLimit(req, guard.user.id)
   if (!rl.ok) return rateLimitExceeded(rl.reset)
 
-  const token = process.env.AZAPI_TOKEN
-  if (!token) {
-    return apiError('server', 'OCR API token not configured on server')
+  if (!geminiConfigured()) {
+    return apiError('unavailable', 'Reading documents is not set up on this server. Enter the details by hand')
   }
 
   try {
@@ -25,10 +26,13 @@ export async function POST(req: NextRequest) {
     const docType = formData.get('docType') as string | null
 
     if (!file) {
-      return apiError('invalid', 'No file provided')
+      return apiError('invalid', 'Choose the document to upload')
     }
-    if (!docType || !['PAN', 'AADHAAR'].includes(docType)) {
-      return apiError('invalid', 'Invalid or missing docType')
+    if (docType !== 'PAN' && docType !== 'AADHAAR') {
+      return apiError('invalid', 'Choose whether this is a PAN or an Aadhaar card')
+    }
+    if (file.size > MAX_KYC_BYTES) {
+      return apiError('invalid', 'The file is too large. Upload one under 10 MB')
     }
 
     // A password-protected PDF (an e-Aadhaar or e-PAN) is opened with the password the person typed and passed on without the lock.
@@ -40,68 +44,12 @@ export async function POST(req: NextRequest) {
     if (opened.status === 'wrong-password') {
       return apiError('invalid', 'That password is not correct. Try again', { passwordRequired: true, wrongPassword: true })
     }
-    const fileBuffer = new Uint8Array(opened.buffer) // plain bytes for fetch and Blob
 
-    let extractedData: any = {}
+    // Gemini reads the document; what it returns is checked before it reaches the form (PAN shape, Aadhaar checksum)
+    const { data, missing } = await extractKyc(docType as KycDocType, new Uint8Array(opened.buffer))
 
-    if (docType === 'PAN') {
-      // Determine content type from filename
-      let contentType = 'image/jpeg'
-      if (file.name.toLowerCase().endsWith('.pdf')) contentType = 'application/pdf'
-      else if (file.name.toLowerCase().endsWith('.png')) contentType = 'image/png'
-
-      const response = await fetch('https://ocr.azapi.ai/ind0002d', {
-        method: 'POST',
-        headers: {
-          'Authorization': token,
-          'Content-Type': contentType,
-        },
-        body: fileBuffer,
-      })
-
-      const data = await response.json()
-      
-      if (data.status !== 'Success' || !data.output) {
-        throw new Error(data.message || 'Azapi PAN OCR failed to process the image.')
-      }
-
-      extractedData = {
-        fullName: data.output.id_name || undefined,
-        panNumber: data.output.id_number || undefined,
-      }
-      
-    } else if (docType === 'AADHAAR') {
-      // For Azapi Aadhaar, we must send it as multipart form-data with the 'front' field
-      const azapiFormData = new FormData()
-      const blob = new Blob([fileBuffer], { type: 'application/octet-stream' })
-      azapiFormData.append('front', blob, file.name)
-
-      const response = await fetch('https://ocr.azapi.ai/ind0001d', {
-        method: 'POST',
-        headers: {
-          'Authorization': token,
-        },
-        body: azapiFormData,
-      })
-
-      const data = await response.json()
-
-      if (data.status !== 'Success' || !data.output) {
-        throw new Error(data.message || 'Azapi Aadhaar OCR failed to process the image.')
-      }
-
-      extractedData = {
-        fullName: data.output.id_name || undefined,
-        aadhaarNumber: data.output.id_number ? data.output.id_number.replace(/\s/g, '') : undefined,
-        address: data.output.id_address || undefined,
-      }
-    }
-
-    return NextResponse.json({
-      success: true,
-      data: extractedData,
-    })
-  } catch (error: any) {
+    return NextResponse.json({ success: true, data, missing })
+  } catch (error: unknown) {
     if (error instanceof HttpError) return apiError(error.kind, error.message)
     logger.error({ err: error }, '[KYC Extract] Error:')
     return apiError('server', 'KYC extraction failed. Please try again')

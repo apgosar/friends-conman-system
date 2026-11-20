@@ -22,6 +22,8 @@ function fmt(n: number) {
 
 // ─── Validation helpers ──────────────────────────────────────
 const PAN_REGEX = /^[A-Z]{5}[0-9]{4}[A-Z]{1}$/
+// What the document reader calls each field, in the words shown to the person (see /api/extract-kyc)
+const KYC_FIELD_LABEL: Record<string, string> = { fullName: 'name', panNumber: 'PAN number', aadhaarNumber: 'Aadhaar number', address: 'address' }
 const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
 
 function validatePan(pan: string) {
@@ -231,7 +233,11 @@ export default function NewSaleWizard({ projects, prefill = null, preselect = nu
         }
       }))
       setPasswordAsk(null)
-      setKycMessage({ type: 'success', text: `Successfully extracted ${docType} details!`, idx })
+      // A field that could not be read clearly (or failed its check) is left empty rather than filled wrong: say which to type
+      const missing: string[] = ((json.missing ?? []) as string[]).map((k) => KYC_FIELD_LABEL[k] ?? k)
+      setKycMessage(missing.length > 0
+        ? { type: 'error', text: `Could not read the ${missing.join(' and ')} clearly. Please type ${missing.length > 1 ? 'them' : 'it'}`, idx }
+        : { type: 'success', text: `Successfully extracted ${docType} details!`, idx })
     } catch (err) {
       if (err instanceof ApiError && err.body.passwordRequired === true) {
         setPasswordAsk({ idx, docType, file, wrong: err.body.wrongPassword === true }) // ask for the password, then read it again

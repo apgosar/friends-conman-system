@@ -907,7 +907,7 @@ docker compose up -d web
 | Email through Gmail (needs 2-step verification and an *app password*) | `GMAIL_USER="accounts@customer.com"`, `GMAIL_APP_PASSWORD="abcd efgh ijkl mnop"` |
 | Email through any SMTP server | `SMTP_HOST`, `SMTP_PORT`, `SMTP_SECURE`, `SMTP_USER`, `SMTP_PASS`, optionally `SMTP_FROM_ADDRESS` |
 | WhatsApp Cloud API | `WHATSAPP_PHONE_NUMBER_ID`, `WHATSAPP_ACCESS_TOKEN` |
-| PAN / Aadhaar card reading (OCR) | `AZAPI_TOKEN` |
+| PAN / Aadhaar card reading (Gemini on Google Cloud) | `GOOGLE_CLOUD_PROJECT`, `GOOGLE_CLOUD_LOCATION`, and a service-account key file for a Google Cloud project: mount it in the container and set `GOOGLE_APPLICATION_CREDENTIALS` to its path. Without it the screens ask for the details by hand |
 
 The startup log prints "No email provider configured" until email is set; that is only a warning. The Settings page's email badge is decided when the image is built, so it can read "not configured" on a prebuilt image even when email works: send a real test email to confirm.
 

@@ -39,8 +39,10 @@ const ENV_VARS: EnvVar[] = [
   { key: 'WHATSAPP_PHONE_NUMBER_ID', required: false, description: 'WhatsApp Business Phone Number ID' },
   { key: 'WHATSAPP_ACCESS_TOKEN', required: false, description: 'WhatsApp Cloud API Access Token' },
 
-  // KYC OCR
-  { key: 'AZAPI_TOKEN', required: false, description: 'AZAPI OCR API Token' },
+  // Google AI: Gemini on Vertex AI reads PAN / Aadhaar cards. No key: the service account signs the calls.
+  { key: 'GOOGLE_CLOUD_PROJECT', required: false, description: 'Google Cloud project that Gemini (Vertex AI) is called in' },
+  { key: 'GOOGLE_CLOUD_LOCATION', required: false, description: 'Vertex AI region (default asia-south1)' },
+  { key: 'GEMINI_MODEL', required: false, description: 'Gemini model id that reads documents (default gemini-3.5-flash)' },
 ]
 
 const PLACEHOLDER_PATTERNS = [

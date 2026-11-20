@@ -2,8 +2,8 @@ import { PDFDocument, EncryptedPDFError } from '@cantoo/pdf-lib'
 import { fail } from '@/lib/errors'
 
 /**
- * Password-protected PDFs, as people upload them for KYC (an e-Aadhaar or e-PAN PDF comes locked with a password). The OCR service
- * cannot read a locked file, so the file is opened here with the password the person typed and handed on without the lock.
+ * Password-protected PDFs, as people upload them for KYC (an e-Aadhaar or e-PAN PDF comes locked with a password). The document reader
+ * (Gemini) cannot read a locked file, so the file is opened here with the password the person typed and handed on without the lock.
  * The password is used for this one call only: it is never stored or logged.
  */
 export type OpenedFile =

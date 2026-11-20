@@ -30,7 +30,6 @@ const nextConfig: NextConfig = {
     NEXT_PUBLIC_BUILD_SHA: buildSha(),
     NEXT_PUBLIC_BUILD_TIME: new Date().toISOString(),
   },
-  serverExternalPackages: ['tesseract.js'],
   async headers() {
     return [
       {
@@ -65,7 +64,7 @@ const nextConfig: NextConfig = {
               "style-src 'self' 'unsafe-inline'",
               "font-src 'self' data:", // fonts are self-hosted (@fontsource), nothing is loaded from Google
               "img-src 'self' data: blob: https:",
-              "connect-src 'self' https://graph.facebook.com https://ocr.azapi.ai",
+              "connect-src 'self' https://graph.facebook.com",
               "frame-ancestors 'none'",
               "base-uri 'self'",
               "form-action 'self'",

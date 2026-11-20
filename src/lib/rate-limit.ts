@@ -100,7 +100,7 @@ export async function rateLimit(req: HeaderSource, options: RateLimitOptions): P
 // Pre-configured limiters. Pass the signed-in user's id so a shared office IP is not one big bucket.
 // ---------------------------------------------------------------------------
 
-/** KYC / OCR API: 20 calls per hour (protects paid API tokens) */
+/** KYC document reading: 20 calls per hour per user (each one is a paid Gemini call) */
 export const kycRateLimit = (req: HeaderSource, userId?: string) =>
   rateLimit(req, { limit: 20, windowMs: 60 * 60 * 1000, prefix: 'kyc', key: userId })
 

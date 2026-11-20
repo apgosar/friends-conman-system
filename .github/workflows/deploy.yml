@@ -93,7 +93,8 @@ jobs:
           region: ${{ env.REGION }}
           image: ${{ env.IMAGE }}
           # Use --allow-unauthenticated if this is a public dashboard
-          # Ensure env vars (like DATABASE_URL from Supabase) are set in Cloud Run directly.
+          # Settings and secrets (DATABASE_URL for Cloud SQL, PII_ENCRYPTION_KEY...) stay as deploy-cloudrun.ps1 set them:
+          # this step only changes the image. Database migrations are run by that script's migrate job.
 
       - name: Show Output
         run: echo "Service deployed at ${{ steps.deploy.outputs.url }}"

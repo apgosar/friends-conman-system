@@ -26,7 +26,7 @@ A comprehensive Real Estate Construction & Sales Management platform built for m
 * **Omnichannel Ready**: Designed to support Email and WhatsApp channels out-of-the-box.
 
 ### 🆔 AI-Powered KYC Verification
-* **OCR Extraction**: Automatically extracts details from uploaded PAN and Aadhaar cards using Tesseract OCR.
+* **Document reading with Gemini**: PAN and Aadhaar cards (photos or PDFs, including password-locked e-Aadhaar) are read by Gemini on Google Cloud's Vertex AI. The answer is checked (PAN shape, Aadhaar checksum) before it pre-fills the form, and staff confirm every field. See [`DEPLOYMENT_GCP.md`](DEPLOYMENT_GCP.md).
 * **Verification Workflow**: Review extracted text against user inputs to securely approve or reject KYC documents.
 
 ## 🛠️ Tech Stack
@@ -37,7 +37,8 @@ A comprehensive Real Estate Construction & Sales Management platform built for m
 * **Styling**: Vanilla CSS (CSS Modules & Global CSS Variables for strict design system enforcement)
 * **Authentication**: NextAuth.js
 * **Document Generation**: Puppeteer (HTML to PDF) / Docxtemplater (DOCX generation)
-* **OCR**: Tesseract.js
+* **AI**: Gemini on Vertex AI (document reading), `@google/genai`
+* **Hosting**: Google Cloud: Cloud Run, Cloud SQL for PostgreSQL, Cloud Storage, Secret Manager, Cloud Scheduler
 
 ## 🚀 Getting Started
 

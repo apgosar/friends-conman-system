@@ -1,359 +1,344 @@
 <#
 .SYNOPSIS
-    Deploys Neev CMS (friends-conman-system) to Google Cloud Run with Google Cloud Storage and Supabase.
+    Deploys Neev CMS to Google Cloud: Cloud Run + Cloud SQL (PostgreSQL) + Cloud Storage + Vertex AI (Gemini).
 
 .DESCRIPTION
-    This script automates:
-    1. Verification of gcloud CLI and authentication
-    2. GCP Project and Region configuration
-    3. Enabling required GCP APIs (Cloud Run, Cloud Build, Artifact Registry, Cloud Storage)
-    4. Creation and IAM setup of Google Cloud Storage bucket for document storage
-    5. Creation of Google Artifact Registry Docker repository
-    6. Parsing production environment variables from .env.production
-    7. Building the production container on Cloud Build (no local Docker required)
-    8. Deploying to Google Cloud Run with production-tuned settings (Puppeteer-friendly memory & CPU, scale-to-zero)
-    9. Automatically updating NEXTAUTH_URL and APP_URL with the assigned Cloud Run URL
+    One command sets up everything in your Google Cloud project, and it is safe to run again (it only creates what is missing):
 
-.PARAMETER ProjectId
-    GCP Project ID (default: "neev-cms")
+      1. Checks gcloud, the login, the project and that billing is on
+      2. Enables the APIs: Cloud Run, Cloud Build, Artifact Registry, Cloud SQL, Secret Manager, Vertex AI, Cloud Scheduler, Cloud Storage
+      3. Creates a service account for the app with only the roles it needs (it signs the calls to Cloud SQL, Storage and Gemini: no keys, no API tokens)
+      4. Creates the Cloud Storage bucket for uploaded documents and generated PDFs
+      5. Creates the Cloud SQL for PostgreSQL instance, the database and the app's database user
+      6. Puts every secret in Secret Manager (database URL, NEXTAUTH_SECRET, CRON_SECRET, PII_ENCRYPTION_KEY, email and WhatsApp secrets)
+      7. Builds the container on Cloud Build and deploys it to Cloud Run
+      8. Runs the database migrations as a Cloud Run job (and the demo seed with -Seed)
+      9. Creates the Cloud Scheduler job that runs the daily interest and reminders job
 
-.PARAMETER Region
-    GCP Region (default: "asia-south1")
+    PII_ENCRYPTION_KEY is created once and then never replaced: a new key would make every stored PAN and Aadhaar unreadable.
 
-.PARAMETER ServiceName
-    Cloud Run service name (default: "neev-cms")
-
-.PARAMETER BucketName
-    GCS bucket name for uploaded KYC files & generated PDFs (default: "neev-cms-docs")
-
-.PARAMETER EnvFile
-    Path to production environment variables file (default: ".env.production")
-
-.PARAMETER Memory
-    Memory allocated to Cloud Run instance (default: "2Gi" - recommended for Chromium/Puppeteer PDF generation)
-
-.PARAMETER Cpu
-    CPU cores allocated to Cloud Run instance (default: "1")
-
-.PARAMETER MinInstances
-    Minimum instances for Cloud Run (default: "0" for cost-effective scale-to-zero)
-
-.PARAMETER MaxInstances
-    Maximum instances for Cloud Run (default: "5" to prevent unexpected costs)
+.PARAMETER ProjectId     Google Cloud project id (default "neev-cms")
+.PARAMETER Region        Region for everything (default "asia-south1", Mumbai)
+.PARAMETER ServiceName   Cloud Run service name (default "neev-cms")
+.PARAMETER BucketName    Cloud Storage bucket for documents (default "neev-cms-docs"; the project id is added if the name is taken)
+.PARAMETER SqlInstance   Cloud SQL instance name (default "neev-cms-db")
+.PARAMETER SqlTier       Cloud SQL machine size (default "db-g1-small"; use "db-custom-2-7680" for more)
+.PARAMETER EnvFile       Settings file (default ".env.production", see .env.production.example)
+.PARAMETER MinInstances  Keep this many instances warm (default 0 = scale to zero; use 1 for a demo so nobody waits for a cold start)
+.PARAMETER Seed          Also load the demo users and data (a new empty database has no users, so nobody could sign in)
+.PARAMETER SkipBuild     Reuse the image built last time (only configuration changed)
 
 .EXAMPLE
-    .\deploy-cloudrun.ps1
-
-.EXAMPLE
-    .\deploy-cloudrun.ps1 -ProjectId "my-custom-project-id" -Region "asia-south1"
+    .\deploy-cloudrun.ps1 -ProjectId my-project-id -MinInstances 1 -Seed
 #>
 
 [CmdletBinding()]
 param(
-    [Parameter(Position = 0)]
     [string]$ProjectId = "neev-cms",
-
-    [Parameter(Position = 1)]
     [string]$Region = "asia-south1",
-
-    [Parameter(Position = 2)]
     [string]$ServiceName = "neev-cms",
-
-    [Parameter(Position = 3)]
     [string]$BucketName = "neev-cms-docs",
-
-    [Parameter()]
+    [string]$SqlInstance = "neev-cms-db",
+    [string]$SqlTier = "db-g1-small",
+    [string]$DbName = "neev",
+    [string]$DbUser = "neev_app",
     [string]$EnvFile = ".env.production",
-
-    [Parameter()]
     [string]$Memory = "2Gi",
-
-    [Parameter()]
     [string]$Cpu = "1",
-
-    [Parameter()]
     [int]$MinInstances = 0,
-
-    [Parameter()]
     [int]$MaxInstances = 5,
-
-    [Parameter()]
-    [int]$Timeout = 300
+    [int]$Timeout = 300,
+    [switch]$Seed,
+    [switch]$SkipBuild
 )
 
-# Set error handling preference
 $ErrorActionPreference = "Stop"
 
-function Write-Step {
-    param([string]$Message)
-    Write-Host "`n========================================================" -ForegroundColor Cyan
-    Write-Host " [STEP] $Message" -ForegroundColor Green
-    Write-Host "========================================================" -ForegroundColor Cyan
+function Write-Step { param([string]$Message) Write-Host "`n== $Message" -ForegroundColor Cyan }
+function Write-Info { param([string]$Message) Write-Host "   $Message" -ForegroundColor Yellow }
+function Write-Ok   { param([string]$Message) Write-Host "   OK  $Message" -ForegroundColor Green }
+
+# Runs gcloud and stops the script when it fails. Only the first words of the command are shown in the error, because some
+# commands carry a password in their arguments.
+function Invoke-Gcloud {
+    & gcloud @args
+    if ($LASTEXITCODE -ne 0) { throw "gcloud $(($args | Select-Object -First 3) -join ' ') failed (exit code $LASTEXITCODE)" }
 }
 
-function Write-Info {
-    param([string]$Message)
-    Write-Host " [INFO] $Message" -ForegroundColor Yellow
+# True when the gcloud command succeeds; used to ask "does this exist already?" without printing errors
+function Test-Gcloud {
+    $previous = $ErrorActionPreference
+    $ErrorActionPreference = "SilentlyContinue"
+    & gcloud @args *> $null
+    $ok = ($LASTEXITCODE -eq 0)
+    $ErrorActionPreference = $previous
+    return $ok
 }
 
-function Write-Success {
-    param([string]$Message)
-    Write-Host " [SUCCESS] $Message" -ForegroundColor Green
+function New-RandomText {
+    param([int]$Length = 32)
+    $chars = "abcdefghijkmnopqrstuvwxyzABCDEFGHJKLMNPQRSTUVWXYZ23456789"
+    $bytes = New-Object byte[] $Length
+    [Security.Cryptography.RandomNumberGenerator]::Create().GetBytes($bytes)
+    return -join ($bytes | ForEach-Object { $chars[$_ % $chars.Length] })
 }
 
-function Write-ErrorMsg {
-    param([string]$Message)
-    Write-Host " [ERROR] $Message" -ForegroundColor Red
+function New-RandomBytes {
+    param([int]$Count = 32, [ValidateSet("base64", "hex")][string]$As = "base64")
+    $bytes = New-Object byte[] $Count
+    [Security.Cryptography.RandomNumberGenerator]::Create().GetBytes($bytes)
+    if ($As -eq "hex") { return ([BitConverter]::ToString($bytes) -replace "-", "").ToLower() }
+    return [Convert]::ToBase64String($bytes)
 }
+
+# Stores a secret's value without a trailing newline (piping a string to gcloud would add one and corrupt the secret)
+function Set-SecretValue {
+    param([string]$Name, [string]$Value)
+    $file = [IO.Path]::GetTempFileName()
+    try {
+        [IO.File]::WriteAllText($file, $Value, (New-Object Text.UTF8Encoding($false)))
+        if (Test-Gcloud secrets describe $Name --project=$ProjectId) {
+            Invoke-Gcloud secrets versions add $Name --data-file=$file --project=$ProjectId --quiet
+        } else {
+            Invoke-Gcloud secrets create $Name --data-file=$file --replication-policy=automatic --project=$ProjectId --quiet
+        }
+    } finally {
+        Remove-Item $file -Force -ErrorAction SilentlyContinue
+    }
+}
+
+function Test-Secret { param([string]$Name) return (Test-Gcloud secrets describe $Name --project=$ProjectId) }
 
 try {
-    # ── 1. Check Prerequisites ────────────────────────────────────
-    Write-Step "Checking prerequisites (Google Cloud SDK)"
-
+    # -- 1. gcloud, login, project, billing ---------------------------------
+    Write-Step "Checking Google Cloud access"
     if (-not (Get-Command gcloud -ErrorAction SilentlyContinue)) {
-        Write-ErrorMsg "Google Cloud SDK ('gcloud') is not found in your PATH."
-        Write-Host "Please install it from: https://cloud.google.com/sdk/docs/install" -ForegroundColor Yellow
-        exit 1
+        throw "The Google Cloud SDK (gcloud) is not installed. Get it from https://cloud.google.com/sdk/docs/install"
     }
-
-    $activeAccount = gcloud config get-value account 2>$null
-    if ([string]::IsNullOrWhiteSpace($activeAccount) -or $activeAccount -eq "(unset)") {
-        Write-Info "No active gcloud authentication detected. Launching login..."
-        gcloud auth login
-    } else {
-        Write-Info "Authenticated as: $activeAccount"
+    $account = (& gcloud config get-value account 2>$null)
+    if ([string]::IsNullOrWhiteSpace($account) -or $account -eq "(unset)") {
+        Invoke-Gcloud auth login
+        $account = (& gcloud config get-value account 2>$null)
     }
+    Write-Info "Signed in as $account"
 
-    # ── 2. Configure GCP Project & Region ────────────────────────
-    Write-Step "Configuring GCP Project: $ProjectId in Region: $Region"
+    if (-not (Test-Gcloud projects describe $ProjectId)) {
+        throw "Project '$ProjectId' was not found, or you have no access to it. Create it at https://console.cloud.google.com/projectcreate and run again with -ProjectId <its id>"
+    }
+    Invoke-Gcloud config set project $ProjectId --quiet
+    Invoke-Gcloud config set run/region $Region --quiet
+    $projectNumber = (& gcloud projects describe $ProjectId --format="value(projectNumber)").Trim()
 
-    # Verify project exists or prompt user
-    $projectCheck = gcloud projects describe $ProjectId --format="value(projectId)" 2>$null
-    if (-not $projectCheck) {
-        Write-Info "Project '$ProjectId' was not found or you may not have access."
-        $confirmCreate = Read-Host "Would you like to try creating project '$ProjectId'? (y/n)"
-        if ($confirmCreate -eq 'y' -or $confirmCreate -eq 'Y') {
-            gcloud projects create $ProjectId --name="Neev CMS"
-        } else {
-            $ProjectId = Read-Host "Enter your existing GCP Project ID"
-            if ([string]::IsNullOrWhiteSpace($ProjectId)) {
-                Write-ErrorMsg "Project ID cannot be empty."
-                exit 1
+    $billing = (& gcloud billing projects describe $ProjectId --format="value(billingEnabled)" 2>$null)
+    if ("$billing".Trim() -ne "True") {
+        throw "Billing is not switched on for project '$ProjectId'. Link a billing account (your buildathon credits count) at https://console.cloud.google.com/billing/linkedaccount?project=$ProjectId"
+    }
+    Write-Ok "Project $ProjectId ($projectNumber), region $Region"
+
+    # -- 2. APIs -------------------------------------------------------------
+    Write-Step "Turning on the Google Cloud services"
+    Invoke-Gcloud services enable run.googleapis.com cloudbuild.googleapis.com artifactregistry.googleapis.com `
+        sqladmin.googleapis.com secretmanager.googleapis.com aiplatform.googleapis.com cloudscheduler.googleapis.com `
+        storage.googleapis.com logging.googleapis.com --project=$ProjectId
+    Write-Ok "Services enabled"
+
+    # -- 3. Service accounts -------------------------------------------------
+    Write-Step "Service account for the app (no keys: Cloud Run signs every call)"
+    $runSa = "neev-cms-run@$ProjectId.iam.gserviceaccount.com"
+    if (-not (Test-Gcloud iam service-accounts describe $runSa --project=$ProjectId)) {
+        Invoke-Gcloud iam service-accounts create neev-cms-run --display-name="Neev CMS on Cloud Run" --project=$ProjectId
+        Start-Sleep -Seconds 10 # a new service account takes a moment to be usable in policies
+    }
+    foreach ($role in @("roles/cloudsql.client", "roles/aiplatform.user", "roles/logging.logWriter")) {
+        Invoke-Gcloud projects add-iam-policy-binding $ProjectId --member="serviceAccount:$runSa" --role=$role --condition=None --quiet | Out-Null
+    }
+    # Cloud Build runs as the default compute account on new projects and needs these to build and push the image
+    $buildSa = "$projectNumber-compute@developer.gserviceaccount.com"
+    foreach ($role in @("roles/cloudbuild.builds.builder", "roles/artifactregistry.writer", "roles/storage.objectViewer", "roles/logging.logWriter")) {
+        Invoke-Gcloud projects add-iam-policy-binding $ProjectId --member="serviceAccount:$buildSa" --role=$role --condition=None --quiet | Out-Null
+    }
+    Write-Ok "${runSa}: Cloud SQL Client, Vertex AI User, Logs Writer"
+
+    # -- 4. Cloud Storage ----------------------------------------------------
+    Write-Step "Cloud Storage bucket for documents"
+    if (-not (Test-Gcloud storage buckets describe "gs://$BucketName" --project=$ProjectId)) {
+        if (-not (Test-Gcloud storage buckets create "gs://$BucketName" --location=$Region --uniform-bucket-level-access --public-access-prevention --project=$ProjectId)) {
+            $BucketName = "$BucketName-$ProjectId" # bucket names are global: the first name may belong to someone else
+            if (-not (Test-Gcloud storage buckets describe "gs://$BucketName" --project=$ProjectId)) {
+                Invoke-Gcloud storage buckets create "gs://$BucketName" --location=$Region --uniform-bucket-level-access --public-access-prevention --project=$ProjectId
             }
         }
     }
+    Invoke-Gcloud storage buckets add-iam-policy-binding "gs://$BucketName" --member="serviceAccount:$runSa" --role=roles/storage.objectAdmin --project=$ProjectId --quiet | Out-Null
+    Write-Ok "gs://$BucketName (private, uniform access)"
 
-    gcloud config set project $ProjectId
-    gcloud config set run/region $Region
-
-    # Get Project Number for IAM permissions
-    $ProjectNumber = gcloud projects describe $ProjectId --format="value(projectNumber)"
-    Write-Info "Project Number: $ProjectNumber"
-
-    # ── 3. Enable Required GCP Services ──────────────────────────
-    Write-Step "Enabling required GCP APIs (Cloud Run, Cloud Build, Artifact Registry, Storage)"
-
-    $apis = @(
-        "run.googleapis.com",
-        "cloudbuild.googleapis.com",
-        "artifactregistry.googleapis.com",
-        "storage.googleapis.com"
-    )
-
-    foreach ($api in $apis) {
-        Write-Info "Enabling $api..."
-        gcloud services enable $api --project=$ProjectId
+    # -- 5. Cloud SQL --------------------------------------------------------
+    Write-Step "Cloud SQL for PostgreSQL (the first creation takes about 5-10 minutes)"
+    $sqlConnection = "${ProjectId}:${Region}:${SqlInstance}"
+    if (-not (Test-Gcloud sql instances describe $SqlInstance --project=$ProjectId)) {
+        Invoke-Gcloud sql instances create $SqlInstance --database-version=POSTGRES_16 --edition=ENTERPRISE --tier=$SqlTier `
+            --region=$Region --storage-type=SSD --storage-size=10GB --storage-auto-increase `
+            --backup-start-time=21:00 --enable-point-in-time-recovery --deletion-protection --project=$ProjectId
     }
-    Write-Success "APIs enabled successfully."
-
-    # ── 4. Create & Configure GCS Storage Bucket ─────────────────
-    Write-Step "Setting up Google Cloud Storage Bucket: gs://$BucketName"
-
-    $bucketCheck = cmd /c "gcloud storage buckets describe gs://$BucketName --project=$ProjectId 2>&1"
-    if ($LASTEXITCODE -ne 0) {
-        Write-Info "Bucket gs://$BucketName not found. Creating in $Region..."
-        $createOut = cmd /c "gcloud storage buckets create gs://$BucketName --location=$Region --uniform-bucket-level-access --project=$ProjectId 2>&1"
-        if ($LASTEXITCODE -ne 0) {
-            Write-Info "Bucket name '$BucketName' might be globally taken. Trying 'gs://$BucketName-$ProjectId'..."
-            $BucketName = "$BucketName-$ProjectId"
-            cmd /c "gcloud storage buckets create gs://$BucketName --location=$Region --uniform-bucket-level-access --project=$ProjectId"
+    if (-not (Test-Gcloud sql databases describe $DbName --instance=$SqlInstance --project=$ProjectId)) {
+        Invoke-Gcloud sql databases create $DbName --instance=$SqlInstance --project=$ProjectId
+    }
+    if (-not (Test-Secret "DATABASE_URL")) {
+        # The password is letters and digits only, so it needs no escaping inside the URL. Prisma reaches Cloud SQL through the
+        # unix socket Cloud Run mounts at /cloudsql (host=...). connection_limit keeps several instances under the database's limit.
+        $dbPassword = New-RandomText 32
+        if (Test-Gcloud sql users describe $DbUser --instance=$SqlInstance --project=$ProjectId) {
+            Invoke-Gcloud sql users set-password $DbUser --instance=$SqlInstance --password=$dbPassword --project=$ProjectId
+        } else {
+            Invoke-Gcloud sql users create $DbUser --instance=$SqlInstance --password=$dbPassword --project=$ProjectId
         }
-    } else {
-        Write-Info "GCS Bucket gs://$BucketName already exists."
+        Set-SecretValue "DATABASE_URL" "postgresql://${DbUser}:${dbPassword}@localhost/${DbName}?host=/cloudsql/${sqlConnection}&connection_limit=5"
+        Write-Ok "Database user created; DATABASE_URL stored in Secret Manager"
     }
+    Write-Ok "$sqlConnection / $DbName"
 
-    # Grant Cloud Run default compute service account access to the GCS bucket
-    $computeServiceAccount = "$ProjectNumber-compute@developer.gserviceaccount.com"
-    Write-Info "Granting Storage Object Admin permission to Compute Service Account: $computeServiceAccount"
-    cmd /c "gcloud storage buckets add-iam-policy-binding gs://$BucketName --member=serviceAccount:$computeServiceAccount --role=roles/storage.objectAdmin --project=$ProjectId"
-
-    Write-Success "Storage Bucket configured."
-
-    # ── 5. Set up Artifact Registry Repository ───────────────────
-    Write-Step "Setting up Artifact Registry Docker repository"
-
-    $repoName = "cloud-run-source-deploy"
-    $repoCheck = cmd /c "gcloud artifacts repositories describe $repoName --location=$Region --project=$ProjectId 2>&1"
-    if ($LASTEXITCODE -ne 0) {
-        Write-Info "Creating Artifact Registry repository '$repoName'..."
-        cmd /c "gcloud artifacts repositories create $repoName --repository-format=docker --location=$Region --description=""Docker repository for Cloud Run deployments"" --project=$ProjectId"
-    } else {
-        Write-Info "Artifact Registry repository '$repoName' already exists."
-    }
-
-    # ── 6. Parse Environment Variables ───────────────────────────
-    Write-Step "Loading Environment Variables"
-
+    # -- 6. Secrets ----------------------------------------------------------
+    Write-Step "Secrets in Secret Manager"
     $envMap = @{}
-    $envMap["NODE_ENV"] = "production"
-    $envMap["GCS_BUCKET_NAME"] = $BucketName
-
     if (Test-Path $EnvFile) {
-        Write-Info "Loading variables from $EnvFile..."
+        Write-Info "Reading $EnvFile"
         Get-Content $EnvFile | ForEach-Object {
             $line = $_.Trim()
             if ($line -and -not $line.StartsWith("#") -and $line.Contains("=")) {
                 $idx = $line.IndexOf("=")
                 $key = $line.Substring(0, $idx).Trim()
                 $val = $line.Substring($idx + 1).Trim().Trim('"').Trim("'")
-                if ($key -and $val) {
-                    $envMap[$key] = $val
-                }
+                if ($key -and $val) { $envMap[$key] = $val }
             }
         }
     } else {
-        Write-Info "$EnvFile not found."
-        Write-Info "Checking for interactive inputs for critical secrets..."
+        Write-Info "$EnvFile not found: using the defaults (company name etc. can be set later in the app)"
+    }
 
-        # DATABASE_URL
-        $dbUrl = Read-Host "Enter your Supabase PostgreSQL DATABASE_URL"
-        while ([string]::IsNullOrWhiteSpace($dbUrl)) {
-            $dbUrl = Read-Host "DATABASE_URL is required. Enter Supabase DATABASE_URL"
+    if (-not (Test-Secret "NEXTAUTH_SECRET")) { Set-SecretValue "NEXTAUTH_SECRET" (New-RandomBytes 32 "base64") }
+    if (-not (Test-Secret "CRON_SECRET"))     { Set-SecretValue "CRON_SECRET" (New-RandomBytes 32 "hex") }
+
+    # The PII key is created ONCE. Never replace it: a new key makes every stored PAN and Aadhaar unreadable.
+    if (-not (Test-Secret "PII_ENCRYPTION_KEY")) {
+        $pii = $envMap["PII_ENCRYPTION_KEY"]
+        if ([string]::IsNullOrWhiteSpace($pii) -or $pii.ToUpper().StartsWith("CHANGE_ME")) {
+            $pii = New-RandomBytes 32 "base64"
+            Write-Info "A new PII_ENCRYPTION_KEY was created. BACK IT UP somewhere safe, apart from the database:"
+            Write-Info "  gcloud secrets versions access latest --secret=PII_ENCRYPTION_KEY --project=$ProjectId"
         }
-        $envMap["DATABASE_URL"] = $dbUrl
-
-        # NEXTAUTH_SECRET
-        $authSecret = Read-Host "Enter NEXTAUTH_SECRET (press Enter to auto-generate a secure random 32-byte secret)"
-        if ([string]::IsNullOrWhiteSpace($authSecret)) {
-            $bytes = New-Object byte[] 32
-            (New-Object System.Security.Cryptography.RNGCryptoServiceProvider).GetBytes($bytes)
-            $authSecret = [Convert]::ToBase64String($bytes)
-            Write-Info "Generated secure NEXTAUTH_SECRET: $authSecret"
-        }
-        $envMap["NEXTAUTH_SECRET"] = $authSecret
+        Set-SecretValue "PII_ENCRYPTION_KEY" $pii
+    } else {
+        Write-Info "PII_ENCRYPTION_KEY already exists: kept as it is"
     }
 
-    # Ensure required variables exist
-    if (-not $envMap.ContainsKey("DATABASE_URL")) {
-        $dbUrl = Read-Host "Enter your Supabase PostgreSQL DATABASE_URL"
-        $envMap["DATABASE_URL"] = $dbUrl
+    # Secrets taken from the env file when it has a value (their key is the secret's name)
+    $optionalSecrets = @("GMAIL_APP_PASSWORD", "WHATSAPP_ACCESS_TOKEN", "SMTP_PASS")
+    foreach ($name in $optionalSecrets) {
+        if ($envMap.ContainsKey($name)) { Set-SecretValue $name $envMap[$name] }
+    }
+    $secretNames = @("DATABASE_URL", "NEXTAUTH_SECRET", "CRON_SECRET", "PII_ENCRYPTION_KEY") + ($optionalSecrets | Where-Object { Test-Secret $_ })
+    foreach ($name in $secretNames) {
+        Invoke-Gcloud secrets add-iam-policy-binding $name --member="serviceAccount:$runSa" --role=roles/secretmanager.secretAccessor --project=$ProjectId --quiet | Out-Null
+    }
+    Write-Ok "Secrets: $($secretNames -join ', ')"
+
+    # -- 7. Build ------------------------------------------------------------
+    $repoName = "cloud-run-source-deploy"
+    if (-not (Test-Gcloud artifacts repositories describe $repoName --location=$Region --project=$ProjectId)) {
+        Invoke-Gcloud artifacts repositories create $repoName --repository-format=docker --location=$Region --description="Neev CMS images" --project=$ProjectId
+    }
+    $image = "$Region-docker.pkg.dev/$ProjectId/$repoName/${ServiceName}:latest"
+    if ($SkipBuild) {
+        Write-Step "Skipping the build (using $image)"
+    } else {
+        Write-Step "Building the container on Cloud Build (no Docker needed on this computer)"
+        Invoke-Gcloud builds submit --tag $image --project=$ProjectId
+        Write-Ok "Image $image"
     }
 
-    if (-not $envMap.ContainsKey("NEXTAUTH_SECRET")) {
-        $bytes = New-Object byte[] 32
-        (New-Object System.Security.Cryptography.RNGCryptoServiceProvider).GetBytes($bytes)
-        $envMap["NEXTAUTH_SECRET"] = [Convert]::ToBase64String($bytes)
+    # -- 8. Settings for the service ------------------------------------------
+    $serviceUrl = "https://$ServiceName-$projectNumber.$Region.run.app" # Cloud Run's address is known before the first deploy
+    $plain = @{
+        NODE_ENV               = "production"
+        DEPLOYMENT_TARGET      = "cloud"
+        STORAGE_PROVIDER       = "gcs"
+        GCS_BUCKET_NAME        = $BucketName
+        GOOGLE_CLOUD_PROJECT   = $ProjectId
+        GOOGLE_CLOUD_LOCATION  = $Region
+        NEXTAUTH_URL           = $serviceUrl
+        APP_URL                = $serviceUrl
+        TRUSTED_PROXY_COUNT    = "1"
     }
-
-    # PII_ENCRYPTION_KEY protects buyers' PAN and Aadhaar numbers. It must be the SAME on every deploy, so it is never
-    # generated here: a new random key on each deploy would make the stored numbers unreadable.
-    if (-not $envMap.ContainsKey("PII_ENCRYPTION_KEY") -or [string]::IsNullOrWhiteSpace([string]$envMap["PII_ENCRYPTION_KEY"])) {
-        Write-Error "PII_ENCRYPTION_KEY is missing from your env file. Create one once with: openssl rand -base64 32 , add it to the file, and keep a copy apart from the database. Then, if the database already has buyers, run: npm run db:encrypt-pii"
-        exit 1
-    }
-
-    # Default temporary URLs if not present (will be updated after first deploy)
-    if (-not $envMap.ContainsKey("NEXTAUTH_URL")) {
-        $envMap["NEXTAUTH_URL"] = "https://$ServiceName-$Region.a.run.app"
-    }
-    if (-not $envMap.ContainsKey("APP_URL")) {
-        $envMap["APP_URL"] = $envMap["NEXTAUTH_URL"]
-    }
-
-    # Format into temporary YAML file for gcloud --env-vars-file
-    # This cleanly handles long tokens (e.g. WhatsApp access token) and special characters
-    $yamlPath = Join-Path $PSScriptRoot ".env.cloudrun.yaml"
-    $yamlLines = @()
     foreach ($k in $envMap.Keys) {
-        $v = [string]$envMap[$k]
-        $escV = $v.Replace('\', '\\').Replace('"', '\"')
-        $yamlLines += "$k`: `"$escV`""
+        if ($optionalSecrets -contains $k -or @("PII_ENCRYPTION_KEY", "DATABASE_URL", "NEXTAUTH_SECRET", "CRON_SECRET", "NEXTAUTH_URL", "APP_URL") -contains $k) { continue }
+        $plain[$k] = $envMap[$k]
     }
-    $yamlLines | Set-Content -Path $yamlPath -Encoding UTF8
-
-    # ── 7. Build Container Image with Cloud Build ────────────────
-    Write-Step "Building Container Image using Google Cloud Build"
-
-    $imageTag = "$Region-docker.pkg.dev/$ProjectId/$repoName/${ServiceName}:latest"
-    Write-Info "Target Image: $imageTag"
-    Write-Info "Submitting build to Google Cloud Build (runs remotely, no local Docker needed)..."
-
-    gcloud builds submit --tag $imageTag --project=$ProjectId
-    if ($LASTEXITCODE -ne 0) {
-        throw "Google Cloud Build failed with exit code $LASTEXITCODE. Check build logs for details."
+    $yamlPath = [IO.Path]::GetTempFileName()
+    $yaml = foreach ($k in $plain.Keys) {
+        $v = ([string]$plain[$k]).Replace('\', '\\').Replace('"', '\"')
+        '{0}: "{1}"' -f $k, $v
     }
+    [IO.File]::WriteAllLines($yamlPath, $yaml, (New-Object Text.UTF8Encoding($false)))
+    $secretMap = ($secretNames | ForEach-Object { "$_=${_}:latest" }) -join ","
 
-    Write-Success "Container image built and pushed to Artifact Registry."
+    # -- 9. Migrations (a Cloud Run job: same image, same Cloud SQL connection) ----
+    Write-Step "Database migrations"
+    Invoke-Gcloud run jobs deploy "$ServiceName-migrate" --image=$image --region=$Region --service-account=$runSa `
+        --set-cloudsql-instances=$sqlConnection --set-secrets="DATABASE_URL=DATABASE_URL:latest" `
+        --command=node --args="node_modules/prisma/build/index.js,migrate,deploy" --max-retries=0 --task-timeout=600 --project=$ProjectId
+    Invoke-Gcloud run jobs execute "$ServiceName-migrate" --region=$Region --wait --project=$ProjectId
+    Write-Ok "Migrations applied"
 
-    # ── 8. Deploy to Cloud Run ────────────────────────────────────
-    Write-Step "Deploying to Google Cloud Run"
-
-    Write-Info "Service: $ServiceName"
-    Write-Info "Memory: $Memory | CPU: $Cpu | Min: $MinInstances | Max: $MaxInstances"
-
-    gcloud run deploy $ServiceName `
-        --image $imageTag `
-        --region $Region `
-        --platform managed `
-        --allow-unauthenticated `
-        --memory $Memory `
-        --cpu $Cpu `
-        --min-instances $MinInstances `
-        --max-instances $MaxInstances `
-        --timeout $Timeout `
-        --execution-environment gen2 `
-        --env-vars-file $yamlPath `
-        --project=$ProjectId
-
-    # Clean up temporary YAML file
-    if (Test-Path $yamlPath) {
-        Remove-Item $yamlPath -Force -ErrorAction SilentlyContinue
+    if ($Seed) {
+        Write-Step "Demo data (-Seed)"
+        Invoke-Gcloud run jobs deploy "$ServiceName-seed" --image=$image --region=$Region --service-account=$runSa `
+            --set-cloudsql-instances=$sqlConnection --set-secrets="DATABASE_URL=DATABASE_URL:latest" `
+            --command=node --args="node_modules/tsx/dist/cli.mjs,prisma/seed.ts" --max-retries=0 --task-timeout=600 --project=$ProjectId
+        Invoke-Gcloud run jobs execute "$ServiceName-seed" --region=$Region --wait --project=$ProjectId
+        Write-Info "The seed prints a generated demo password once. Read it in the job's log:"
+        Write-Info "  https://console.cloud.google.com/run/jobs/details/$Region/$ServiceName-seed/logs?project=$ProjectId"
     }
 
-    # ── 9. Fetch Live URL and Finalize Configuration ────────────
-    Write-Step "Finalizing Deployment"
+    # -- 10. Deploy the service ------------------------------------------------
+    Write-Step "Deploying to Cloud Run"
+    Invoke-Gcloud run deploy $ServiceName --image=$image --region=$Region --platform=managed --allow-unauthenticated `
+        --service-account=$runSa --add-cloudsql-instances=$sqlConnection `
+        --memory=$Memory --cpu=$Cpu --cpu-boost --min-instances=$MinInstances --max-instances=$MaxInstances --timeout=$Timeout `
+        --execution-environment=gen2 --env-vars-file=$yamlPath --set-secrets=$secretMap --project=$ProjectId
+    Remove-Item $yamlPath -Force -ErrorAction SilentlyContinue
 
-    $serviceUrl = gcloud run services describe $ServiceName --region $Region --project=$ProjectId --format="value(status.url)"
-
-    Write-Info "Assigned Cloud Run URL: $serviceUrl"
-
-    # If the NEXTAUTH_URL was a placeholder or differed from actual URL, update it
-    if ($envMap["NEXTAUTH_URL"] -ne $serviceUrl -or $envMap["APP_URL"] -ne $serviceUrl) {
-        Write-Info "Updating NEXTAUTH_URL and APP_URL environment variables to match $serviceUrl..."
-        gcloud run services update $ServiceName `
-            --region $Region `
-            --update-env-vars "NEXTAUTH_URL=$serviceUrl,APP_URL=$serviceUrl" `
-            --project=$ProjectId
+    $liveUrl = (& gcloud run services describe $ServiceName --region=$Region --project=$ProjectId --format="value(status.url)").Trim()
+    if ($liveUrl -ne $serviceUrl) {
+        Write-Info "Cloud Run gave ${liveUrl}: updating NEXTAUTH_URL and APP_URL to match"
+        Invoke-Gcloud run services update $ServiceName --region=$Region --update-env-vars="NEXTAUTH_URL=$liveUrl,APP_URL=$liveUrl" --project=$ProjectId
+        $serviceUrl = $liveUrl
     }
 
-    Write-Host "`n========================================================" -ForegroundColor Cyan
-    Write-Host " 🎉 DEPLOYMENT COMPLETED SUCCESSFULLY!" -ForegroundColor Green
-    Write-Host "========================================================" -ForegroundColor Cyan
-    Write-Host "`n Application URL: $serviceUrl" -ForegroundColor Yellow
-    Write-Host " Health Check:    $serviceUrl/api/health" -ForegroundColor Yellow
-    Write-Host " GCS Bucket:      gs://$BucketName" -ForegroundColor Yellow
-    Write-Host " Region:          $Region" -ForegroundColor Yellow
+    # -- 11. Cloud Scheduler: the daily interest, overdue and reminders job ------
+    Write-Step "Cloud Scheduler (daily job at 09:00 India time)"
+    $cron = (& gcloud secrets versions access latest --secret=CRON_SECRET --project=$ProjectId).Trim()
+    $schedulerAction = "create"
+    if (Test-Gcloud scheduler jobs describe "$ServiceName-daily" --location=$Region --project=$ProjectId) { $schedulerAction = "update" }
+    Invoke-Gcloud scheduler jobs $schedulerAction http "$ServiceName-daily" --location=$Region --schedule="0 9 * * *" --time-zone="Asia/Kolkata" `
+        --uri="$serviceUrl/api/cron/daily" --http-method=POST --headers="Authorization=Bearer $cron" --attempt-deadline=180s --project=$ProjectId
+    Write-Ok "Scheduler job $ServiceName-daily"
 
-    Write-Host "`n Next Steps:" -ForegroundColor Cyan
-    Write-Host " 1. Ensure your database tables are created on Supabase by running:" -ForegroundColor White
-    Write-Host "    `$env:DATABASE_URL=`"$($envMap['DATABASE_URL'])`"; npx prisma migrate deploy" -ForegroundColor Gray
-    Write-Host " 2. (Optional) Seed the database with initial admin user & test data:" -ForegroundColor White
-    Write-Host "    `$env:DATABASE_URL=`"$($envMap['DATABASE_URL'])`"; npx prisma db seed" -ForegroundColor Gray
-    Write-Host " 3. Open $serviceUrl in your browser to sign in." -ForegroundColor White
-    Write-Host ""
-
-} catch {
-    Write-ErrorMsg "Deployment failed: $_"
-    Write-Host "Check the logs above for specific error details." -ForegroundColor Yellow
+    # -- Done ----------------------------------------------------------------------
+    Write-Host "`n== DONE" -ForegroundColor Green
+    Write-Host "   App:          $serviceUrl" -ForegroundColor Yellow
+    Write-Host "   Health check: $serviceUrl/api/health" -ForegroundColor Yellow
+    Write-Host "   Database:     Cloud SQL $sqlConnection" -ForegroundColor Yellow
+    Write-Host "   Documents:    gs://$BucketName" -ForegroundColor Yellow
+    Write-Host "   Gemini:       Vertex AI, $Region (model: gemini-3.5-flash unless GEMINI_MODEL is set)" -ForegroundColor Yellow
+    try {
+        $health = Invoke-RestMethod -Uri "$serviceUrl/api/health" -TimeoutSec 60
+        Write-Host "   Health now:   $($health | ConvertTo-Json -Compress)" -ForegroundColor Green
+    } catch {
+        Write-Host "   The health check did not answer yet; open $serviceUrl/api/health in a minute." -ForegroundColor Yellow
+    }
+    if (-not $Seed) { Write-Host "`n   A new database has no users. Run again with -Seed to load the demo users, or create the first administrator yourself." -ForegroundColor White }
+}
+catch {
+    Write-Host "`n   FAILED: $_" -ForegroundColor Red
     exit 1
 }

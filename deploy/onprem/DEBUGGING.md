@@ -92,16 +92,16 @@ Set it back to `info` afterwards and restart again, because debug logs are large
 
 ## 5. Check the settings the app was started with
 
-Whether a secret is set, without printing it (replace `AZAPI_TOKEN` with the name you are checking):
+Whether a secret is set, without printing it (replace `GOOGLE_CLOUD_PROJECT` with the name you are checking):
 
 ```bash
-docker compose exec web sh -c 'test -n "$AZAPI_TOKEN" && echo set || echo MISSING'
+docker compose exec web sh -c 'test -n "$GOOGLE_CLOUD_PROJECT" && echo set || echo MISSING'
 ```
 
-Whether the server can reach the OCR service:
+Whether the server can reach Google's document reader (Vertex AI). Any answer, even an error page, means it can; a timeout means the firewall blocks it:
 
 ```bash
-docker compose exec web sh -c 'wget -qO- --server-response https://ocr.azapi.ai 2>&1 | head -3'
+docker compose exec web sh -c 'wget -qO- --server-response https://asia-south1-aiplatform.googleapis.com 2>&1 | head -3'
 ```
 
 ## 6. Look inside the container
