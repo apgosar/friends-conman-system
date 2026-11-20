@@ -61,8 +61,13 @@ function Write-Ok   { param([string]$Message) Write-Host "   OK  $Message" -Fore
 # Runs gcloud and stops the script when it fails. Only the first words of the command are shown in the error, because some
 # commands carry a password in their arguments.
 function Invoke-Gcloud {
+    # gcloud prints harmless warnings on stderr (for example about the quota project): they must not stop the script, only its exit code does
+    $previous = $ErrorActionPreference
+    $ErrorActionPreference = "Continue"
     & gcloud @args
-    if ($LASTEXITCODE -ne 0) { throw "gcloud $(($args | Select-Object -First 3) -join ' ') failed (exit code $LASTEXITCODE)" }
+    $code = $LASTEXITCODE
+    $ErrorActionPreference = $previous
+    if ($code -ne 0) { throw "gcloud $(($args | Select-Object -First 3) -join ' ') failed (exit code $code)" }
 }
 
 # True when the gcloud command succeeds; used to ask "does this exist already?" without printing errors
