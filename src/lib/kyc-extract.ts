@@ -8,10 +8,9 @@
  */
 import { Type } from '@google/genai'
 import type { Schema } from '@google/genai'
-import { fail, HttpError } from '@/lib/errors'
-import { logger } from '@/lib/logger'
-import { GEMINI_MODEL, geminiClient, googleErrorStatus } from '@/lib/google-ai'
-import { cleanAadhaar, cleanPan, cleanText, sniffMimeType } from '@/lib/kyc-fields'
+import { fail } from '@/lib/errors'
+import { geminiFailure, geminiJson, parseModelJson } from '@/lib/google-ai'
+import { checkReadableFile, cleanAadhaar, cleanPan, cleanText, MAX_READ_BYTES } from '@/lib/kyc-fields'
 
 export type KycDocType = 'PAN' | 'AADHAAR'
 
@@ -29,7 +28,7 @@ export interface KycReading {
 }
 
 /** The most a card photo or PDF can be: Gemini takes the file inside the request. */
-export const MAX_KYC_BYTES = 10 * 1024 * 1024
+export const MAX_KYC_BYTES = MAX_READ_BYTES
 
 /** Sends the document and returns the model's JSON text. Replaced in tests, so no Google call is made. */
 export type KycGenerator = (args: { docType: KycDocType; bytes: Uint8Array; mimeType: string }) => Promise<string>
@@ -70,50 +69,21 @@ const RESPONSE_SCHEMA: Schema = {
 }
 
 /** The real reader: one Gemini call with the document and the schema. */
-const readWithGemini: KycGenerator = async ({ docType, bytes, mimeType }) => {
-  const response = await geminiClient().models.generateContent({
-    model: GEMINI_MODEL,
-    contents: [{ role: 'user', parts: [{ inlineData: { mimeType, data: Buffer.from(bytes).toString('base64') } }, { text: PROMPTS[docType] }] }],
-    config: {
-      systemInstruction: SYSTEM_INSTRUCTION,
-      temperature: 0, // reading is not creative: the same card should give the same answer
-      responseMimeType: 'application/json',
-      responseSchema: RESPONSE_SCHEMA,
-      httpOptions: { timeout: 45_000 },
-    },
-  })
-  return response.text ?? ''
-}
+const readWithGemini: KycGenerator = ({ docType, bytes, mimeType }) =>
+  geminiJson({ systemInstruction: SYSTEM_INSTRUCTION, prompt: PROMPTS[docType], schema: RESPONSE_SCHEMA, file: { bytes, mimeType } })
 
 const DOC_NAME: Record<KycDocType, string> = { PAN: 'PAN card', AADHAAR: 'Aadhaar card' }
 
 export async function extractKyc(docType: KycDocType, bytes: Uint8Array, generate: KycGenerator = readWithGemini): Promise<KycReading> {
-  if (bytes.length === 0) throw fail('invalid', 'The file is empty. Upload the document again')
-  if (bytes.length > MAX_KYC_BYTES) throw fail('invalid', 'The file is too large. Upload one under 10 MB')
-  const mimeType = sniffMimeType(bytes)
-  if (!mimeType) throw fail('invalid', 'Upload a photo (JPG, PNG) or a PDF of the document')
+  const mimeType = checkReadableFile(bytes)
 
   let text: string
   try {
     text = await generate({ docType, bytes, mimeType })
   } catch (err) {
-    if (err instanceof HttpError) throw err // e.g. "not set up": already worded for the person
-    const status = googleErrorStatus(err)
-    logger.error({ err, status, docType }, 'KYC reading: the Gemini call failed') // never the document or what was read
-    if (status === 429) throw fail('tooManyRequests', 'Reading documents is busy right now. Try again in a minute')
-    if (status !== undefined && status < 500 && status !== 408) throw fail('unavailable', 'Reading documents is not available right now. Enter the details by hand')
-    throw fail('unavailable', 'Reading the document took too long. Try again, or enter the details by hand')
+    throw geminiFailure(err, 'Reading documents', { docType }, 'Enter the details by hand') // never logs the document or what was read
   }
-
-  let parsed: Record<string, unknown>
-  try {
-    const value: unknown = JSON.parse(text)
-    if (typeof value !== 'object' || value === null || Array.isArray(value)) throw new Error('not an object')
-    parsed = value as Record<string, unknown>
-  } catch {
-    logger.warn({ docType }, 'KYC reading: the answer was not valid JSON')
-    throw fail('server', 'The document could not be read. Try a clearer photo, or enter the details by hand')
-  }
+  const parsed = parseModelJson(text, { docType }, 'The document could not be read. Try a clearer photo, or enter the details by hand')
 
   if (parsed.documentMatches !== true) {
     throw fail('invalid', `This does not look like a ${DOC_NAME[docType]}. Upload the ${DOC_NAME[docType]}`)

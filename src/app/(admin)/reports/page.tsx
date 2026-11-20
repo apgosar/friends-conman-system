@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from 'react'
 import TopNav from '@/components/layout/TopNav'
+import AskYourData from '@/components/reports/AskYourData'
 import { UNIT_COLORS, unitStatusLabel } from '@/lib/status'
 import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
@@ -108,6 +109,8 @@ export default function ReportsPage() {
         />
 
         {loadError && <Alert variant="danger" className="mb-4">{loadError}</Alert>}
+
+        <AskYourData />
 
         <div className="grid grid-auto gap-4 mb-6">
           <StatCard icon="📋" label="Total Sales" value={String(kpis?.totalSalesCount ?? 0)} note={`${fmt(kpis?.totalSalesValue ?? 0)} total value`} accent="var(--chart-1)" />

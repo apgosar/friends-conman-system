@@ -10,6 +10,10 @@ import { PAYMENT_MODES } from '@/lib/status'
 import { isOfflineCharge } from '@/lib/payment-plans'
 import { highlightField } from '@/lib/client/forms'
 import { INTEREST_ORDERS, splitPayment, standingOfSchedule, type InterestOrder } from '@/lib/interest'
+import type { PaymentDocType, PaymentFields } from '@/lib/payment-extract'
+
+// What the document reader calls each field, in the words shown to the person (see /api/extract-payment)
+const READ_FIELD_LABEL: Partial<Record<keyof PaymentFields, string>> = { amount: 'amount', paymentDate: 'date', referenceNumber: 'reference number', bankName: 'bank name' }
 
 /** The interest settings the page attaches to each demand it passes in (see interestPolicyOf in lib/interest.ts). */
 type SchedulePolicy = { enabled: boolean; ratePercent: number; graceDays: number; defaultOrder: InterestOrder }
@@ -68,6 +72,8 @@ export function RecordPaymentDialog({ schedules, saleId, initialScheduleId, onCl
   const [remark, setRemark] = useState('')
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
+  const [reading, setReading] = useState<PaymentDocType | null>(null) // which kind of document is being read
+  const [readResult, setReadResult] = useState<{ variant: 'success' | 'warning' | 'danger'; text: string } | null>(null)
 
   const selected = outstanding.find((o) => o.schedule.id === scheduleId)
   const showInterest = !!selected && (selected.interest > 0 || num(interest) > 0 || !!selected.schedule.interestPolicy?.enabled)
@@ -113,6 +119,43 @@ export function RecordPaymentDialog({ schedules, saleId, initialScheduleId, onCl
   const changeComponent = (set: (v: string) => void, value: string, parts: { interest: string; principal: string }) => {
     set(value)
     setTotal(text(num(parts.interest) + num(parts.principal)))
+  }
+
+  /** Gemini reads a cheque or a bank slip and the screen is filled with what it found. The person still checks every field and saves. */
+  const readDocument = async (docType: PaymentDocType, file: File) => {
+    setReading(docType)
+    setReadResult(null)
+    setError('')
+    try {
+      const form = new FormData()
+      form.append('file', file)
+      form.append('docType', docType)
+      const json = await fetchJson('/api/extract-payment', { method: 'POST', body: form })
+      const data = json.data as PaymentFields
+      // The interest owed depends on the date, so the amounts are worked out for the date that was read
+      const date = data.paymentDate ?? paymentDate
+      if (data.paymentDate) setPaymentDate(date)
+      const owed = selected ? outstandingOf(selected.schedule, new Date(date || today())) : undefined
+      if (data.amount !== undefined) { setTotal(text(data.amount)); applySplit(data.amount, owed, order, kind) }
+      else if (data.paymentDate) fill(owed, order, kind)
+      if (data.mode) setMode(data.mode)
+      if (data.bankName) setBankName(data.bankName)
+      if (data.referenceNumber) setReferenceNumber(data.referenceNumber)
+
+      const missing = ((json.missing ?? []) as (keyof PaymentFields)[]).map((k) => READ_FIELD_LABEL[k] ?? k)
+      const notes = (json.notes ?? []) as string[]
+      const from = docType === 'CHEQUE' ? 'cheque' : 'slip'
+      if (missing.length > 0 || notes.length > 0) {
+        const unread = missing.length > 0 ? `Could not read the ${missing.join(', ')} clearly. Please enter ${missing.length > 1 ? 'them' : 'it'}` : ''
+        setReadResult({ variant: 'warning', text: [unread, ...notes].filter(Boolean).join('. ') })
+      } else {
+        setReadResult({ variant: 'success', text: `Read from the ${from}${data.payerName ? `, paid by ${data.payerName}` : ''}. Check every field before saving` })
+      }
+    } catch (err) {
+      setReadResult({ variant: 'danger', text: errorMessage(err) })
+    } finally {
+      setReading(null)
+    }
   }
 
   const interestNum = kind === 'PRINCIPAL' ? num(interest) : 0
@@ -168,6 +211,24 @@ export function RecordPaymentDialog({ schedules, saleId, initialScheduleId, onCl
       }
     >
       <form id="record-payment-form" className="stack" onSubmit={submit}>
+        <div className="flex gap-3 p-3 items-center wrap card-flat">
+          <span className="text-base font-medium text-secondary">
+            ✨ Fill from a document
+            {reading && <span className="text-brand"> (Reading...)</span>}
+          </span>
+          {([['CHEQUE', 'Upload cheque'], ['SLIP', 'Upload bank slip']] as const).map(([docType, label]) => (
+            <label key={docType} className="btn btn-ghost btn-sm file-btn">
+              {label}
+              <input type="file" hidden disabled={!!reading || !selected} accept="image/*,application/pdf" onChange={(e) => {
+                const file = e.target.files?.[0]
+                if (file) readDocument(docType, file)
+                e.target.value = '' // so the same file can be chosen again
+              }} />
+            </label>
+          ))}
+          {readResult && <Alert variant={readResult.variant} className="w-full">{readResult.text}</Alert>}
+        </div>
+
         <SelectField
           label="Against Demand" required value={scheduleId} onChange={(e) => selectSchedule(e.target.value)}
           hint={selected ? `Outstanding: Principal ${formatCurrency(selected.principal)} · GST ${formatCurrency(selected.gst)}${showInterest ? ` · Interest ${formatCurrency(selected.interest)}` : ''}` : undefined}

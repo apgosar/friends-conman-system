@@ -182,6 +182,7 @@
 .text-secondary { color: var(--text-secondary); }
 .text-muted { color: var(--text-muted); }
 .text-disabled { color: var(--text-disabled); }
+.pre-wrap { white-space: pre-wrap; overflow-wrap: anywhere; } /* text that has its own line breaks, e.g. an answer with a list */
 .text-success { color: var(--color-success); }
 .text-danger { color: var(--color-danger); }
 .text-warning { color: var(--color-warning); }

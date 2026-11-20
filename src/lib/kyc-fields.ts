@@ -7,7 +7,12 @@
  * Pure functions, no I/O, so they are tested without any service.
  */
 
+import { fail } from '@/lib/errors'
+
 export const PAN_PATTERN = /^[A-Z]{5}[0-9]{4}[A-Z]$/
+
+/** The most a document photo or PDF can be: Gemini takes the file inside the request. */
+export const MAX_READ_BYTES = 10 * 1024 * 1024
 
 // Verhoeff checksum tables (the check Aadhaar numbers use)
 const D = [
@@ -71,4 +76,13 @@ export function sniffMimeType(bytes: Uint8Array): 'application/pdf' | 'image/jpe
   if (head(8).equals(Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]))) return 'image/png'
   if (head(4).toString('latin1') === 'RIFF' && Buffer.from(bytes.subarray(8, 12)).toString('latin1') === 'WEBP') return 'image/webp'
   return undefined
+}
+
+/** The file type of an upload that may be sent to the reader; throws a plain "invalid" error when it is empty, too large or not a photo or PDF. */
+export function checkReadableFile(bytes: Uint8Array): NonNullable<ReturnType<typeof sniffMimeType>> {
+  if (bytes.length === 0) throw fail('invalid', 'The file is empty. Upload the document again')
+  if (bytes.length > MAX_READ_BYTES) throw fail('invalid', 'The file is too large. Upload one under 10 MB')
+  const mimeType = sniffMimeType(bytes)
+  if (!mimeType) throw fail('invalid', 'Upload a photo (JPG, PNG) or a PDF of the document')
+  return mimeType
 }

@@ -9,6 +9,8 @@ import { uploadFile } from '@/lib/storage'
 import { DOCX_MIME, templateSlot } from '@/lib/template-constants'
 import { TemplateValidationError, extractDocxText, templateWarnings, validateDocx, validateHtmlTemplate, validateTemplateMeta } from '@/lib/template-validation'
 import { createAuditLog } from '@/lib/audit'
+import { applyApprovedTags } from '@/lib/template-tagging'
+import { HttpError } from '@/lib/errors'
 
 export async function GET(req: NextRequest, props: { params: Promise<{ id: string }> }) {
   const session = await auth()
@@ -47,8 +49,11 @@ export async function POST(req: NextRequest, props: { params: Promise<{ id: stri
     let warnings: string[] = []
 
     if (file instanceof File && file.size > 0) {
-      const buffer = Buffer.from(await file.arrayBuffer())
+      let buffer: Buffer = Buffer.from(await file.arrayBuffer())
       validateDocx(buffer, file.name, file.type)
+      // Tags the person approved from Gemini's suggestions (see suggest-tags) are put into the letter before it is stored
+      const approved = form.get('tags')
+      if (typeof approved === 'string' && approved) buffer = applyApprovedTags(buffer, type, approved).buffer
       warnings = templateWarnings(type, 'DOCX', extractDocxText(buffer))
       fileUrl = await uploadFile({ buffer, mimeType: DOCX_MIME, folder: 'uploads', fileName: `${crypto.randomUUID()}.docx` })
     } else {
@@ -76,6 +81,7 @@ export async function POST(req: NextRequest, props: { params: Promise<{ id: stri
     if (error instanceof TemplateValidationError) {
       return apiError('invalid', error.message)
     }
+    if (error instanceof HttpError) return apiError(error.kind, error.message)
     logger.error({ err: error }, '[templates POST]')
     return apiError('server')
   }
