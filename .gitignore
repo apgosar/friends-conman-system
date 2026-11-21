@@ -70,3 +70,6 @@ license*.jwt
 # local dev file storage (STORAGE_PROVIDER=local)
 .storage/
 visual-out/
+
+# Startup Buildathon submission files (decks and exports): kept on this computer, not in the repository
+buildathon/
