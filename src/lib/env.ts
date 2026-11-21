@@ -43,6 +43,10 @@ const ENV_VARS: EnvVar[] = [
   { key: 'GOOGLE_CLOUD_PROJECT', required: false, description: 'Google Cloud project that Gemini (Vertex AI) is called in' },
   { key: 'GOOGLE_CLOUD_LOCATION', required: false, description: 'Vertex AI region (default asia-south1)' },
   { key: 'GEMINI_MODEL', required: false, description: 'Gemini model id that reads documents (default gemini-3.5-flash)' },
+
+  // Demo deployments only: the sign-in page fills these in for visitors (see lib/demo-login.ts). Leave empty for a real customer.
+  { key: 'DEMO_LOGIN_EMAIL', required: false, description: 'Email the sign-in page pre-fills on a demo deployment' },
+  { key: 'DEMO_LOGIN_PASSWORD', required: false, description: 'Password the sign-in page pre-fills on a demo deployment (shown to every visitor)' },
 ]
 
 const PLACEHOLDER_PATTERNS = [

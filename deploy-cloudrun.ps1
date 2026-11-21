@@ -237,7 +237,7 @@ try {
     }
 
     # Secrets taken from the env file when it has a value (their key is the secret's name)
-    $optionalSecrets = @("GMAIL_APP_PASSWORD", "WHATSAPP_ACCESS_TOKEN", "SMTP_PASS")
+    $optionalSecrets = @("GMAIL_APP_PASSWORD", "WHATSAPP_ACCESS_TOKEN", "SMTP_PASS", "DEMO_LOGIN_PASSWORD")
     foreach ($name in $optionalSecrets) {
         if ($envMap.ContainsKey($name)) { Set-SecretValue $name $envMap[$name] }
     }
@@ -323,9 +323,10 @@ try {
     Write-Step "Cloud Scheduler (daily job at 09:00 India time)"
     $cron = (& gcloud secrets versions access latest --secret=CRON_SECRET --project=$ProjectId).Trim()
     $schedulerAction = "create"
-    if (Test-Gcloud scheduler jobs describe "$ServiceName-daily" --location=$Region --project=$ProjectId) { $schedulerAction = "update" }
+    $headersFlag = "--headers"          # a new job takes --headers; changing an existing one needs --update-headers
+    if (Test-Gcloud scheduler jobs describe "$ServiceName-daily" --location=$Region --project=$ProjectId) { $schedulerAction = "update"; $headersFlag = "--update-headers" }
     Invoke-Gcloud scheduler jobs $schedulerAction http "$ServiceName-daily" --location=$Region --schedule="0 9 * * *" --time-zone="Asia/Kolkata" `
-        --uri="$serviceUrl/api/cron/daily" --http-method=POST --headers="Authorization=Bearer $cron" --attempt-deadline=180s --project=$ProjectId
+        --uri="$serviceUrl/api/cron/daily" --http-method=POST "${headersFlag}=Authorization=Bearer $cron" --attempt-deadline=180s --project=$ProjectId
     Write-Ok "Scheduler job $ServiceName-daily"
 
     # -- Done ----------------------------------------------------------------------
