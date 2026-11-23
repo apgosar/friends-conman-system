@@ -153,7 +153,8 @@ export async function createSale(input: SaleCreateInput, actorId: string) {
     const sentRows = input.paymentSchedules ?? []
     const planRows = sentRows.filter((ps) => ps.description !== OTHER_CHARGES_LABEL)
     const sentOther = sentRows.find((ps) => ps.description === OTHER_CHARGES_LABEL)
-    const otherMilestoneId = sentOther?.milestoneId ?? [...planRows].reverse().find((ps) => ps.milestoneId)?.milestoneId ?? null
+    // (the other charges of a plan that sent them on a date follow that date, not a milestone)
+    const otherMilestoneId = sentOther?.autoRaise ? null : sentOther?.milestoneId ?? [...planRows].reverse().find((ps) => ps.milestoneId)?.milestoneId ?? null
     const schedules = other.total > 0 && planRows.length > 0
       ? [...planRows, { milestoneId: otherMilestoneId, description: OTHER_CHARGES_LABEL, principalAmount: other.total, gstAmount: 0, raiseOn: sentOther?.raiseOn, autoRaise: sentOther?.autoRaise }]
       : planRows

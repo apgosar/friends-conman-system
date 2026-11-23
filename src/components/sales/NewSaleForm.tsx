@@ -49,6 +49,8 @@ type Buyer = { id?: string; fullName: string; panNumber: string; aadhaarNumber: 
 // A row of a date-based plan has autoRaise and raiseOn (yyyy-mm-dd): the demand is raised and sent on that day. `raised`: it already was.
 type ScheduleRow = { id?: string; milestoneId: string; description: string; principalAmount: number; gstAmount: number; isBooking?: boolean; sequence: number; percentOfAV?: number; paidPrincipal?: number; paidGst?: number; autoRaise?: boolean; raiseOn?: string; raised?: boolean }
 type PlanKind = 'MILESTONE' | 'DATED'
+// The possession is paid when it is handed over, so it has no date to send its demand on (the date is optional for it)
+const isPossession = (description: string) => /possession/i.test(description)
 
 /** A sale being edited: what the screen starts with. Money and parking are as saved; buyers carry only the masked PAN and Aadhaar. */
 export interface EditingSale {
@@ -77,7 +79,7 @@ export interface EditingSale {
 const emptyBuyer = (): Buyer => ({ fullName: '', panNumber: '', aadhaarNumber: '', address: '', email: '', whatsappNumber: '' })
 
 // ─── Step indicator ──────────────────────────────────────────
-import { Alert, AmountInWords, Button, CheckboxField, Input, PhoneField, SelectField, StepBar, Stepper, Table, Td, TextField, TextareaField, useConfirm } from '@/components/ui'
+import { Alert, AmountInWords, Button, CheckboxField, Input, PhoneField, SelectField, StepBar, Stepper, Table, Td, TextField, Textarea, TextareaField, useConfirm } from '@/components/ui'
 import { ApiError, errorMessage, fetchJson, jsonRequest } from '@/lib/client/api'
 import KycPasswordModal from './KycPasswordModal'
 import NameMismatchModal from './NameMismatchModal'
@@ -377,7 +379,7 @@ export default function NewSaleWizard({ projects, prefill = null, preselect = nu
   // A date-based plan: the booking (when an amount was entered), the instalments typed here, then the charges. Instalments already
   // in the list are kept as they are; the booking and the charges are worked out again from the sale's figures.
   const buildDatedSchedule = (keep: ScheduleRow[]): ScheduleRow[] => {
-    const instalments = keep.filter(r => r.autoRaise && !isStandaloneCharge(r.description) && r.description !== OTHER_CHARGES_LABEL)
+    const instalments = keep.filter(isInstalment)
     const rows: ScheduleRow[] = []
     const booking = bookingAmount !== '' ? Number(bookingAmount) : 0
     if (booking > 0) rows.push({ milestoneId: '', description: BOOKING_LABEL, sequence: 0, principalAmount: booking, gstAmount: gstOn(pricing, booking), isBooking: true, percentOfAV: Number(((booking / agreementValue) * 100).toFixed(2)) })
@@ -435,7 +437,11 @@ export default function NewSaleWizard({ projects, prefill = null, preselect = nu
   }
 
   // ── Step 2: the instalments of a date-based plan ─────────
-  const isInstalment = (r: ScheduleRow) => !!r.autoRaise && !isStandaloneCharge(r.description) && r.description !== OTHER_CHARGES_LABEL
+  const isInstalment = (r: ScheduleRow) => (!!r.autoRaise || (isPossession(r.description) && !r.isBooking)) && !isStandaloneCharge(r.description) && r.description !== OTHER_CHARGES_LABEL
+  // What raises a row of a date-based plan: its date, or (a possession with no date) the project's possession milestone being completed
+  const possessionMilestone = (selectedProject as { possessionMilestone?: { id: string; name: string } | null } | undefined)?.possessionMilestone ?? null
+  const triggerOf = (r: ScheduleRow | undefined): { autoRaise?: boolean; raiseOn?: string; milestoneId?: string } =>
+    !r ? {} : r.raiseOn ? { autoRaise: true, raiseOn: r.raiseOn } : isPossession(r.description) && possessionMilestone ? { milestoneId: possessionMilestone.id } : {}
   const changePlanKind = (kind: PlanKind) => {
     setPlanKind(kind)
     setSchedules(kind === 'DATED' ? buildDatedSchedule([]) : rowsFor(paymentPlan))
@@ -470,7 +476,9 @@ export default function NewSaleWizard({ projects, prefill = null, preselect = nu
   }
 
   // ── Step 2 → create sale + schedules ────────────────────
-  const lastInstalmentDate = [...schedules].reverse().find(isInstalment)?.raiseOn
+  const lastInstalment = [...schedules].reverse().find(isInstalment)
+  const lastInstalmentDate = lastInstalment?.raiseOn || undefined
+  const lastTrigger = triggerOf(lastInstalment)
   const goToStep3 = async () => {
     setError('')
     if (editing && reason.trim().length < 3) { setReasonError('Say why the sale is being changed'); scrollToFirstInvalid(); return }
@@ -502,12 +510,13 @@ export default function NewSaleWizard({ projects, prefill = null, preselect = nu
           const withLast = dated && (s.description === OTHER_CHARGES_LABEL || s.description.startsWith('Car Parking'))
           return {
             id: s.id,
-            milestoneId: s.milestoneId || undefined,
+            milestoneId: (dated ? undefined : s.milestoneId) || undefined,
             isBooking: s.isBooking || undefined,
             description: s.description.trim(),
             principalAmount: s.principalAmount,
             gstAmount: s.gstAmount,
-            ...(isInstalment(s) ? { autoRaise: true, raiseOn: s.raiseOn } : withLast ? { autoRaise: true, raiseOn: lastInstalmentDate } : {}),
+            // Raised on its date, or (a possession with no date) when the project's possession milestone is completed; else by hand from the sale page
+            ...(isInstalment(s) ? triggerOf(s) : withLast ? lastTrigger : {}),
           }
         })
       }
@@ -553,6 +562,9 @@ export default function NewSaleWizard({ projects, prefill = null, preselect = nu
   const totalGst = schedules.reduce((s, r) => s + r.gstAmount, 0)
   const grandTotal = totalPrincipal + totalGst
 
+  // A date-based plan totals only the agreement value (booking and instalments); the stamp duty, other charges and parking are shown apart, with no GST
+  const planGst = schedules.reduce((s, r) => s + (r.percentOfAV !== undefined ? r.gstAmount : 0), 0)
+  const chargeOf = (label: string) => schedules.filter(r => r.description.startsWith(label)).reduce((s, r) => s + r.principalAmount + r.gstAmount, 0)
   const totalPercent = Number(schedules.reduce((s, r) => s + (r.percentOfAV || 0), 0).toFixed(2))
   const totalMilestoneAmount = schedules.reduce((s, r) => s + (r.percentOfAV !== undefined ? r.principalAmount : 0), 0)
   // Editing: the amounts must add up to the agreement value (within a rupee: percentages of an existing plan are rounded)
@@ -564,7 +576,8 @@ export default function NewSaleWizard({ projects, prefill = null, preselect = nu
     instalments.length === 0 ? 'Add at least one instalment.' : '',
     instalments.some(r => !r.description.trim()) ? 'Every instalment needs a name.' : '',
     names.some((n, i) => n && names.indexOf(n) !== i) ? 'Each instalment needs a different name.' : '',
-    instalments.some(r => !r.raiseOn || isNaN(Date.parse(r.raiseOn))) ? 'Every instalment needs a date.' : '',
+    instalments.some(r => !isPossession(r.description) && (!r.raiseOn || isNaN(Date.parse(r.raiseOn)))) ? 'Every instalment needs a date (except possession).' : '',
+    instalments.some(r => r.raiseOn && isNaN(Date.parse(r.raiseOn))) ? 'One of the dates is not valid.' : '',
     instalments.some(r => !(r.principalAmount > 0)) ? 'Every instalment needs an amount above zero.' : '',
   ].filter(Boolean) : []
   const isValidPlan = dated ? amountsMatch && datedProblems.length === 0 : editing ? amountsMatch : totalPercent === 100 && amountsMatch
@@ -910,7 +923,7 @@ export default function NewSaleWizard({ projects, prefill = null, preselect = nu
                         <Td label="Sr. No" className="text-muted text-sm">{idx + 1}</Td>
                         <Td label="Particular">
                           {instalment
-                            ? <Input small type="text" className="particular-input" aria-label={`Instalment ${idx + 1} particular`} value={row.description} maxLength={200} placeholder="e.g. 12 Month From Demolition" onChange={e => updateInstalment(idx, { description: e.target.value })} />
+                            ? <Textarea rows={2} className="particular-input" aria-label={`Instalment ${idx + 1} particular`} value={row.description} maxLength={200} placeholder="e.g. 12 Month From Demolition" onChange={e => updateInstalment(idx, { description: e.target.value.replace(/\n/g, ' ') })} />
                             : <div className="font-medium">{row.description}</div>}
                           {received && <div className="text-xs text-muted">{fmt(row.paidPrincipal ?? 0)} already received: it cannot be made smaller</div>}
                           {row.description === OTHER_CHARGES_LABEL && (
@@ -927,7 +940,8 @@ export default function NewSaleWizard({ projects, prefill = null, preselect = nu
                         <Td label="Date (demand sent)">
                           {instalment
                             ? <Input small type="date" className="date-input" aria-label={`Instalment ${idx + 1} date`} value={row.raiseOn ?? ''} disabled={row.raised} onChange={e => updateInstalment(idx, { raiseOn: e.target.value })} />
-                            : <span className="text-muted text-sm">{row.isBooking ? 'With the sale' : row.description === STAMP_DUTY_LABEL ? 'Raised by you from the sale page' : 'With the last instalment'}</span>}
+                            : <span className="text-muted text-sm">{row.isBooking ? 'With the sale' : row.description === STAMP_DUTY_LABEL ? 'Raised by you from the sale page' : lastInstalmentDate || lastTrigger.milestoneId ? 'With the last instalment' : 'Raised by you from the sale page'}</span>}
+                          {instalment && !row.raiseOn && isPossession(row.description) && <div className="text-xs text-muted">{possessionMilestone ? `No date: raised when “${possessionMilestone.name}” is completed` : 'No date: raised by you from the sale page'}</div>}
                           {instalment && row.raised && <div className="text-xs text-muted">Demand already sent</div>}
                         </Td>
                         <Td label="Value (₹)" className="text-right">
@@ -1007,9 +1021,9 @@ export default function NewSaleWizard({ projects, prefill = null, preselect = nu
               <tfoot>
                 <tr className="font-bold">
                   <Td label="" colSpan={3} className="text-right pt-3">TOTALS</Td>
-                  <Td label="Amount (₹)" className="text-right pt-3">{fmt(totalPrincipal)}</Td>
-                  {dated && <Td label="% of AV" className="text-right pt-3">{totalPercent}%</Td>}
-                  <Td label={`GST ${gstRate}% (₹)`} className="text-right pt-3">{fmt(totalGst)}</Td>
+                  <Td label="Amount (₹)" className="text-right pt-3">{fmt(dated ? totalMilestoneAmount : totalPrincipal)}</Td>
+                  {dated && <Td label="% of AV" className="text-right pt-3">{agreementValue > 0 ? Number(((totalMilestoneAmount / agreementValue) * 100).toFixed(2)) : 0}%</Td>}
+                  <Td label={`GST ${gstRate}% (₹)`} className="text-right pt-3">{fmt(dated ? planGst : totalGst)}</Td>
                   {dated ? <Td label=""> </Td> : <Td label="Total (₹)" className="text-right pt-3 text-brand text-md">{fmt(grandTotal)}</Td>}
                 </tr>
               </tfoot>
@@ -1024,13 +1038,16 @@ export default function NewSaleWizard({ projects, prefill = null, preselect = nu
 
           {/* The totals in words, one per line at full width: a narrow column cannot hold them without running into its neighbour */}
           <dl className="totals-words">
-            {([['Amount', totalPrincipal], [`GST ${gstRate}%`, totalGst], ['Total', grandTotal]] as const).map(([label, value]) => amountInWords(value) && (
+            {(dated
+              ? [['Total agreement value', totalMilestoneAmount], [`GST ${gstRate}%`, planGst], ['Stamp duty and registration', chargeOf(STAMP_DUTY_LABEL)], ['Other charges', chargeOf(OTHER_CHARGES_LABEL) + chargeOf('Car Parking')], ['Grand total', grandTotal]] as const
+              : [['Amount', totalPrincipal], [`GST ${gstRate}%`, totalGst], ['Total', grandTotal]] as const
+            ).filter(([label, value]) => dated ? value > 0 || label === 'Total agreement value' : true).map(([label, value]) => amountInWords(value) && (
               <div key={label}><dt>{label}</dt><dd>{fmt(value)} <span className="text-muted">· {amountInWords(value)}</span></dd></div>
             ))}
           </dl>
 
           {!isValidPlan && (
-            <Alert variant="danger" className="mb-4" title={`The ${dated ? 'date-based' : 'milestone'} payment plan does not match the agreement value (${fmt(agreementValue)})`}>
+            <Alert variant="danger" className="mb-4" title={dated && amountsMatch ? 'The date-based payment plan needs your attention' : `The ${dated ? 'date-based' : 'milestone'} payment plan does not match the agreement value (${fmt(agreementValue)})`}>
               <ul className="mt-2 pl-5 mb-0">
                 {datedProblems.map(p => <li key={p}>{p}</li>)}
                 {!dated && totalPercent !== 100 && <li>The percentages total {totalPercent}%. They must total exactly 100%.</li>}
