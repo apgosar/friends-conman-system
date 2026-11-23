@@ -128,6 +128,8 @@ export const TAG_GROUPS: TagGroup[] = [
     { tag: 'payment.dueNow', desc: 'This demand: principal + GST still to pay (interest and earlier demands not included)', types: ['DEMAND_LETTER'] },
     { tag: 'payment.dueNowWords', desc: 'This demand: principal + GST still to pay, in words', types: ['DEMAND_LETTER'] },
     { tag: 'payment.tdsAdjusted', desc: 'TDS already adjusted against this demand (0.00 when none)', types: ['DEMAND_LETTER'] },
+    { tag: 'payment.dateBased', desc: 'Section for a demand of a date-based payment plan: {{#payment.dateBased}} … {{/payment.dateBased}} shows only for it, {{^payment.dateBased}} … {{/payment.dateBased}} only for a milestone demand', types: ['DEMAND_LETTER'] },
+    { tag: 'payment.scheduledDate', desc: 'Date-based plan: the date of the instalment in the plan, e.g. 1st September 2026 (empty for a milestone)', types: ['DEMAND_LETTER'] },
     { tag: 'payment.percentOfAV', desc: 'Demand principal as % of the agreement value', types: ['DEMAND_LETTER'] },
     { tag: 'payment.receivedTillDate', desc: 'Principal paid so far', types: ['DEMAND_LETTER'] },
     { tag: 'payment.totalOutstanding', desc: 'Total outstanding (principal + GST + interest): this demand plus any earlier unpaid demands, as in the sale page Payment Summary', types: ['DEMAND_LETTER'] },
@@ -175,7 +177,7 @@ export const LOOPS: LoopDef[] = [
     { tag: 'index', desc: 'Number' }, { tag: 'name', desc: 'The charge' }, { tag: 'amount', desc: 'Amount as printed: Rs. 4,98,000/-, Nil or As Determined at the time of assessment' },
   ] },
   { name: 'instalments', desc: 'One row per instalment of the price (no charges): the payment schedule table of a sale agreement', fields: [
-    { tag: 'index', desc: 'Number' }, { tag: 'description', desc: 'Milestone' }, { tag: 'percentOfAV', desc: '% of agreement value' },
+    { tag: 'index', desc: 'Number' }, { tag: 'description', desc: 'Milestone' }, { tag: 'scheduledDate', desc: 'Date-based plan: the date of the instalment (empty for a milestone)' }, { tag: 'percentOfAV', desc: '% of agreement value' },
     { tag: 'principalAmount', desc: 'Amount' }, { tag: 'gstAmount', desc: 'GST' }, { tag: 'totalAmount', desc: 'Total' },
   ] },
   { name: 'receipts', desc: 'One row per payment recorded so far: the receipt table at the end of a sale agreement', fields: [
@@ -184,7 +186,7 @@ export const LOOPS: LoopDef[] = [
     { tag: 'reference', desc: 'Cheque no. / UTR' }, { tag: 'date', desc: 'Date' }, { tag: 'amount', desc: 'Amount received (with GST)' },
   ] },
   { name: 'paymentPlan', desc: 'One row per payment plan instalment', fields: [
-    { tag: 'index', desc: 'Number' }, { tag: 'description', desc: 'Milestone' }, { tag: 'percentOfAV', desc: '% of agreement value' },
+    { tag: 'index', desc: 'Number' }, { tag: 'description', desc: 'Milestone' }, { tag: 'scheduledDate', desc: 'Date-based plan: the date of the instalment (empty for a milestone)' }, { tag: 'percentOfAV', desc: '% of agreement value' },
     { tag: 'principalAmount', desc: 'Principal' }, { tag: 'gstAmount', desc: 'GST' }, { tag: 'totalAmount', desc: 'Total' },
   ] },
 ]

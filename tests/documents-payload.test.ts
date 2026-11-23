@@ -56,6 +56,15 @@ describe('demand letters', () => {
     expect(p.payment).toMatchObject({ principalAmount: '3,50,000.00', gstAmount: '17,500.00', totalDue: '3,67,500.00' })
     expect(buildDemandPayload(sale, null)).toMatchObject({ milestone: null, payment: null })
   })
+  it('says whether a demand comes from a date-based plan, and the date of its instalment', () => {
+    const milestone = buildDemandPayload(sale, sale.paymentSchedules[1]).payment as Record<string, unknown>
+    expect(milestone).toMatchObject({ dateBased: false, scheduledDate: '' })
+    const dated = { ...sale.paymentSchedules[1], autoRaise: true, raiseOn: new Date('2027-09-01T00:00:00Z'), milestone: null, description: '12 Month From Demolition' }
+    const p = buildDemandPayload({ ...sale, paymentSchedules: [dated] }, dated)
+    expect(p.milestone).toEqual({ name: '12 Month From Demolition' })
+    expect(p.payment).toMatchObject({ dateBased: true, scheduledDate: '1st September 2027' })
+    expect((buildSalePayload({ ...sale, paymentSchedules: [dated] }).instalments[0] as { scheduledDate: string }).scheduledDate).toBe('1st September 2027')
+  })
 })
 
 describe('receipts', () => {

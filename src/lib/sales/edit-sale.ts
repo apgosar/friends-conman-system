@@ -25,7 +25,7 @@ import { isAnonymized } from '@/lib/dpdp-compliance'
 import { PAN_ERROR, PAN_PATTERN } from '@/lib/companies'
 import { buildCommContent, sanitizeInline } from '@/lib/comms-content'
 import { formatCurrency, formatDate, formatNumber } from '@/lib/format'
-import { PLAN_TOLERANCE_RATIO, PaymentScheduleSchema, SALE_TYPES, SaleBuyerSchema, requirePrimaryContact, zMoney } from '@/lib/sales/create-sale'
+import { PLAN_TOLERANCE_RATIO, PaymentScheduleSchema, SALE_TYPES, checkDatedRows, SaleBuyerSchema, requirePrimaryContact, zMoney } from '@/lib/sales/create-sale'
 
 const EditBuyerSchema = SaleBuyerSchema.extend({
   id: z.string().optional(), // set for a buyer the sale already has
@@ -51,7 +51,7 @@ export const SaleEditSchema = z.object({
   bookingAmount: zMoney.optional().nullable(),
   bookingDate: z.string().refine((v) => !isNaN(Date.parse(v)), 'Invalid bookingDate'),
   buyers: z.array(EditBuyerSchema).min(1, 'At least one buyer is required').superRefine(requirePrimaryContact),
-  paymentSchedules: z.array(PaymentScheduleSchema.extend({ id: z.string().optional() })).max(100),
+  paymentSchedules: z.array(PaymentScheduleSchema.extend({ id: z.string().optional() })).max(100).superRefine(checkDatedRows),
   reason: z.string().trim().min(3, 'Say why the sale is being changed').max(500),
   sendRevisedLetters: z.boolean().default(true),
 })
@@ -177,6 +177,10 @@ export async function updateSale(saleId: string, input: SaleEditInput, actorId: 
         const gstPaid = payments.reduce((t, p) => t + toPaise(Number(p.gstPaid)), 0)
         if (principalPaise < principalPaid) throw fail('invalid', `${s.description}: ${formatCurrency(fromPaise(principalPaid))} has already been received, so it cannot be less than that`)
         if (gstPaise < gstPaid) throw fail('invalid', `${s.description}: GST of ${formatCurrency(fromPaise(gstPaid))} has already been received, so it cannot be less than that`)
+        // A date-based demand that is not raised yet can have its date changed too
+        const newRaiseOn = s.autoRaise && !s.demandGeneratedDate && r.raiseOn ? new Date(r.raiseOn) : null
+        const dateMoved = !!newRaiseOn && newRaiseOn.getTime() !== s.raiseOn?.getTime()
+        if (dateMoved) await tx.paymentSchedule.update({ where: { id: s.id }, data: { raiseOn: newRaiseOn } })
         if (principalPaise === toPaise(Number(s.principalAmount)) && gstPaise === toPaise(Number(s.gstAmount))) continue
         const balance = principalPaise - principalPaid + gstPaise - gstPaid
         const status = statusAfterEdit(s, balance <= 0 && toPaise(Number(s.interestAmount)) <= 0, principalPaid + gstPaid > 0, asOf)
@@ -190,6 +194,7 @@ export async function updateSale(saleId: string, input: SaleEditInput, actorId: 
         await tx.paymentSchedule.create({
           data: {
             saleId: sale.id, milestoneId: r.milestoneId || null, description: r.description, principalAmount: r.principalAmount, gstAmount: r.gstAmount ?? 0, dueDate,
+            raiseOn: r.autoRaise && r.raiseOn ? new Date(r.raiseOn) : null, autoRaise: r.autoRaise === true,
             status: done ? 'DUE' : 'UPCOMING', demandGeneratedDate: done ? asOf : null,
           },
         })

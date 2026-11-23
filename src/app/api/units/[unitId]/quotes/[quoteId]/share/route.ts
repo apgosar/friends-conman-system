@@ -4,7 +4,7 @@ import { requireRole } from '@/lib/guard'
 import { prisma } from '@/lib/db'
 import { parseBody, z } from '@/lib/validate'
 import { sendEmail } from '@/lib/email'
-import { sendWhatsApp } from '@/lib/whatsapp'
+import { QUOTATION_TEMPLATE, sendWhatsApp } from '@/lib/whatsapp'
 import { whatsappDigits } from '@/lib/phone'
 import { generateAndSaveQuotePdf } from '@/lib/pdf-generator'
 import { downloadFile } from '@/lib/storage'
@@ -86,15 +86,14 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ uni
 
   if (data.channels.includes('WHATSAPP')) {
     try {
-      // Meta must be able to fetch the PDF without a login, so publish an unguessable copy
+      // WhatsApp must be able to fetch the PDF without a login, so publish an unguessable copy
       const docUrl = await publishPublicCopy(pdf, 'pdf', 'application/pdf')
 
       const mobile = whatsappDigits(inquiry.mobileNumber)
       const result = await sendWhatsApp({
         to: mobile,
         message: `Quotation for ${project.name} — ${unitLabel}. Total ${formatCurrency(inquiry.totalCost)}. Valid until ${validText}.`,
-        templateName: 'quotation_share',
-        templateLanguage: 'en',
+        templateName: QUOTATION_TEMPLATE,
         documentHeaderUrl: docUrl.includes('localhost') ? undefined : docUrl,
         documentHeaderFilename: filename,
         templateBodyParams: [

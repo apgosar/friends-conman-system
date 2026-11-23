@@ -858,6 +858,10 @@ tbody tr.row-overdue:hover { background: rgba(239, 68, 68, 0.18); }
 .centered-panel { text-align: center; padding: var(--space-10) var(--space-6); }
 
 .amount-input { width: 8.5rem; }
+/* The name and the date of an instalment in a date-based payment plan */
+.particular-input { width: 100%; min-width: 7.5rem; max-width: 100%; }
+.date-input { width: 9rem; max-width: 100%; }
+.value-input { width: 7rem; max-width: 100%; }
 /* The amount in words under a figure (AmountInWords): small, quiet, wraps inside its cell */
 .amount-words { font-size: var(--text-xs); font-weight: 400; color: var(--text-muted); line-height: 1.35; margin-top: 2px; }
 

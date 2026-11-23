@@ -14,15 +14,15 @@ async function run(req: Request) {
     logger.info(result, 'Daily job complete')
     // The reminders are sent after the answer, so the scheduler is not kept waiting while documents are prepared. They
     // are already queued: anything not sent here goes with the next dispatch (or Retry on the Communications page).
-    if (result.reminders.messages > 0) {
+    if (result.reminders.messages + result.dated.messages > 0) {
       afterResponse('Daily job: reminders could not be dispatched', async () => {
         const sent = await dispatchAllPending()
-        logger.info({ messages: sent.length, failed: sent.filter((r) => r.status === 'failed').length }, 'Daily job: reminders dispatched')
+        logger.info({ messages: sent.length, failed: sent.filter((r) => r.status === 'failed').length }, 'Daily job: messages dispatched')
       })
     }
     return Response.json({
       success: true,
-      message: `Daily job complete: ${result.demands} demands checked, ${result.reminders.demands} reminded (${result.reminders.messages} messages)`,
+      message: `Daily job complete: ${result.demands} demands checked, ${result.reminders.demands} reminded (${result.reminders.messages} messages), ${result.dated.raised} dated demands raised (${result.dated.messages} messages)`,
     })
   } catch (err) {
     logger.error({ err }, 'Daily cron failed')

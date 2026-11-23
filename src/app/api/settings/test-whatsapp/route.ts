@@ -21,7 +21,6 @@ export async function POST(req: NextRequest) {
       to: phone,
       message: 'Neev CMS WhatsApp Integration Test',
       templateName: DEMAND_TEMPLATE,
-      templateLanguage: 'en',
       documentHeaderUrl: 'https://www.w3.org/WAI/ER/tests/xhtml/testfiles/resources/pdf/dummy.pdf',
       documentHeaderFilename: 'Test_Document.pdf',
       templateBodyParams: [

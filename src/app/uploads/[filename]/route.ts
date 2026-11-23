@@ -5,7 +5,7 @@ import path from 'path'
 import { downloadFile } from '@/lib/storage'
 import { SHARED_FOLDER, isNotFoundError } from '@/lib/storage/files'
 
-// Public (no login) on purpose: this is how Meta/WhatsApp downloads a document we are sending.
+// Public (no login) on purpose: this is how WhatsApp downloads a document we are sending.
 // Only the unguessable copies published under the "shared" storage folder are served, never other documents.
 export async function GET(req: NextRequest, props: { params: Promise<{ filename: string }> }) {
   const { filename } = await props.params

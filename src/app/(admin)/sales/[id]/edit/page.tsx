@@ -73,6 +73,10 @@ export default async function EditSalePage(props: PageProps<'/sales/[id]/edit'>)
         isBooking: !s.milestoneId && s.description === BOOKING_LABEL ? true : undefined,
         sequence: i,
         percentOfAV: instalment && s.description !== OTHER_CHARGES_LABEL && agreementValue > 0 ? round2((principal / agreementValue) * 100) : undefined,
+        // A date-based plan: the date the demand is sent (fixed once it has been raised)
+        autoRaise: s.autoRaise || undefined,
+        raiseOn: s.raiseOn ? s.raiseOn.toISOString().split('T')[0] : undefined,
+        raised: s.demandGeneratedDate ? true : undefined,
         paidPrincipal: s.payments.reduce((t, p) => t + Number(p.amount), 0),
         paidGst: s.payments.reduce((t, p) => t + Number(p.gstPaid), 0),
       }

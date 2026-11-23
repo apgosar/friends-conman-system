@@ -35,9 +35,12 @@ const ENV_VARS: EnvVar[] = [
   { key: 'GMAIL_USER', required: false, description: 'Gmail sender address' },
   { key: 'GMAIL_APP_PASSWORD', required: false, description: 'Gmail App Password' },
 
-  // WhatsApp Business API (Meta)
-  { key: 'WHATSAPP_PHONE_NUMBER_ID', required: false, description: 'WhatsApp Business Phone Number ID' },
-  { key: 'WHATSAPP_ACCESS_TOKEN', required: false, description: 'WhatsApp Cloud API Access Token' },
+  // WhatsApp through Gupshup
+  { key: 'GUPSHUP_API_KEY', required: false, description: 'Gupshup API key' },
+  { key: 'GUPSHUP_SOURCE', required: false, description: 'WhatsApp business number messages are sent from (country code, digits only)' },
+  { key: 'GUPSHUP_APP_NAME', required: false, description: 'Gupshup app name of that number' },
+  { key: 'GUPSHUP_TEMPLATE_DEMANDS_AND_RECEIPTS', required: false, description: 'Gupshup template ID of demands_and_receipts_v2' },
+  { key: 'GUPSHUP_TEMPLATE_QUOTATION', required: false, description: 'Gupshup template ID of quotation_share' },
 
   // KYC OCR
   { key: 'AZAPI_TOKEN', required: false, description: 'AZAPI OCR API Token' },

@@ -11,7 +11,7 @@ import { downloadFile, uploadFile } from './index'
  */
 
 export const QUOTE_FOLDER = 'quotes'
-export const SHARED_FOLDER = 'shared' // unguessable copies that WhatsApp/Meta must fetch without a login
+export const SHARED_FOLDER = 'shared' // unguessable copies that WhatsApp must fetch without a login
 export const DOCUMENT_FOLDER = 'documents'
 
 export const isNotFoundError = (err: any) =>

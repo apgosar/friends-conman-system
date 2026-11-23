@@ -72,24 +72,26 @@ export default function SettingsPage() {
           </Card>
 
           <Card>
-            <CardHeader title="💬 WhatsApp Integration (Meta Cloud API)" actions={<Badge>Direct — no third party needed</Badge>} />
+            <CardHeader title="💬 WhatsApp Integration (Gupshup)" actions={<Badge>Approved templates</Badge>} />
             <p className="text-secondary mb-5">
-              Uses the <strong>official WhatsApp Business Cloud API</strong> by Meta. It is free to set up and you pay only per conversation beyond the free tier. No Gupshup or Wati needed.
+              Messages are sent through <strong>Gupshup</strong> as approved WhatsApp templates. Each template is sent by its template ID from the Gupshup console.
             </p>
             <div data-scroll className="config-sample mb-5">
-              <div><span className="text-muted"># WhatsApp Business Cloud API (Meta)</span></div>
-              <div>WHATSAPP_PHONE_NUMBER_ID=<span className="text-warning">your_phone_number_id</span></div>
-              <div>WHATSAPP_ACCESS_TOKEN=<span className="text-warning">your_permanent_access_token</span></div>
+              <div><span className="text-muted"># WhatsApp through Gupshup</span></div>
+              <div>GUPSHUP_API_KEY=<span className="text-warning">your_api_key</span></div>
+              <div>GUPSHUP_SOURCE=<span className="text-warning">919876543210</span></div>
+              <div>GUPSHUP_APP_NAME=<span className="text-warning">your_app_name</span></div>
+              <div>GUPSHUP_TEMPLATE_DEMANDS_AND_RECEIPTS=<span className="text-warning">template_id</span></div>
+              <div>GUPSHUP_TEMPLATE_QUOTATION=<span className="text-warning">template_id</span></div>
             </div>
 
             <details className="mb-5">
-              <summary className="cursor-pointer text-base text-secondary font-medium">📖 How to set up WhatsApp Cloud API (5 steps)</summary>
+              <summary className="cursor-pointer text-base text-secondary font-medium">📖 Where to find these in Gupshup</summary>
               <ol className="steps-list">
-                <li>Go to <a href="https://developers.facebook.com" target="_blank" rel="noreferrer" className="text-brand">developers.facebook.com</a> → Create App → Business type</li>
-                <li>Add the <strong>WhatsApp</strong> product to your app</li>
-                <li>In <strong>WhatsApp → API Setup</strong>, copy the <em>Phone Number ID</em> → paste as <code>WHATSAPP_PHONE_NUMBER_ID</code></li>
-                <li>Go to <strong>Business Settings → System Users</strong> → Create a system user → Generate a permanent token with <em>whatsapp_business_messaging</em> permission → paste as <code>WHATSAPP_ACCESS_TOKEN</code></li>
-                <li>Add and verify your <strong>business phone number</strong> (the number buyers will receive messages from)</li>
+                <li>In the Gupshup console, copy the account <strong>API key</strong> → <code>GUPSHUP_API_KEY</code></li>
+                <li>Your registered <strong>business number</strong> (country code, digits only) → <code>GUPSHUP_SOURCE</code></li>
+                <li>The <strong>app name</strong> of that number → <code>GUPSHUP_APP_NAME</code></li>
+                <li>Under <strong>Templates</strong>, copy the <strong>template ID</strong> of <em>demands_and_receipts_v2</em> and of <em>quotation_share</em> into the two template variables</li>
               </ol>
             </details>
 

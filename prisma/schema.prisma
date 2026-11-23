@@ -430,6 +430,9 @@ model PaymentSchedule {
   principalAmount         Decimal   @db.Decimal(15, 2)
   gstAmount               Decimal   @default(0) @db.Decimal(15, 2)
   dueDate                 DateTime?
+  /// Date-based plan: the day the demand is raised and sent (the daily job does it). The due date is worked out then, from the project's due days
+  raiseOn                 DateTime?
+  autoRaise               Boolean   @default(false)
   demandGeneratedDate     DateTime?
   /// Interest still owed on this demand (accrued, less paid and waived), refreshed by the daily job and by every payment or waiver
   interestAmount          Decimal   @default(0) @db.Decimal(15, 2)
@@ -452,6 +455,7 @@ model PaymentSchedule {
   @@index([saleId])
   @@index([status])
   @@index([status, dueDate])
+  @@index([autoRaise, raiseOn])
   @@map("payment_schedules")
 }
 

@@ -252,7 +252,7 @@ async function sendClaimed(logId: string): Promise<DispatchResult> {
       }
 
       if (finalDocUrl && finalDocUrl.includes('localhost')) {
-        finalDocUrl = undefined // Meta cannot download from localhost
+        finalDocUrl = undefined // WhatsApp cannot download from localhost
       }
 
       // Plain-text body for WhatsApp (the attachment block is not part of the message)
@@ -336,16 +336,14 @@ async function sendClaimed(logId: string): Promise<DispatchResult> {
           : 'Please pay at the earliest to avoid interest charges.'
       }
 
-      const cleanPhone = whatsappDigits(phone) // with the country code: Meta accepts a bare 10-digit number but never delivers it
+      const cleanPhone = whatsappDigits(phone) // with the country code: a bare 10-digit number is never delivered
 
       // Send the approved template with the PDF attached as a document header.
-      // NOTE: The template (DEMAND_TEMPLATE, see lib/whatsapp.ts) has a DOCUMENT header in Meta Business Manager,
-      // which carries the PDF. When no public link is available the header is left out.
+      // NOTE: The template (DEMAND_TEMPLATE, see lib/whatsapp.ts) has a DOCUMENT header, which carries the PDF. When no public link is available the header is left out.
       const result = await sendWhatsApp({
         to: cleanPhone,
         message: plainText,
         templateName: DEMAND_TEMPLATE,
-        templateLanguage: 'en',
         // Pass document as header only when URL is available and publicly accessible
         documentHeaderUrl: finalDocUrl,
         documentHeaderFilename: finalDocFilename,

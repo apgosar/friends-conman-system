@@ -54,11 +54,12 @@ export function buildSalePayload(sale: SaleForDocument, partners: PartnerForDocu
     const gst = Number(ps.gstAmount)
     const isCharge = isStandaloneCharge(ps.description) // stamp duty, registration, parking and the other charges are not instalments of the price
     const pct = isCharge ? 0 : Number(((principal / agreement) * 100).toFixed(2))
-    return { isCharge, principal, gst, pct, description: ps.description }
+    return { isCharge, principal, gst, pct, description: ps.description, scheduledDate: ps.autoRaise && ps.raiseOn ? formatDateLong(ps.raiseOn) : '' }
   })
   const row = (l: (typeof lines)[number], index: number) => ({
     index,
     description: l.description,
+    scheduledDate: l.scheduledDate, // a date-based plan: the day the instalment is raised (empty for a milestone)
     percentOfAV: l.pct > 0 ? `${l.pct}%` : '—',
     principalAmount: formatMoney(l.principal),
     gstAmount: formatMoney(l.gst),
@@ -288,7 +289,8 @@ export function buildDemandPayload(sale: SaleForDocument, schedule: Schedule | n
   return {
     ...buildSalePayload(sale, partners),
     milestone: schedule ? { name: schedule.milestone?.name ?? schedule.description } : null,
-    payment: schedule ? { ...demandFigures(schedule), ...demandPosition(sale, schedule) } : null,
+    // dateBased: the demand comes from a date-based plan (nothing was "completed"); scheduledDate: the date of the plan it was due to be raised
+    payment: schedule ? { ...demandFigures(schedule), ...demandPosition(sale, schedule), dateBased: schedule.autoRaise === true, scheduledDate: schedule.raiseOn ? formatDateLong(schedule.raiseOn) : '' } : null,
   }
 }
 

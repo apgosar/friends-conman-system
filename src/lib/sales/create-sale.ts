@@ -46,14 +46,29 @@ export function requirePrimaryContact(buyers: { email?: string | null; whatsappN
   if (!primary.whatsappNumber?.trim()) ctx.addIssue({ code: 'custom', path: [0, 'whatsappNumber'], message: 'Enter the WhatsApp number' })
 }
 
-export const PaymentScheduleSchema =z.object({
+export const PaymentScheduleSchema = z.object({
   milestoneId: z.string().optional().nullable(),
   description: z.string().trim().min(1, 'Milestone description is required').max(200),
   principalAmount: zMoney,
   gstAmount: zMoney.optional().nullable(),
   dueDate: z.string().optional().nullable(),
   isBooking: z.boolean().optional(), // the booking line of the plan: its demand goes out with the sale, due BOOKING_DUE_DAYS later
+  // Date-based plan: the day the demand is raised and sent by the daily job (its due date is worked out then, from the project's due days)
+  raiseOn: z.string().optional().nullable(),
+  autoRaise: z.boolean().optional(),
 })
+
+/** Rows of a date-based plan each need a valid date and a name of their own (a demand letter finds its demand by name). */
+export function checkDatedRows(rows: { description: string; raiseOn?: string | null; autoRaise?: boolean }[], ctx: z.RefinementCtx) {
+  const seen = new Set<string>()
+  rows.forEach((r, i) => {
+    if (!r.autoRaise) return
+    if (!r.raiseOn || isNaN(Date.parse(r.raiseOn))) ctx.addIssue({ code: 'custom', path: [i, 'raiseOn'], message: 'Enter the date of each instalment' })
+    const key = r.description.trim().toLowerCase()
+    if (seen.has(key)) ctx.addIssue({ code: 'custom', path: [i, 'description'], message: 'Each instalment needs a different name' })
+    seen.add(key)
+  })
+}
 
 export const SaleCreateSchema = z.object({
   projectId: z.string().min(1, 'projectId is required'),
@@ -75,7 +90,7 @@ export const SaleCreateSchema = z.object({
   bookingAmount: zMoney.optional().nullable(),
   bookingDate: z.string().refine((v) => !isNaN(Date.parse(v)), 'Invalid bookingDate'),
   buyers: z.array(SaleBuyerSchema).min(1, 'At least one buyer is required').superRefine(requirePrimaryContact),
-  paymentSchedules: z.array(PaymentScheduleSchema).optional(),
+  paymentSchedules: z.array(PaymentScheduleSchema).superRefine(checkDatedRows).optional(),
   inquiryId: z.string().optional().nullable(), // set when the sale is converted from an inquiry
 })
 
@@ -137,9 +152,10 @@ export async function createSale(input: SaleCreateInput, actorId: string) {
     const other = computeOtherCharges(projectCharges, { carpetAreaSqft: unit.carpetAreaSqft, commercial: unit.category === 'SHOP' || unit.category === 'OFFICE' })
     const sentRows = input.paymentSchedules ?? []
     const planRows = sentRows.filter((ps) => ps.description !== OTHER_CHARGES_LABEL)
-    const otherMilestoneId = sentRows.find((ps) => ps.description === OTHER_CHARGES_LABEL)?.milestoneId ?? [...planRows].reverse().find((ps) => ps.milestoneId)?.milestoneId ?? null
+    const sentOther = sentRows.find((ps) => ps.description === OTHER_CHARGES_LABEL)
+    const otherMilestoneId = sentOther?.milestoneId ?? [...planRows].reverse().find((ps) => ps.milestoneId)?.milestoneId ?? null
     const schedules = other.total > 0 && planRows.length > 0
-      ? [...planRows, { milestoneId: otherMilestoneId, description: OTHER_CHARGES_LABEL, principalAmount: other.total, gstAmount: 0 }]
+      ? [...planRows, { milestoneId: otherMilestoneId, description: OTHER_CHARGES_LABEL, principalAmount: other.total, gstAmount: 0, raiseOn: sentOther?.raiseOn, autoRaise: sentOther?.autoRaise }]
       : planRows
     if (schedules.length > 0) {
       const payable = sumRupees([input.agreementValue, stampDuty, registrationCharges, parkingCharge, other.total])
@@ -213,6 +229,8 @@ export async function createSale(input: SaleCreateInput, actorId: string) {
             principalAmount: ps.principalAmount,
             gstAmount: ps.gstAmount ?? 0,
             dueDate,
+            raiseOn: ps.autoRaise && ps.raiseOn ? new Date(ps.raiseOn) : null,
+            autoRaise: ps.autoRaise === true,
             status: isCompleted || isBooking ? 'DUE' : 'UPCOMING',
             demandGeneratedDate: isCompleted || isBooking ? new Date() : null,
           }

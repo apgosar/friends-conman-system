@@ -1,31 +1,39 @@
 import { logger } from '@/lib/logger'
 /**
- * WhatsApp Cloud API (Meta/official) integration.
- * Uses the free WhatsApp Business Cloud API directly — no third-party provider needed.
+ * WhatsApp through Gupshup (a WhatsApp Business Solution Provider), using its template message API.
+ * Every message the app sends is an approved template, so each is sent by the template's ID from the Gupshup console.
  *
- * Required env vars:
- *   WHATSAPP_PHONE_NUMBER_ID  — from Meta Developer Console → WhatsApp → API Setup
- *   WHATSAPP_ACCESS_TOKEN     — permanent system user token from Meta Business Manager
+ * Required env vars (all three, or the message is only simulated):
+ *   GUPSHUP_API_KEY   — the account's API key
+ *   GUPSHUP_SOURCE    — the WhatsApp business number the messages come from, with country code, digits only
+ *   GUPSHUP_APP_NAME  — the name of that number's app in the Gupshup console
+ * and the template ID of each template (see TEMPLATE_ENV below).
  */
 
 /**
- * The approved Meta templates the app sends. The body variables are filled in this order:
- * {{1}} buyer, {{2}} project, {{3}} unit, {{4}} configuration, {{5}} purpose, {{6}} document type, {{7}} amount,
- * {{8}} extra info, {{9}} company, {{10}} contact numbers. The header is a PDF.
+ * The approved templates the app sends, by the name they are known by here. The body variables are filled in this order:
+ * DEMAND_TEMPLATE: {{1}} buyer, {{2}} project, {{3}} unit, {{4}} configuration, {{5}} purpose, {{6}} document type, {{7}} amount,
+ * {{8}} extra info, {{9}} company, {{10}} contact numbers. QUOTATION_TEMPLATE: {{1}} name, {{2}} project, {{3}} unit,
+ * {{4}} configuration, {{5}} total cost, {{6}} valid until, {{7}} sender. Both have a PDF as the header.
  */
 export const DEMAND_TEMPLATE = 'demands_and_receipts_v2'
+export const QUOTATION_TEMPLATE = 'quotation_share'
+
+/** The env var that holds the Gupshup template ID (a UUID) of each template. */
+export const TEMPLATE_ENV: Record<string, string> = {
+  [DEMAND_TEMPLATE]: 'GUPSHUP_TEMPLATE_DEMANDS_AND_RECEIPTS',
+  [QUOTATION_TEMPLATE]: 'GUPSHUP_TEMPLATE_QUOTATION',
+}
+
+const SEND_URL = 'https://api.gupshup.io/wa/api/v1/template/msg'
+const TIMEOUT_MS = 30_000
 
 export interface WhatsAppMessage {
   to: string           // phone with country code, no +  e.g. "919876543210"
-  message: string      // plain-text body (used as fallback / logging)
-  documentUrl?: string // publicly accessible URL of a PDF/DOCX to attach (free-form message)
-  documentFilename?: string
-  caption?: string
-  // Template fields
-  templateName?: string
-  templateLanguage?: string
+  message: string      // plain-text version of the message (logged only; the template wording is fixed)
+  templateName: string // one of the templates above
   templateBodyParams?: string[]    // ordered list of {{1}}, {{2}}, {{3}} values
-  documentHeaderUrl?: string       // if the template has a DOCUMENT header — publicly accessible PDF URL
+  documentHeaderUrl?: string       // the template's DOCUMENT header: a publicly accessible PDF URL
   documentHeaderFilename?: string  // filename shown in WhatsApp (e.g. "Demand_Letter.pdf")
 }
 
@@ -34,97 +42,47 @@ export interface WhatsAppResult {
   status: string
 }
 
-export async function sendWhatsApp(msg: WhatsAppMessage): Promise<WhatsAppResult> {
-  const phoneNumberId = process.env.WHATSAPP_PHONE_NUMBER_ID
-  const accessToken = process.env.WHATSAPP_ACCESS_TOKEN
+/** True when the account is set up (key, number and app name): otherwise messages are only simulated. */
+export function whatsappConfigured(): boolean {
+  return !!(process.env.GUPSHUP_API_KEY && process.env.GUPSHUP_SOURCE && process.env.GUPSHUP_APP_NAME)
+}
 
-  // Simulation mode — log to console when credentials are not configured
-  if (!phoneNumberId || !accessToken) {
-    logger.info({ to: `…${msg.to.slice(-4)}`, hasDocument: !!msg.documentUrl }, 'WhatsApp simulation: message not sent (no credentials configured)')
+export async function sendWhatsApp(msg: WhatsAppMessage): Promise<WhatsAppResult> {
+  // Simulation mode: log only, when the account is not configured
+  if (!whatsappConfigured()) {
+    logger.info({ to: `…${msg.to.slice(-4)}`, hasDocument: !!msg.documentHeaderUrl }, 'WhatsApp simulation: message not sent (no credentials configured)')
     return { messageId: `sim_${Date.now()}`, status: 'simulated' }
   }
 
-  const url = `https://graph.facebook.com/v19.0/${phoneNumberId}/messages`
+  const envName = TEMPLATE_ENV[msg.templateName]
+  const templateId = envName ? process.env[envName]?.trim() : undefined
+  if (!templateId) throw new Error(`WhatsApp template ID is not set for ${msg.templateName}`)
 
-  let body: any
-
-  if (msg.templateName) {
-    // Build template components
-    const components: any[] = []
-
-    // Add DOCUMENT header component if template has one
-    if (msg.documentHeaderUrl) {
-      components.push({
-        type: 'header',
-        parameters: [
-          {
-            type: 'document',
-            document: {
-              link: msg.documentHeaderUrl,
-              filename: msg.documentHeaderFilename ?? 'Document.pdf',
-            },
-          },
-        ],
-      })
-    }
-
-    // Add body parameters {{1}}, {{2}}, ...
-    if (msg.templateBodyParams && msg.templateBodyParams.length > 0) {
-      components.push({
-        type: 'body',
-        parameters: msg.templateBodyParams.map((text) => ({
-          type: 'text',
-          text,
-        })),
-      })
-    }
-
-    body = {
-      messaging_product: 'whatsapp',
-      to: msg.to,
-      type: 'template',
-      template: {
-        name: msg.templateName,
-        language: { code: msg.templateLanguage ?? 'en' },
-        ...(components.length > 0 ? { components } : {}),
-      },
-    }
-  } else if (msg.documentUrl) {
-    body = {
-      messaging_product: 'whatsapp',
-      to: msg.to,
-      type: 'document',
-      document: {
-        link: msg.documentUrl,
-        filename: msg.documentFilename ?? 'Document.pdf',
-        caption: msg.caption ?? msg.message,
-      },
-    }
-  } else {
-    body = {
-      messaging_product: 'whatsapp',
-      to: msg.to,
-      type: 'text',
-      text: { body: msg.message, preview_url: false },
-    }
+  const form = new URLSearchParams({
+    channel: 'whatsapp',
+    source: process.env.GUPSHUP_SOURCE!.replace(/\D/g, ''),
+    destination: msg.to.replace(/\D/g, ''),
+    'src.name': process.env.GUPSHUP_APP_NAME!,
+    template: JSON.stringify({ id: templateId, params: msg.templateBodyParams ?? [] }),
+  })
+  if (msg.documentHeaderUrl) {
+    form.set('message', JSON.stringify({ type: 'document', document: { link: msg.documentHeaderUrl, filename: msg.documentHeaderFilename ?? 'Document.pdf' } }))
   }
 
-  const res = await fetch(url, {
+  const res = await fetch(SEND_URL, {
     method: 'POST',
-    headers: {
-      Authorization: `Bearer ${accessToken}`,
-      'Content-Type': 'application/json',
-    },
-    body: JSON.stringify(body),
+    headers: { apikey: process.env.GUPSHUP_API_KEY!, 'Content-Type': 'application/x-www-form-urlencoded' },
+    body: form,
+    signal: AbortSignal.timeout(TIMEOUT_MS),
   })
 
-  const data = await res.json()
+  const text = await res.text()
+  let data: { status?: string; messageId?: string; message?: string } | null = null
+  try { data = JSON.parse(text) } catch { /* not JSON: reported below */ }
 
-  if (!res.ok) {
-    const errorMsg = data?.error ? JSON.stringify(data.error) : res.statusText
-    throw new Error(`WhatsApp API error: ${errorMsg}`)
+  // Gupshup accepts the message here and reports delivery later (its callback); "accepted" is all that is known now
+  if (!res.ok || !data?.messageId) {
+    throw new Error(`WhatsApp API error: ${data?.message || data?.status || `HTTP ${res.status}`}`)
   }
-
-  const messageId = data?.messages?.[0]?.id ?? 'unknown'
-  return { messageId, status: 'sent' }
+  return { messageId: data.messageId, status: 'sent' }
 }

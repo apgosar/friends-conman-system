@@ -11,7 +11,7 @@ import { checkAgreementPartners } from '@/lib/companies'
 import { formatAadhaar } from '@/lib/buyers'
 import { OTHER_CHARGES_LABEL, computeOtherCharges } from '@/lib/other-charges'
 import AgreementPartnerPicker, { defaultPartnerIds, type PartnerChoice } from './AgreementPartnerPicker'
-import { BOOKING_LABEL, STAMP_DUTY_LABEL, catchUpPrincipal, SALE_TYPE_LABEL, UNIT_TYPE_LABEL, comboLabel, plansFor, schemeOf, unitTypeOfCategory, type PlanSaleType, type PlanSummary } from '@/lib/payment-plans'
+import { BOOKING_LABEL, STAMP_DUTY_LABEL, catchUpPrincipal, isStandaloneCharge, SALE_TYPE_LABEL, UNIT_TYPE_LABEL, comboLabel, plansFor, schemeOf, unitTypeOfCategory, type PlanSaleType, type PlanSummary } from '@/lib/payment-plans'
 import { scrollToFirstInvalid } from '@/lib/client/forms'
 
 // Tax and pricing rules come from the selected project's settings (see lib/pricing.ts)
@@ -46,7 +46,9 @@ type ParkingSlot = { podium: string; floor: string; number: string; choice: Choi
 // A buyer the sale already has (editing) carries its id, and the masked PAN / Aadhaar saved: the real ones are never sent to the screen
 type Buyer = { id?: string; fullName: string; panNumber: string; aadhaarNumber: string; address: string; email: string; whatsappNumber: string; receiveComms?: boolean; savedPan?: string | null; savedAadhaar?: string | null }
 // The stamp duty + registration row has no milestone: it is demanded by hand from the sale page
-type ScheduleRow = { id?: string; milestoneId: string; description: string; principalAmount: number; gstAmount: number; isBooking?: boolean; sequence: number; percentOfAV?: number; paidPrincipal?: number; paidGst?: number }
+// A row of a date-based plan has autoRaise and raiseOn (yyyy-mm-dd): the demand is raised and sent on that day. `raised`: it already was.
+type ScheduleRow = { id?: string; milestoneId: string; description: string; principalAmount: number; gstAmount: number; isBooking?: boolean; sequence: number; percentOfAV?: number; paidPrincipal?: number; paidGst?: number; autoRaise?: boolean; raiseOn?: string; raised?: boolean }
+type PlanKind = 'MILESTONE' | 'DATED'
 
 /** A sale being edited: what the screen starts with. Money and parking are as saved; buyers carry only the masked PAN and Aadhaar. */
 export interface EditingSale {
@@ -114,6 +116,9 @@ export default function NewSaleWizard({ projects, prefill = null, preselect = nu
   const unitsByWing = unitsGroupedByWing(selectedProject?.units ?? [])
   // The payment plan follows the sale type and the kind of unit: its default is chosen, and the user can switch to another plan
   const [planChoice, setPlanChoice] = useState('')
+  // Milestone plan (chosen from the project's plans) or date-based (instalments typed here, each raised on its date)
+  const [planKind, setPlanKind] = useState<PlanKind>(editing?.rows.some(r => r.autoRaise && !isStandaloneCharge(r.description) && r.description !== OTHER_CHARGES_LABEL) ? 'DATED' : 'MILESTONE')
+  const dated = planKind === 'DATED'
   const prefillProjectType = projects.find(p => p.id === (prefill?.projectId ?? preselect?.projectId))?.type
   const [saleType, setSaleType] = useState(editing?.saleType ?? (prefillProjectType && prefillProjectType !== 'MIXED' ? prefillProjectType : 'FRESH'))
   const [unitId, setUnitId] = useState(editing?.unitId ?? prefill?.unitId ?? preselect?.unitId ?? '')
@@ -367,11 +372,29 @@ export default function NewSaleWizard({ projects, prefill = null, preselect = nu
 
   // Editing: the plan built again keeps each demand the sale already has (so its payments stay with it), never goes below what was
   // received, and keeps a demand with payments even if the plan no longer has it
-  const rowsFor = (plan: PlanOption | null): ScheduleRow[] => {
-    const built = buildSchedule(plan)
+  const rowsFor = (plan: PlanOption | null): ScheduleRow[] => mergeSaved(buildSchedule(plan))
+
+  // A date-based plan: the booking (when an amount was entered), the instalments typed here, then the charges. Instalments already
+  // in the list are kept as they are; the booking and the charges are worked out again from the sale's figures.
+  const buildDatedSchedule = (keep: ScheduleRow[]): ScheduleRow[] => {
+    const instalments = keep.filter(r => r.autoRaise && !isStandaloneCharge(r.description) && r.description !== OTHER_CHARGES_LABEL)
+    const rows: ScheduleRow[] = []
+    const booking = bookingAmount !== '' ? Number(bookingAmount) : 0
+    if (booking > 0) rows.push({ milestoneId: '', description: BOOKING_LABEL, sequence: 0, principalAmount: booking, gstAmount: gstOn(pricing, booking), isBooking: true, percentOfAV: Number(((booking / agreementValue) * 100).toFixed(2)) })
+    rows.push(...instalments)
+    if (stampDuty > 0 || regCharges > 0) rows.push({ milestoneId: '', description: STAMP_DUTY_LABEL, principalAmount: stampDuty + regCharges, gstAmount: 0, sequence: 998 })
+    if (otherCharges.total > 0) rows.push({ milestoneId: '', description: OTHER_CHARGES_LABEL, principalAmount: otherCharges.total, gstAmount: 0, sequence: 997 })
+    if (separateParking && parkingCost > 0) rows.push({ milestoneId: '', description: carParkingCount > 1 ? `Car Parking (${carParkingCount} spaces)` : 'Car Parking', principalAmount: parkingCost, gstAmount: 0, sequence: 999 })
+    return mergeSaved(rows)
+  }
+
+  // Editing: a row of the plan built again that is already a demand of the sale takes that demand's id and never goes below what was received
+  const mergeSaved = (built: ScheduleRow[]): ScheduleRow[] => {
     if (!editing) return built
-    const left = new Map(editing.rows.map(r => [r.id!, r]))
+    const keptIds = new Set(built.flatMap(b => (b.id ? [b.id] : [])))
+    const left = new Map(editing.rows.filter(r => !keptIds.has(r.id!)).map(r => [r.id!, r]))
     const out = built.map(b => {
+      if (b.id) return b // an instalment of a date-based plan: already the sale's own
       const match = [...left.values()].find(r => r.description === b.description && (r.milestoneId || '') === (b.milestoneId || ''))
       if (!match) return b
       left.delete(match.id!)
@@ -403,11 +426,28 @@ export default function NewSaleWizard({ projects, prefill = null, preselect = nu
     if (buyers.some(b => !b.aadhaarNumber.trim() && !b.savedAadhaar) && !(await confirm({ message: 'No Aadhaar card added. Do you want to proceed?', confirmLabel: 'Proceed' }))) return
     // Editing and nothing that sets the plan changed: the plan stays as saved. Otherwise it is worked out again.
     if (editing && !moneyChanged) { setSchedules(editing.rows); setStep(2); return }
+    // Date-based: the instalments typed so far stay. A project with no milestone plan for this unit can only sell on dates.
+    if (dated || (!paymentPlan && !editing)) { setPlanKind('DATED'); setSchedules(buildDatedSchedule(schedules.length > 0 ? schedules : editing?.rows ?? [])); setStep(2); return }
     if (!paymentPlan) { setError('There is no payment plan for this sale type and unit type. Add one under Payment Plans first'); return }
 
     setSchedules(rowsFor(paymentPlan))
     setStep(2)
   }
+
+  // ── Step 2: the instalments of a date-based plan ─────────
+  const isInstalment = (r: ScheduleRow) => !!r.autoRaise && !isStandaloneCharge(r.description) && r.description !== OTHER_CHARGES_LABEL
+  const changePlanKind = (kind: PlanKind) => {
+    setPlanKind(kind)
+    setSchedules(kind === 'DATED' ? buildDatedSchedule([]) : rowsFor(paymentPlan))
+  }
+  // A new instalment goes after the last one, before the charges
+  const addInstalment = () => setSchedules(prev => {
+    const at = prev.findIndex(r => !r.isBooking && !isInstalment(r))
+    const row: ScheduleRow = { milestoneId: '', description: '', principalAmount: 0, gstAmount: 0, sequence: prev.length + 1, percentOfAV: 0, autoRaise: true, raiseOn: '' }
+    return at === -1 ? [...prev, row] : [...prev.slice(0, at), row, ...prev.slice(at)]
+  })
+  const updateInstalment = (idx: number, patch: Partial<Pick<ScheduleRow, 'description' | 'raiseOn'>>) => setSchedules(prev => prev.map((r, i) => (i === idx ? { ...r, ...patch } : r)))
+  const removeInstalment = (idx: number) => setSchedules(prev => prev.filter((_, i) => i !== idx))
 
   // ── Step 2 schedule editing ──────────────────────────────
   const updateScheduleAmount = (idx: number, newAmt: number) => {
@@ -430,6 +470,7 @@ export default function NewSaleWizard({ projects, prefill = null, preselect = nu
   }
 
   // ── Step 2 → create sale + schedules ────────────────────
+  const lastInstalmentDate = [...schedules].reverse().find(isInstalment)?.raiseOn
   const goToStep3 = async () => {
     setError('')
     if (editing && reason.trim().length < 3) { setReasonError('Say why the sale is being changed'); scrollToFirstInvalid(); return }
@@ -456,14 +497,19 @@ export default function NewSaleWizard({ projects, prefill = null, preselect = nu
         bookingDate,
         inquiryId: prefill?.inquiryId,
         buyers: buyers.map((b, i) => ({ id: b.id, fullName: b.fullName, panNumber: b.panNumber, aadhaarNumber: b.aadhaarNumber, address: b.address, email: b.email, receiveComms: b.receiveComms, whatsappNumber: normalizePhone(b.whatsappNumber).ok ? (normalizePhone(b.whatsappNumber) as { value: string | null }).value ?? '' : '', isPrimary: i === 0, sequence: i + 1 })),
-        paymentSchedules: schedules.filter(s => s.principalAmount > 0).map(s => ({
-          id: s.id,
-          milestoneId: s.milestoneId || undefined,
-          isBooking: s.isBooking || undefined,
-          description: s.description,
-          principalAmount: s.principalAmount,
-          gstAmount: s.gstAmount,
-        }))
+        // On a date-based plan the other charges and the parking are raised with the last instalment
+        paymentSchedules: schedules.filter(s => s.principalAmount > 0).map(s => {
+          const withLast = dated && (s.description === OTHER_CHARGES_LABEL || s.description.startsWith('Car Parking'))
+          return {
+            id: s.id,
+            milestoneId: s.milestoneId || undefined,
+            isBooking: s.isBooking || undefined,
+            description: s.description.trim(),
+            principalAmount: s.principalAmount,
+            gstAmount: s.gstAmount,
+            ...(isInstalment(s) ? { autoRaise: true, raiseOn: s.raiseOn } : withLast ? { autoRaise: true, raiseOn: lastInstalmentDate } : {}),
+          }
+        })
       }
       if (editing) {
         const changes: Record<string, unknown> = { ...payload, reason: reason.trim(), sendRevisedLetters: sendRevised }
@@ -510,7 +556,18 @@ export default function NewSaleWizard({ projects, prefill = null, preselect = nu
   const totalPercent = Number(schedules.reduce((s, r) => s + (r.percentOfAV || 0), 0).toFixed(2))
   const totalMilestoneAmount = schedules.reduce((s, r) => s + (r.percentOfAV !== undefined ? r.principalAmount : 0), 0)
   // Editing: the amounts must add up to the agreement value (within a rupee: percentages of an existing plan are rounded)
-  const isValidPlan = editing ? Math.abs(totalMilestoneAmount - agreementValue) <= 1 : totalPercent === 100 && totalMilestoneAmount === agreementValue
+  const amountsMatch = editing ? Math.abs(totalMilestoneAmount - agreementValue) <= 1 : totalMilestoneAmount === agreementValue
+  // A date-based plan: each instalment needs a name of its own, a date and an amount; the amounts must add up to the agreement value
+  const instalments = schedules.filter(isInstalment)
+  const names = instalments.map(r => r.description.trim().toLowerCase())
+  const datedProblems = dated ? [
+    instalments.length === 0 ? 'Add at least one instalment.' : '',
+    instalments.some(r => !r.description.trim()) ? 'Every instalment needs a name.' : '',
+    names.some((n, i) => n && names.indexOf(n) !== i) ? 'Each instalment needs a different name.' : '',
+    instalments.some(r => !r.raiseOn || isNaN(Date.parse(r.raiseOn))) ? 'Every instalment needs a date.' : '',
+    instalments.some(r => !(r.principalAmount > 0)) ? 'Every instalment needs an amount above zero.' : '',
+  ].filter(Boolean) : []
+  const isValidPlan = dated ? amountsMatch && datedProblems.length === 0 : editing ? amountsMatch : totalPercent === 100 && amountsMatch
 
   // ── Render ────────────────────────────────────────────────
   return (
@@ -802,10 +859,22 @@ export default function NewSaleWizard({ projects, prefill = null, preselect = nu
           <p className="text-base text-muted mb-5">
             {editing
               ? 'These are the demands of the sale. A demand that has had payments cannot be made smaller than what was received. If you changed the price, the unit or the charges, the amounts below are worked out again from the payment plan: check them before saving.'
-              : "Review the milestone-based payment schedule below. Amounts are pre-calculated from the project's payment plan and your Agreement Value. You may adjust them before confirming."}
+              : dated
+                ? "Add the instalments of this sale with the date each is due to be raised. On that date the demand letter is sent to the buyers and its due date is the project's due days later. The amounts must add up to the Agreement Value."
+                : "Review the milestone-based payment schedule below. Amounts are pre-calculated from the project's payment plan and your Agreement Value. You may adjust them before confirming."}
           </p>
 
-          <div className="mb-5">
+          {!editing && (
+            <div className="mb-5">
+              <SelectField label="Plan type" required value={planKind} onChange={e => changePlanKind(e.target.value as PlanKind)}
+                hint={comboPlans.length === 0 ? 'This project has no milestone plan for this sale and unit type' : 'Milestone plans follow the construction; a date-based plan follows dates you enter'}>
+                <option value="MILESTONE" disabled={comboPlans.length === 0}>Construction milestones</option>
+                <option value="DATED">Date-based</option>
+              </SelectField>
+            </div>
+          )}
+
+          {!dated && <div className="mb-5">
             <SelectField
               label="Payment Plan"
               required
@@ -815,22 +884,69 @@ export default function NewSaleWizard({ projects, prefill = null, preselect = nu
             >
               {comboPlans.map((p) => <option key={p.id} value={p.id}>{p.name}{p.isDefault ? ' (default)' : ''}</option>)}
             </SelectField>
-          </div>
+          </div>}
 
           <div className="mb-4"><Table flush stack>
               <thead>
                 <tr>
-                  <th>#</th>
-                  <th>Milestone</th>
-                  <th className="text-right" title="% of the agreement value">%</th>
-                  <th className="text-right">Amount (₹)</th>
+                  <th>{dated ? 'Sr. No' : '#'}</th>
+                  <th>{dated ? 'Particular' : 'Milestone'}</th>
+                  {dated ? <th>Date (demand sent)</th> : <th className="text-right" title="% of the agreement value">%</th>}
+                  <th className="text-right">{dated ? 'Value (₹)' : 'Amount (₹)'}</th>
+                  {dated && <th className="text-right" title="% of the agreement value, worked out from the value">% of AV</th>}
                   <th className="text-right">GST {gstRate}% (₹)</th>
-                  <th className="text-right">Total (₹)</th>
+                  {!dated && <th className="text-right">Total (₹)</th>}
+                  {dated && <th aria-label="Remove" />}
                 </tr>
               </thead>
               <tbody>
                 {schedules.map((row, idx) => {
                   const rowTotal = row.principalAmount + row.gstAmount
+                  if (dated) {
+                    const instalment = isInstalment(row)
+                    const received = (row.paidPrincipal ?? 0) > 0
+                    return (
+                      <tr key={idx}>
+                        <Td label="Sr. No" className="text-muted text-sm">{idx + 1}</Td>
+                        <Td label="Particular">
+                          {instalment
+                            ? <Input small type="text" className="particular-input" aria-label={`Instalment ${idx + 1} particular`} value={row.description} maxLength={200} placeholder="e.g. 12 Month From Demolition" onChange={e => updateInstalment(idx, { description: e.target.value })} />
+                            : <div className="font-medium">{row.description}</div>}
+                          {received && <div className="text-xs text-muted">{fmt(row.paidPrincipal ?? 0)} already received: it cannot be made smaller</div>}
+                          {row.description === OTHER_CHARGES_LABEL && (
+                            <details className="charge-details">
+                              <summary>Raised with the last instalment · {otherCharges.items.length} charges</summary>
+                              <ul className="charge-list">
+                                {otherCharges.items.map((c, k) => (
+                                  <li key={k}><span>{c.name}</span><span className="nowrap">{c.text}</span></li>
+                                ))}
+                              </ul>
+                            </details>
+                          )}
+                        </Td>
+                        <Td label="Date (demand sent)">
+                          {instalment
+                            ? <Input small type="date" className="date-input" aria-label={`Instalment ${idx + 1} date`} value={row.raiseOn ?? ''} disabled={row.raised} onChange={e => updateInstalment(idx, { raiseOn: e.target.value })} />
+                            : <span className="text-muted text-sm">{row.isBooking ? 'With the sale' : row.description === STAMP_DUTY_LABEL ? 'Raised by you from the sale page' : 'With the last instalment'}</span>}
+                          {instalment && row.raised && <div className="text-xs text-muted">Demand already sent</div>}
+                        </Td>
+                        <Td label="Value (₹)" className="text-right">
+                          {instalment
+                            ? <Input small type="number" inputMode="decimal" aria-label={`Instalment ${idx + 1} value`} className="value-input text-right" value={row.principalAmount || ''} onChange={e => updateScheduleAmount(idx, Number(e.target.value) || 0)} />
+                            : <span className="font-medium">{fmt(row.principalAmount)}</span>}
+                        </Td>
+                        <Td label="% of AV" className="text-right text-muted">
+                          {row.percentOfAV !== undefined && agreementValue > 0 ? `${Number(((row.principalAmount / agreementValue) * 100).toFixed(2))}%` : <span className="text-muted text-sm">—</span>}
+                        </Td>
+                        <Td label={`GST ${gstRate}% (₹)`} className="text-right text-muted">
+                          {row.gstAmount > 0 ? fmt(row.gstAmount) : <span className="text-muted text-sm">—</span>}
+                        </Td>
+                        <Td label="">
+                          {instalment && !received && !row.raised && <Button type="button" variant="ghost" size="sm" onClick={() => removeInstalment(idx)} aria-label={`Remove instalment ${idx + 1}`} title="Remove">✕</Button>}
+                        </Td>
+                      </tr>
+                    )
+                  }
                   return (
                     <tr key={idx}>
                       <Td label="#" className="text-muted text-sm">{idx + 1}</Td>
@@ -892,11 +1008,19 @@ export default function NewSaleWizard({ projects, prefill = null, preselect = nu
                 <tr className="font-bold">
                   <Td label="" colSpan={3} className="text-right pt-3">TOTALS</Td>
                   <Td label="Amount (₹)" className="text-right pt-3">{fmt(totalPrincipal)}</Td>
+                  {dated && <Td label="% of AV" className="text-right pt-3">{totalPercent}%</Td>}
                   <Td label={`GST ${gstRate}% (₹)`} className="text-right pt-3">{fmt(totalGst)}</Td>
-                  <Td label="Total (₹)" className="text-right pt-3 text-brand text-md">{fmt(grandTotal)}</Td>
+                  {dated ? <Td label=""> </Td> : <Td label="Total (₹)" className="text-right pt-3 text-brand text-md">{fmt(grandTotal)}</Td>}
                 </tr>
               </tfoot>
           </Table></div>
+
+          {dated && (
+            <div className="mb-4 flex items-center justify-between gap-3">
+              <Button type="button" variant="secondary" size="sm" onClick={addInstalment}>+ Add instalment</Button>
+              <span className={amountsMatch ? 'text-sm text-muted' : 'text-sm text-danger'}>Left to allocate: {fmt(agreementValue - totalMilestoneAmount)}</span>
+            </div>
+          )}
 
           {/* The totals in words, one per line at full width: a narrow column cannot hold them without running into its neighbour */}
           <dl className="totals-words">
@@ -906,10 +1030,11 @@ export default function NewSaleWizard({ projects, prefill = null, preselect = nu
           </dl>
 
           {!isValidPlan && (
-            <Alert variant="danger" className="mb-4" title={`The milestone payment plan does not match the agreement value (${fmt(agreementValue)})`}>
+            <Alert variant="danger" className="mb-4" title={`The ${dated ? 'date-based' : 'milestone'} payment plan does not match the agreement value (${fmt(agreementValue)})`}>
               <ul className="mt-2 pl-5 mb-0">
-                {totalPercent !== 100 && <li>The percentages total {totalPercent}%. They must total exactly 100%.</li>}
-                {totalMilestoneAmount !== agreementValue && <li>The milestone amounts total {fmt(totalMilestoneAmount)}. They must total exactly {fmt(agreementValue)}.</li>}
+                {datedProblems.map(p => <li key={p}>{p}</li>)}
+                {!dated && totalPercent !== 100 && <li>The percentages total {totalPercent}%. They must total exactly 100%.</li>}
+                {!amountsMatch && <li>The {dated ? 'instalment' : 'milestone'} amounts total {fmt(totalMilestoneAmount)}. They must total exactly {fmt(agreementValue)}.</li>}
               </ul>
             </Alert>
           )}

@@ -906,7 +906,7 @@ docker compose up -d web
 |---|---|
 | Email through Gmail (needs 2-step verification and an *app password*) | `GMAIL_USER="accounts@customer.com"`, `GMAIL_APP_PASSWORD="abcd efgh ijkl mnop"` |
 | Email through any SMTP server | `SMTP_HOST`, `SMTP_PORT`, `SMTP_SECURE`, `SMTP_USER`, `SMTP_PASS`, optionally `SMTP_FROM_ADDRESS` |
-| WhatsApp Cloud API | `WHATSAPP_PHONE_NUMBER_ID`, `WHATSAPP_ACCESS_TOKEN` |
+| WhatsApp through Gupshup | `GUPSHUP_API_KEY`, `GUPSHUP_SOURCE`, `GUPSHUP_APP_NAME`, `GUPSHUP_TEMPLATE_DEMANDS_AND_RECEIPTS`, `GUPSHUP_TEMPLATE_QUOTATION` |
 | PAN / Aadhaar card reading (OCR) | `AZAPI_TOKEN` |
 
 The startup log prints "No email provider configured" until email is set; that is only a warning. The Settings page's email badge is decided when the image is built, so it can read "not configured" on a prebuilt image even when email works: send a real test email to confirm.
