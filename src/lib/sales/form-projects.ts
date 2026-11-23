@@ -26,8 +26,6 @@ export async function loadSaleFormProjects(own: { unitId?: string; saleId?: stri
       parkingFields: { orderBy: { sequence: 'asc' } },
       // Only the spaces still free: none sold, none allotted outside the app
       parkingSlots: { where: { OR: [{ saleId: null, OR: [{ allottedTo: null }, { allottedTo: '' }] }, ...(own.saleId ? [{ saleId: own.saleId }] : [])] }, orderBy: { sequence: 'asc' } },
-      // The construction milestone a possession instalment of a date-based plan is raised on
-      milestones: { where: { name: { contains: 'possession', mode: 'insensitive' } }, orderBy: { sequence: 'desc' }, take: 1, select: { id: true, name: true } },
       company: { select: { partners: { where: { isActive: true }, orderBy: { name: 'asc' }, select: { id: true, name: true } } } },
       paymentPlans: {
         orderBy: { name: 'asc' },
@@ -57,7 +55,6 @@ export async function loadSaleFormProjects(own: { unitId?: string; saleId?: stri
       parkingFields: p.parkingFields.map((f) => ({ key: f.key, name: f.name })),
       parkingSlots: p.parkingSlots.map((s) => ({ id: s.id, values: (s.values ?? {}) as ParkingValues, type: s.type })),
       partners: p.company.partners, // the active partners a sale agreement can name
-      possessionMilestone: p.milestones[0] ?? null,
       pricing: pricingFromProject(p),
       singleWing: p.singleWing, // no wing name is shown for the project
       units,

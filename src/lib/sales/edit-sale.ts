@@ -178,10 +178,9 @@ export async function updateSale(saleId: string, input: SaleEditInput, actorId: 
         if (principalPaise < principalPaid) throw fail('invalid', `${s.description}: ${formatCurrency(fromPaise(principalPaid))} has already been received, so it cannot be less than that`)
         if (gstPaise < gstPaid) throw fail('invalid', `${s.description}: GST of ${formatCurrency(fromPaise(gstPaid))} has already been received, so it cannot be less than that`)
         // A date-based demand that is not raised yet can have its date changed too
-        // (a row that had no date, such as the possession, can be given one)
-        const newRaiseOn = !s.demandGeneratedDate && r.autoRaise && r.raiseOn ? new Date(r.raiseOn) : null
-        const dateMoved = !!newRaiseOn && (newRaiseOn.getTime() !== s.raiseOn?.getTime() || !s.autoRaise)
-        if (dateMoved) await tx.paymentSchedule.update({ where: { id: s.id }, data: { raiseOn: newRaiseOn, autoRaise: true } })
+        const newRaiseOn = s.autoRaise && !s.demandGeneratedDate && r.raiseOn ? new Date(r.raiseOn) : null
+        const dateMoved = !!newRaiseOn && newRaiseOn.getTime() !== s.raiseOn?.getTime()
+        if (dateMoved) await tx.paymentSchedule.update({ where: { id: s.id }, data: { raiseOn: newRaiseOn } })
         if (principalPaise === toPaise(Number(s.principalAmount)) && gstPaise === toPaise(Number(s.gstAmount))) continue
         const balance = principalPaise - principalPaid + gstPaise - gstPaid
         const status = statusAfterEdit(s, balance <= 0 && toPaise(Number(s.interestAmount)) <= 0, principalPaid + gstPaid > 0, asOf)

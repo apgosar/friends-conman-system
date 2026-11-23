@@ -49,8 +49,6 @@ type Buyer = { id?: string; fullName: string; panNumber: string; aadhaarNumber: 
 // A row of a date-based plan has autoRaise and raiseOn (yyyy-mm-dd): the demand is raised and sent on that day. `raised`: it already was.
 type ScheduleRow = { id?: string; milestoneId: string; description: string; principalAmount: number; gstAmount: number; isBooking?: boolean; sequence: number; percentOfAV?: number; paidPrincipal?: number; paidGst?: number; autoRaise?: boolean; raiseOn?: string; raised?: boolean }
 type PlanKind = 'MILESTONE' | 'DATED'
-// The possession is paid when it is handed over, so it has no date to send its demand on (the date is optional for it)
-const isPossession = (description: string) => /possession/i.test(description)
 
 /** A sale being edited: what the screen starts with. Money and parking are as saved; buyers carry only the masked PAN and Aadhaar. */
 export interface EditingSale {
@@ -437,11 +435,7 @@ export default function NewSaleWizard({ projects, prefill = null, preselect = nu
   }
 
   // ── Step 2: the instalments of a date-based plan ─────────
-  const isInstalment = (r: ScheduleRow) => (!!r.autoRaise || (isPossession(r.description) && !r.isBooking)) && !isStandaloneCharge(r.description) && r.description !== OTHER_CHARGES_LABEL
-  // What raises a row of a date-based plan: its date, or (a possession with no date) the project's possession milestone being completed
-  const possessionMilestone = (selectedProject as { possessionMilestone?: { id: string; name: string } | null } | undefined)?.possessionMilestone ?? null
-  const triggerOf = (r: ScheduleRow | undefined): { autoRaise?: boolean; raiseOn?: string; milestoneId?: string } =>
-    !r ? {} : r.raiseOn ? { autoRaise: true, raiseOn: r.raiseOn } : isPossession(r.description) && possessionMilestone ? { milestoneId: possessionMilestone.id } : {}
+  const isInstalment = (r: ScheduleRow) => !!r.autoRaise && !isStandaloneCharge(r.description) && r.description !== OTHER_CHARGES_LABEL
   const changePlanKind = (kind: PlanKind) => {
     setPlanKind(kind)
     setSchedules(kind === 'DATED' ? buildDatedSchedule([]) : rowsFor(paymentPlan))
@@ -476,9 +470,7 @@ export default function NewSaleWizard({ projects, prefill = null, preselect = nu
   }
 
   // ── Step 2 → create sale + schedules ────────────────────
-  const lastInstalment = [...schedules].reverse().find(isInstalment)
-  const lastInstalmentDate = lastInstalment?.raiseOn || undefined
-  const lastTrigger = triggerOf(lastInstalment)
+  const lastInstalmentDate = [...schedules].reverse().find(isInstalment)?.raiseOn
   const goToStep3 = async () => {
     setError('')
     if (editing && reason.trim().length < 3) { setReasonError('Say why the sale is being changed'); scrollToFirstInvalid(); return }
@@ -510,13 +502,12 @@ export default function NewSaleWizard({ projects, prefill = null, preselect = nu
           const withLast = dated && (s.description === OTHER_CHARGES_LABEL || s.description.startsWith('Car Parking'))
           return {
             id: s.id,
-            milestoneId: (dated ? undefined : s.milestoneId) || undefined,
+            milestoneId: s.milestoneId || undefined,
             isBooking: s.isBooking || undefined,
             description: s.description.trim(),
             principalAmount: s.principalAmount,
             gstAmount: s.gstAmount,
-            // Raised on its date, or (a possession with no date) when the project's possession milestone is completed; else by hand from the sale page
-            ...(isInstalment(s) ? triggerOf(s) : withLast ? lastTrigger : {}),
+            ...(isInstalment(s) ? { autoRaise: true, raiseOn: s.raiseOn } : withLast ? { autoRaise: true, raiseOn: lastInstalmentDate } : {}),
           }
         })
       }
@@ -576,8 +567,7 @@ export default function NewSaleWizard({ projects, prefill = null, preselect = nu
     instalments.length === 0 ? 'Add at least one instalment.' : '',
     instalments.some(r => !r.description.trim()) ? 'Every instalment needs a name.' : '',
     names.some((n, i) => n && names.indexOf(n) !== i) ? 'Each instalment needs a different name.' : '',
-    instalments.some(r => !isPossession(r.description) && (!r.raiseOn || isNaN(Date.parse(r.raiseOn)))) ? 'Every instalment needs a date (except possession).' : '',
-    instalments.some(r => r.raiseOn && isNaN(Date.parse(r.raiseOn))) ? 'One of the dates is not valid.' : '',
+    instalments.some(r => !r.raiseOn || isNaN(Date.parse(r.raiseOn))) ? 'Every instalment needs a date.' : '',
     instalments.some(r => !(r.principalAmount > 0)) ? 'Every instalment needs an amount above zero.' : '',
   ].filter(Boolean) : []
   const isValidPlan = dated ? amountsMatch && datedProblems.length === 0 : editing ? amountsMatch : totalPercent === 100 && amountsMatch
@@ -940,8 +930,7 @@ export default function NewSaleWizard({ projects, prefill = null, preselect = nu
                         <Td label="Date (demand sent)">
                           {instalment
                             ? <Input small type="date" className="date-input" aria-label={`Instalment ${idx + 1} date`} value={row.raiseOn ?? ''} disabled={row.raised} onChange={e => updateInstalment(idx, { raiseOn: e.target.value })} />
-                            : <span className="text-muted text-sm">{row.isBooking ? 'With the sale' : row.description === STAMP_DUTY_LABEL ? 'Raised by you from the sale page' : lastInstalmentDate || lastTrigger.milestoneId ? 'With the last instalment' : 'Raised by you from the sale page'}</span>}
-                          {instalment && !row.raiseOn && isPossession(row.description) && <div className="text-xs text-muted">{possessionMilestone ? `No date: raised when “${possessionMilestone.name}” is completed` : 'No date: raised by you from the sale page'}</div>}
+                            : <span className="text-muted text-sm">{row.isBooking ? 'With the sale' : row.description === STAMP_DUTY_LABEL ? 'Raised by you from the sale page' : 'With the last instalment'}</span>}
                           {instalment && row.raised && <div className="text-xs text-muted">Demand already sent</div>}
                         </Td>
                         <Td label="Value (₹)" className="text-right">

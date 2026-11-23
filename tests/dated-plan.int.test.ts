@@ -64,18 +64,12 @@ describeDb('a date-based payment plan', () => {
     expect(logs.every((l) => l.status === 'PENDING')).toBe(true) // the dispatcher holds them (see sale-comms)
   })
 
-  it('a possession instalment follows its milestone, not the daily job, while the dated ones follow their date', async () => {
-    const { prisma, sale, rows } = await seed()
-    const milestone = await prisma.constructionMilestone.create({ data: { projectId: sale.projectId, name: 'On Possession', sequence: 9 } })
-    const possession = await prisma.paymentSchedule.create({ data: { saleId: sale.id, milestoneId: milestone.id, description: 'On Possession', principalAmount: 200_000, gstAmount: 10_000, status: 'UPCOMING' } })
+  it('raises a demand on its new date when the date is changed before it is raised', async () => {
+    const { prisma, rows } = await seed()
     const { runDailyInterestAndStatus } = await import('@/lib/scheduler')
-    const { raiseDemands } = await import('@/lib/demand-raising')
-    await runDailyInterestAndStatus(day('2027-10-01')) // both dates have passed
-    expect((await prisma.paymentSchedule.findUniqueOrThrow({ where: { id: possession.id } })).status).toBe('UPCOMING')
-    expect(await prisma.paymentSchedule.count({ where: { id: { in: rows.map((r) => r.id) }, status: 'DUE' } })).toBe(2)
-    const done = await raiseDemands({ milestoneId: milestone.id }, { raisedOn: day('2028-01-01'), dueDateFor: () => day('2028-01-11'), compose: (s) => ({ text: s.description, extra: [], letterFor: 'On Possession' }) })
-    expect(done.raised).toBe(1)
-    expect((await prisma.paymentSchedule.findUniqueOrThrow({ where: { id: possession.id } })).status).toBe('DUE')
+    await prisma.paymentSchedule.update({ where: { id: rows[1].id }, data: { raiseOn: day('2026-12-01') } })
+    expect((await runDailyInterestAndStatus(day('2026-11-30'))).dated.raised).toBe(1) // only the first one, whose date has passed
+    expect((await runDailyInterestAndStatus(day('2026-12-01'))).dated.raised).toBe(1) // the moved one, on its new date
   })
 
   it('does not raise the demands of a cancelled sale', async () => {
