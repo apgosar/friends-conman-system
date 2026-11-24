@@ -38,6 +38,7 @@
 
   /* Borders */
   --border-color:     rgba(255,255,255,0.08);
+  --border-field:     rgba(255,255,255,0.28); /* the slim outline of a text box, clearer than a card edge */
   --border-focus:     var(--color-primary);
 
   --text-on-primary:  #ffffff;
