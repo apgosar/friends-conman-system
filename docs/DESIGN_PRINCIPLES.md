@@ -50,7 +50,7 @@ The cost of breaking this is paid later and in bulk: a hand-styled button here, 
 | Change or read a project's payment plans (milestones + % per sale type and unit type, one default each) | `savePaymentPlan` / `deletePaymentPlan`; rules and labels in `lib/payment-plans.ts` | `src/lib/payment-plan-store.ts`, `src/lib/payment-plans.ts` |
 | Company details and partners (a project picks a company; a sale agreement names 2 partners) | `CompanySchema` / `PartnerSchema` / `checkAgreementPartners`; writes through `company-store`; the picker is `AgreementPartnerPicker` | `src/lib/companies.ts`, `src/lib/company-store.ts`, `src/components/sales/AgreementPartnerPicker.tsx` |
 | A − / + counter for a small whole number (car parks...) | `Stepper` | `src/components/ui/Stepper.tsx` |
-| Show field labels as the placeholder / on the border (like the new-sale form) | wrap the form in `.form-floating`; the fields themselves are unchanged | `src/styles/components.css` |
+| Field labels on the border / as the placeholder (the new-sale form look) | nothing to do: every `.form-group` (`TextField`, `SelectField`, `TextareaField`, `PhoneField`) does it everywhere; a group that must not float (a file chooser) adds `.form-group-static`; bare `Input`s in tables and toolbars stay compact | `src/styles/components.css` |
 | Show "page failed" / "not found" | `ErrorState` | `src/components/ui/ErrorState.tsx` |
 | Call our own API from a screen | `fetchJson`, `jsonRequest`, `errorMessage` | `src/lib/client/api.ts` |
 | Write a new API route | `route(permission, handler)` | `src/lib/route.ts` |

@@ -18,8 +18,8 @@ const PaymentSchema = z.object({
   gstPaid: amount.optional().default(0),
   interestPaid: amount.optional().default(0),
   mode: z.enum(PAYMENT_MODE_VALUES, { message: 'Choose a payment mode' }),
-  referenceNumber: z.string().max(100).optional(),
-  bankName: z.string().max(100).optional(),
+  referenceNumber: z.string().trim().min(1, 'Enter the reference number').max(100),
+  bankName: z.string().trim().min(1, 'Enter the bank name').max(100),
   remark: z.string().max(500).optional(),
   paymentDate: z.string().refine((v) => !isNaN(Date.parse(v)), { message: 'Invalid paymentDate' }),
 })

@@ -963,15 +963,16 @@ a.list-row:hover { background: var(--bg-card-hover); }
 
 /* ───────────────────────────────────────────
    Floating-label forms
-   Wrap a form in .form-floating: every TextField / SelectField / TextareaField then shows its label as the
-   placeholder (dropdowns with nothing chosen) or sitting on the border (anything filled in, and text fields).
+   Every TextField / SelectField / TextareaField (a .form-group) shows its label as the
+   placeholder (dropdowns with nothing chosen) or sitting on the border (anything filled in, and text fields). A group that must not float (a file chooser) adds .form-group-static.
    The label's background has to match the surface behind the field: --field-bg.
 ─────────────────────────────────────────── */
-.form-floating { --field-bg: var(--bg-card); }
-.form-floating .panel, .form-floating .card-flat { --field-bg: var(--bg-surface); }
+/* The label's background has to match what the field sits on */
+:root { --field-bg: var(--bg-card); }
+.panel, .card-flat { --field-bg: var(--bg-surface); }
 
-.form-floating .form-group { position: relative; }
-.form-floating .form-group > .form-label {
+.form-group:not(.form-group-static) { position: relative; }
+.form-group:not(.form-group-static) > .form-label {
   position: absolute;
   top: 0;
   left: var(--space-3);
@@ -985,12 +986,12 @@ a.list-row:hover { background: var(--bg-card-hover); }
   pointer-events: none;
   transition: top var(--transition-fast), font-size var(--transition-fast), color var(--transition-fast);
 }
-.form-floating .form-group:focus-within > .form-label { color: var(--color-primary); }
-.form-floating .form-input,
-.form-floating .form-select { padding-top: 12px; padding-bottom: 12px; }
+.form-group:not(.form-group-static):focus-within > .form-label { color: var(--color-primary); }
+.form-group .form-input,
+.form-group .form-select { padding-top: 12px; padding-bottom: 12px; }
 
 /* A dropdown with nothing chosen: the label is the placeholder, inside the box */
-.form-floating .form-group:has(select option[value='']:checked) > .form-label {
+.form-group:not(.form-group-static):has(select option[value='']:checked) > .form-label {
   top: 24px;
   left: var(--space-4);
   padding: 0;
@@ -998,11 +999,11 @@ a.list-row:hover { background: var(--bg-card-hover); }
   color: var(--text-muted);
   font-size: var(--text-base, 0.875rem);
 }
-.form-floating .form-group:has(select option[value='']:checked) > .form-label .form-required { margin-left: 2px; }
-.form-floating .form-group select:has(option[value='']:checked) { color: transparent; }
-.form-floating .form-select option { color: var(--text-primary); }
+.form-group:not(.form-group-static):has(select option[value='']:checked) > .form-label .form-required { margin-left: 2px; }
+.form-group:not(.form-group-static) select:has(option[value='']:checked) { color: transparent; }
+.form-group .form-select option { color: var(--text-primary); }
 /* the transparent "nothing chosen" text above must not hide group headings in the open list */
-.form-floating .form-select optgroup { color: var(--text-secondary); font-weight: 600; background: var(--bg-card); }
+.form-group .form-select optgroup { color: var(--text-secondary); font-weight: 600; background: var(--bg-card); }
 
 /* Mobile number: country code box + number box */
 .phone-row { display: flex; gap: var(--space-2); }

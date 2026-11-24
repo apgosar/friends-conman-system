@@ -119,7 +119,7 @@ function TypeForm({ projectId, category, type, existingNames, onClose }: {
           <TextField label="Price per sqft (₹)" type="number" min="0" step="1" value={f.basePricePerSqft} onChange={(e) => set('basePricePerSqft', e.target.value)} />
         </div>
 
-        <div className="form-group">
+        <div className="form-group form-group-static">
           <label className="form-label" htmlFor="floor-plan">Floor plan image (PNG, JPG or WebP, up to 5 MB)</label>
           {currentPlan && <img src={type!.floorPlanUrl!} alt="Current floor plan" className="thumb" />}
           {file && <img src={URL.createObjectURL(file)} alt="New floor plan" className="thumb" />}

@@ -100,7 +100,7 @@ export default function MilestoneRow({ m }: { m: any }) {
               </>
             }
           >
-            <form id="complete-milestone-form" onSubmit={handleComplete} className="form-group">
+            <form id="complete-milestone-form" onSubmit={handleComplete} className="form-group form-group-static">
               <label className="form-label" htmlFor="certificate-file">Architect completion certificate (PDF or image)<span className="form-required" aria-hidden="true">*</span></label>
               <input id="certificate-file" type="file" required accept=".pdf,image/*" className="form-input" onChange={(e) => setCertificateFile(e.target.files?.[0] ?? null)} />
               <span className="form-hint">Upload the signed completion certificate from the architect.</span>

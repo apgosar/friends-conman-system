@@ -130,6 +130,9 @@ export function RecordPaymentDialog({ schedules, saleId, initialScheduleId, onCl
     if (toPaise(gstNum) > toPaise(selected.gst)) return wrong('payment-gst', `GST cannot exceed ${formatCurrency(selected.gst)}`)
     if (toPaise(interestNum) > toPaise(selected.interest)) return wrong('payment-interest', `Interest cannot exceed ${formatCurrency(selected.interest)}, the interest owed up to the payment date`)
 
+    if (!bankName.trim()) return wrong('payment-bank', 'Enter the bank name')
+    if (!referenceNumber.trim()) return wrong('payment-reference', 'Enter the reference number')
+
     setLoading(true)
     setError('')
     try {
@@ -140,8 +143,8 @@ export function RecordPaymentDialog({ schedules, saleId, initialScheduleId, onCl
         gstPaid: gstNum,
         interestPaid: interestNum,
         mode,
-        referenceNumber: referenceNumber || undefined,
-        bankName: bankName || undefined,
+        referenceNumber: referenceNumber.trim(),
+        bankName: bankName.trim(),
         remark: remark || undefined,
         paymentDate: new Date(paymentDate).toISOString(),
       }))
@@ -232,8 +235,8 @@ export function RecordPaymentDialog({ schedules, saleId, initialScheduleId, onCl
           {PAYMENT_MODES.map((m) => <option key={m.value} value={m.value}>{m.label}</option>)}
         </SelectField>
 
-        <TextField label="Bank Name" placeholder="e.g. HDFC Bank" maxLength={100} value={bankName} onChange={(e) => setBankName(e.target.value)} />
-        <TextField label="Reference Number" placeholder="e.g. UTR / Cheque No." value={referenceNumber} onChange={(e) => setReferenceNumber(e.target.value)} />
+        <TextField id="payment-bank" label="Bank Name" required placeholder="e.g. HDFC Bank" maxLength={100} value={bankName} onChange={(e) => setBankName(e.target.value)} />
+        <TextField id="payment-reference" label="Reference Number" required placeholder="e.g. UTR / Cheque No." value={referenceNumber} onChange={(e) => setReferenceNumber(e.target.value)} />
         <TextareaField label="Remark" placeholder="Optional remarks" value={remark} onChange={(e) => setRemark(e.target.value)} />
 
         {error && <Alert variant="danger">{error}</Alert>}
