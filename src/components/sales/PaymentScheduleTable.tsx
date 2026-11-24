@@ -2,7 +2,8 @@
 
 import { useState } from 'react'
 import { StatusBadge, Table } from '@/components/ui'
-import { formatCurrency, formatDate } from '@/lib/format'
+import { formatCurrency } from '@/lib/format'
+import { dueDateText } from '@/lib/payment-plans'
 import PaymentDetailsModal from './PaymentDetailsModal'
 
 /** A sale's demands with what has been paid on each. Click a row for the receipts. */
@@ -34,7 +35,7 @@ export default function PaymentScheduleTable({ schedules, canWaive = false }: { 
                   {Number(s.interestAmount) > 0 ? formatCurrency(Number(s.interestAmount)) : '—'}
                 </td>
                 <td className={isOverdue ? 'text-danger font-bold' : 'text-muted'}>
-                  {s.dueDate ? formatDate(s.dueDate) : 'On milestone'} {isOverdue && '⚠️'}
+                  {dueDateText(s)} {isOverdue && '⚠️'}
                 </td>
                 <td><StatusBadge kind="schedule" status={s.status} /></td>
                 <td className="text-success font-semibold">{paid > 0 ? formatCurrency(paid) : '—'}</td>

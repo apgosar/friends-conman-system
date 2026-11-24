@@ -6,6 +6,7 @@ import { Alert, Button, Modal, StatusBadge, TextField, useToast } from '@/compon
 import { errorMessage, fetchJson, jsonRequest } from '@/lib/client/api'
 import { standingOfSchedule } from '@/lib/interest'
 import { formatCurrency, formatDate } from '@/lib/format'
+import { dueDateText } from '@/lib/payment-plans'
 import { isTdsPayment, paymentKindLabel, paymentModeLabel } from '@/lib/status'
 import { pdfViewUrl } from '@/lib/comms-content'
 
@@ -74,7 +75,7 @@ export default function PaymentDetailsModal({ schedule, onClose, canWaive = fals
       <div className="kv-list mb-6">
         <div className="kv-row"><span className="kv-label">Description</span><span className="kv-value">{schedule.description}</span></div>
         <div className="kv-row"><span className="kv-label">Status</span><StatusBadge kind="schedule" status={schedule.status} /></div>
-        <div className="kv-row"><span className="kv-label">Due Date</span><span className="kv-value font-medium">{schedule.dueDate ? formatDate(schedule.dueDate) : 'On milestone'}</span></div>
+        <div className="kv-row"><span className="kv-label">Due Date</span><span className="kv-value font-medium">{dueDateText(schedule)}</span></div>
         <div className="kv-row"><span className="kv-label">Principal Amount</span><span className="kv-value font-medium">{formatCurrency(Number(schedule.principalAmount))}</span></div>
         <div className="kv-row"><span className="kv-label">GST Amount</span><span className="kv-value font-medium">{formatCurrency(Number(schedule.gstAmount ?? 0))}</span></div>
         <div className="kv-row"><span className="kv-label">Principal Received</span><span className="kv-value text-success">{formatCurrency(principalReceived)}</span></div>

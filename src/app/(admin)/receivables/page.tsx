@@ -1,7 +1,8 @@
 import { auth } from '@/lib/auth'
 import { prisma } from '@/lib/db'
 import { OUTSTANDING_SCHEDULE_STATUSES } from '@/lib/status'
-import { formatCurrency, formatDate } from '@/lib/format'
+import { formatCurrency } from '@/lib/format'
+import { dueDateText } from '@/lib/payment-plans'
 import TopNav from '@/components/layout/TopNav'
 import { redirect } from 'next/navigation'
 import { activeSale } from '@/lib/soft-delete'
@@ -84,7 +85,7 @@ export default async function ReceivablesPage(props: PageProps<'/receivables'>) 
                       <Td label="Unit" className="font-medium">{s.sale?.unit?.unitNumber}</Td>
                       <Td label="Buyer">{s.sale?.buyers[0]?.fullName || '-'}</Td>
                       <Td label="Description" className="text-secondary">{s.description || s.milestone?.name}</Td>
-                      <Td label="Due date" className="text-muted">{s.dueDate ? formatDate(s.dueDate) : 'On milestone'}</Td>
+                      <Td label="Due date" className="text-muted">{dueDateText(s)}</Td>
                       <Td label="Overdue">{daysPast > 0 ? <Badge variant={lateness}>{daysPast} days</Badge> : <Badge variant="success">Current</Badge>}</Td>
                       <Td label="Amount" className="text-right font-semibold">{formatCurrency(amt)}</Td>
                       <Td label=""><ButtonLink href={`/sales/${s.saleId}`} variant="primary" size="sm">View Sale</ButtonLink></Td>

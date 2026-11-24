@@ -1,4 +1,5 @@
 import { z } from 'zod'
+import { formatDate } from '@/lib/format'
 
 /**
  * Payment plans: which milestones fall due and what % of the agreement value is due at each. A project has several
@@ -193,4 +194,10 @@ export function orderMilestones<T extends { id: string; name: string; sequence: 
     remaining.delete(next.id)
   }
   return out
+}
+
+/** The Due Date column of a demand: its due date once raised; before that, the day a date-based demand will be raised, else the milestone it waits for. */
+export function dueDateText(s: { dueDate?: Date | string | null; autoRaise?: boolean | null; raiseOn?: Date | string | null }): string {
+  if (s.dueDate) return formatDate(s.dueDate)
+  return s.autoRaise && s.raiseOn ? `Demand on ${formatDate(s.raiseOn)}` : 'On milestone'
 }
