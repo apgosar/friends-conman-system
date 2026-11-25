@@ -11,6 +11,7 @@ import { isTdsPayment, paymentKindLabel, paymentModeLabel } from '@/lib/status'
 import { pdfViewUrl } from '@/lib/comms-content'
 
 type Money = { amount: unknown; gstPaid?: unknown; interestPaid?: unknown }
+type PaymentRow = Money & { id: string; mode?: string | null; receiptNumber: string }
 
 /** Admin and Super Admin: forgive some or all of the interest owed on a demand, with the reason. */
 function WaiveInterestDialog({ scheduleId, owed, onClose }: { scheduleId: string; owed: number; onClose: () => void }) {
@@ -57,8 +58,53 @@ function WaiveInterestDialog({ scheduleId, owed, onClose }: { scheduleId: string
   )
 }
 
+/** Super Admin: take back a payment entered by mistake, with the reason. The demand, its interest and the sale are put right by the server. */
+function ReversePaymentDialog({ payment, onClose, onDone }: { payment: PaymentRow; onClose: () => void; onDone: () => void }) {
+  const router = useRouter()
+  const toast = useToast()
+  const [reason, setReason] = useState('')
+  const [error, setError] = useState('')
+  const [loading, setLoading] = useState(false)
+  const total = Number(payment.amount) + Number(payment.gstPaid ?? 0) + Number(payment.interestPaid ?? 0)
+  const tds = isTdsPayment(payment)
+
+  const submit = async (e: React.FormEvent) => {
+    e.preventDefault()
+    setError('')
+    if (reason.trim().length < 3) return setError('Give the reason for reversing the payment')
+    setLoading(true)
+    try {
+      await fetchJson(`/api/payments/${payment.id}/reverse`, jsonRequest('POST', { reason }))
+      toast.success(tds ? 'TDS credit reversed' : 'Payment reversed')
+      onDone()
+      router.refresh()
+    } catch (err) {
+      setError(errorMessage(err))
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  return (
+    <Modal
+      title={tds ? 'Reverse TDS credit' : 'Reverse payment'}
+      subtitle={`${formatCurrency(total)}${tds ? '' : ` · Receipt ${payment.receiptNumber}`}`}
+      onClose={onClose}
+      dismissible={!loading}
+      footer={<><Button onClick={onClose} disabled={loading}>Cancel</Button><Button type="submit" form="reverse-payment-form" variant="danger" loading={loading}>Reverse payment</Button></>}
+    >
+      <form id="reverse-payment-form" className="stack" onSubmit={submit}>
+        <Alert variant="warning">The amount is taken back from this demand and its status and interest are recalculated. The record is kept and marked as reversed. {!tds && 'A receipt that was already sent to the buyer cannot be recalled'}</Alert>
+        <TextField label="Reason" value={reason} maxLength={300} onChange={(e) => setReason(e.target.value)} placeholder="e.g. Entered the wrong amount" />
+        {error && <Alert variant="danger">{error}</Alert>}
+      </form>
+    </Modal>
+  )
+}
+
 /** What was due and what was received for one demand, with a link to each receipt. Used on both payment screens. */
-export default function PaymentDetailsModal({ schedule, onClose, canWaive = false }: { schedule: any; onClose: () => void; canWaive?: boolean }) {
+export default function PaymentDetailsModal({ schedule, onClose, canWaive = false, canReverse = false }: { schedule: any; onClose: () => void; canWaive?: boolean; canReverse?: boolean }) {
+  const [reversing, setReversing] = useState<PaymentRow | null>(null)
   const [waiving, setWaiving] = useState(false)
   const live = (schedule.payments ?? []).filter((p: any) => !p.deletedAt)
   const principalReceived = live.reduce((a: number, p: Money) => a + Number(p.amount), 0)
@@ -119,11 +165,13 @@ export default function PaymentDetailsModal({ schedule, onClose, canWaive = fals
                 <div className="text-muted">{paymentKindLabel(pmt)}</div>
                 {Number(pmt.interestPaid ?? 0) > 0 && <div className="text-muted">of which interest {formatCurrency(Number(pmt.interestPaid))}</div>}
                 {pmt.remark && <div className="italic text-secondary mt-2">&ldquo;{pmt.remark}&rdquo;</div>}
+                {canReverse && <div className="mt-2"><Button size="sm" variant="danger" onClick={() => setReversing(pmt)}>Reverse</Button></div>}
               </div>
             ))}
           </div>
         </div>
       )}
+      {reversing && <ReversePaymentDialog payment={reversing} onClose={() => setReversing(null)} onDone={() => { setReversing(null); onClose() }} />}
       {waiving && interest && <WaiveInterestDialog scheduleId={schedule.id} owed={interest.outstanding} onClose={() => setWaiving(false)} />}
     </Modal>
   )

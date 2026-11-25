@@ -224,7 +224,7 @@ export default async function SaleDetailPage(props: PageProps<'/sales/[id]'>) {
               </div>
             }
           />
-          <PaymentScheduleTable schedules={schedulesForScreen} canWaive={canEditSale} />
+          <PaymentScheduleTable schedules={schedulesForScreen} canWaive={canEditSale} canReverse={isSuperAdmin} />
         </Card>
 
         {sale.documents.length > 0 && (

@@ -7,7 +7,7 @@ import { dueDateText } from '@/lib/payment-plans'
 import PaymentDetailsModal from './PaymentDetailsModal'
 
 /** A sale's demands with what has been paid on each. Click a row for the receipts. */
-export default function PaymentScheduleTable({ schedules, canWaive = false }: { schedules: any[]; canWaive?: boolean }) {
+export default function PaymentScheduleTable({ schedules, canWaive = false, canReverse = false }: { schedules: any[]; canWaive?: boolean; canReverse?: boolean }) {
   const [selected, setSelected] = useState<any | null>(null)
 
   return (
@@ -46,7 +46,7 @@ export default function PaymentScheduleTable({ schedules, canWaive = false }: { 
         </tbody>
       </Table>
 
-      {selected && <PaymentDetailsModal schedule={selected} canWaive={canWaive} onClose={() => setSelected(null)} />}
+      {selected && <PaymentDetailsModal schedule={selected} canWaive={canWaive} canReverse={canReverse} onClose={() => setSelected(null)} />}
     </>
   )
 }

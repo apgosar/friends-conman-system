@@ -11,7 +11,9 @@ import { ButtonLink, Card, EmptyState, PageHeader, Table } from '@/components/ui
 
 export default async function SalePaymentsPage(props: PageProps<'/sales/[id]/payments'>) {
   const { id } = await props.params
-  const canWaive = can((await auth())?.user?.role, 'admin')
+  const role = (await auth())?.user?.role
+  const canWaive = can(role, 'admin')
+  const canReverse = can(role, 'superadmin')
   const sale = await prisma.sale.findUnique({
     where: { id },
     include: {
@@ -41,7 +43,7 @@ export default async function SalePaymentsPage(props: PageProps<'/sales/[id]/pay
                 <tr><th>Description</th><th>Status</th><th>Due Date</th><th>Principal Due</th><th>GST Due</th><th>Total Received</th><th>Actions</th></tr>
               </thead>
               <tbody>
-                {withInterestPolicy(plain(sale.paymentSchedules), sale.project).map((schedule) => <PaymentScheduleRow key={schedule.id} schedule={schedule} saleId={sale.id} canWaive={canWaive} />)}
+                {withInterestPolicy(plain(sale.paymentSchedules), sale.project).map((schedule) => <PaymentScheduleRow key={schedule.id} schedule={schedule} saleId={sale.id} canWaive={canWaive} canReverse={canReverse} />)}
               </tbody>
             </Table>
           )}
