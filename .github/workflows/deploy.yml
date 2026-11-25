@@ -1,9 +1,9 @@
 name: Deploy to Cloud Run
 
+# Cloud Run is not in use for now, so a push to main no longer deploys (it was failing at "Google Auth" and repeating the whole
+# quality gate). To switch it on again: fix the WIF_PROVIDER / SA_EMAIL secrets and put the `push: branches: [main]` trigger back.
 on:
-  push:
-    branches:
-      - main
+  workflow_dispatch:
 
 env:
   PROJECT_ID: neev-cms # Update if your GCP Project ID differs

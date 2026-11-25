@@ -112,7 +112,7 @@ TEST_DATABASE_URL=postgresql://localhost:5432/neev_test npm test     # applies t
 ```
 
 CI (`.github/workflows/ci.yml`) runs the same checks plus a migrations-vs-schema drift check and a production build.
-`deploy.yml` and `release-onprem.yml` call it first, so a failing commit is never deployed or released.
+`release-onprem.yml` calls it first (and builds the image while the checks run, pushing it only once they pass), so a failing commit is never released. The layout check runs in three parallel parts by screen size. `deploy.yml` (Cloud Run) is switched off: it runs by hand only. A push to `main` on its own is not checked; the checks run on pull requests, other branches and release tags.
 
 ### Database changes
 

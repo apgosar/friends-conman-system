@@ -24,8 +24,38 @@ jobs:
   verify:
     uses: ./.github/workflows/ci.yml
 
+  # The image is built while the checks run, so the release does not wait for it afterwards. Nothing is published here: only
+  # the build layers are kept (in the registry, as the "buildcache" tag), and the release job below pushes the image once
+  # the checks have passed.
+  image:
+    name: Build image (while the checks run)
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write # the layer cache
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+      - uses: docker/setup-buildx-action@v3
+      - uses: docker/login-action@v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+      - name: Build (not pushed)
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          push: false
+          provenance: false
+          build-args: |
+            BUILD_SHA=${{ github.sha }}
+            APP_VERSION=${{ github.ref_name }}
+          cache-from: type=registry,ref=${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:buildcache
+          cache-to: type=registry,ref=${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:buildcache,mode=max
+
   release:
-    needs: verify
+    needs: [verify, image]
     runs-on: ubuntu-latest
 
     permissions:
@@ -37,23 +67,35 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      - name: Log in to GitHub Container Registry
-        run: echo "${{ secrets.GITHUB_TOKEN }}" | docker login ${{ env.REGISTRY }} -u ${{ github.actor }} --password-stdin
+      - uses: docker/setup-buildx-action@v3
 
+      - uses: docker/login-action@v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      # The same build as above, so every layer comes from the cache and only the push is left
       - name: Build and Push Docker Image
-        run: |
-          IMAGE="${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ github.ref_name }}"
-
+        id: build
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          push: true
+          provenance: false # one plain image, as before (no attestation manifest next to it)
           # The app shows the release tag and commit, and /api/health returns them (see next.config.ts).
           # The image has no .git to read them from, so they are passed in.
-          docker build --build-arg BUILD_SHA="${{ github.sha }}" --build-arg APP_VERSION="${{ github.ref_name }}" -t "$IMAGE" .
-          docker push "$IMAGE"
+          build-args: |
+            BUILD_SHA=${{ github.sha }}
+            APP_VERSION=${{ github.ref_name }}
+          tags: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ github.ref_name }}
+          cache-from: type=registry,ref=${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:buildcache
 
-          # Sign the immutable digest, not the mutable tag — see deploy.yml for why.
-          DIGEST="$(docker inspect --format='{{index .RepoDigests 0}}' "$IMAGE")"
-
-          echo "IMAGE=$IMAGE" >> $GITHUB_ENV
-          echo "IMAGE_DIGEST=$DIGEST" >> $GITHUB_ENV
+      - name: Note the image and its digest
+        # Signed by digest, not the mutable tag: see deploy.yml for why.
+        run: |
+          echo "IMAGE=${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ github.ref_name }}" >> $GITHUB_ENV
+          echo "IMAGE_DIGEST=${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}@${{ steps.build.outputs.digest }}" >> $GITHUB_ENV
 
       - name: Install Cosign
         uses: sigstore/cosign-installer@v3

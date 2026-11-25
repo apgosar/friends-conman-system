@@ -82,34 +82,19 @@ jobs:
         run: npm audit --omit=dev --audit-level=high
         continue-on-error: true # reported, not yet blocking: triage the existing findings first
 
-  build:
-    name: Production build
-    runs-on: ubuntu-latest
-    timeout-minutes: 20
-    steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
-        with:
-          node-version: 22
-          cache: npm
-      - run: npm ci
-      - run: npx prisma generate
-      - name: next build
-        run: npm run build
-        env:
-          BUILDING: 'true'
-          DATABASE_URL: postgresql://postgres:postgres@localhost:5432/neev_test
-          NEXTAUTH_SECRET: ci-build-secret-ci-build-secret-123456
-          NEXTAUTH_URL: http://localhost:3000
-          APP_URL: http://localhost:3000
-
   layout:
     # Every screen at 320 / 360 / 390 / 820 / 1440 px, on an empty database and on stress data (crore figures, long
     # names). Fails when a page scrolls sideways, text runs out of (or is cut off by) its box, or a page logs an error.
     # New screens are found by themselves (scripts/visual-check.mjs). On failure the screenshots are attached to the run.
+    # It also builds the production app (standalone, as the Docker image runs it), so a broken build fails here.
+    # Run in three parts side by side, each checking its own screen sizes: the same pages and rules, in a third of the time.
     name: Screens fit a phone (layout check)
     runs-on: ubuntu-latest
     timeout-minutes: 30
+    strategy:
+      fail-fast: false
+      matrix:
+        viewports: ['small,android', 'phone,tablet', 'desktop']
 
     services:
       postgres:
@@ -140,6 +125,7 @@ jobs:
       BASE: http://localhost:3000
       PASSWORD: ci-layout-Check-2026
       CHROMIUM_PATH: /usr/bin/google-chrome # preinstalled on the GitHub Ubuntu runners
+      VIEWPORTS: ${{ matrix.viewports }} # the screen sizes this part checks (see scripts/visual-check.mjs)
 
     steps:
       - uses: actions/checkout@v4
@@ -195,7 +181,7 @@ jobs:
         if: failure()
         uses: actions/upload-artifact@v4
         with:
-          name: layout-screenshots
+          name: layout-screenshots-${{ strategy.job-index }}
           path: visual-out
           retention-days: 7
 
