@@ -867,7 +867,7 @@ export default function NewSaleWizard({ projects, prefill = null, preselect = nu
             {editing
               ? 'These are the demands of the sale. A demand that has had payments cannot be made smaller than what was received. If you changed the price, the unit or the charges, the amounts below are worked out again from the payment plan: check them before saving.'
               : dated
-                ? "Add the instalments of this sale with the date each is due to be raised. On that date the demand letter is sent to the buyers and its due date is the project's due days later. The amounts must add up to the Agreement Value."
+                ? "Add the instalments of this sale with the date each is due to be raised. On that date the demand letter is sent to the buyers and its due date is the project's due days later. A date that is today or already past is due straight away, when you save. The amounts must add up to the Agreement Value."
                 : "Review the milestone-based payment schedule below. Amounts are pre-calculated from the project's payment plan and your Agreement Value. You may adjust them before confirming."}
           </p>
 

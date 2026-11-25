@@ -1,3 +1,4 @@
+import { raiseDatedDemands } from '@/lib/demand-raising'
 import { Prisma } from '@prisma/client'
 import { transaction } from '@/lib/db'
 import { z } from '@/lib/validate'
@@ -293,6 +294,8 @@ export async function createSale(input: SaleCreateInput, actorId: string) {
     return newSale
   }, { timeout: 30_000, maxWait: 10_000 })
 
+  // A date-based plan with a date that is today or past: that instalment is due now, not at the next daily run
+  await raiseDatedDemands(new Date(), { saleId: sale.id })
   return sale
 }
 

@@ -78,11 +78,13 @@ export async function raiseDemands(
 
 /**
  * The daily step for date-based payment plans: raise every demand whose date has come (the date in the plan is the day it is
- * raised and sent). Its due date is the project's due days after today, as for any other demand.
+ * raised and sent). Its due date is the project's due days after today, as for any other demand. With `saleId` only that sale's
+ * demands are looked at: a sale just made or changed raises the instalments whose date is already today or past at once, instead of
+ * waiting for the next daily run.
  */
-export async function raiseDatedDemands(asOf: Date = new Date()): Promise<{ raised: number; messages: number }> {
+export async function raiseDatedDemands(asOf: Date = new Date(), scope: { saleId?: string } = {}): Promise<{ raised: number; messages: number }> {
   return raiseDemands(
-    { autoRaise: true, raiseOn: { lte: asOf }, sale: activeSale },
+    { autoRaise: true, raiseOn: { lte: asOf }, sale: activeSale, ...(scope.saleId ? { saleId: scope.saleId } : {}) },
     {
       raisedOn: asOf,
       dueDateFor: ({ demandDueDays }) => dueDateAfter(asOf, demandDueDays),

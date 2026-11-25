@@ -7,6 +7,7 @@
  * each buyer a revised demand letter for every raised demand that changed and still has something to pay.
  */
 
+import { raiseDatedDemands } from '@/lib/demand-raising'
 import type { Prisma } from '@prisma/client'
 import { z } from '@/lib/validate'
 import { transaction } from '@/lib/db'
@@ -68,7 +69,7 @@ const live = <T extends { deletedAt: Date | null }>(rows: T[]) => rows.filter((r
 
 export async function updateSale(saleId: string, input: SaleEditInput, actorId: string) {
   const asOf = new Date()
-  return transaction(async (tx) => {
+  const result = await transaction(async (tx) => {
     await tx.$queryRaw`SELECT id FROM sales WHERE id = ${saleId} FOR UPDATE`
     const sale = await tx.sale.findFirst({
       where: { id: saleId, ...activeSale },
@@ -256,4 +257,7 @@ export async function updateSale(saleId: string, input: SaleEditInput, actorId: 
     })
     return { demandsChanged: changed.length, letters }
   }, { timeout: 30_000, maxWait: 10_000 })
+  // An instalment of a date-based plan whose date is today or past (new, or moved back) is due now, not at the next daily run
+  const dated = await raiseDatedDemands(new Date(), { saleId })
+  return { ...result, letters: result.letters + dated.messages, datedRaised: dated.raised }
 }
