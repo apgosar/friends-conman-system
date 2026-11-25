@@ -86,3 +86,34 @@ export async function sendWhatsApp(msg: WhatsAppMessage): Promise<WhatsAppResult
   }
   return { messageId: data.messageId, status: 'sent' }
 }
+
+const SESSION_URL = 'https://api.gupshup.io/wa/api/v1/msg'
+
+/**
+ * A plain text message, with no template. WhatsApp allows this only within 24 hours of the person's own last message
+ * (a reply to them); the callback's auto-reply is the one user of it.
+ */
+export async function sendWhatsAppText(to: string, text: string): Promise<WhatsAppResult> {
+  if (!whatsappConfigured()) {
+    logger.info({ to: `…${to.slice(-4)}` }, 'WhatsApp simulation: reply not sent (no credentials configured)')
+    return { messageId: `sim_${Date.now()}`, status: 'simulated' }
+  }
+  const form = new URLSearchParams({
+    channel: 'whatsapp',
+    source: process.env.GUPSHUP_SOURCE!.replace(/\D/g, ''),
+    destination: to.replace(/\D/g, ''),
+    'src.name': process.env.GUPSHUP_APP_NAME!,
+    message: JSON.stringify({ type: 'text', text }),
+  })
+  const res = await fetch(SESSION_URL, {
+    method: 'POST',
+    headers: { apikey: process.env.GUPSHUP_API_KEY!, 'Content-Type': 'application/x-www-form-urlencoded' },
+    body: form,
+    signal: AbortSignal.timeout(TIMEOUT_MS),
+  })
+  const text2 = await res.text()
+  let data: { status?: string; messageId?: string; message?: string } | null = null
+  try { data = JSON.parse(text2) } catch { /* not JSON: reported below */ }
+  if (!res.ok || !data?.messageId) throw new Error(`WhatsApp API error: ${data?.message || data?.status || `HTTP ${res.status}`}`)
+  return { messageId: data.messageId, status: 'sent' }
+}

@@ -62,6 +62,7 @@ export const LEFT_BEHIND: Record<string, string> = {
   Partner: 'travel with the company',
   User: 'people belong to a server; a name in a record is matched by e-mail',
   CommunicationLog: 'old messages stay on the old server, and a copied queued message would be sent again to the buyer',
+  WhatsAppInbound: 'messages sent to this server\'s WhatsApp number; they belong to the number, not to a project',
   AuditLog: 'the history of the old server stays there; the import records its own entry',
   NumberSequence: 'counters belong to a server; they are moved past the imported numbers',
   RateLimitBucket: 'working data of a server',

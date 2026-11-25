@@ -988,6 +988,20 @@ a.list-row:hover { background: var(--bg-card-hover); }
   transition: top var(--transition-fast), font-size var(--transition-fast), color var(--transition-fast);
 }
 .form-group:not(.form-group-static):focus-within > .form-label { color: var(--color-primary); }
+/* Browser autofill paints its own blue-grey fill; keep the field's own fill so the label's lower half still matches it */
+.form-input:-webkit-autofill,
+.form-input:-webkit-autofill:hover,
+.form-input:-webkit-autofill:focus,
+.form-select:-webkit-autofill,
+.form-textarea:-webkit-autofill {
+  -webkit-box-shadow: 0 0 0 100px var(--bg-input) inset;
+  -webkit-text-fill-color: var(--text-primary);
+  caret-color: var(--text-primary);
+  transition: background-color 9999s ease-in-out 0s;
+}
+.form-group:not(.form-group-static) .form-input:-webkit-autofill { box-shadow: inset 0 0 0 100px var(--bg-input); }
+.form-group:not(.form-group-static) .form-input:-webkit-autofill:focus { box-shadow: inset 0 0 0 100px var(--bg-input), inset 0 0 0 1px var(--color-primary); }
+.form-group:not(.form-group-static) .form-input:-webkit-autofill:is([aria-invalid='true'], [data-flagged='true']) { box-shadow: inset 0 0 0 100px var(--bg-input), inset 0 0 0 1px var(--color-danger); }
 /* A slim, clear outline; purple while typing, red when a required field is missing (aria-invalid / data-flagged) */
 .form-group:not(.form-group-static) .form-input,
 .form-group:not(.form-group-static) .form-select,

@@ -155,7 +155,7 @@ export default function CommunicationsPage() {
         </Card>
       </div>
 
-      {selectedLog && <MessageDetailsModal logs={[selectedLog]} retrying={retrying} onRetry={handleRetry} onClose={() => setSelectedLog(null)} />}
+      {selectedLog && <MessageDetailsModal logs={[selectedLog]} retrying={retrying} onRetry={handleRetry} onClose={() => setSelectedLog(null)} onChanged={() => { fetchLogs(); fetchStats() }} />}
     </>
   )
 }

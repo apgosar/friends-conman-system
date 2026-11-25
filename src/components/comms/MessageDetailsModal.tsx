@@ -1,8 +1,10 @@
 'use client'
 
+import { useEffect, useRef, useState } from 'react'
 import { Alert, Badge, Button, Modal, StatusBadge } from '@/components/ui'
 import { getAttachments, pdfViewUrl, stripAttachmentBlock } from '@/lib/comms-content'
 import { formatDateTime } from '@/lib/format'
+import { fetchJson } from '@/lib/client/api'
 
 const CHANNEL_ICON: Record<string, string> = { EMAIL: '✉️', WHATSAPP: '💬' }
 const fmt = (d: unknown) => (d ? formatDateTime(d as string) : '—')
@@ -12,7 +14,38 @@ const humanize = (s: string) => s.replace(/_/g, ' ')
  * One message as people want to read it: who got it, how each channel went, the text and its attachments.
  * `logs` is one row per channel of the same message (the sale page groups them); the global list passes a single row.
  */
-export default function MessageDetailsModal({ logs, onClose, onRetry, retrying }: { logs: any[]; onClose: () => void; onRetry?: (id: string) => void; retrying?: string | null }) {
+const POLL_MS = 3000
+const POLL_FOR_MS = 10 * 60 * 1000
+// Still on its way: waiting or sending, or a WhatsApp message that is not yet read (Gupshup reports delivered and read later)
+type Live = { id: string; status: string; sentAt: string | null; deliveredAt: string | null; readAt: string | null; failureReason: string | null; retryCount: number; providerMessageId: string | null }
+const inFlight = (l: { status: string; channel: string }) => ['QUEUED', 'PENDING', 'SENDING'].includes(l.status) || (l.channel === 'WHATSAPP' && ['SENT', 'DELIVERED'].includes(l.status))
+
+export default function MessageDetailsModal({ logs: given, onClose, onRetry, retrying, onChanged }: { logs: any[]; onClose: () => void; onRetry?: (id: string) => void; retrying?: string | null; onChanged?: () => void }) {
+  // The rows were read when the page loaded; while a message is still on its way the window asks for its state again
+  const [fresh, setFresh] = useState<Record<string, Live>>({})
+  const changed = useRef(false)
+  const logs = given.map((l) => ({ ...l, ...fresh[l.id] }))
+  const watching = logs.some(inFlight)
+  const ids = given.map((l) => l.id).join(',')
+
+  useEffect(() => {
+    if (!watching) return
+    const until = Date.now() + POLL_FOR_MS
+    const timer = setInterval(async () => {
+      if (document.hidden) return
+      if (Date.now() > until) return clearInterval(timer)
+      try {
+        const res = await fetchJson(`/api/communications/status?ids=${ids}`)
+        const next: Record<string, any> = {}
+        for (const r of res.data ?? []) next[r.id] = r
+        changed.current = true
+        setFresh((prev) => (JSON.stringify(prev) === JSON.stringify(next) ? prev : next))
+      } catch { /* the next tick tries again */ }
+    }, POLL_MS)
+    return () => clearInterval(timer)
+  }, [watching, ids])
+
+  const close = () => { if (changed.current) onChanged?.(); onClose() }
   const first = logs[0]
   const buyer = first.buyer ?? first.sale?.buyers?.[0]
   const body = stripAttachmentBlock(first.messageContent ?? '').split('MILESTONE:')[0].trim()
@@ -28,9 +61,9 @@ export default function MessageDetailsModal({ logs, onClose, onRetry, retrying }
       footer={
         <>
           {onRetry && failed.map((l) => (
-            <Button key={l.id} variant="primary" loading={retrying === l.id} onClick={() => { onRetry(l.id); onClose() }}>Retry {logs.length > 1 ? l.channel : 'this message'}</Button>
+            <Button key={l.id} variant="primary" loading={retrying === l.id} onClick={() => { onRetry(l.id); close() }}>Retry {logs.length > 1 ? l.channel : 'this message'}</Button>
           ))}
-          <Button onClick={onClose}>Close</Button>
+          <Button onClick={close}>Close</Button>
         </>
       }
     >

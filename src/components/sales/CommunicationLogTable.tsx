@@ -1,6 +1,7 @@
 'use client'
 
 import { useState } from 'react'
+import { useRouter } from 'next/navigation'
 import { EmptyState, Table } from '@/components/ui'
 import { commStatusBadge, commStatusLabel } from '@/lib/status'
 import { formatDateTime } from '@/lib/format'
@@ -32,6 +33,7 @@ function groupLogs(logs: any[]): LogGroup[] {
 }
 
 export default function CommunicationLogTable({ logs }: { logs: any[] }) {
+  const router = useRouter()
   const [selected, setSelected] = useState<LogGroup | null>(null)
   const groups = groupLogs(logs ?? [])
 
@@ -67,7 +69,7 @@ export default function CommunicationLogTable({ logs }: { logs: any[] }) {
         </tbody>
       </Table>
 
-      {selected && <MessageDetailsModal logs={selected.logs} onClose={() => setSelected(null)} />}
+      {selected && <MessageDetailsModal logs={selected.logs} onClose={() => setSelected(null)} onChanged={() => router.refresh()} />}
     </>
   )
 }

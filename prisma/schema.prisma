@@ -711,6 +711,23 @@ model CommunicationLog {
   @@map("communication_logs")
 }
 
+/// A message someone sent to the WhatsApp business number (Gupshup's callback). Kept for the once-a-day auto-reply and as a record.
+model WhatsAppInbound {
+  id                String    @id @default(cuid())
+  providerMessageId String?   @unique
+  phone             String // digits with country code
+  senderName        String?
+  messageType       String    @default("text")
+  text              String?   @db.Text
+  saleId            String?
+  buyerId           String?
+  autoRepliedAt     DateTime? // when the auto-reply went out for this message
+  receivedAt        DateTime  @default(now())
+
+  @@index([phone, autoRepliedAt])
+  @@map("whatsapp_inbound")
+}
+
 // ─────────────────────────────────────────────
 // AUDIT LOG
 // ─────────────────────────────────────────────

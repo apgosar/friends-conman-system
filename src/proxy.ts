@@ -12,7 +12,7 @@ export default auth(async (req) => {
   // Always allow: static assets, Next.js internals, public uploads, auth API, cron,
   // health checks, and the license-expired page itself (else a blocked deployment
   // could never show the reason it's blocked).
-  const alwaysPublic = /^\/(api\/auth|api\/cron|api\/health|_next\/static|_next\/image|favicon\.ico|icon\.svg|apple-icon\.png|uploads|license-expired)/.test(pathname)
+  const alwaysPublic = /^\/(api\/auth|api\/cron|api\/webhooks|api\/health|_next\/static|_next\/image|favicon\.ico|icon\.svg|apple-icon\.png|uploads|license-expired)/.test(pathname)
   if (alwaysPublic) return NextResponse.next()
 
   // Server-to-server fetches of documents to attach to a message (comms dispatcher): generated documents and
