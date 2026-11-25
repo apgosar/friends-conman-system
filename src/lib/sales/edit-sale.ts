@@ -160,6 +160,8 @@ export async function updateSale(saleId: string, input: SaleEditInput, actorId: 
     const existing = new Map(sale.paymentSchedules.map((s) => [s.id, s]))
     if (rows.some((r) => r.id && !existing.has(r.id))) throw fail('invalid', 'The demands of this sale have changed since the screen was opened. Close it and start again')
     const sentIds = new Set(rows.flatMap((r) => (r.id ? [r.id] : [])))
+    const sentNames = rows.map((r) => r.description.trim().toLowerCase())
+    if (rows.some((r) => r.autoRaise && sentNames.filter((n) => n === r.description.trim().toLowerCase()).length > 1)) throw fail('invalid', 'Each demand needs a different name')
     for (const s of sale.paymentSchedules.filter((x) => !sentIds.has(x.id))) {
       if (live(s.payments).length > 0) throw fail('invalid', `"${s.description}" has payments recorded, so it cannot be removed`)
       await tx.paymentSchedule.delete({ where: { id: s.id } })
@@ -177,6 +179,12 @@ export async function updateSale(saleId: string, input: SaleEditInput, actorId: 
         const gstPaid = payments.reduce((t, p) => t + toPaise(Number(p.gstPaid)), 0)
         if (principalPaise < principalPaid) throw fail('invalid', `${s.description}: ${formatCurrency(fromPaise(principalPaid))} has already been received, so it cannot be less than that`)
         if (gstPaise < gstPaid) throw fail('invalid', `${s.description}: GST of ${formatCurrency(fromPaise(gstPaid))} has already been received, so it cannot be less than that`)
+        // A demand not raised yet can change from milestone-based to date-based (or back) with the plan type; one already raised never does
+        if (!s.demandGeneratedDate && (r.autoRaise === true) !== s.autoRaise) {
+          await tx.paymentSchedule.update({ where: { id: s.id }, data: { autoRaise: r.autoRaise === true, raiseOn: r.autoRaise && r.raiseOn ? new Date(r.raiseOn) : null, milestoneId: r.autoRaise ? null : r.milestoneId || null } })
+          s.autoRaise = r.autoRaise === true
+          s.raiseOn = r.autoRaise && r.raiseOn ? new Date(r.raiseOn) : null
+        }
         // A date-based demand that is not raised yet can have its date changed too
         const newRaiseOn = s.autoRaise && !s.demandGeneratedDate && r.raiseOn ? new Date(r.raiseOn) : null
         const dateMoved = !!newRaiseOn && newRaiseOn.getTime() !== s.raiseOn?.getTime()

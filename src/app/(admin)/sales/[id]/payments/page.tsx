@@ -27,6 +27,7 @@ export default async function SalePaymentsPage(props: PageProps<'/sales/[id]/pay
   })
   
   if (!sale) notFound()
+  const schedulesWithPolicy = withInterestPolicy(plain(sale.paymentSchedules), sale.project)
 
   return (
     <>
@@ -43,7 +44,7 @@ export default async function SalePaymentsPage(props: PageProps<'/sales/[id]/pay
                 <tr><th>Description</th><th>Status</th><th>Due Date</th><th>Principal Due</th><th>GST Due</th><th>Total Received</th><th>Actions</th></tr>
               </thead>
               <tbody>
-                {withInterestPolicy(plain(sale.paymentSchedules), sale.project).map((schedule) => <PaymentScheduleRow key={schedule.id} schedule={schedule} saleId={sale.id} canWaive={canWaive} canReverse={canReverse} />)}
+                {schedulesWithPolicy.map((schedule) => <PaymentScheduleRow key={schedule.id} schedule={schedule} allSchedules={schedulesWithPolicy} saleId={sale.id} canWaive={canWaive} canReverse={canReverse} />)}
               </tbody>
             </Table>
           )}

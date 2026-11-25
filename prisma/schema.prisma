@@ -501,7 +501,7 @@ model Payment {
   remark          String?
   paymentDate     DateTime
   clearedDate     DateTime?
-  receiptNumber   String    @unique // RCP-PRJ-0001
+  receiptNumber   String // RCP-PRJ-0001. One receipt can cover several demands (an excess carries to the next ones): its payments share the number
   receiptPdfUrl   String?
   receiptSent     Boolean   @default(false)
   deletedAt       DateTime? // Soft delete — null means active
@@ -515,6 +515,7 @@ model Payment {
   @@index([saleId])
   @@index([scheduleId])
   @@index([deletedAt])
+  @@index([receiptNumber])
   @@map("payments")
 }
 

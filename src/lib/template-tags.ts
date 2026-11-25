@@ -141,9 +141,9 @@ export const TAG_GROUPS: TagGroup[] = [
   { group: 'Receipt', tags: [
     { tag: 'receipt.number', desc: 'Receipt number', types: ['RECEIPT'] },
     { tag: 'receipt.date', desc: 'Payment date', types: ['RECEIPT'] },
-    { tag: 'receipt.milestone', desc: 'The milestone / demand this payment is for (Booking, 6th Slab...)', types: ['RECEIPT'] },
+    { tag: 'receipt.milestone', desc: 'The milestone / demand this payment is for (Booking, 6th Slab...); every demand it covers, separated by commas, when an excess went to the next ones', types: ['RECEIPT'] },
     { tag: 'receipt.kind', desc: 'What was paid: Principal, GST, Principal and interest, or Interest', types: ['RECEIPT'] },
-    { tag: 'receipt.towards', desc: 'Milestone and kind together, e.g. Booking (Principal)', types: ['RECEIPT'] },
+    { tag: 'receipt.towards', desc: 'Milestone and kind together, e.g. Booking (Principal); with the amount of each demand when one receipt covers several', types: ['RECEIPT'] },
     { tag: 'receipt.principalPaid', desc: 'Principal received', types: ['RECEIPT'] },
     { tag: 'receipt.gstPaid', desc: 'GST received', types: ['RECEIPT'] },
     { tag: 'receipt.interestPaid', desc: 'Interest received (0.00 when none)', types: ['RECEIPT'] },

@@ -297,11 +297,18 @@ export function buildDemandPayload(sale: SaleForDocument, schedule: Schedule | n
 /** A sale document about one payment received (a receipt), with the balance as it stood when that payment was made. */
 export function buildReceiptPayload(sale: SaleForDocument, payment: ReceiptPayment, schedule: ReceiptSchedule) {
   const totalSaleValue = Number(sale.agreementValue) + (sale.carParkingCharges ?? 0)
+  // The time of the receipt: its last payment (a receipt that covers several demands saves them one after another)
+  const receiptTime = new Date(Math.max(new Date(payment.createdAt).getTime(), ...sale.paymentSchedules.flatMap((ps) => ps.payments.filter((p) => !p.deletedAt && !!payment.receiptNumber && p.receiptNumber === payment.receiptNumber).map((p) => new Date(p.createdAt).getTime()))))
   const paidUntilNow = sale.paymentSchedules
     .flatMap((ps) => ps.payments)
-    .filter((p) => new Date(p.createdAt) <= new Date(payment.createdAt)) // later payments are not on this receipt
+    .filter((p) => new Date(p.createdAt) <= receiptTime) // later payments are not on this receipt
     .reduce((total, p) => total + Number(p.amount) + Number(p.gstPaid ?? 0), 0)
-  const received = Number(payment.amount) + Number(payment.gstPaid ?? 0) + Number(payment.interestPaid ?? 0)
+  // One receipt can cover several demands (an excess carries to the next ones): its payments share the receipt number
+  const covered = sale.paymentSchedules.flatMap((ps) => ps.payments.filter((p) => !p.deletedAt && !!payment.receiptNumber && p.receiptNumber === payment.receiptNumber).map((p) => ({ description: ps.description, payment: p })))
+  const lines = covered.length > 0 ? covered : [{ description: schedule.description, payment }]
+  const sum = (pick: (p: { amount: unknown; gstPaid: unknown; interestPaid: unknown }) => unknown) => lines.reduce((t, l) => t + Number(pick(l.payment) ?? 0), 0)
+  const received = sum((p) => p.amount) + sum((p) => p.gstPaid) + sum((p) => p.interestPaid)
+  const names = lines.map((l) => l.description).join(', ')
 
   return {
     ...buildSalePayload(sale),
@@ -310,12 +317,12 @@ export function buildReceiptPayload(sale: SaleForDocument, payment: ReceiptPayme
     receipt: {
       number: payment.receiptNumber ?? `REC-${payment.id.substring(0, 6).toUpperCase()}`,
       date: formatDate(payment.paymentDate),
-      milestone: schedule.description, // what the payment is for: Booking, 6th Slab...
+      milestone: names, // what the payment is for: Booking, 6th Slab... (every demand the receipt covers)
       kind: paymentKindLabel(payment), // Principal, GST, Principal and interest or Interest
-      towards: `${schedule.description} (${paymentKindLabel(payment)})`,
-      principalPaid: formatMoney(payment.amount),
-      gstPaid: formatMoney(payment.gstPaid),
-      interestPaid: formatMoney(payment.interestPaid ?? 0),
+      towards: lines.length === 1 ? `${schedule.description} (${paymentKindLabel(payment)})` : lines.map((l) => `${l.description} (${paymentKindLabel(l.payment)}: ${formatMoney(Number(l.payment.amount) + Number(l.payment.gstPaid ?? 0) + Number(l.payment.interestPaid ?? 0))})`).join('; '),
+      principalPaid: formatMoney(sum((p) => p.amount)),
+      gstPaid: formatMoney(sum((p) => p.gstPaid)),
+      interestPaid: formatMoney(sum((p) => p.interestPaid)),
       amount: formatMoney(received),
       amountWords: numberToWords(received),
       mode: paymentModeLabel(payment.mode ?? ''), // "Cheque", "Demand Draft", "NEFT"... as the Record Payment screen names it

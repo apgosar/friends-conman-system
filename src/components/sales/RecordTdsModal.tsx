@@ -4,7 +4,7 @@ import { useMemo, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { Alert, Button, Modal, SelectField, TextField, TextareaField, useToast } from '@/components/ui'
 import { errorMessage, fetchJson, jsonRequest } from '@/lib/client/api'
-import { formatCurrency } from '@/lib/format'
+import { amountInWords, formatCurrency } from '@/lib/format'
 import { round2, toPaise } from '@/lib/money'
 import { isOfflineCharge } from '@/lib/payment-plans'
 import { isTdsPayment } from '@/lib/status'
@@ -99,7 +99,7 @@ function RecordTdsDialog({ schedules, saleId, tdsLimit, tdsRatePercent, onClose 
         >
           {options.map((o) => <option key={o.schedule.id} value={o.schedule.id}>{o.schedule.description} — principal outstanding {formatCurrency(o.principal)}</option>)}
         </SelectField>
-        <TextField id="tds-amount" label="TDS amount (₹)" type="number" min="0" step="0.01" required value={amount} onChange={(e) => setAmount(e.target.value)} />
+        <TextField id="tds-amount" label="TDS amount (₹)" type="number" min="0" step="0.01" required value={amount} onChange={(e) => setAmount(e.target.value)} hint={amountInWords(amount) || undefined} />
         <TextField id="tds-date" label="Date" type="date" required value={date} onChange={(e) => setDate(e.target.value)} />
         <TextField label="Reference Number" placeholder="e.g. Form 26QB acknowledgement number" maxLength={100} value={referenceNumber} onChange={(e) => setReferenceNumber(e.target.value)} />
         <TextareaField label="Remark" placeholder="Optional remarks" value={remark} onChange={(e) => setRemark(e.target.value)} />

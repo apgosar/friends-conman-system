@@ -5,7 +5,7 @@ import { useRouter } from 'next/navigation'
 import { Alert, Button, Modal, StatusBadge, TextField, useToast } from '@/components/ui'
 import { errorMessage, fetchJson, jsonRequest } from '@/lib/client/api'
 import { standingOfSchedule } from '@/lib/interest'
-import { formatCurrency, formatDate } from '@/lib/format'
+import { amountInWords, formatCurrency, formatDate } from '@/lib/format'
 import { dueDateText } from '@/lib/payment-plans'
 import { isTdsPayment, paymentKindLabel, paymentModeLabel } from '@/lib/status'
 import { pdfViewUrl } from '@/lib/comms-content'
@@ -50,7 +50,7 @@ function WaiveInterestDialog({ scheduleId, owed, onClose }: { scheduleId: string
       footer={<><Button onClick={onClose} disabled={loading}>Cancel</Button><Button type="submit" form="waive-interest-form" variant="primary" loading={loading}>Waive interest</Button></>}
     >
       <form id="waive-interest-form" className="stack" onSubmit={submit}>
-        <TextField label="Amount to waive (₹)" type="number" min="0" step="0.01" value={amount} onChange={(e) => setAmount(e.target.value)} />
+        <TextField label="Amount to waive (₹)" type="number" min="0" step="0.01" value={amount} onChange={(e) => setAmount(e.target.value)} hint={amountInWords(amount) || undefined} />
         <TextField label="Reason" value={reason} maxLength={300} onChange={(e) => setReason(e.target.value)} placeholder="e.g. Delay was due to the builder's side" />
         {error && <Alert variant="danger">{error}</Alert>}
       </form>
@@ -94,7 +94,7 @@ function ReversePaymentDialog({ payment, onClose, onDone }: { payment: PaymentRo
       footer={<><Button onClick={onClose} disabled={loading}>Cancel</Button><Button type="submit" form="reverse-payment-form" variant="danger" loading={loading}>Reverse payment</Button></>}
     >
       <form id="reverse-payment-form" className="stack" onSubmit={submit}>
-        <Alert variant="warning">The amount is taken back from this demand and its status and interest are recalculated. The record is kept and marked as reversed. {!tds && 'A receipt that was already sent to the buyer cannot be recalled'}</Alert>
+        <Alert variant="warning">The amount is taken back from the demand (every demand the receipt covers, when it covers more than one) and its status and interest are recalculated. The record is kept and marked as reversed. {!tds && 'A receipt that was already sent to the buyer cannot be recalled'}</Alert>
         <TextField label="Reason" value={reason} maxLength={300} onChange={(e) => setReason(e.target.value)} placeholder="e.g. Entered the wrong amount" />
         {error && <Alert variant="danger">{error}</Alert>}
       </form>
