@@ -11,7 +11,8 @@ import { isTdsPayment, paymentKindLabel, paymentModeLabel } from '@/lib/status'
 import { pdfViewUrl } from '@/lib/comms-content'
 
 type Money = { amount: unknown; gstPaid?: unknown; interestPaid?: unknown }
-type PaymentRow = Money & { id: string; mode?: string | null; receiptNumber: string }
+type PaymentRow = Money & { id: string; mode?: string | null; receiptNumber: string; receiptTotal?: number }
+type ScheduleWithPayments = { id: string; description: string; payments?: (PaymentRow & { deletedAt?: unknown })[] }
 
 /** Admin and Super Admin: forgive some or all of the interest owed on a demand, with the reason. */
 function WaiveInterestDialog({ scheduleId, owed, onClose }: { scheduleId: string; owed: number; onClose: () => void }) {
@@ -65,7 +66,7 @@ function ReversePaymentDialog({ payment, onClose, onDone }: { payment: PaymentRo
   const [reason, setReason] = useState('')
   const [error, setError] = useState('')
   const [loading, setLoading] = useState(false)
-  const total = Number(payment.amount) + Number(payment.gstPaid ?? 0) + Number(payment.interestPaid ?? 0)
+  const total = payment.receiptTotal ?? Number(payment.amount) + Number(payment.gstPaid ?? 0) + Number(payment.interestPaid ?? 0)
   const tds = isTdsPayment(payment)
 
   const submit = async (e: React.FormEvent) => {
@@ -103,8 +104,15 @@ function ReversePaymentDialog({ payment, onClose, onDone }: { payment: PaymentRo
 }
 
 /** What was due and what was received for one demand, with a link to each receipt. Used on both payment screens. */
-export default function PaymentDetailsModal({ schedule, onClose, canWaive = false, canReverse = false }: { schedule: any; onClose: () => void; canWaive?: boolean; canReverse?: boolean }) {
+export default function PaymentDetailsModal({ schedule, onClose, allSchedules, canWaive = false, canReverse = false }: { schedule: any; onClose: () => void; allSchedules?: ScheduleWithPayments[]; canWaive?: boolean; canReverse?: boolean }) {
   const [reversing, setReversing] = useState<PaymentRow | null>(null)
+  // One receipt can cover several demands (an excess went to the next ones): its whole amount, and what went to each demand
+  const receiptOf = (pmt: PaymentRow) => {
+    const amountOf = (p: Money) => Number(p.amount) + Number(p.gstPaid ?? 0) + Number(p.interestPaid ?? 0)
+    const lines = (allSchedules ?? [schedule as ScheduleWithPayments]).flatMap((s) => (s.payments ?? []).filter((p) => !p.deletedAt && !isTdsPayment(p) && p.receiptNumber === pmt.receiptNumber).map((p) => ({ id: s.id, description: s.description, amount: amountOf(p) })))
+    const mine = amountOf(pmt)
+    return { total: lines.length > 1 ? lines.reduce((t, l) => t + l.amount, 0) : mine, mine, others: isTdsPayment(pmt) ? [] : lines.filter((l) => l.id !== schedule.id) }
+  }
   const [waiving, setWaiving] = useState(false)
   const live = (schedule.payments ?? []).filter((p: any) => !p.deletedAt)
   const principalReceived = live.reduce((a: number, p: Money) => a + Number(p.amount), 0)
@@ -150,10 +158,10 @@ export default function PaymentDetailsModal({ schedule, onClose, canWaive = fals
         <div>
           <h4 className="section-label mb-3">Receipts</h4>
           <div className="stack">
-            {live.map((pmt: any) => (
+            {live.map((pmt: any) => { const receipt = receiptOf(pmt); return (
               <div key={pmt.id} className="card-flat text-sm">
                 <div className="flex justify-between items-center gap-3 wrap mb-1">
-                  <span className="font-semibold">{formatCurrency(Number(pmt.amount) + Number(pmt.gstPaid ?? 0) + Number(pmt.interestPaid ?? 0))}</span>
+                  <span className="font-semibold">{formatCurrency(receipt.total)}{receipt.others.length > 0 && <span className="text-muted font-normal"> received in all</span>}</span>
                   <span className="row">
                     <span className="text-muted">{formatDate(pmt.paymentDate)}</span>
                     {!isTdsPayment(pmt) && <a href={pdfViewUrl(`/api/documents/preview/receipt?paymentId=${pmt.id}`)} target="_blank" rel="noreferrer" className="btn btn-secondary btn-xs">View Receipt</a>}
@@ -163,11 +171,17 @@ export default function PaymentDetailsModal({ schedule, onClose, canWaive = fals
                   {paymentModeLabel(pmt.mode)}{pmt.referenceNumber ? ` · Ref: ${pmt.referenceNumber}` : ''}{isTdsPayment(pmt) ? ' · deducted by the buyer, no receipt' : ` · Receipt ${pmt.receiptNumber}`}
                 </div>
                 <div className="text-muted">{paymentKindLabel(pmt)}</div>
+                {receipt.others.length > 0 && (
+                  <ul className="charge-list mt-2">
+                    <li><span>Adjusted against this milestone</span><span className="nowrap font-medium">{formatCurrency(receipt.mine)}</span></li>
+                    {receipt.others.map((o) => <li key={o.id}><span>Adjusted against {o.description}</span><span className="nowrap font-medium">{formatCurrency(o.amount)}</span></li>)}
+                  </ul>
+                )}
                 {Number(pmt.interestPaid ?? 0) > 0 && <div className="text-muted">of which interest {formatCurrency(Number(pmt.interestPaid))}</div>}
                 {pmt.remark && <div className="italic text-secondary mt-2">&ldquo;{pmt.remark}&rdquo;</div>}
-                {canReverse && <div className="mt-2"><Button size="sm" variant="danger" onClick={() => setReversing(pmt)}>Reverse</Button></div>}
+                {canReverse && <div className="mt-2"><Button size="sm" variant="danger" onClick={() => setReversing({ ...pmt, receiptTotal: receipt.total })}>Reverse</Button></div>}
               </div>
-            ))}
+            )})}
           </div>
         </div>
       )}

@@ -32,7 +32,7 @@ export default function PaymentScheduleRow({ schedule, saleId, allSchedules, can
       </tr>
 
       {showPay && <RecordPaymentDialog schedules={allSchedules ?? [schedule]} saleId={saleId} initialScheduleId={schedule.id} onClose={() => setShowPay(false)} />}
-      {showDetails && <PaymentDetailsModal schedule={schedule} canWaive={canWaive} canReverse={canReverse} onClose={() => setShowDetails(false)} />}
+      {showDetails && <PaymentDetailsModal schedule={schedule} allSchedules={allSchedules} canWaive={canWaive} canReverse={canReverse} onClose={() => setShowDetails(false)} />}
     </>
   )
 }

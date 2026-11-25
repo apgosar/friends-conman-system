@@ -46,7 +46,7 @@ export default function PaymentScheduleTable({ schedules, canWaive = false, canR
         </tbody>
       </Table>
 
-      {selected && <PaymentDetailsModal schedule={selected} canWaive={canWaive} canReverse={canReverse} onClose={() => setSelected(null)} />}
+      {selected && <PaymentDetailsModal schedule={selected} allSchedules={schedules} canWaive={canWaive} canReverse={canReverse} onClose={() => setSelected(null)} />}
     </>
   )
 }
