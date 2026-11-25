@@ -1040,7 +1040,7 @@ export default function NewSaleWizard({ projects, prefill = null, preselect = nu
           </dl>
 
           {!isValidPlan && (
-            <Alert variant="danger" className="mb-4" title={dated && amountsMatch ? 'The date-based payment plan needs your attention' : `The ${dated ? 'date-based' : 'milestone'} payment plan does not match the agreement value (${fmt(agreementValue)})`}>
+            <Alert variant="danger" noScroll className="mb-4" title={dated && amountsMatch ? 'The date-based payment plan needs your attention' : `The ${dated ? 'date-based' : 'milestone'} payment plan does not match the agreement value (${fmt(agreementValue)})`}>
               <ul className="mt-2 pl-5 mb-0">
                 {datedProblems.map(p => <li key={p}>{p}</li>)}
                 {!dated && totalPercent !== 100 && <li>The percentages total {totalPercent}%. They must total exactly 100%.</li>}
