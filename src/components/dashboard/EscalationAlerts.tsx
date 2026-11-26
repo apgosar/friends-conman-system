@@ -1,9 +1,11 @@
 'use client'
 
+import { Send } from 'lucide-react'
+import Link from 'next/link'
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { formatCurrency, formatDate } from '@/lib/format'
-import { Badge, Button, ButtonLink, Card, CardHeader, useToast } from '@/components/ui'
+import { Badge, Button, ButtonLink, Card, CardHeader, Table, Td, useToast } from '@/components/ui'
 import SternReminderDialog from './SternReminderDialog'
 import type { SternReminderPreview } from '@/lib/stern-reminder-types'
 import { errorMessage, fetchJson, jsonRequest } from '@/lib/client/api'
@@ -59,25 +61,48 @@ export default function EscalationAlerts({ escalations }: { escalations: Escalat
           </span>
         }
       />
-      <div className="flex dir-col gap-3">
-        {visible.map((row) => (
-          <div key={row.id} className="list-row wrap">
-            <div className="list-row-main">
-              <div className="font-semibold">{row.projectName} — {row.unitNumber}</div>
-              <div className="text-sm text-muted">{row.buyerName} · {row.description} · Due: {row.dueDate ? formatDate(row.dueDate) : '-'} · {row.daysOverdue} days overdue</div>
-              <div className="text-sm text-danger mt-1 font-semibold">Outstanding: {formatCurrency(row.outstanding)}</div>
-              {!row.commsEnabled && <div className="text-sm text-muted mt-1">Communication is off for this sale. Turn it on from the sale page to send a reminder</div>}
-            </div>
-            {row.commsEnabled ? (
-              <Button variant="danger" size="sm" loading={opening === row.id} onClick={() => openPreview(row)} id={`approve-escalation-${row.id}`}>
-                ⚠ Send Stern Reminder
-              </Button>
-            ) : (
-              <ButtonLink href={`/sales/${row.saleId}`} variant="ghost" size="sm">Open sale</ButtonLink>
-            )}
-          </div>
-        ))}
-      </div>
+      <Table stack>
+        <thead>
+          <tr><th>Unit and buyer</th><th>Payment</th><th className="text-right">Outstanding</th><th></th></tr>
+        </thead>
+        <tbody>
+          {visible.map((row) => (
+            <tr key={row.id}>
+              <Td label="Unit">
+                <div>
+                  <Link href={`/sales/${row.saleId}`} className="font-semibold">{row.projectName} — {row.unitNumber}</Link>
+                  <div className="text-sm text-muted">{row.buyerName}</div>
+                </div>
+              </Td>
+              <Td label="Payment">
+                <div>
+                  <div>{row.description}</div>
+                  <div className="text-sm text-muted">Due {row.dueDate ? formatDate(row.dueDate) : '—'}</div>
+                </div>
+              </Td>
+              <Td label="Outstanding" className="text-right">
+                <div>
+                  <div className="text-danger font-semibold nowrap">{formatCurrency(row.outstanding)}</div>
+                  <div className="text-sm text-muted nowrap">{row.daysOverdue} days overdue</div>
+                </div>
+              </Td>
+              <Td label="" className="text-right">
+                {row.commsEnabled ? (
+                  <Button variant="danger" size="sm" loading={opening === row.id} onClick={() => openPreview(row)} id={`approve-escalation-${row.id}`}>
+                    <Send /> Send Stern Reminder
+                  </Button>
+                ) : (
+                  <>
+                    <Badge variant="muted">Communication off</Badge>
+                    <ButtonLink href={`/sales/${row.saleId}`} variant="ghost" size="sm">Open sale</ButtonLink>
+                  </>
+                )}
+              </Td>
+            </tr>
+          ))}
+        </tbody>
+      </Table>
+      {visible.some((row) => !row.commsEnabled) && <p className="text-sm text-muted mt-3 mb-0">Where communication is off, turn it on from the sale page to send a reminder</p>}
       {review && <SternReminderDialog row={review.row} preview={review.preview} sending={sending} onSend={() => sendSternReminder(review.row)} onClose={() => setReview(null)} />}
     </Card>
   )

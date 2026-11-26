@@ -1,5 +1,6 @@
 'use client'
 
+import { ArrowRight } from 'lucide-react'
 import { useState } from 'react'
 import { formatCurrency } from '@/lib/format'
 import { Badge, ButtonLink, Card, CardHeader, EmptyState, Input, StatusBadge, Table, Td } from '@/components/ui'
@@ -56,7 +57,7 @@ export default function ProjectSalesTable({ sales }: { sales: ProjectSaleRow[] }
                 <Td label="Buyer">{sale.buyerName ?? '—'}</Td>
                 <Td label="Agreement value" className="font-semibold">{formatCurrency(sale.agreementValue)}</Td>
                 <Td label="Status"><StatusBadge kind="sale" status={sale.status} /></Td>
-                <Td label=""><ButtonLink href={`/sales/${sale.id}`} variant="ghost" size="sm">View →</ButtonLink></Td>
+                <Td label=""><ButtonLink href={`/sales/${sale.id}`} variant="ghost" size="sm">View <ArrowRight /></ButtonLink></Td>
               </tr>
             ))}
           </tbody>

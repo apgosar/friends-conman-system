@@ -1,5 +1,6 @@
 'use client'
 
+import { Banknote, Building2, ClipboardList, ClockAlert, Download, TrendingUp, Warehouse } from 'lucide-react'
 import { useState, useEffect } from 'react'
 import TopNav from '@/components/layout/TopNav'
 import { UNIT_COLORS, unitStatusLabel } from '@/lib/status'
@@ -8,9 +9,9 @@ import {
   PieChart, Pie, Cell, Legend, AreaChart, Area,
 } from 'recharts'
 import { Alert, Button, Card, EmptyRow, PageHeader, Spinner, StatCard, Table, Tabs, useToast } from '@/components/ui'
-import { formatDate } from '@/lib/format'
+import { formatRupeesCompact, formatDate } from '@/lib/format'
 import { errorMessage, fetchJson } from '@/lib/client/api'
-import { AXIS_TICK, CHART_COLORS as COLORS, GRID_STROKE, TOOLTIP_CURSOR, TOOLTIP_LABEL_STYLE, TOOLTIP_STYLE, AGING_TONE_COLOR, formatRupeesCompact } from '@/lib/chart-theme'
+import { AXIS_TICK, CHART_COLORS as COLORS, GRID_STROKE, TOOLTIP_CURSOR, TOOLTIP_LABEL_STYLE, TOOLTIP_STYLE, AGING_TONE_COLOR } from '@/lib/chart-theme'
 
 const fmt = formatRupeesCompact
 
@@ -83,7 +84,7 @@ export default function ReportsPage() {
   if (loading) {
     return (
       <>
-        <TopNav title="Reports & Analytics" subtitle="Business intelligence and insights" />
+        <TopNav title="Reports" subtitle="Real-time analytics across your entire portfolio" />
         <div className="admin-content">
           <div className="flex items-center justify-center gap-3 text-muted py-10"><Spinner /> Loading analytics…</div>
         </div>
@@ -95,26 +96,24 @@ export default function ReportsPage() {
 
   return (
     <>
-      <TopNav title="Reports & Analytics" subtitle="Business intelligence and insights" />
+      <TopNav title="Reports" subtitle="Real-time analytics across your entire portfolio" />
       <div className="admin-content">
         <PageHeader
-          title="Reports"
-          subtitle="Real-time analytics across your entire portfolio"
           actions={(['sales', 'payments', 'inventory'] as const).map((type) => (
             <Button key={type} size="sm" loading={exportLoading === type} disabled={!!exportLoading} onClick={() => handleExport(type)}>
-              {exportLoading === type ? 'Downloading…' : { sales: '⬇ Sales Book', payments: '⬇ Payment Ledger', inventory: '⬇ Inventory List' }[type]}
+              {exportLoading === type ? 'Downloading…' : <><Download /> {{ sales: 'Sales Book', payments: 'Payment Ledger', inventory: 'Inventory List' }[type]}</>}
             </Button>
           ))}
         />
 
         {loadError && <Alert variant="danger" className="mb-4">{loadError}</Alert>}
 
-        <div className="grid grid-auto gap-4 mb-6">
-          <StatCard icon="📋" label="Total Sales" value={String(kpis?.totalSalesCount ?? 0)} note={`${fmt(kpis?.totalSalesValue ?? 0)} total value`} accent="var(--chart-1)" />
-          <StatCard icon="🏢" label="Units Sold" value={`${kpis?.soldUnits ?? 0} / ${kpis?.totalUnits ?? 0}`} note={`${kpis?.totalUnits ? Math.round(((kpis.soldUnits ?? 0) / kpis.totalUnits) * 100) : 0}% sell-through`} accent="var(--chart-2)" />
-          <StatCard icon="💰" label="Total Collected" value={fmt(kpis?.totalCollected ?? 0)} accent="var(--chart-5)" />
-          <StatCard icon="🏦" label="Unsold Value" value={fmt(kpis?.unsoldInventoryValue ?? 0)} note="Available inventory" accent="var(--chart-3)" />
-          <StatCard icon="⚠️" label="Overdue" value={fmt(kpis?.overdueAmount ?? 0)} note="Past due schedules" accent="var(--chart-4)" />
+        <div className="grid grid-5 gap-4 mb-6">
+          <StatCard icon={<ClipboardList />} label="Total Sales" value={String(kpis?.totalSalesCount ?? 0)} note={`${fmt(kpis?.totalSalesValue ?? 0)} total value`} accent="var(--chart-1)" />
+          <StatCard icon={<Building2 />} label="Units Sold" value={`${kpis?.soldUnits ?? 0} / ${kpis?.totalUnits ?? 0}`} note={`${kpis?.totalUnits ? Math.round(((kpis.soldUnits ?? 0) / kpis.totalUnits) * 100) : 0}% sell-through`} accent="var(--chart-2)" />
+          <StatCard icon={<Banknote />} label="Total Collected" value={fmt(kpis?.totalCollected ?? 0)} accent="var(--chart-5)" />
+          <StatCard icon={<Warehouse />} label="Unsold Value" value={fmt(kpis?.unsoldInventoryValue ?? 0)} note="Available inventory" accent="var(--chart-3)" />
+          <StatCard icon={<ClockAlert />} label="Overdue" value={fmt(kpis?.overdueAmount ?? 0)} note="Past due schedules" accent="var(--chart-4)" />
         </div>
 
         <Tabs
@@ -122,9 +121,9 @@ export default function ReportsPage() {
           active={activeTab}
           onChange={setActiveTab}
           items={[
-            { id: 'sales', label: '📈 Sales & Revenue' },
-            { id: 'inventory', label: '🏢 Inventory' },
-            { id: 'collections', label: '💰 Collections' },
+            { id: 'sales', label: <><TrendingUp /> Sales &amp; Revenue</> },
+            { id: 'inventory', label: <><Building2 /> Inventory</> },
+            { id: 'collections', label: <><Banknote /> Collections</> },
           ]}
         />
 

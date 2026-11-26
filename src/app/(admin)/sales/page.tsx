@@ -1,3 +1,4 @@
+import { Plus } from 'lucide-react'
 import { prisma } from '@/lib/db'
 import TopNav from '@/components/layout/TopNav'
 import { formatCurrency, formatDate } from '@/lib/format'
@@ -45,12 +46,10 @@ export default async function SalesPage(props: PageProps<'/sales'>) {
 
   return (
     <>
-      <TopNav title="Sales" subtitle="All sales and lifecycle status" />
+      <TopNav title="All Sales" subtitle={filtered ? `${sales.length} of ${total} sales` : `${total} sale${total !== 1 ? 's' : ''}`} />
       <div className="admin-content">
         <PageHeader
-          title="All Sales"
-          subtitle={filtered ? `${sales.length} of ${total} sales` : `${total} sale${total !== 1 ? 's' : ''}`}
-          actions={<ButtonLink href="/sales/new" variant="primary" id="new-sale-btn">+ New Sale</ButtonLink>}
+          actions={<ButtonLink href="/sales/new" variant="primary" id="new-sale-btn"><Plus /> New Sale</ButtonLink>}
         />
         <SalesFilters projects={projects} />
         <Card flush>

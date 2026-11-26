@@ -20,9 +20,9 @@ export default async function ProjectTenantsPage(props: PageProps<'/projects/[id
 
   return (
     <>
-      <TopNav title="Tenants" subtitle={`Redevelopment tenants for ${project.name}`} />
+      <TopNav title="Project Tenants" subtitle={project.name} />
       <div className="admin-content">
-        <PageHeader title="Project Tenants" subtitle={`${project.tenants.length} tenants registered`} actions={<BackToProject projectId={id} />} />
+        <PageHeader subtitle={`${project.tenants.length} tenants registered`} actions={<BackToProject projectId={id} />} />
 
         <Card flush>
           {project.tenants.length === 0 ? (

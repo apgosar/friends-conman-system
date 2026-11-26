@@ -12,10 +12,10 @@ export const figureEm = (text: string) => Math.max([...text].reduce((sum, ch) =>
  * as the box allows, up to the size given; if it still cannot fit at a readable size it wraps at the digit-group
  * commas (₹1,64,35,46,|632.36), so it never runs out of its card or gets cut off, whatever the screen or text size.
  */
-export function Figure({ children, size = 'lg', className }: { children: string | number; size?: 'lg' | 'md'; className?: string }) {
+export function Figure({ children, size = 'lg', className, title }: { children: string | number; size?: 'lg' | 'md'; className?: string; /** Shown on hover: the exact amount behind a short one */ title?: string }) {
   const text = String(children)
   return (
-    <div className={cn('figure-box', className)}>
+    <div className={cn('figure-box', className)} title={title}>
       <div className={cn('figure', size === 'md' && 'figure-md')} style={{ '--figure-em': figureEm(text).toFixed(2) } as CSSProperties}>
         {text.split(',').map((part, i) => (
           <Fragment key={i}>{i > 0 && <>,<wbr /></>}{part}</Fragment>

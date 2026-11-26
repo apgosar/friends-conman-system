@@ -1,3 +1,4 @@
+import { FileBadge } from 'lucide-react'
 import { prisma } from '@/lib/db'
 import { notFound } from 'next/navigation'
 import TopNav from '@/components/layout/TopNav'
@@ -79,7 +80,6 @@ export default async function ProjectDetailPage(props: PageProps<'/projects/[id]
               {showsProjectType(project.type) && <StatusBadge kind="projectType" status={project.type} />}
             </>
           }
-          title={project.name}
           subtitle={project.address}
           actions={
             <>
@@ -158,7 +158,7 @@ export default async function ProjectDetailPage(props: PageProps<'/projects/[id]
                     </div>
                   </div>
                   <StatusBadge kind="milestone" status={m.status} />
-                  {m.architectCertificateUrl && <a href={m.architectCertificateUrl} target="_blank" rel="noreferrer" className="btn btn-ghost btn-sm">📄 Cert</a>}
+                  {m.architectCertificateUrl && <a href={m.architectCertificateUrl} target="_blank" rel="noreferrer" className="btn btn-ghost btn-sm"><FileBadge /> Cert</a>}
                 </div>
               ))}
             </div>

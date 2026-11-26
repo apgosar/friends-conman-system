@@ -1,12 +1,13 @@
 'use client'
 
+import { Paperclip } from 'lucide-react'
 import { useEffect, useRef, useState } from 'react'
 import { Alert, Badge, Button, Modal, StatusBadge } from '@/components/ui'
 import { getAttachments, pdfViewUrl, stripAttachmentBlock } from '@/lib/comms-content'
 import { formatDateTime } from '@/lib/format'
 import { fetchJson } from '@/lib/client/api'
+import ChannelIcon from '@/components/comms/ChannelIcon'
 
-const CHANNEL_ICON: Record<string, string> = { EMAIL: '✉️', WHATSAPP: '💬' }
 const fmt = (d: unknown) => (d ? formatDateTime(d as string) : '—')
 const humanize = (s: string) => s.replace(/_/g, ' ')
 
@@ -75,8 +76,8 @@ export default function MessageDetailsModal({ logs: given, onClose, onRetry, ret
       {buyer && (
         <div className="card-flat mb-4 text-base">
           <strong>{buyer.fullName}</strong>
-          {buyer.email && <span className="ml-3 text-muted">✉️ {buyer.email}</span>}
-          {buyer.whatsappNumber && <span className="ml-3 text-muted">💬 {buyer.whatsappNumber}</span>}
+          {buyer.email && <span className="ml-3 text-muted"><ChannelIcon channel="EMAIL" /> {buyer.email}</span>}
+          {buyer.whatsappNumber && <span className="ml-3 text-muted"><ChannelIcon channel="WHATSAPP" /> {buyer.whatsappNumber}</span>}
         </div>
       )}
 
@@ -84,7 +85,7 @@ export default function MessageDetailsModal({ logs: given, onClose, onRetry, ret
         {logs.map((l) => (
           <div key={l.id} className="card-flat text-sm">
             <div className="flex justify-between items-center mb-2">
-              <span className="font-semibold">{CHANNEL_ICON[l.channel] ?? ''} {l.channel}</span>
+              <span className="font-semibold"><ChannelIcon channel={l.channel} /> {l.channel}</span>
               <StatusBadge kind="comm" status={l.status} />
             </div>
             <div className="stack-sm text-secondary">
@@ -108,7 +109,7 @@ export default function MessageDetailsModal({ logs: given, onClose, onRetry, ret
             <div className="section-label mb-3">Attachments</div>
             <div className="row">
               {attachments.map((a, i) => (
-                <a key={i} href={pdfViewUrl(a.path)} target="_blank" rel="noreferrer" className="btn btn-secondary btn-sm">📄 {a.label}</a>
+                <a key={i} href={pdfViewUrl(a.path)} target="_blank" rel="noreferrer" className="btn btn-secondary btn-sm"><Paperclip /> {a.label}</a>
               ))}
             </div>
           </div>

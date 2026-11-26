@@ -1,5 +1,6 @@
 'use client'
 
+import { CircleCheck, CircleX } from 'lucide-react'
 import { useState } from 'react'
 import { INQUIRY_SOURCES, LOST_REASONS, SOURCE_LABEL, LOST_REASON_LABEL } from '@/lib/inquiry-constants'
 import { Alert, Button, CheckboxField, Modal, PhoneField, SelectField, TextField, TextareaField } from '@/components/ui'
@@ -179,7 +180,7 @@ export function ShareQuoteModal({ unitId, unitNumber, inq, fresh = false, onClos
         {error && <Alert variant="danger">{error}</Alert>}
         {results && (
           <Alert variant={results.every((r) => r.ok) ? 'success' : 'warning'}>
-            {results.map((r) => <div key={r.channel}>{r.ok ? '✓' : '✗'} {r.channel}{r.detail ? `: ${r.detail}` : ''}</div>)}
+            {results.map((r) => <div key={r.channel}>{r.ok ? <CircleCheck aria-label="Sent" /> : <CircleX aria-label="Failed" />} {r.channel}{r.detail ? `: ${r.detail}` : ''}</div>)}
           </Alert>
         )}
       </div>

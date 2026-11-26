@@ -1,5 +1,6 @@
 'use client'
 
+import { ArrowDown, ArrowUp } from 'lucide-react'
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { Alert, Button, Modal, useToast } from '@/components/ui'
@@ -71,8 +72,8 @@ export default function ReorderMilestones({ projectId, milestones, manual }: {
               <li key={m.id} className="flex items-center gap-2">
                 <span className="text-muted font-semibold col-xs">{i + 1}</span>
                 <span className="flex-1">{m.name}</span>
-                <Button variant="ghost" size="sm" icon aria-label={`Move ${m.name} up`} disabled={i === 0} onClick={() => move(i, i - 1)}>↑</Button>
-                <Button variant="ghost" size="sm" icon aria-label={`Move ${m.name} down`} disabled={i === list.length - 1} onClick={() => move(i, i + 1)}>↓</Button>
+                <Button variant="ghost" size="sm" icon aria-label={`Move ${m.name} up`} disabled={i === 0} onClick={() => move(i, i - 1)}><ArrowUp aria-hidden="true" /></Button>
+                <Button variant="ghost" size="sm" icon aria-label={`Move ${m.name} down`} disabled={i === list.length - 1} onClick={() => move(i, i + 1)}><ArrowDown aria-hidden="true" /></Button>
               </li>
             ))}
           </ol>

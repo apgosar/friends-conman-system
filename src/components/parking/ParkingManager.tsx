@@ -1,5 +1,6 @@
 'use client'
 
+import { Plus } from 'lucide-react'
 import { useMemo, useState } from 'react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
@@ -112,7 +113,7 @@ export default function ParkingManager({ projectId, fields, rows, canEdit }: { p
 
       <Card className="mb-6" flush>
         <div className="p-4">
-          <CardHeader title="Parking spaces" actions={canEdit && <Button variant="primary" size="sm" onClick={() => open()}>+ Add parking</Button>} />
+          <CardHeader title="Parking spaces" actions={canEdit && <Button variant="primary" size="sm" onClick={() => open()}><Plus /> Add parking</Button>} />
           <FilterChips<Filter>
             label="Show"
             value={filter}

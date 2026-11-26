@@ -30,9 +30,9 @@ export default async function ProjectMilestonesPage(props: PageProps<'/projects/
 
   return (
     <>
-      <TopNav title="Milestones" subtitle={`Construction stages for ${project.name}`} />
+      <TopNav title="Construction Milestones" subtitle={project.name} />
       <div className="admin-content">
-        <PageHeader title="Construction Milestones" subtitle={`${project.milestones.length} milestones${project.milestoneOrderManual ? ', in the order set by hand' : ', from the project\'s payment plans'}`} actions={<>{canReorder && <ReorderMilestones projectId={id} milestones={milestones.map((m) => ({ id: m.id, name: m.name }))} manual={project.milestoneOrderManual} />}<BackToProject projectId={id} /></>} />
+        <PageHeader subtitle={`${project.milestones.length} milestones${project.milestoneOrderManual ? ', in the order set by hand' : ', from the project\'s payment plans'}`} actions={<>{canReorder && <ReorderMilestones projectId={id} milestones={milestones.map((m) => ({ id: m.id, name: m.name }))} manual={project.milestoneOrderManual} />}<BackToProject projectId={id} /></>} />
 
         <Card flush>
           {project.milestones.length === 0 ? (

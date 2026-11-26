@@ -1,5 +1,6 @@
 'use client'
 
+import { Check, FileText } from 'lucide-react'
 import { ButtonLink } from '@/components/ui'
 import { LOST_REASON_LABEL, SOURCE_LABEL } from '@/lib/inquiry-constants'
 import { isUnsold } from '@/lib/status'
@@ -44,9 +45,9 @@ export default function InquiryCard({ unit, inquiry: inq, repeatCount, canDelete
         {inq.lastSharedAt && <Tag tone="info">Shared {formatDateShort(inq.lastSharedAt)}</Tag>}
       </div>
       <div className="flex gap-2">
-        <a href={`/api/units/${unit.id}/quotes/${inq.id}/pdf`} target="_blank" rel="noreferrer" className="btn btn-secondary btn-sm flex-1">📄 Quote PDF</a>
+        <a href={`/api/units/${unit.id}/quotes/${inq.id}/pdf`} target="_blank" rel="noreferrer" className="btn btn-secondary btn-sm flex-1"><FileText /> Quote PDF</a>
         {inq.status === 'CONVERTED' && inq.convertedSaleId ? (
-          <ButtonLink href={`/sales/${inq.convertedSaleId}`} size="sm" className="flex-1 text-success">✓ Converted</ButtonLink>
+          <ButtonLink href={`/sales/${inq.convertedSaleId}`} size="sm" className="flex-1 text-success"><Check /> Converted</ButtonLink>
         ) : inq.status === 'OPEN' && !unit.saleId && isUnsold(unit.status) ? (
           <ButtonLink href={`/sales/new?inquiryId=${inq.id}`} variant="primary" size="sm" className="flex-1">Convert to Sale</ButtonLink>
         ) : null}

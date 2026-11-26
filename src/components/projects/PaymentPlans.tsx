@@ -1,6 +1,7 @@
 'use client'
 
-import { useState } from 'react'
+import { ArrowRight, Plus } from 'lucide-react'
+import { Fragment, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { Alert, Badge, Button, Card, CardHeader, Table, Td, useConfirm, useToast } from '@/components/ui'
 import { errorMessage, fetchJson, jsonRequest } from '@/lib/client/api'
@@ -91,7 +92,7 @@ export default function PaymentPlans({ projectId, projectType, hasCommercial, no
         <p className="text-secondary m-0">
           Each plan says which milestones fall due and what % of the agreement value is due at each. A new sale starts with the default plan for its sale type and unit type, and you can switch to another.
         </p>
-        <Button variant="primary" onClick={() => setEditing({ plan: null, start: missing[0] })}>+ New payment plan</Button>
+        <Button variant="primary" onClick={() => setEditing({ plan: null, start: missing[0] })}><Plus /> New payment plan</Button>
       </div>
 
       {missing.length > 0 && (
@@ -110,7 +111,7 @@ export default function PaymentPlans({ projectId, projectType, hasCommercial, no
                 actions={
                   <>
                     {canSetNotNeeded && list.length === 0 && <Button size="sm" variant="ghost" onClick={() => setNeeded(combo, false)} title="This project will not sell this kind of unit, so no payment plan is needed">Not needed</Button>}
-                    <Button size="sm" onClick={() => setEditing({ plan: null, start: combo })}>+ Add plan</Button>
+                    <Button size="sm" onClick={() => setEditing({ plan: null, start: combo })}><Plus /> Add plan</Button>
                   </>
                 }
               />
@@ -132,7 +133,7 @@ export default function PaymentPlans({ projectId, projectType, hasCommercial, no
                       </Td>
                       <Td label="Payment scheme" className="text-secondary">{schemeOf([plan.bookingPercent, ...plan.items.map((i) => i.percentOfAV)])}</Td>
                       <Td label="Milestones" className="text-secondary">
-                        {[`${BOOKING_LABEL} (${schemeOf([plan.bookingPercent])}%)`, ...plan.items.map((i) => `${i.name} (${schemeOf([i.percentOfAV])}%)`)].join(' → ')}
+                        {[`${BOOKING_LABEL} (${schemeOf([plan.bookingPercent])}%)`, ...plan.items.map((i) => `${i.name} (${schemeOf([i.percentOfAV])}%)`)].map((step, i) => <Fragment key={i}>{i > 0 && <> <ArrowRight aria-label="then" /> </>}{step}</Fragment>)}
                       </Td>
                       <Td label="Actions" className="text-right nowrap">
                         {!plan.isDefault && <Button variant="ghost" size="sm" onClick={() => makeDefault(plan)}>Make default</Button>}

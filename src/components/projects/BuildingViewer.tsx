@@ -1,5 +1,6 @@
 'use client'
 
+import { Construction } from 'lucide-react'
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { useSession } from 'next-auth/react'
 import { Alert, EmptyState, Modal, useConfirm, useToast } from '@/components/ui'
@@ -196,7 +197,7 @@ export default function BuildingViewer({ projectId, view = '3d' }: { projectId: 
   if (loading) return <BuildingSkeleton />
   if (error) return <Alert variant="danger">{error}</Alert>
   if (wings.length === 0) {
-    return <EmptyState title="🏗️ No wings or units yet">Add wings, floors and units to the project to see the building view.</EmptyState>
+    return <EmptyState title={<><Construction /> No wings or units yet</>}>Add wings, floors and units to the project to see the building view.</EmptyState>
   }
 
   const activeWing = wings[selectedWingIdx]

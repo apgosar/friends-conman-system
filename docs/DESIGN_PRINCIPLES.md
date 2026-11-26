@@ -133,7 +133,11 @@ If the thing you need is not in this table, search `src/lib` and `src/components
 | `ErrorState`, `Spinner` | "Failed / not found" panel, loading indicator | |
 | `cn` | Joins class names | |
 
-Layout components (the app frame) are in `src/components/layout/`: `AppShell` (frame, toasts, mobile drawer), `Sidebar`, `TopNav`. The app frame is applied to everything under `src/app/(admin)/` by `src/app/(admin)/layout.tsx`.
+**Icons** come only from `lucide-react` (https://lucide.dev/icons/): `import { Download } from 'lucide-react'`, then `<Download />` beside the words. An icon takes the size and colour of the text around it; an icon with no words beside it needs an `aria-label` on it or on its button. No emoji or symbol characters in screens or emails (a test checks screens). Reuse the icon already used for the same thing; message icons are `ALERT_ICON` in `Alert`, channel icons are `components/comms/ChannelIcon`.
+
+**Page titles** are shown once, by `TopNav`. `PageHeader` has no title: it carries the page's description, badges and actions.
+
+Layout components (the app frame) are in `src/components/layout/`: `AppShell` (frame, toasts, mobile drawer), `Sidebar`, `TopNav`, `AppLogo` (the mark in the sidebar and on the sign-in page; it is `src/app/icon.svg`). The app frame is applied to everything under `src/app/(admin)/` by `src/app/(admin)/layout.tsx`.
 
 ### 3.3 CSS: one stylesheet, in layers
 
@@ -208,7 +212,7 @@ Other shared vocabularies: roles (`src/lib/roles.ts`), inquiry sources and lost 
 
 ### 4.4 Formatting
 
-`src/lib/format.ts` is the only place that formats: `formatDate` (dd/mm/yyyy), `formatDateTime`, `formatDateShort`, `formatMonthYear`, `formatNumber`, `formatMoney`, `formatRupees`, `formatCurrency` (Indian digit grouping), `numberToWords`. Do not call `toLocaleString`, `toLocaleDateString` or `Intl.*` anywhere else (a test enforces this). For chart axes use `formatRupeesCompact` in `src/lib/chart-theme.ts`.
+`src/lib/format.ts` is the only place that formats: `formatDate` (dd/mm/yyyy), `formatDateTime`, `formatDateShort`, `formatMonthYear`, `formatNumber`, `formatMoney`, `formatRupees`, `formatCurrency` (Indian digit grouping), `formatRupeesCompact` (₹1.20 Cr on headline cards, with the exact amount on hover), `numberToWords`. Do not call `toLocaleString`, `toLocaleDateString` or `Intl.*` anywhere else (a test enforces this). Chart axes use `formatRupeesCompact` too.
 
 ---
 

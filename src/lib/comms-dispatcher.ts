@@ -79,7 +79,7 @@ function formatMessageAsHtml(text: string, attachments: CommAttachment[]): strin
     const items = attachments.map((a) => {
       let href = ''
       try { href = resolveAttachmentUrl(a.path) } catch { /* shown as plain text below */ }
-      const label = `📎 ${escapeHtml(a.label)}`
+      const label = escapeHtml(a.label)
       return href
         ? `<li style="margin-bottom:8px"><a href="${escapeHtml(href)}" style="display:inline-block;padding:8px 16px;background:#0F2A4A;color:#fff;text-decoration:none;border-radius:4px;font-size:13px">${label}</a></li>`
         : `<li style="margin-bottom:8px">${label}</li>`

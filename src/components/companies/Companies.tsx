@@ -1,5 +1,6 @@
 'use client'
 
+import { Plus } from 'lucide-react'
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { Alert, Badge, Button, Card, CardHeader, EmptyState, Table, Td, useConfirm, useToast } from '@/components/ui'
@@ -61,7 +62,7 @@ export default function Companies({ companies, canAdd = false }: { companies: Co
         <p className="text-secondary m-0">
           {`The company that appears on a project's agreements and letters. When a sale agreement is generated you choose which of the company's partners to name in it.`}
         </p>
-        {canAdd && <Button variant="primary" onClick={() => setEditingCompany({ company: null })}>+ New company</Button>}
+        {canAdd && <Button variant="primary" onClick={() => setEditingCompany({ company: null })}><Plus /> New company</Button>}
       </div>
 
       {companies.length === 0 && (
@@ -95,7 +96,7 @@ export default function Companies({ companies, canAdd = false }: { companies: Co
             <div className="p-5 pt-0">
               <div className="flex justify-between items-center mb-2">
                 <h4 className="m-0">Partners</h4>
-                <Button size="sm" onClick={() => setEditingPartner({ company, partner: null })}>+ Add partner</Button>
+                <Button size="sm" onClick={() => setEditingPartner({ company, partner: null })}><Plus /> Add partner</Button>
               </div>
               {active === 0 && (
                 <Alert variant="warning" className="mb-3">No active partners yet. Add the partners who sign the sale agreement here.</Alert>

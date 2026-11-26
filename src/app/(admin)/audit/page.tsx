@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useCallback } from 'react'
 import TopNav from '@/components/layout/TopNav'
-import { Alert, Badge, Card, EmptyRow, FilterChips, Modal, PageHeader, Pagination, Table, Td } from '@/components/ui'
+import { Alert, Badge, Card, EmptyRow, FilterChips, Modal, Pagination, Table, Td } from '@/components/ui'
 import { errorMessage, fetchJson } from '@/lib/client/api'
 import { formatDateTime, formatNumber } from '@/lib/format'
 
@@ -47,10 +47,8 @@ export default function AuditLogsPage() {
 
   return (
     <>
-      <TopNav title="System Audit Logs" subtitle="Track user activity and system events" />
+      <TopNav title="Audit Log" subtitle={`${formatNumber(total)} total events recorded`} />
       <div className="admin-content">
-        <PageHeader title="Audit Logs" subtitle={`${formatNumber(total)} total events recorded`} />
-
         {loadError && <Alert variant="danger" className="mb-4">{loadError}</Alert>}
 
         <div className="flex gap-3 wrap mb-5">

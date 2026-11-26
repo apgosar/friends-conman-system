@@ -15,7 +15,7 @@ export async function POST(req: NextRequest) {
 
     const result = await sendEmail({
       to,
-      subject: '✅ Neev CMS — Email Integration Test',
+      subject: 'Neev CMS — Email Integration Test',
       html: `
         <div style="font-family: Arial, sans-serif; max-width: 560px; margin: 0 auto;">
           <div style="background: #0F2A4A; padding: 24px 32px;">
@@ -23,7 +23,7 @@ export async function POST(req: NextRequest) {
             <p style="color: #a0bbd8; margin: 4px 0 0; font-size: 13px;">Neev CMS - Construction Management Systems</p>
           </div>
           <div style="padding: 32px; background: #fff;">
-            <h2 style="color: #0F2A4A;">Email Integration Working ✅</h2>
+            <h2 style="color: #0F2A4A;">Email Integration Working</h2>
             <p style="color: #333; line-height: 1.6;">
               This is a test email from Neev CMS. Your SMTP email integration is working correctly.
               Demand letters, receipts, and notifications will be delivered to buyer email addresses automatically.

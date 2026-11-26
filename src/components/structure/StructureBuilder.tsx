@@ -1,5 +1,6 @@
 'use client'
 
+import { Plus, X } from 'lucide-react'
 import { useMemo, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import {
@@ -41,15 +42,15 @@ function PatternRows({ patterns, types, onChange }: { patterns: FloorPattern[]; 
                 {types.map((t) => <option key={t.id} value={t.id}>{t.name}</option>)}
               </Select>
               {p.unitTypeIds.length > 1 && (
-                <Button variant="ghost" size="xs" icon aria-label="Remove this unit" onClick={() => setPattern(pi, (x) => ({ ...x, unitTypeIds: x.unitTypeIds.filter((_, i) => i !== ui) }))}>✕</Button>
+                <Button variant="ghost" size="xs" icon aria-label="Remove this unit" onClick={() => setPattern(pi, (x) => ({ ...x, unitTypeIds: x.unitTypeIds.filter((_, i) => i !== ui) }))}><X aria-hidden="true" /></Button>
               )}
             </span>
           ))}
-          <Button variant="ghost" size="sm" onClick={() => setPattern(pi, (x) => ({ ...x, unitTypeIds: [...x.unitTypeIds, x.unitTypeIds[x.unitTypeIds.length - 1] ?? firstType] }))}>+ unit</Button>
+          <Button variant="ghost" size="sm" onClick={() => setPattern(pi, (x) => ({ ...x, unitTypeIds: [...x.unitTypeIds, x.unitTypeIds[x.unitTypeIds.length - 1] ?? firstType] }))}><Plus /> unit</Button>
           <Button variant="ghost" size="sm" className="text-danger" onClick={() => onChange(patterns.filter((_, i) => i !== pi))}>Remove range</Button>
         </div>
       ))}
-      <Button className="mt-2" size="sm" onClick={addRange}>+ Add floor range</Button>
+      <Button className="mt-2" size="sm" onClick={addRange}><Plus /> Add floor range</Button>
     </>
   )
 }
@@ -85,10 +86,10 @@ function ExtraRows({ extras, types, onChange }: { extras: ExtraPattern[]; types:
                     <option value="">— type —</option>
                     {types.map((t) => <option key={t.id} value={t.id}>{t.name}</option>)}
                   </Select>
-                  {x.unitTypeIds.length > 1 && <Button variant="ghost" size="xs" icon aria-label="Remove" onClick={() => set(i, (v) => ({ ...v, unitTypeIds: v.unitTypeIds.filter((_, j) => j !== k) }))}>✕</Button>}
+                  {x.unitTypeIds.length > 1 && <Button variant="ghost" size="xs" icon aria-label="Remove" onClick={() => set(i, (v) => ({ ...v, unitTypeIds: v.unitTypeIds.filter((_, j) => j !== k) }))}><X aria-hidden="true" /></Button>}
                 </span>
               ))}
-              <Button variant="ghost" size="sm" onClick={() => set(i, (v) => ({ ...v, unitTypeIds: [...v.unitTypeIds, ''] }))}>+ another</Button>
+              <Button variant="ghost" size="sm" onClick={() => set(i, (v) => ({ ...v, unitTypeIds: [...v.unitTypeIds, ''] }))}><Plus /> another</Button>
               <Button variant="ghost" size="sm" className="text-danger" onClick={() => onChange(extras.filter((_, k) => k !== i))}>Remove</Button>
             </div>
             {floors.length > 0 && (
@@ -100,7 +101,7 @@ function ExtraRows({ extras, types, onChange }: { extras: ExtraPattern[]; types:
         )
       })}
       <div className="row mt-2">
-        <Button size="sm" onClick={() => onChange([...extras, { from: 7, to: 7, every: 1, unitTypeIds: [types[0]?.id ?? ''] }])}>+ Add common areas</Button>
+        <Button size="sm" onClick={() => onChange([...extras, { from: 7, to: 7, every: 1, unitTypeIds: [types[0]?.id ?? ''] }])}><Plus /> Add common areas</Button>
         <span className="text-xs text-muted">Example: floors 7 to 35, every 7 floors gives floors 7, 14, 21, 28 and 35.</span>
       </div>
     </>
@@ -264,7 +265,7 @@ export default function StructureBuilder({ projectId, types, existingWings, exis
                 )}
               </div>
             ))}
-            {(!single || wings.length === 0) && <div><Button onClick={() => setWings((ws) => [...ws, freshWing(single ? singleName : ws.length ? nextWingName(ws[ws.length - 1].name) : suggestName())])}>+ {single ? 'Add the floors' : wings.length ? 'Add another wing' : 'Add a wing'}</Button></div>}
+            {(!single || wings.length === 0) && <div><Button onClick={() => setWings((ws) => [...ws, freshWing(single ? singleName : ws.length ? nextWingName(ws[ws.length - 1].name) : suggestName())])}><Plus /> {single ? 'Add the floors' : wings.length ? 'Add another wing' : 'Add a wing'}</Button></div>}
           </div>
         )}
       </div>
@@ -279,7 +280,7 @@ export default function StructureBuilder({ projectId, types, existingWings, exis
           <p className="text-xs text-muted mt-1 mb-3">Named {example}.</p>
           {list.length === 0 ? noTypesHint(cat) : (
             patterns.length === 0 ? (
-              <Button onClick={() => setPatterns([{ from: 0, to: 0, unitTypeIds: [list[0].id] }])}>+ Add {title.toLowerCase()}</Button>
+              <Button onClick={() => setPatterns([{ from: 0, to: 0, unitTypeIds: [list[0].id] }])}><Plus /> Add {title.toLowerCase()}</Button>
             ) : (
               <div className="panel">
                 <div className="section-label mb-2">Floors and the {title.toLowerCase()} on each</div>

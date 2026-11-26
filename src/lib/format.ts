@@ -27,6 +27,14 @@ export function formatCurrency(amount: number | string, maxDecimals = 2): string
   return new Intl.NumberFormat(LOCALE, { style: 'currency', currency: 'INR', maximumFractionDigits: maxDecimals }).format(num)
 }
 
+/** A short amount for headline cards and chart axes: ₹1.20 Cr, ₹3.50 L, ₹4.2 K. Show the exact figure on hover or nearby. */
+export function formatRupeesCompact(amount: number): string {
+  if (amount >= 10_000_000) return `₹${(amount / 10_000_000).toFixed(2)}\u00a0Cr`
+  if (amount >= 100_000) return `₹${(amount / 100_000).toFixed(2)}\u00a0L`
+  if (amount >= 1000) return `₹${(amount / 1000).toFixed(1)}\u00a0K`
+  return `₹${Math.round(amount)}`
+}
+
 /** 17/10/2026 */
 export const formatDate = (date: DateInput): string => asDate(date).toLocaleDateString(LOCALE, { day: '2-digit', month: '2-digit', year: 'numeric' })
 

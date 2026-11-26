@@ -33,7 +33,7 @@ export default async function SalePaymentsPage(props: PageProps<'/sales/[id]/pay
     <>
       <TopNav title={`Payments: ${sale.saleNumber}`} subtitle={`Unit ${sale.unit.unitNumber}`} />
       <div className="admin-content">
-        <PageHeader title="Payment Schedule" subtitle="Track demands and receipts" actions={<ButtonLink href={`/sales/${id}`}>Back to Sale</ButtonLink>} />
+        <PageHeader subtitle="Track demands and receipts" actions={<ButtonLink href={`/sales/${id}`}>Back to Sale</ButtonLink>} />
 
         <Card flush>
           {sale.paymentSchedules.length === 0 ? (

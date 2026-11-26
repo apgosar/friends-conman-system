@@ -1,5 +1,6 @@
 'use client'
 
+import { TriangleAlert } from 'lucide-react'
 import { useState } from 'react'
 import { StatusBadge, Table } from '@/components/ui'
 import { formatCurrency } from '@/lib/format'
@@ -35,7 +36,7 @@ export default function PaymentScheduleTable({ schedules, canWaive = false, canR
                   {Number(s.interestAmount) > 0 ? formatCurrency(Number(s.interestAmount)) : '—'}
                 </td>
                 <td className={isOverdue ? 'text-danger font-bold' : 'text-muted'}>
-                  {dueDateText(s)} {isOverdue && '⚠️'}
+                  {dueDateText(s)} {isOverdue && <TriangleAlert aria-label="Overdue" />}
                 </td>
                 <td><StatusBadge kind="schedule" status={s.status} /></td>
                 <td className="text-success font-semibold">{paid > 0 ? formatCurrency(paid) : '—'}</td>

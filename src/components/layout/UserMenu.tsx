@@ -1,5 +1,6 @@
 'use client'
 
+import { ChevronDown, CircleUserRound, Info, LogOut } from 'lucide-react'
 import { useEffect, useRef, useState } from 'react'
 import Link from 'next/link'
 import { signOut, useSession } from 'next-auth/react'
@@ -33,7 +34,7 @@ export default function UserMenu() {
       <button type="button" className="user-menu-trigger" onClick={() => setOpen((o) => !o)} aria-haspopup="menu" aria-expanded={open} id="user-menu-btn">
         <span className="topnav-user-name hide-sm">{session.user.name}</span>
         <span className="avatar" aria-hidden="true">{session.user.name?.[0]?.toUpperCase()}</span>
-        <span className="user-menu-caret" aria-hidden="true">▾</span>
+        <span className="user-menu-caret" aria-hidden="true"><ChevronDown /></span>
       </button>
 
       {open && (
@@ -44,13 +45,13 @@ export default function UserMenu() {
             <div className="user-menu-meta">{session.user.email}</div>
           </div>
           <Link href="/account" className="user-menu-item" role="menuitem" onClick={() => setOpen(false)}>
-            <span className="nav-item-icon" aria-hidden="true">🔑</span>My Account
+            <span className="nav-item-icon" aria-hidden="true"><CircleUserRound /></span>My Account
           </Link>
           <button type="button" className="user-menu-item" role="menuitem" onClick={() => { setOpen(false); setAbout(true) }}>
-            <span className="nav-item-icon" aria-hidden="true">ℹ</span>About
+            <span className="nav-item-icon" aria-hidden="true"><Info /></span>About
           </button>
           <button type="button" className="user-menu-item" role="menuitem" id="signout-btn" onClick={() => signOut({ callbackUrl: '/login' })}>
-            <span className="nav-item-icon" aria-hidden="true">↩</span>Log Out
+            <span className="nav-item-icon" aria-hidden="true"><LogOut /></span>Log Out
           </button>
         </div>
       )}

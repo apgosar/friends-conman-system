@@ -1,5 +1,6 @@
 'use client'
 
+import { Trash2 } from 'lucide-react'
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { useSession } from 'next-auth/react'
@@ -84,7 +85,7 @@ export default function MilestoneRow({ m }: { m: any }) {
             <span className="text-muted text-sm milestone-actions-note">No certificate</span>
           )}
           {m.status !== 'COMPLETED' ? <Button size="sm" onClick={() => setShowComplete(true)}>Mark Complete</Button> : isSuperAdmin ? <Button size="sm" onClick={() => setShowUncomplete(true)}>Uncomplete</Button> : <span />}
-          {isSuperAdmin ? <Button size="sm" variant="danger" onClick={() => setShowDelete(true)}>🗑️ Delete</Button> : <span />}
+          {isSuperAdmin ? <Button size="sm" variant="danger" onClick={() => setShowDelete(true)}><Trash2 /> Delete</Button> : <span />}
         </div>
 
         {showComplete && (

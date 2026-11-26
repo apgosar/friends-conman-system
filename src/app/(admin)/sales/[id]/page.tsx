@@ -1,3 +1,4 @@
+import { Eye } from 'lucide-react'
 import { prisma } from '@/lib/db'
 import { notFound } from 'next/navigation'
 import TopNav from '@/components/layout/TopNav'
@@ -108,7 +109,6 @@ export default async function SaleDetailPage(props: PageProps<'/sales/[id]'>) {
               <StatusBadge kind="sale" status={sale.status} />
             </>
           }
-          title={`${sale.saleNumber} — ${sale.unit.unitNumber}`}
           subtitle={`${sale.project.singleWing ? '' : `${sale.unit.floor.wing.name} Wing, `}Floor ${floorLabel(sale.unit.floor.floorNumber)} · ${sale.unit.configuration} · ${sale.unit.carpetAreaSqft.toString()} sqft`}
           actions={
             <>
@@ -238,7 +238,7 @@ export default async function SaleDetailPage(props: PageProps<'/sales/[id]'>) {
                     <StatusBadge kind="document" status={doc.status} />
                   </div>
                   {doc.pdfUrl && (
-                    <a href={`/documents/preview?url=${encodeURIComponent(doc.pdfUrl)}`} target="_blank" rel="noreferrer" className="btn btn-ghost btn-sm">👁 Preview</a>
+                    <a href={`/documents/preview?url=${encodeURIComponent(doc.pdfUrl)}`} target="_blank" rel="noreferrer" className="btn btn-ghost btn-sm"><Eye /> Preview</a>
                   )}
                 </div>
               ))}

@@ -1,5 +1,6 @@
 'use client'
 
+import { Pencil } from 'lucide-react'
 import { useRef, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import PricingFields from '@/components/projects/PricingFields'
@@ -110,10 +111,7 @@ export default function EditProjectForm({ project, companies }: { project: any; 
               />
               {!editingContact && (
                 <button type="button" className="input-action" aria-label="Edit contact numbers" title="Edit" onClick={() => { setEditingContact(true); setTimeout(() => contactRef.current?.focus(), 0) }}>
-                  <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-                    <path d="M11 4H6a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-5" />
-                    <path d="M18.5 2.5a2.12 2.12 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z" />
-                  </svg>
+                  <Pencil aria-hidden="true" />
                 </button>
               )}
             </div>

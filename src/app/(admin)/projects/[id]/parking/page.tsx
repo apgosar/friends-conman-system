@@ -45,7 +45,6 @@ export default async function ProjectParkingPage(props: PageProps<'/projects/[id
       <TopNav title="Parking" subtitle={project.name} />
       <div className="admin-content">
         <PageHeader
-          title="Parking"
           subtitle={`Which parking spaces of ${project.name} are available, sold or allotted`}
           actions={<>{canEdit && <ButtonLink href={`/projects/${id}/edit`}>Parking details</ButtonLink>}<BackToProject projectId={id} /></>}
         />

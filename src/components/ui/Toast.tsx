@@ -1,9 +1,11 @@
 'use client'
 
+import { X } from 'lucide-react'
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState, type ReactNode } from 'react'
 import { createPortal } from 'react-dom'
 import { Modal } from './Modal'
 import { Button } from './Button'
+import { ALERT_ICON, type AlertVariant } from './Alert'
 
 type ToastKind = 'success' | 'error' | 'warning' | 'info'
 interface ToastItem { id: number; kind: ToastKind; message: string }
@@ -28,7 +30,7 @@ const ToastContext = createContext<ToastApi | null>(null)
 const ConfirmContext = createContext<((options: ConfirmOptions) => Promise<boolean>) | null>(null)
 
 const TOAST_MS: Record<ToastKind, number> = { success: 4000, info: 5000, warning: 7000, error: 9000 }
-const ICON: Record<ToastKind, string> = { success: '✓', error: '⚠', warning: '⚠', info: 'ℹ' }
+const VARIANT: Record<ToastKind, AlertVariant> = { success: 'success', error: 'danger', warning: 'warning', info: 'info' }
 
 /**
  * App-wide feedback, mounted once in AppShell:
@@ -65,13 +67,16 @@ export function FeedbackProvider({ children }: { children: ReactNode }) {
         {children}
         {mounted && createPortal(
           <div className="toast-container" aria-live="polite">
-            {toasts.map((t) => (
+            {toasts.map((t) => {
+              const Icon = ALERT_ICON[VARIANT[t.kind]]
+              return (
               <div key={t.id} className={`toast toast-${t.kind}`} role={t.kind === 'error' ? 'alert' : 'status'}>
-                <span aria-hidden="true">{ICON[t.kind]}</span>
+                <Icon aria-hidden="true" />
                 <div className="alert-body">{t.message}</div>
-                <button type="button" className="alert-close" onClick={() => dismiss(t.id)} aria-label="Dismiss">×</button>
+                <button type="button" className="alert-close" onClick={() => dismiss(t.id)} aria-label="Dismiss"><X aria-hidden="true" /></button>
               </div>
-            ))}
+              )
+            })}
           </div>,
           document.body,
         )}

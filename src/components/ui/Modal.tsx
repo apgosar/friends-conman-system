@@ -1,5 +1,6 @@
 'use client'
 
+import { X } from 'lucide-react'
 import { useEffect, useId, useRef, useState, type ReactNode } from 'react'
 import { createPortal } from 'react-dom'
 import { cn } from './cn'
@@ -90,7 +91,7 @@ export function Modal({ title, subtitle, onClose, size = 'md', footer, dismissib
             <h2 className="modal-title" id={titleId}>{title}</h2>
             {subtitle && <p className="modal-subtitle">{subtitle}</p>}
           </div>
-          <button type="button" className="modal-close" onClick={onClose} aria-label="Close" disabled={!dismissible}>×</button>
+          <button type="button" className="modal-close" onClick={onClose} aria-label="Close" disabled={!dismissible}><X aria-hidden="true" /></button>
         </div>
         <div className="modal-body">{children}</div>
         {footer && <div className="modal-footer">{footer}</div>}

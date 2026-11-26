@@ -1,5 +1,6 @@
 'use client'
 
+import { ArrowLeft } from 'lucide-react'
 import { useEffect, useState, use } from 'react'
 import { useRouter } from 'next/navigation'
 import TopNav from '@/components/layout/TopNav'
@@ -77,7 +78,7 @@ export default function NewTemplatePage(props: { params: Promise<{ id: string }>
       <div className="admin-content">
         <div className="max-w-md mx-auto">
           <div className="flex justify-end mb-4">
-            <ButtonLink href={`/projects/${params.id}/templates`}>← Back to Templates</ButtonLink>
+            <ButtonLink href={`/projects/${params.id}/templates`}><ArrowLeft /> Back to Templates</ButtonLink>
           </div>
           <Card>
             <CardHeader title="Template details" />

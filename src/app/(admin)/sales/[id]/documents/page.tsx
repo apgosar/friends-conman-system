@@ -1,5 +1,6 @@
 'use client'
 
+import { Star } from 'lucide-react'
 import { useState, useEffect, useCallback, use } from 'react'
 import TopNav from '@/components/layout/TopNav'
 import { Alert, Badge, Button, ButtonLink, Card, CardHeader, EmptyState, Modal, PageHeader, Spinner, StatusBadge, Table, Td, useConfirm, useToast } from '@/components/ui'
@@ -124,7 +125,6 @@ export default function SaleDocumentsPage(props: { params: Promise<{ id: string 
       <TopNav title={`Documents: ${sale.saleNumber}`} subtitle={`Manage documents for ${sale.unit.unitNumber}`} />
       <div className="admin-content">
         <PageHeader
-          title="Document Management"
           subtitle="Generate and download agreements, letters and receipts"
           actions={<ButtonLink href={`/sales/${id}`}>Back to Sale</ButtonLink>}
         />
@@ -164,7 +164,7 @@ export default function SaleDocumentsPage(props: { params: Promise<{ id: string 
                       <Td label="Type">
                         <div className="flex items-center wrap gap-2">
                           <Badge variant="info">{templateLabel(doc.type, doc.template?.name ?? '')}</Badge>
-                          {latestByType[docKey(doc)] === doc.id && <Badge variant="success">✦ Latest</Badge>}
+                          {latestByType[docKey(doc)] === doc.id && <Badge variant="success"><Star /> Latest</Badge>}
                         </div>
                       </Td>
                       <Td label="Status"><StatusBadge kind="document" status={doc.status} /></Td>

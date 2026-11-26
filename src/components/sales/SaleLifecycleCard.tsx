@@ -1,5 +1,6 @@
 'use client'
 
+import { Check, CircleDot } from 'lucide-react'
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { SALE_LIFECYCLE, SALE_STATUS } from '@/lib/status'
@@ -62,7 +63,7 @@ export default function SaleLifecycleCard({ saleId, status, agreementDate, posse
           const current = !cancelled && i === currentIdx
           return (
             <div key={s} title={SALE_STATUS[s].description} className={cn('step-chip', done && 'is-done', current && 'is-current')}>
-              {done ? '✓ ' : current ? '● ' : ''}{SALE_STATUS[s].label}
+              {done ? <><Check aria-hidden="true" /> </> : current ? <><CircleDot aria-hidden="true" /> </> : null}{SALE_STATUS[s].label}
             </div>
           )
         })}

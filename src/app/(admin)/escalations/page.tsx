@@ -1,8 +1,9 @@
+import { Check, CircleCheckBig, Siren } from 'lucide-react'
 import TopNav from '@/components/layout/TopNav'
 import EscalationAlerts from '@/components/dashboard/EscalationAlerts'
 import { formatCurrency } from '@/lib/format'
 import { listEscalations } from '@/lib/escalations'
-import { Badge, Card, CardHeader, EmptyState, PageHeader } from '@/components/ui'
+import { Badge, Card, CardHeader, EmptyState } from '@/components/ui'
 
 export default async function EscalationsPage() {
   const escalations = await listEscalations()
@@ -11,13 +12,11 @@ export default async function EscalationsPage() {
 
   return (
     <>
-      <TopNav title="Escalations" subtitle="Overdue payments requiring management action" />
+      <TopNav title="Escalations" subtitle={`${pendingApproval.length} to approve · ${sternSent.length} reminded`} />
       <div className="admin-content">
-        <PageHeader title="Escalations" subtitle={`${pendingApproval.length} pending approval · ${sternSent.length} stern reminder sent`} />
-
         {pendingApproval.length > 0 && (
           <div className="mb-6">
-            <h3 className="mb-4 text-danger">⚠ Pending Management Approval</h3>
+            <h3 className="mb-4 text-danger"><Siren className="mr-2" />Pending Management Approval</h3>
             <EscalationAlerts escalations={pendingApproval} />
           </div>
         )}
@@ -33,7 +32,7 @@ export default async function EscalationsPage() {
                     <div className="text-sm text-muted">{e.buyerName} · {e.description}</div>
                   </div>
                   <div className="font-semibold text-danger">{formatCurrency(e.outstanding)}</div>
-                  <Badge variant="warning">Stern sent ✓</Badge>
+                  <Badge variant="warning">Stern sent <Check /></Badge>
                 </div>
               ))}
             </div>
@@ -42,7 +41,7 @@ export default async function EscalationsPage() {
 
         {escalations.length === 0 && (
           <Card>
-            <EmptyState title="✅ No escalations">All payments are on track</EmptyState>
+            <EmptyState title={<><CircleCheckBig /> No escalations</>}>All payments are on track</EmptyState>
           </Card>
         )}
       </div>

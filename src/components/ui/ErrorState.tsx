@@ -1,3 +1,4 @@
+import { TriangleAlert } from 'lucide-react'
 import type { ReactNode } from 'react'
 import { ERROR_KINDS } from '@/lib/errors'
 
@@ -5,7 +6,7 @@ import { ERROR_KINDS } from '@/lib/errors'
 export function ErrorState({ title, children, reference, actions }: { title: ReactNode; children?: ReactNode; reference?: string; actions?: ReactNode }) {
   return (
     <div className="error-state" role="alert">
-      <div className="error-state-icon" aria-hidden="true">⚠</div>
+      <div className="error-state-icon" aria-hidden="true"><TriangleAlert /></div>
       <h1 className="error-state-title">{title}</h1>
       {children && <p className="error-state-text">{children}</p>}
       {reference && <p className="error-state-ref">Reference: <span className="mono">{reference}</span></p>}

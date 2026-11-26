@@ -32,8 +32,8 @@
 
   /* Text */
   --text-primary:     #fafafa;
-  --text-secondary:   #a1a1aa;  /* zinc-400 */
-  --text-muted:       #71717a;  /* zinc-500 */
+  --text-secondary:   #c4c4cc;
+  --text-muted:       #9f9fa9;  /* readable on every dark surface (at least 4.5:1) */
   --text-disabled:    #52525b;
 
   /* Borders */

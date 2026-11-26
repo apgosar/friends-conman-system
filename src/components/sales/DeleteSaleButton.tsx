@@ -1,5 +1,6 @@
 'use client'
 
+import { Trash2 } from 'lucide-react'
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { Button, useConfirm, useToast } from '@/components/ui'
@@ -31,5 +32,5 @@ export default function DeleteSaleButton({ saleId }: { saleId: string }) {
     }
   }
 
-  return <Button variant="danger" loading={loading} onClick={handleDelete}>🗑 Delete Sale</Button>
+  return <Button variant="danger" loading={loading} onClick={handleDelete}><Trash2 /> Delete Sale</Button>
 }

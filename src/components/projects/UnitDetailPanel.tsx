@@ -1,5 +1,6 @@
 'use client'
 
+import { ArrowRight, Maximize2, Plus, X } from 'lucide-react'
 import { Button, ButtonLink } from '@/components/ui'
 import { formatRupees } from '@/lib/format'
 import { isUnsold, unitStatusLabel } from '@/lib/status'
@@ -48,7 +49,7 @@ export default function UnitDetailPanel(p: Props) {
           <div className="bv-panel-unit">{unit.unitNumber}</div>
           {!p.singleWing && <div className="bv-panel-wing">{p.wingName}</div>}
         </div>
-        <button type="button" className="bv-panel-close" onClick={p.onClose} aria-label="Close unit details">×</button>
+        <button type="button" className="bv-panel-close" onClick={p.onClose} aria-label="Close unit details"><X aria-hidden="true" /></button>
       </div>
 
       <div className="bv-plan">
@@ -56,7 +57,7 @@ export default function UnitDetailPanel(p: Props) {
         <span className="bv-plan-tag bv-plan-area">{unit.carpetAreaSqft} sqft</span>
         {/* eslint-disable-next-line @next/next/no-img-element -- floor plans are user-uploaded files of unknown size */}
         <img src={floorPlanSrc(unit)} alt={`${unit.configuration} floor plan`} title="Click to enlarge" onClick={p.onEnlargePlan} />
-        <button type="button" className="bv-plan-tag bv-plan-enlarge" onClick={p.onEnlargePlan}>⤢ Enlarge</button>
+        <button type="button" className="bv-plan-tag bv-plan-enlarge" onClick={p.onEnlargePlan}><Maximize2 /> Enlarge</button>
       </div>
 
       <div className="bv-panel-body">
@@ -76,12 +77,12 @@ export default function UnitDetailPanel(p: Props) {
               {unit.buyerName && <Row label="Buyer">{unit.buyerName}</Row>}
               {unit.agreementValue && <Row label="Agreement Value"><span className="text-success">{formatRupees(unit.agreementValue)}</span></Row>}
             </div>
-            <ButtonLink href={`/sales/${unit.saleId}`} variant="primary" block className="mt-3">View Sale →</ButtonLink>
+            <ButtonLink href={`/sales/${unit.saleId}`} variant="primary" block className="mt-3">View Sale <ArrowRight /></ButtonLink>
           </div>
         ) : isUnsold(unit.status) ? (
           <div className="flex dir-col gap-2">
-            <Button variant="primary" block onClick={p.onCreateQuote}>+ New Inquiry</Button>
-            <ButtonLink href={`/sales/new?unitId=${unit.id}`} variant="secondary" block>+ New Sale</ButtonLink>
+            <Button variant="primary" block onClick={p.onCreateQuote}><Plus /> New Inquiry</Button>
+            <ButtonLink href={`/sales/new?unitId=${unit.id}`} variant="secondary" block><Plus /> New Sale</ButtonLink>
           </div>
         ) : (
           <div className="bv-box text-sm text-secondary">

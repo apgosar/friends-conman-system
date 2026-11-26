@@ -1,3 +1,4 @@
+import { Check, Plus } from 'lucide-react'
 import { prisma } from '@/lib/db'
 import Link from 'next/link'
 import TopNav from '@/components/layout/TopNav'
@@ -26,15 +27,13 @@ export default async function ProjectsPage() {
 
   return (
     <>
-      <TopNav title="Projects" subtitle="Manage all your property projects" />
+      <TopNav title="All Projects" subtitle={`${projects.length} project${projects.length !== 1 ? 's' : ''} total`} />
       <div className="admin-content">
         <PageHeader
-          title="All Projects"
-          subtitle={`${projects.length} project${projects.length !== 1 ? 's' : ''} total`}
           actions={canAddProject ? (
             <>
               <ButtonLink href="/projects/import">Import Project</ButtonLink>
-              <ButtonLink href="/projects/new" variant="primary" id="new-project-btn">+ New Project</ButtonLink>
+              <ButtonLink href="/projects/new" variant="primary" id="new-project-btn"><Plus /> New Project</ButtonLink>
             </>
           ) : undefined}
         />
@@ -62,7 +61,7 @@ export default async function ProjectsPage() {
                   <div className="text-center"><div className="font-bold text-lg">{project.singleWing ? project.wings.reduce((n, w) => n + w.totalFloors, 0) : project.wings.length}</div><div className="text-xs text-muted">{project.singleWing ? 'Floors' : 'Wings'}</div></div>
                   <div className="text-center"><div className="font-bold text-lg">{project._count.sales}</div><div className="text-xs text-muted">Sales</div></div>
                   <div className="text-center">
-                    <div className={`font-bold text-lg ${project.reraNumber ? 'text-success' : 'text-muted'}`}>{project.reraNumber ? '✓' : '—'}</div>
+                    <div className={`font-bold text-lg ${project.reraNumber ? 'text-success' : 'text-muted'}`}>{project.reraNumber ? <Check aria-label="Registered" /> : '—'}</div>
                     <div className="text-xs text-muted">RERA</div>
                   </div>
                 </div>

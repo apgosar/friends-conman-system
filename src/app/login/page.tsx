@@ -6,6 +6,7 @@ import { useRouter } from 'next/navigation'
 import { buildTitle, versionLabel } from '@/lib/version'
 import { ERROR_KINDS } from '@/lib/errors'
 import { Alert, Button, TextField } from '@/components/ui'
+import AppLogo from '@/components/layout/AppLogo'
 
 export default function LoginPage() {
   const router = useRouter()
@@ -33,7 +34,7 @@ export default function LoginPage() {
     <div className="auth-page">
       <div className="auth-card">
         <div className="auth-logo">
-          <div className="auth-logo-icon">NC</div>
+          <AppLogo className="auth-logo-icon" />
           <div>
             <div className="auth-logo-name">Neev CMS</div>
             <div className="auth-logo-sub">Property Management System</div>

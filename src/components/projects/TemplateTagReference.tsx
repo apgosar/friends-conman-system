@@ -1,5 +1,6 @@
 'use client'
 
+import { Check, ChevronDown, ChevronUp, Download } from 'lucide-react'
 import { useState } from 'react'
 import { LOOPS, tagsForType } from '@/lib/template-tags'
 import { TEMPLATE_TYPES } from '@/lib/template-constants'
@@ -30,7 +31,7 @@ export default function TemplateTagReference({ projectId, type }: { projectId: s
       onClick={() => copy(text)}
       className={cn('tag-chip', copied === text && 'is-copied')}
     >
-      {copied === text ? 'Copied ✓' : text}
+      {copied === text ? <>Copied <Check /></> : text}
     </button>
   )
 
@@ -43,7 +44,7 @@ export default function TemplateTagReference({ projectId, type }: { projectId: s
         className="collapsible-trigger"
       >
         <span>Available tags for {label}</span>
-        <span>{open ? '▲' : '▼'}</span>
+        {open ? <ChevronUp aria-hidden="true" /> : <ChevronDown aria-hidden="true" />}
       </button>
 
       {open && (
@@ -52,7 +53,7 @@ export default function TemplateTagReference({ projectId, type }: { projectId: s
             Type these into your document exactly as shown, double braces included. Click a tag to copy it.
           </p>
           <a href={`/api/projects/${projectId}/templates/sample?type=${type}`} className="btn btn-secondary btn-sm justify-self-start">
-            ⬇ Download a sample {label} template
+            <Download /> Download a sample {label} template
           </a>
 
           {tagsForType(type).map((g) => (

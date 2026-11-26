@@ -1,5 +1,6 @@
 'use client'
 
+import { User } from 'lucide-react'
 import { useEffect, useLayoutEffect, useMemo, useRef, useState, type Ref } from 'react'
 import { UNIT_COLOR_LEGEND, unitStatusLabel } from '@/lib/status'
 import { categoryLabel } from '@/lib/building-structure'
@@ -382,7 +383,7 @@ export default function BuildingCanvas({ wing, title, filterStatus, filterType, 
           <div className="bv-tooltip-unit">{hovered.unit.unitNumber}</div>
           <div className="bv-tooltip-line">{hovered.unit.configuration} · {hovered.unit.carpetAreaSqft} sqft</div>
           <div className="bv-tooltip-muted">
-            {hovered.unit.buyerName || hovered.unit.bookedByName ? `👤 ${hovered.unit.buyerName ?? hovered.unit.bookedByName}` : getStatusColor(hovered.unit.status).label}
+            {hovered.unit.buyerName || hovered.unit.bookedByName ? <><User /> {hovered.unit.buyerName ?? hovered.unit.bookedByName}</> : getStatusColor(hovered.unit.status).label}
           </div>
           {hovered.unit.openInquiries > 0 && (
             <div className="bv-tooltip-inquiry">{hovered.unit.openInquiries} open inquir{hovered.unit.openInquiries === 1 ? 'y' : 'ies'}{hovered.unit.quoteExpiring ? ' · quote expiring' : ''}</div>

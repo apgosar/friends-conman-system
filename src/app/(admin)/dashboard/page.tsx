@@ -1,7 +1,8 @@
+import { CircleCheck, FileClock, IndianRupee, Percent } from 'lucide-react'
 import Link from 'next/link'
 import { prisma } from '@/lib/db'
 import { OUTSTANDING_SCHEDULE_STATUSES, TDS_MODE } from '@/lib/status'
-import { formatCurrency } from '@/lib/format'
+import { formatCurrency, formatRupeesCompact } from '@/lib/format'
 import TopNav from '@/components/layout/TopNav'
 import AgingChart from '@/components/dashboard/AgingChart'
 import RecentPayments from '@/components/dashboard/RecentPayments'
@@ -130,10 +131,10 @@ export default async function DashboardPage() {
       <div className="admin-content">
 
         <div className="grid grid-stats gap-4 mb-6">
-          <StatCard label="Total Outstanding" value={formatCurrency(stats.totalOutstanding)} note="All unpaid demands" icon="₹" accent="linear-gradient(90deg, var(--color-primary), var(--color-secondary))" />
-          <StatCard label="Collected This Month" value={formatCurrency(stats.collectedThisMonth)} note={`${stats.collectionEfficiency}% efficiency`} icon="✓" accent="var(--color-success)" />
-          <StatCard label="Interest Accrued" value={formatCurrency(stats.interestAccrued)} note="On 30+ day overdues" icon="%" accent="var(--color-warning)" />
-          <StatCard label="TDS Pending" value={String(stats.tdsPending)} note="Certificates not received" icon="📄" accent="var(--color-accent)" />
+          <StatCard label="Total Outstanding" value={formatRupeesCompact(stats.totalOutstanding)} exact={formatCurrency(stats.totalOutstanding)} note="All unpaid demands" icon={<IndianRupee />} accent="linear-gradient(90deg, var(--color-primary), var(--color-secondary))" />
+          <StatCard label="Collected This Month" value={formatRupeesCompact(stats.collectedThisMonth)} exact={formatCurrency(stats.collectedThisMonth)} note={`${stats.collectionEfficiency}% efficiency`} icon={<CircleCheck />} accent="var(--color-success)" />
+          <StatCard label="Interest Accrued" value={formatRupeesCompact(stats.interestAccrued)} exact={formatCurrency(stats.interestAccrued)} note="On 30+ day overdues" icon={<Percent />} accent="var(--color-warning)" />
+          <StatCard label="TDS Pending" value={String(stats.tdsPending)} note="Certificates not received" icon={<FileClock />} accent="var(--color-accent)" />
         </div>
 
         <div className="grid grid-stats gap-4 mb-6">
@@ -191,7 +192,7 @@ function AgingBucketCard({ label, amount, color, critical, bucket }: {
           {alarming && <Badge variant="danger">Action Needed</Badge>}
         </div>
         <div style={{ color: amount > 0 ? color : 'var(--text-muted)' }}>
-          <Figure size="md">{formatCurrency(amount)}</Figure>
+          <Figure size="md" title={formatCurrency(amount)}>{formatRupeesCompact(amount)}</Figure>
         </div>
       </Card>
     </Link>

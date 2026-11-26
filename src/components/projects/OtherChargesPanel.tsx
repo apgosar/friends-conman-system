@@ -1,5 +1,6 @@
 'use client'
 
+import { ArrowDown, ArrowUp, Plus } from 'lucide-react'
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { Alert, Button, Card, CardHeader, SelectField, TextField, TextareaField, useToast } from '@/components/ui'
@@ -54,7 +55,7 @@ export default function OtherChargesPanel({ projectId, initial }: { projectId: s
 
   return (
     <Card className="mb-6">
-      <CardHeader title="Other charges" actions={<Button size="sm" onClick={add}>+ Add charge</Button>} />
+      <CardHeader title="Other charges" actions={<Button size="sm" onClick={add}><Plus /> Add charge</Button>} />
       <p className="form-hint mb-4">
         What a buyer pays besides the price. All of it falls due together with the last milestone (Possession / OC) and is printed in the PAYABLES table of the sale agreement.
         A sale keeps the charges it was made with, so a change here applies to new sales only.
@@ -85,8 +86,8 @@ export default function OtherChargesPanel({ projectId, initial }: { projectId: s
               </SelectField>
             </div>
             <div className="flex gap-2 justify-end">
-              <Button size="sm" variant="ghost" disabled={i === 0} onClick={() => move(i, -1)} aria-label="Move up">↑</Button>
-              <Button size="sm" variant="ghost" disabled={i === rows.length - 1} onClick={() => move(i, 1)} aria-label="Move down">↓</Button>
+              <Button size="sm" variant="ghost" disabled={i === 0} onClick={() => move(i, -1)} aria-label="Move up"><ArrowUp aria-hidden="true" /></Button>
+              <Button size="sm" variant="ghost" disabled={i === rows.length - 1} onClick={() => move(i, 1)} aria-label="Move down"><ArrowDown aria-hidden="true" /></Button>
               <Button size="sm" variant="ghost" className="text-danger" onClick={() => remove(i)}>Remove</Button>
             </div>
           </div>

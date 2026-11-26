@@ -1,5 +1,6 @@
 'use client'
 
+import { Download, FileText } from 'lucide-react'
 import { Suspense, useEffect, useRef, useState } from 'react'
 import { useSearchParams } from 'next/navigation'
 import TopNav from '@/components/layout/TopNav'
@@ -61,9 +62,9 @@ function Preview() {
   return (
     <>
       <div className="doc-preview-bar">
-        <span className="font-semibold">📄 Document preview</span>
+        <span className="font-semibold"><FileText /> Document preview</span>
         <div className="flex gap-3">
-          <a href={fileUrl} download className="btn btn-primary btn-sm">⬇ Download DOCX</a>
+          <a href={fileUrl} download className="btn btn-primary btn-sm"><Download /> Download DOCX</a>
           <Button size="sm" onClick={() => window.close()}>Close</Button>
         </div>
       </div>

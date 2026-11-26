@@ -1,50 +1,53 @@
 'use client'
 
+import { Building2, ChartColumn, ClipboardList, History, Landmark, LayoutDashboard, MessagesSquare, Settings, SquarePlus, TriangleAlert, Users, Wallet } from 'lucide-react'
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 import { useSession } from 'next-auth/react'
 import { canAccessPath } from '@/lib/authz'
 import { normalizeRole } from '@/lib/roles'
 import { useNav } from '@/components/layout/AppShell'
+import AppLogo from '@/components/layout/AppLogo'
 import { cn } from '@/components/ui/cn'
+import { activeNavHref } from '@/lib/nav'
 
 const NAV_ITEMS = [
   {
     section: 'Overview',
     items: [
-      { href: '/dashboard', label: 'Dashboard', icon: '▣' },
+      { href: '/dashboard', label: 'Dashboard', icon: LayoutDashboard },
     ],
   },
   {
     section: 'Projects',
     items: [
-      { href: '/projects', label: 'All Projects', icon: '🏢' },
-      { href: '/projects/new', label: 'New Project', icon: '＋' },
+      { href: '/projects', label: 'All Projects', icon: Building2 },
+      { href: '/projects/new', label: 'New Project', icon: SquarePlus },
     ],
   },
   {
     section: 'Sales',
     items: [
-      { href: '/sales', label: 'All Sales', icon: '📋' },
-      { href: '/sales/new', label: 'New Sale', icon: '＋' },
+      { href: '/sales', label: 'All Sales', icon: ClipboardList },
+      { href: '/sales/new', label: 'New Sale', icon: SquarePlus },
     ],
   },
   {
     section: 'Finance',
     items: [
-      { href: '/payments', label: 'Payments', icon: '💳' },
-      { href: '/escalations', label: 'Escalations', icon: '⚠' },
-      { href: '/reports', label: 'Reports', icon: '📊' },
+      { href: '/payments', label: 'Payments', icon: Wallet },
+      { href: '/escalations', label: 'Escalations', icon: TriangleAlert },
+      { href: '/reports', label: 'Reports', icon: ChartColumn },
     ],
   },
   {
     section: 'System',
     items: [
-      { href: '/communications', label: 'Communications', icon: '💬' },
-      { href: '/audit', label: 'Audit Log', icon: '🔍' },
-      { href: '/users', label: 'Users', icon: '👥' },
-      { href: '/companies', label: 'Companies', icon: '🏛' },
-      { href: '/settings', label: 'Settings', icon: '⚙' },
+      { href: '/communications', label: 'Communications', icon: MessagesSquare },
+      { href: '/audit', label: 'Audit Log', icon: History },
+      { href: '/users', label: 'Users', icon: Users },
+      { href: '/companies', label: 'Companies', icon: Landmark },
+      { href: '/settings', label: 'Settings', icon: Settings },
     ],
   },
 ]
@@ -62,12 +65,14 @@ export default function Sidebar() {
     items: section.items.filter((i) => canAccessPath(role, i.href) && !(role === 'SALES' && i.href === '/dashboard')),
   })).filter((section) => section.items.length > 0)
 
+  const activeHref = activeNavHref(pathname, visibleNavItems.flatMap((s) => s.items.map((i) => i.href)))
+
   return (
     <>
       <div className={cn('mobile-overlay', open && 'open')} onClick={close} aria-hidden="true" />
       <aside className={cn('sidebar', open && 'open')} aria-label="Main navigation">
         <Link href="/dashboard" className="sidebar-logo" onClick={close} title="Neev CMS">
-          <div className="sidebar-logo-icon">NC</div>
+          <AppLogo className="sidebar-logo-icon" />
           <div className="sidebar-logo-text">
             Neev CMS
             <span className="sidebar-logo-sub">Property Management</span>
@@ -79,10 +84,10 @@ export default function Sidebar() {
             <div key={section.section}>
               <div className="nav-section-label">{section.section}</div>
               {section.items.map((item) => {
-                const isActive = pathname === item.href || (item.href !== '/dashboard' && pathname.startsWith(item.href))
+                const isActive = item.href === activeHref
                 return (
                   <Link key={item.href} href={item.href} className={cn('nav-item', isActive && 'active')} onClick={close} title={item.label} aria-current={isActive ? 'page' : undefined}>
-                    <span className="nav-item-icon" aria-hidden="true">{item.icon}</span>
+                    <span className="nav-item-icon" aria-hidden="true"><item.icon /></span>
                     <span>{item.label}</span>
                   </Link>
                 )

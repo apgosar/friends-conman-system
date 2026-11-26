@@ -34,6 +34,8 @@ a {
 a:hover { color: var(--color-primary-hover); }
 
 img, svg { display: block; max-width: 100%; }
+/* Icons (lucide-react) sit in a line of text and take its size and colour */
+.lucide { display: inline-block; width: 1.15em; height: 1.15em; flex-shrink: 0; vertical-align: -0.2em; }
 
 button { cursor: pointer; font-family: inherit; }
 

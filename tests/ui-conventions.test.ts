@@ -36,6 +36,15 @@ describe('screens and components', () => {
   })
 })
 
+describe('icons', () => {
+  it('are drawn by lucide-react: no emoji or symbol characters in screens', () => {
+    // the multiplication sign and arrows inside a sentence ("Account → Security") are text, so they are not listed here
+    const symbols = /\p{Extended_Pictographic}|[\u2190\u2191\u2193\u2300-\u23FF\u25A0-\u27BF\u2B00-\u2BFF\uFF0B]/u
+    const code = (src: string) => src.split('\n').filter((l) => !/^\s*(\/\/|\*|\/\*|\{\/\*)/.test(l)).join('\n')
+    expect(pages.filter((f) => symbols.test(code(f.src))).map((f) => f.name)).toEqual([])
+  })
+})
+
 describe('shared helpers are the only implementation', () => {
   it('dates and numbers are formatted only in lib/format.ts', () => {
     expect(offenders(files, /toLocale(Date|Time)?String\(|Intl\.(NumberFormat|DateTimeFormat)/, ['src/lib/format.ts'])).toEqual([])

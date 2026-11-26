@@ -1,5 +1,6 @@
 'use client'
 
+import { Plus, X } from 'lucide-react'
 import { useState } from 'react'
 import { Alert, Button, Input, Modal, Select, SelectField, TextField } from '@/components/ui'
 import { errorMessage, fetchJson, jsonRequest } from '@/lib/client/api'
@@ -166,13 +167,13 @@ export default function PaymentPlanModal({ projectId, projectType, milestoneName
                     <Input aria-label={`Milestone ${i + 1} percentage`} type="number" inputMode="decimal" min={0} max={100} step={0.5} className="text-right" value={row.percent} onChange={(e) => setRow(i, { percent: e.target.value })} placeholder="0" />
                     <span className="text-muted">%</span>
                   </div>
-                  <Button variant="ghost" size="sm" icon aria-label={`Remove milestone ${i + 1}`} title="Remove" disabled={rows.length === 1} onClick={() => setRows((prev) => prev.filter((_, k) => k !== i))}>✕</Button>
+                  <Button variant="ghost" size="sm" icon aria-label={`Remove milestone ${i + 1}`} title="Remove" disabled={rows.length === 1} onClick={() => setRows((prev) => prev.filter((_, k) => k !== i))}><X aria-hidden="true" /></Button>
                 </div>
               )
             })}
           </div>
           <div className="mt-3">
-            <Button variant="ghost" size="sm" onClick={() => setRows((prev) => [...prev, { name: '', isNew: false, percent: '' }])}>+ Add milestone</Button>
+            <Button variant="ghost" size="sm" onClick={() => setRows((prev) => [...prev, { name: '', isNew: false, percent: '' }])}><Plus /> Add milestone</Button>
           </div>
           {!totalOk && <p className="text-sm text-muted mt-2">The percentages of the agreement value must add up to 100%. It is {formatNumber(total)}% now.</p>}
         </div>

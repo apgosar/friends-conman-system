@@ -1,8 +1,9 @@
+import { ReceiptText } from 'lucide-react'
 import { prisma } from '@/lib/db'
 import TopNav from '@/components/layout/TopNav'
 import { formatCurrency, formatDate } from '@/lib/format'
 import { activeSale } from '@/lib/soft-delete'
-import { Badge, ButtonLink, Card, EmptyRow, PageHeader, Table, Td } from '@/components/ui'
+import { Badge, ButtonLink, Card, EmptyRow, Table, Td } from '@/components/ui'
 import { TDS_MODE, paymentModeLabel } from '@/lib/status'
 
 async function getPayments() {
@@ -33,13 +34,8 @@ export default async function PaymentsPage() {
 
   return (
     <>
-      <TopNav title="Payments" subtitle="All recorded payments and receipts" />
+      <TopNav title="Payments" subtitle={<>{totals._count} payments · Total: <strong>{formatCurrency(totalCollected)}</strong>{totals._count > payments.length && ` · showing the latest ${payments.length}`}</>} />
       <div className="admin-content">
-        <PageHeader
-          title="Payments"
-          subtitle={<>{totals._count} payments · Total: <strong>{formatCurrency(totalCollected)}</strong>{totals._count > payments.length && ` · showing the latest ${payments.length}`}</>}
-        />
-
         <Card flush>
           <Table flush stack>
             <thead>
@@ -72,7 +68,7 @@ export default async function PaymentsPage() {
                   </Td>
                   <Td label="">
                     {p.receiptPdfUrl ? (
-                      <a href={p.receiptPdfUrl} target="_blank" rel="noreferrer" className="btn btn-ghost btn-sm">📄 Receipt</a>
+                      <a href={p.receiptPdfUrl} target="_blank" rel="noreferrer" className="btn btn-ghost btn-sm"><ReceiptText /> Receipt</a>
                     ) : (
                       <ButtonLink href={`/sales/${p.saleId}/payments`} variant="ghost" size="sm">View</ButtonLink>
                     )}

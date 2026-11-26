@@ -25,11 +25,3 @@ export const TOOLTIP_STYLE: CSSProperties = {
 export const TOOLTIP_CURSOR = { fill: 'var(--bg-muted)', fillOpacity: 0.4 }
 export const TOOLTIP_LABEL_STYLE: CSSProperties = { color: 'var(--text-primary)', fontWeight: 600 }
 export const TOOLTIP_ITEM_STYLE: CSSProperties = { color: 'var(--text-secondary)' }
-
-/** Compact rupees for chart axes and tooltips: ₹1.20Cr, ₹3.50L, ₹4.2K. */
-export function formatRupeesCompact(val: number): string {
-  if (val >= 10000000) return `₹${(val / 10000000).toFixed(2)}Cr`
-  if (val >= 100000) return `₹${(val / 100000).toFixed(2)}L`
-  if (val >= 1000) return `₹${(val / 1000).toFixed(1)}K`
-  return `₹${val}`
-}

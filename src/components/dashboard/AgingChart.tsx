@@ -2,8 +2,8 @@
 
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Cell } from 'recharts'
 import { Card, CardHeader } from '@/components/ui'
-import { formatRupees } from '@/lib/format'
-import { AGING_TONE_COLOR, AXIS_TICK, GRID_STROKE, TOOLTIP_CURSOR, TOOLTIP_ITEM_STYLE, TOOLTIP_LABEL_STYLE, TOOLTIP_STYLE, formatRupeesCompact, type AgingTone } from '@/lib/chart-theme'
+import { formatRupeesCompact, formatRupees } from '@/lib/format'
+import { AGING_TONE_COLOR, AXIS_TICK, GRID_STROKE, TOOLTIP_CURSOR, TOOLTIP_ITEM_STYLE, TOOLTIP_LABEL_STYLE, TOOLTIP_STYLE, type AgingTone } from '@/lib/chart-theme'
 
 export interface AgingData {
   label: string

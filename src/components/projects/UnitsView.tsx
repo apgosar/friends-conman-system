@@ -1,5 +1,6 @@
 'use client'
 
+import { Building2, List } from 'lucide-react'
 import { useState } from 'react'
 import { Button, Card, CardHeader } from '@/components/ui'
 import BuildingViewer from './BuildingViewer'
@@ -19,7 +20,7 @@ export default function UnitsView({ projectId }: { projectId: string }) {
     <Card className="mb-6 p-5">
       <CardHeader
         className="mb-4"
-        title={view === '3d' ? '🏢 Building View' : '📋 All Units'}
+        title={view === '3d' ? <><Building2 /> Building View</> : <><List /> All Units</>}
         actions={
           <>
             <div role="group" aria-label="Switch view" className="segmented">

@@ -14,11 +14,12 @@ export function Stepper({ label, value, onChange, min = 0, max = 99, hint, disab
   return (
     <div className="form-group">
       <div className="stepper-input" role="group" aria-label={label}>
-        <button type="button" className="stepper-input-btn" aria-label={`One fewer: ${label}`} disabled={disabled || value <= min} onClick={() => onChange(Math.max(min, value - 1))}>−</button>
+        <button type="button" className="stepper-input-btn" aria-label={`One fewer: ${label}`} disabled={disabled || value <= min} onClick={() => onChange(Math.max(min, value - 1))}><Minus aria-hidden="true" /></button>
         <output className="stepper-input-value" aria-live="polite">{value}</output>
-        <button type="button" className="stepper-input-btn" aria-label={`One more: ${label}`} disabled={disabled || value >= max} onClick={() => onChange(Math.min(max, value + 1))}>+</button>
+        <button type="button" className="stepper-input-btn" aria-label={`One more: ${label}`} disabled={disabled || value >= max} onClick={() => onChange(Math.min(max, value + 1))}><Plus aria-hidden="true" /></button>
       </div>
       {hint && <span className="form-hint">{hint}</span>}
     </div>
   )
-}
+}import { Minus, Plus } from 'lucide-react'
+

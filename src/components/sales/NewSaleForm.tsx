@@ -1,5 +1,6 @@
 'use client'
 
+import { ArrowLeft, ArrowRight, CircleCheck, CircleX, Download, Eye, FileCheck, FileText, PartyPopper, Plus, Ruler, ScanText, User, Users, X } from 'lucide-react'
 import { useState } from 'react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
@@ -636,7 +637,7 @@ export default function NewSaleWizard({ projects, prefill = null, preselect = nu
                 const selectedUnit = chosenUnit
                 return selectedUnit ? (
                   <div className="text-muted flex gap-3 text-sm mt-2">
-                    <span>📐 Carpet Area: <strong>{selectedUnit.carpetAreaSqft} sqft</strong></span>
+                    <span><Ruler /> Carpet Area: <strong>{selectedUnit.carpetAreaSqft} sqft</strong></span>
                     <span>(<strong>{(selectedUnit.carpetAreaSqft * 0.092903).toFixed(2)} sqm</strong>)</span>
                   </div>
                 ) : null
@@ -654,13 +655,13 @@ export default function NewSaleWizard({ projects, prefill = null, preselect = nu
           {/* Buyers */}
           <div className="flex justify-between items-center mb-3">
             <h4 className="m-0">Buyer Details</h4>
-            <Button type="button" variant="ghost" size="sm" onClick={addBuyer}>+ Add Co-owner</Button>
+            <Button type="button" variant="ghost" size="sm" onClick={addBuyer}><Plus /> Add Co-owner</Button>
           </div>
           {buyers.map((buyer, idx) => (
             <div key={idx} className="panel mb-4 relative">
               <div className="flex justify-between items-center mb-3">
                 <span className="font-semibold text-base text-secondary">
-                  {idx === 0 ? '👤 Primary Buyer' : `👤 Co-owner ${idx + 1}`}
+                  {idx === 0 ? <><User /> Primary Buyer</> : <><Users /> Co-owner {idx + 1}</>}
                 </span>
                 {idx > 0 && (
                   <Button variant="danger" size="sm" onClick={() => removeBuyer(idx)}>
@@ -672,7 +673,7 @@ export default function NewSaleWizard({ projects, prefill = null, preselect = nu
               {/* KYC Auto-fill Section */}
               <div className="flex gap-3 mb-4 p-3 items-center wrap card-flat">
                 <span className="text-base font-medium text-secondary flex items-center gap-2">
-                  ✨ Auto-fill via KYC
+                  <ScanText /> Auto-fill via KYC
                   {extractingKyc?.startsWith(`${idx}-`) && <span className="text-brand"> (Extracting...)</span>}
                 </span>
                 <label className="btn btn-ghost btn-sm file-btn">
@@ -693,7 +694,7 @@ export default function NewSaleWizard({ projects, prefill = null, preselect = nu
                 </label>
                 {kycMessage?.idx === idx && (
                   <div className={`w-full mt-1 text-sm ${kycMessage.type === 'success' ? 'text-success' : 'text-danger'}`} role={kycMessage.type === 'success' ? 'status' : 'alert'}>
-                    {kycMessage.type === 'success' ? '✅ ' : '❌ '} {kycMessage.text}
+                    {kycMessage.type === 'success' ? <CircleCheck aria-hidden="true" /> : <CircleX aria-hidden="true" />} {kycMessage.text}
                   </div>
                 )}
               </div>
@@ -849,7 +850,7 @@ export default function NewSaleWizard({ projects, prefill = null, preselect = nu
 
           <div className="flex justify-end">
             <Button type="button" variant="primary" onClick={goToStep2} disabled={!selectedProject}>
-              Review Payment Plan →
+              Review Payment Plan <ArrowRight />
             </Button>
           </div>
         </div>
@@ -860,7 +861,7 @@ export default function NewSaleWizard({ projects, prefill = null, preselect = nu
         <div className="card">
           <div className="card-header">
             <span className="card-title card-title-lg">Payment Plan</span>
-            <Button variant="ghost" size="sm" onClick={() => setStep(1)}>← Back</Button>
+            <Button variant="ghost" size="sm" onClick={() => setStep(1)}><ArrowLeft /> Back</Button>
           </div>
           {error && <Alert variant="danger" className="mb-4">{error}</Alert>}
           <p className="text-base text-muted mb-5">
@@ -949,7 +950,7 @@ export default function NewSaleWizard({ projects, prefill = null, preselect = nu
                           {row.gstAmount > 0 ? fmt(row.gstAmount) : <span className="text-muted text-sm">—</span>}
                         </Td>
                         <Td label="">
-                          {instalment && !received && !row.raised && <Button type="button" variant="ghost" size="sm" onClick={() => removeInstalment(idx)} aria-label={`Remove instalment ${idx + 1}`} title="Remove">✕</Button>}
+                          {instalment && !received && !row.raised && <Button type="button" variant="ghost" size="sm" onClick={() => removeInstalment(idx)} aria-label={`Remove instalment ${idx + 1}`} title="Remove"><X aria-hidden="true" /></Button>}
                         </Td>
                       </tr>
                     )
@@ -1024,7 +1025,7 @@ export default function NewSaleWizard({ projects, prefill = null, preselect = nu
 
           {dated && (
             <div className="mb-4 flex items-center justify-between gap-3">
-              <Button type="button" variant="secondary" size="sm" onClick={addInstalment}>+ Add instalment</Button>
+              <Button type="button" variant="secondary" size="sm" onClick={addInstalment}><Plus /> Add instalment</Button>
               <span className={amountsMatch ? 'text-sm text-muted' : 'text-sm text-danger'}>Left to allocate: {fmt(agreementValue - totalMilestoneAmount)}</span>
             </div>
           )}
@@ -1059,9 +1060,9 @@ export default function NewSaleWizard({ projects, prefill = null, preselect = nu
           )}
 
           <div className="flex justify-end gap-3">
-            <Button type="button" variant="secondary" onClick={() => setStep(1)}>← Back</Button>
+            <Button type="button" variant="secondary" onClick={() => setStep(1)}><ArrowLeft /> Back</Button>
             <Button type="button" variant="primary" onClick={goToStep3} disabled={generating || !isValidPlan}>
-              {generating ? (editing ? 'Saving...' : 'Creating Sale...') : editing ? 'Save changes' : `Confirm & Continue →`}
+              {generating ? (editing ? 'Saving...' : 'Creating Sale...') : editing ? 'Save changes' : <>Confirm &amp; Continue <ArrowRight /></>}
             </Button>
           </div>
         </div>
@@ -1077,7 +1078,7 @@ export default function NewSaleWizard({ projects, prefill = null, preselect = nu
 
           {!generatedDoc ? (
             <div className="centered-panel">
-              <div className="big-emoji mb-4" aria-hidden="true">🎉</div>
+              <div className="big-icon mb-4" aria-hidden="true"><PartyPopper /></div>
               <h2 className="mb-2">{editing ? 'Sale Updated' : 'Sale Created Successfully!'}</h2>
               <p className="text-muted mb-8">
                 {editing
@@ -1091,17 +1092,17 @@ export default function NewSaleWizard({ projects, prefill = null, preselect = nu
                 onClick={generateAgreement}
                 loading={generating}
               >
-                {generating ? 'Generating...' : saleType === 'FRESH' ? '📄 Generate Sale Agreement (DOCX)' : '📄 Generate PAAA (DOCX)'}
+                {generating ? 'Generating...' : <><FileText /> {saleType === 'FRESH' ? 'Generate Sale Agreement (DOCX)' : 'Generate PAAA (DOCX)'}</>}
               </Button>
               <div className="mt-4">
                 <Button type="button" variant="ghost" onClick={() => router.push(`/sales/${createdSaleId}`)}>
-                  {editing ? 'Go to Sale →' : 'Skip — Go to Sale →'}
+                  {editing ? 'Go to Sale' : 'Skip — Go to Sale'} <ArrowRight />
                 </Button>
               </div>
             </div>
           ) : (
             <div className="centered-panel">
-              <div className="big-emoji mb-4" aria-hidden="true">✅</div>
+              <div className="big-icon mb-4" aria-hidden="true"><FileCheck /></div>
               <h2 className="mb-2">Agreement Generated!</h2>
               <p className="text-muted mb-8">
                 Your {saleType === 'FRESH' ? 'Sale Agreement' : 'PAAA'} has been generated and saved.
@@ -1115,7 +1116,7 @@ export default function NewSaleWizard({ projects, prefill = null, preselect = nu
                   variant="secondary"
                   size="lg"
                 >
-                  👁 Preview in Browser
+                  <Eye /> Preview in Browser
                 </Button>
 
                 {/* Download */}
@@ -1124,16 +1125,16 @@ export default function NewSaleWizard({ projects, prefill = null, preselect = nu
                   download
                   className="btn btn-primary btn-lg"
                 >
-                  ⬇ Download Word File
+                  <Download /> Download Word File
                 </a>
               </div>
 
               <div className="mt-6 flex gap-3 justify-center">
                 <Button type="button" variant="ghost" onClick={() => router.push(`/sales/${createdSaleId}`)}>
-                  Go to Sale Details →
+                  Go to Sale Details <ArrowRight />
                 </Button>
                 <Button type="button" variant="ghost" onClick={() => router.push(`/sales/${createdSaleId}/documents`)}>
-                  Go to Documents →
+                  Go to Documents <ArrowRight />
                 </Button>
               </div>
             </div>

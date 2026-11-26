@@ -1,5 +1,6 @@
 'use client'
 
+import { ArrowDown, ArrowUp, Plus } from 'lucide-react'
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { Alert, Button, ButtonLink, Card, CardHeader, TextField, useToast } from '@/components/ui'
@@ -44,7 +45,7 @@ export default function ParkingFieldsPanel({ projectId, initial }: { projectId: 
     <Card className="mb-6">
       <CardHeader
         title="Parking details"
-        actions={<Button size="sm" disabled={rows.length >= MAX_PARKING_FIELDS} onClick={() => setRows((r) => [...r, { name: '' }])}>+ Add detail</Button>}
+        actions={<Button size="sm" disabled={rows.length >= MAX_PARKING_FIELDS} onClick={() => setRows((r) => [...r, { name: '' }])}><Plus /> Add detail</Button>}
       />
       <p className="form-hint mb-4">
         What you record for each parking space in this project, for example Level and Number, or Tower, Basement and Bay. Each detail becomes a tag you can use in the sale agreement template.
@@ -64,8 +65,8 @@ export default function ParkingFieldsPanel({ projectId, initial }: { projectId: 
           <div key={row.key ?? `new-${i}`} className="panel">
             <TextField label={`Detail ${i + 1}`} value={row.name} onChange={(e) => change(i, e.target.value)} placeholder="e.g. Level" maxLength={40} wrapperClassName="mb-2" hint={fieldKey(row.name) ? <>Tag in a template: <code>{`{{${row.key ?? fieldKey(row.name)}}}`}</code> inside a parking block</> : undefined} />
             <div className="flex gap-2 justify-end">
-              <Button size="sm" variant="ghost" disabled={i === 0} onClick={() => move(i, -1)} aria-label="Move up">↑</Button>
-              <Button size="sm" variant="ghost" disabled={i === rows.length - 1} onClick={() => move(i, 1)} aria-label="Move down">↓</Button>
+              <Button size="sm" variant="ghost" disabled={i === 0} onClick={() => move(i, -1)} aria-label="Move up"><ArrowUp aria-hidden="true" /></Button>
+              <Button size="sm" variant="ghost" disabled={i === rows.length - 1} onClick={() => move(i, 1)} aria-label="Move down"><ArrowDown aria-hidden="true" /></Button>
               <Button size="sm" variant="ghost" className="text-danger" onClick={() => setRows((r) => r.filter((_, k) => k !== i))}>Remove</Button>
             </div>
           </div>

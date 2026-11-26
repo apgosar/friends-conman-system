@@ -1,5 +1,6 @@
 'use client'
 
+import { Plus } from 'lucide-react'
 import { useState, useEffect, useCallback } from 'react'
 import TopNav from '@/components/layout/TopNav'
 import { Alert, Badge, Button, EmptyRow, Modal, PageHeader, Select, SelectField, Table, Td, TextField, useConfirm, useToast } from '@/components/ui'
@@ -113,12 +114,10 @@ export default function UsersPage() {
 
   return (
     <>
-      <TopNav title="User Management" subtitle="Manage team members and access roles" />
+      <TopNav title="Users" subtitle={`${users.length} team members`} />
       <div className="admin-content">
         <PageHeader
-          title="Users"
-          subtitle={`${users.length} team members`}
-          actions={<Button variant="primary" onClick={() => setShowCreate(true)}>+ Add User</Button>}
+          actions={<Button variant="primary" onClick={() => setShowCreate(true)}><Plus /> Add User</Button>}
         />
 
         {loadError && <Alert variant="danger" className="mb-4">{loadError}</Alert>}

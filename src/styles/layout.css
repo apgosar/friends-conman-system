@@ -9,6 +9,7 @@
   flex-wrap: wrap;
   gap: 12px;
 }
+.page-header > .page-actions:only-child { margin-left: auto; }
 
 .page-title {
   font-family: var(--font-display);
@@ -54,16 +55,7 @@
 .sidebar-logo-icon {
   width: 36px;
   height: 36px;
-  background: linear-gradient(135deg, var(--color-primary), var(--color-secondary));
-  border-radius: var(--radius-md);
-  display: flex;
-  align-items: center;
-  justify-content: center;
   flex-shrink: 0;
-  font-size: 1.125rem;
-  color: #fff;
-  font-weight: 700;
-  font-family: var(--font-display);
 }
 
 .sidebar-logo-text {
@@ -126,6 +118,8 @@
   color: var(--color-primary);
   border-color: rgba(99, 102, 241, 0.2);
 }
+
+.nav-item-icon .lucide { width: 18px; height: 18px; }
 
 .nav-item-icon {
   width: 18px;

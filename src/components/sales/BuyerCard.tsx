@@ -1,5 +1,6 @@
 'use client'
 
+import { Mail, Smartphone } from 'lucide-react'
 import { useState, type ReactNode } from 'react'
 import { useRouter } from 'next/navigation'
 import { Alert, Badge, Button, Modal, PhoneField, SwitchField, TextField, TextareaField, useToast } from '@/components/ui'
@@ -40,8 +41,8 @@ export default function BuyerCard({ buyer, canEdit, footer }: { buyer: BuyerView
           </div>
         </div>
         <div className="text-sm text-muted break-words">
-          {buyer.email && <div>✉ {buyer.email}</div>}
-          {buyer.whatsappNumber && <div>📱 {formatPhone(buyer.whatsappNumber)}</div>}
+          {buyer.email && <div className="flex items-start gap-1"><Mail aria-label="Email" /><span className="min-w-0">{buyer.email}</span></div>}
+          {buyer.whatsappNumber && <div className="flex items-start gap-1"><Smartphone aria-label="Mobile" /><span className="min-w-0">{formatPhone(buyer.whatsappNumber)}</span></div>}
           {buyer.maskedPan && <div>PAN: {buyer.maskedPan}</div>}
           {buyer.maskedAadhaar && <div>Aadhaar: {buyer.maskedAadhaar}</div>}
         </div>

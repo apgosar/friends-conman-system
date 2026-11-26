@@ -1,3 +1,4 @@
+import { Plus } from 'lucide-react'
 import { prisma } from '@/lib/db'
 import TopNav from '@/components/layout/TopNav'
 import BackToProject from '@/components/projects/BackToProject'
@@ -36,15 +37,14 @@ export default async function TemplatesPage(props: PageProps<'/projects/[id]/tem
 
   return (
     <>
-      <TopNav title="Templates" subtitle={`Manage templates for ${project.name}`} />
+      <TopNav title="Document Templates" subtitle={project.name} />
       <div className="admin-content">
         <PageHeader
-          title="Document Templates"
           subtitle="Upload .docx for agreements, HTML for others"
           actions={
             <>
               <BackToProject projectId={id} />
-              <ButtonLink href={`/projects/${id}/templates/new`} variant="primary">+ New Template</ButtonLink>
+              <ButtonLink href={`/projects/${id}/templates/new`} variant="primary"><Plus /> New Template</ButtonLink>
             </>
           }
         />

@@ -1,7 +1,6 @@
 import { prisma } from '@/lib/db'
 import TopNav from '@/components/layout/TopNav'
 import Companies from '@/components/companies/Companies'
-import { PageHeader } from '@/components/ui'
 import { maskedPan } from '@/lib/pii'
 import { auth } from '@/lib/auth'
 import { can } from '@/lib/authz'
@@ -20,9 +19,8 @@ export default async function CompaniesPage() {
 
   return (
     <>
-      <TopNav title="Companies" subtitle="Developer companies and their partners" />
+      <TopNav title="Companies" subtitle="The company on your agreements and letters, and its partners" />
       <div className="admin-content">
-        <PageHeader title="Companies" subtitle="The company on your agreements and letters, and its partners" />
         <Companies companies={companies} canAdd={canAddCompany} />
       </div>
     </>

@@ -1,5 +1,6 @@
 'use client'
 
+import { TriangleAlert } from 'lucide-react'
 import { useEffect } from 'react'
 import * as Sentry from '@sentry/nextjs'
 import '@fontsource-variable/inter'
@@ -14,7 +15,7 @@ export default function GlobalError({ error, unstable_retry }: { error: Error & 
       <body>
         <div className="auth-page">
           <div className="error-state" role="alert">
-            <div className="error-state-icon" aria-hidden="true">⚠</div>
+            <div className="error-state-icon" aria-hidden="true"><TriangleAlert /></div>
             <h1 className="error-state-title">Something went wrong</h1>
             <p className="error-state-text">Something went wrong on our side. Please try again</p>
             {error.digest && <p className="error-state-ref">Reference: <span className="mono">{error.digest}</span></p>}

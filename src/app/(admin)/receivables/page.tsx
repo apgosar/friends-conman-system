@@ -1,3 +1,4 @@
+import { ArrowLeft } from 'lucide-react'
 import { auth } from '@/lib/auth'
 import { prisma } from '@/lib/db'
 import { OUTSTANDING_SCHEDULE_STATUSES } from '@/lib/status'
@@ -55,7 +56,7 @@ export default async function ReceivablesPage(props: PageProps<'/receivables'>) 
       <TopNav title={pageTitle} subtitle={`${filtered.length} pending demands`} />
       <div className="admin-content">
         <div className="mb-4">
-          <ButtonLink href="/dashboard" variant="ghost" size="sm">← Back to Dashboard</ButtonLink>
+          <ButtonLink href="/dashboard" variant="ghost" size="sm"><ArrowLeft /> Back to Dashboard</ButtonLink>
         </div>
         
         <Card flush>

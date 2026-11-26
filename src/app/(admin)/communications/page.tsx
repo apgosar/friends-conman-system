@@ -1,16 +1,17 @@
 'use client'
 
+import { RotateCw, Send } from 'lucide-react'
 import { useState, useEffect, useCallback } from 'react'
 import TopNav from '@/components/layout/TopNav'
 import MessageDetailsModal from '@/components/comms/MessageDetailsModal'
+import ChannelIcon from '@/components/comms/ChannelIcon'
 import { Alert, Button, Card, EmptyRow, FilterChips, PageHeader, Pagination, StatCard, StatusBadge, Table, useToast } from '@/components/ui'
 import { errorMessage, fetchJson } from '@/lib/client/api'
 import { formatDateTime, formatNumber } from '@/lib/format'
 
-const CHANNELS = [{ value: 'ALL', label: 'All' }, { value: 'EMAIL', label: '✉️ EMAIL' }, { value: 'WHATSAPP', label: '💬 WHATSAPP' }]
+const CHANNELS = [{ value: 'ALL', label: 'All' }, ...['EMAIL', 'WHATSAPP'].map((c) => ({ value: c, label: <><ChannelIcon channel={c} /> {c}</> }))]
 const STATUSES = ['ALL', 'PENDING', 'SENT', 'SIMULATED', 'DELIVERED', 'FAILED'].map((s) => ({ value: s, label: s === 'ALL' ? 'All' : s }))
 const TYPES = ['ALL', 'DEMAND_LETTER', 'PAYMENT_REMINDER', 'STERN_REMINDER', 'RECEIPT', 'MANUAL'].map((t) => ({ value: t, label: t === 'ALL' ? 'All' : t.replace(/_/g, ' ') }))
-const CHANNEL_ICON: Record<string, string> = { EMAIL: '✉️', WHATSAPP: '💬' }
 
 export default function CommunicationsPage() {
   const toast = useToast()
@@ -92,12 +93,10 @@ export default function CommunicationsPage() {
 
   return (
     <>
-      <TopNav title="Communications" subtitle="Global message dispatch — WhatsApp & Email" />
+      <TopNav title="Communications" subtitle={`${formatNumber(total)} messages total`} />
       <div className="admin-content">
         <PageHeader
-          title="Communications"
-          subtitle={`${formatNumber(total)} messages total`}
-          actions={<Button variant="primary" loading={dispatching} onClick={handleDispatch}>{dispatching ? 'Dispatching…' : '🚀 Dispatch Pending'}</Button>}
+          actions={<Button variant="primary" loading={dispatching} onClick={handleDispatch}>{dispatching ? 'Dispatching…' : <><Send /> Dispatch Pending</>}</Button>}
         />
 
         {loadError && <Alert variant="danger" className="mb-4">{loadError}</Alert>}
@@ -130,7 +129,7 @@ export default function CommunicationsPage() {
                 return (
                   <tr key={log.id} onClick={() => setSelectedLog(log)} className="cursor-pointer">
                     <td className="text-sm text-muted nowrap">{formatDateTime(log.createdAt)}</td>
-                    <td><span className="badge badge-info">{CHANNEL_ICON[log.channel] ?? ''} {log.channel}</span></td>
+                    <td><span className="badge badge-info"><ChannelIcon channel={log.channel} /> {log.channel}</span></td>
                     <td className="text-sm">{log.type.replace(/_/g, ' ')}</td>
                     <td className="text-sm">
                       <div className="font-medium">{log.sale?.project?.name ?? '—'}</div>
@@ -144,7 +143,7 @@ export default function CommunicationsPage() {
                     </td>
                     <td className="text-center">{log.retryCount > 0 ? <span className="text-sm text-muted">{log.retryCount}×</span> : '—'}</td>
                     <td onClick={(e) => e.stopPropagation()}>
-                      {log.status === 'FAILED' && <Button variant="ghost" size="sm" loading={retrying === log.id} onClick={() => handleRetry(log.id)}>🔄 Retry</Button>}
+                      {log.status === 'FAILED' && <Button variant="ghost" size="sm" loading={retrying === log.id} onClick={() => handleRetry(log.id)}><RotateCw /> Retry</Button>}
                     </td>
                   </tr>
                 )

@@ -1,5 +1,6 @@
 'use client'
 
+import { Plus } from 'lucide-react'
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { FLOOR_PLAN_ACCEPT, FLOOR_PLAN_LIMITS } from '@/lib/floor-plan'
@@ -176,7 +177,7 @@ export default function UnitTypesPanel({ projectId, types }: { projectId: string
           <div key={cat.value} className="mb-5">
             <div className="flex justify-between items-center mb-2">
               <div className="text-sm font-bold">{cat.plural} <span className="text-muted font-medium">({plural(list.length, 'type')})</span></div>
-              <Button size="sm" onClick={() => setEditing({ category: cat.value, type: null })}>+ Add {cat.label.toLowerCase()} type</Button>
+              <Button size="sm" onClick={() => setEditing({ category: cat.value, type: null })}><Plus /> Add {cat.label.toLowerCase()} type</Button>
             </div>
             {list.length === 0 ? (
               <EmptyState dashed>No {cat.label.toLowerCase()} types yet.</EmptyState>

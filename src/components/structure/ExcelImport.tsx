@@ -1,5 +1,6 @@
 'use client'
 
+import { Download } from 'lucide-react'
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { Alert, Button, ButtonLink, Input } from '@/components/ui'
@@ -41,7 +42,7 @@ export default function ExcelImport({ projectId }: { projectId: string }) {
           <span className="card-title">Or import from Excel</span>
           <p className="text-sm text-muted mt-1 mb-0">For irregular buildings, or to bring in an existing unit list. One row per unit.</p>
         </div>
-        <ButtonLink href={`/api/projects/${projectId}/structure/template`} size="sm" download>⬇ Download template</ButtonLink>
+        <ButtonLink href={`/api/projects/${projectId}/structure/template`} size="sm" download><Download /> Download template</ButtonLink>
       </div>
       <div className="flex gap-3 items-center wrap">
         <Input type="file" className="max-w-md" accept=".xlsx,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" aria-label="Filled Excel template" onChange={(e) => { setFile(e.target.files?.[0] ?? null); setResult(null) }} />

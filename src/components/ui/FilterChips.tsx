@@ -1,8 +1,9 @@
 'use client'
 
+import type { ReactNode } from 'react'
 import { Button } from './Button'
 
-export interface ChipOption<T extends string = string> { value: T; label: string }
+export interface ChipOption<T extends string = string> { value: T; label: ReactNode }
 
 /** A row of mutually exclusive filter buttons with a label: Channel: [All] [Email] [WhatsApp]. */
 export function FilterChips<T extends string>({ label, options, value, onChange }: { label: string; options: ChipOption<T>[]; value: T; onChange: (v: T) => void }) {

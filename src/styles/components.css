@@ -318,12 +318,22 @@ tbody td {
 
 .stat-icon {
   position: absolute;
-  right: 20px;
-  top: 50%;
-  transform: translateY(-50%);
-  opacity: 0.08;
-  font-size: 3rem;
+  top: var(--space-4);
+  right: var(--space-4);
+  width: 32px;
+  height: 32px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: var(--radius-md);
+  background: var(--bg-muted);
+  color: var(--text-secondary);
 }
+.stat-icon .lucide { width: 18px; height: 18px; }
+/* a little more room than a space between a heading and its icon */
+.card-title .lucide, .empty-state-title .lucide { margin-right: var(--space-1); }
+/* the label keeps clear of the badge in the corner */
+.stat-card:has(.stat-icon) .stat-label { padding-right: 40px; }
 
 /* ───────────────────────────────────────────
    Pagination
@@ -663,6 +673,7 @@ tbody td {
 
 .alert-title { font-weight: 600; margin-bottom: 2px; }
 .alert-body { flex: 1; min-width: 0; overflow-wrap: anywhere; }
+.alert > .lucide, .toast > .lucide { margin-top: 2px; }
 .alert-close { background: none; border: none; color: inherit; font-size: 1.1rem; line-height: 1; opacity: 0.7; padding: 0 4px; }
 .alert-close:hover { opacity: 1; }
 
@@ -854,7 +865,9 @@ tbody tr.row-overdue:hover { background: rgba(239, 68, 68, 0.18); }
 /* A file picker that looks like a button */
 .file-btn { border: 1px solid var(--border-color); background: var(--bg-card); cursor: pointer; }
 
-.big-emoji { font-size: 4rem; line-height: 1; }
+/* One large icon above a "done" message */
+.big-icon { color: var(--color-success); }
+.big-icon .lucide { display: block; width: 4rem; height: 4rem; margin: 0 auto; }
 .centered-panel { text-align: center; padding: var(--space-10) var(--space-6); }
 
 .amount-input { width: 8.5rem; }
@@ -941,13 +954,7 @@ a.list-row:hover { background: var(--bg-card-hover); }
 }
 .auth-card-wide { max-width: 480px; text-align: center; }
 .auth-logo { display: flex; align-items: center; gap: var(--space-3); margin-bottom: var(--space-8); }
-.auth-logo-icon {
-  width: 44px; height: 44px; flex-shrink: 0;
-  display: flex; align-items: center; justify-content: center;
-  border-radius: var(--radius-lg);
-  background: linear-gradient(135deg, var(--color-primary), var(--color-secondary));
-  font-family: var(--font-display); font-weight: 800; font-size: var(--text-md); color: var(--text-on-primary);
-}
+.auth-logo-icon { width: 44px; height: 44px; flex-shrink: 0; }
 .auth-logo-name { font-family: var(--font-display); font-weight: 700; font-size: var(--text-md); color: var(--text-primary); }
 .auth-logo-sub { font-size: var(--text-xs); color: var(--text-muted); }
 .auth-title { font-family: var(--font-display); font-size: var(--text-2xl); font-weight: 700; margin-bottom: var(--space-1); }
@@ -959,7 +966,7 @@ a.list-row:hover { background: var(--bg-card-hover); }
 
 /* "Something went wrong" / "Not found" panel */
 .error-state { max-width: 520px; margin: var(--space-10) auto; padding: 0 var(--space-4); text-align: center; }
-.error-state-icon { font-size: 2.5rem; margin-bottom: var(--space-3); color: var(--color-warning); }
+.error-state-icon { display: flex; justify-content: center; font-size: 2.5rem; margin-bottom: var(--space-3); color: var(--color-warning); }
 .error-state-title { font-size: var(--text-xl); margin: 0 0 var(--space-2); }
 .error-state-text { color: var(--text-secondary); margin: 0 0 var(--space-4); }
 .error-state-ref { color: var(--text-muted); font-size: var(--text-sm); margin: 0 0 var(--space-4); }

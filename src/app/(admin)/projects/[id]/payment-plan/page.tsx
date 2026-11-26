@@ -40,7 +40,7 @@ export default async function ProjectPaymentPlanPage(props: PageProps<'/projects
     <>
       <TopNav title="Payment Plans" subtitle={project.name} />
       <div className="admin-content">
-        <PageHeader title="Payment Plans" subtitle="How a buyer pays: the milestones and the % of the agreement value due at each" actions={<BackToProject projectId={id} />} />
+        <PageHeader subtitle="How a buyer pays: the milestones and the % of the agreement value due at each" actions={<BackToProject projectId={id} />} />
         <PaymentPlans
           projectId={id}
           projectType={project.type}

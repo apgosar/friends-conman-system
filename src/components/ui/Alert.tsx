@@ -1,12 +1,14 @@
 'use client'
 
+import { CircleCheck, Info, OctagonAlert, TriangleAlert, X, type LucideIcon } from 'lucide-react'
 import { useEffect, useRef, type ReactNode } from 'react'
 import { INVALID_SELECTOR } from '@/lib/client/forms'
 import { cn } from './cn'
 
 export type AlertVariant = 'danger' | 'warning' | 'info' | 'success'
 
-const ICON: Record<AlertVariant, string> = { danger: '⚠', warning: '⚠', info: 'ℹ', success: '✓' }
+/** The icon of each kind of message (toasts use the same ones). */
+export const ALERT_ICON: Record<AlertVariant, LucideIcon> = { danger: OctagonAlert, warning: TriangleAlert, info: Info, success: CircleCheck }
 
 /**
  * An inline message inside a page or form. For "it worked / it failed" feedback after an action, use useToast() instead.
@@ -22,14 +24,15 @@ export function Alert({ variant = 'info', title, children, onClose, className, n
     if (variant !== 'danger' || noScroll || document.querySelector(INVALID_SELECTOR)) return
     ref.current?.scrollIntoView({ behavior: 'smooth', block: 'center' })
   }, [variant, noScroll, message])
+  const Icon = ALERT_ICON[variant]
   return (
     <div ref={ref} className={cn('alert', `alert-${variant}`, className)} role={variant === 'danger' ? 'alert' : 'status'}>
-      <span aria-hidden="true">{ICON[variant]}</span>
+      <Icon aria-hidden="true" />
       <div className="alert-body">
         {title && <div className="alert-title">{title}</div>}
         {children}
       </div>
-      {onClose && <button type="button" className="alert-close" onClick={onClose} aria-label="Dismiss">×</button>}
+      {onClose && <button type="button" className="alert-close" onClick={onClose} aria-label="Dismiss"><X aria-hidden="true" /></button>}
     </div>
   )
 }

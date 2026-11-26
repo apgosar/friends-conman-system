@@ -1,5 +1,6 @@
 'use client'
 
+import { Trash2 } from 'lucide-react'
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { Alert, Button, Modal, TextField, useConfirm, useToast } from '@/components/ui'
@@ -44,7 +45,7 @@ export default function DeleteProjectButton({ projectId, projectName, salesCount
 
   return (
     <>
-      <Button variant="danger" loading={loading} onClick={start}>🗑 Delete Project</Button>
+      <Button variant="danger" loading={loading} onClick={start}><Trash2 /> Delete Project</Button>
       {asking && (
         <Modal
           title={`Delete ${projectName}?`}

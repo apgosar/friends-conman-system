@@ -47,6 +47,7 @@
 .grid-3 { grid-template-columns: repeat(3, minmax(0, 1fr)); }
 .grid-4 { grid-template-columns: repeat(4, minmax(0, 1fr)); }
 .grid-stats { grid-template-columns: repeat(4, minmax(0, 1fr)); } /* headline numbers: two across on a tablet, one per row on a phone (responsive.css) so large figures stay on one line */
+.grid-5 { grid-template-columns: repeat(5, minmax(0, 1fr)); } /* five headline numbers in one row */
 .grid-side { grid-template-columns: minmax(0, 1fr) minmax(0, 2fr); } /* narrow actions column + wide content column */
 .grid-auto { grid-template-columns: repeat(auto-fill, minmax(240px, 1fr)); }
 .stack { display: flex; flex-direction: column; gap: var(--space-4); }

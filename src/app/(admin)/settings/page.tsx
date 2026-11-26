@@ -1,8 +1,9 @@
 'use client'
 
+import { BookOpen, Inbox, Mail, MessageCircle, Settings } from 'lucide-react'
 import { useState } from 'react'
 import TopNav from '@/components/layout/TopNav'
-import { Alert, Badge, Button, ButtonLink, Card, CardHeader, PageHeader, PhoneField, TextField } from '@/components/ui'
+import { Alert, Badge, Button, ButtonLink, Card, CardHeader, PhoneField, TextField } from '@/components/ui'
 import { errorMessage, fetchJson, jsonRequest } from '@/lib/client/api'
 
 interface TestResult { ok: boolean; text: string }
@@ -36,13 +37,11 @@ export default function SettingsPage() {
 
   return (
     <>
-      <TopNav title="Settings" subtitle="Integration configuration and testing" />
+      <TopNav title="Settings" subtitle="Configure and test communication integrations" />
       <div className="admin-content">
-        <PageHeader title="Settings" subtitle="Configure and test communication integrations" />
-
         <div className="grid gap-6 max-w-xl">
           <Card>
-            <CardHeader title="✉️ Email Integration (Gmail SMTP)" actions={<Badge variant={process.env.NEXT_PUBLIC_EMAIL_CONFIGURED === 'true' ? 'success' : 'muted'}>Configured via .env.local</Badge>} />
+            <CardHeader title={<><Mail /> Email Integration (Gmail SMTP)</>} actions={<Badge variant={process.env.NEXT_PUBLIC_EMAIL_CONFIGURED === 'true' ? 'success' : 'muted'}>Configured via .env.local</Badge>} />
             <p className="text-secondary mb-5">
               Emails are sent via Gmail SMTP using a Google App Password. Set the following in your <code className="inline-code">.env.local</code> file:
             </p>
@@ -54,7 +53,7 @@ export default function SettingsPage() {
             </div>
 
             <details className="mb-5">
-              <summary className="cursor-pointer text-base text-secondary font-medium">📖 How to create a Gmail App Password</summary>
+              <summary className="cursor-pointer text-base text-secondary font-medium"><BookOpen /> How to create a Gmail App Password</summary>
               <ol className="steps-list">
                 <li>Sign in to <strong>neevcms@gmail.com</strong></li>
                 <li>Go to <strong>Google Account → Security → 2-Step Verification</strong> (enable it first)</li>
@@ -66,13 +65,13 @@ export default function SettingsPage() {
 
             <form onSubmit={email.submit} className="flex gap-3 items-end wrap">
               <TextField wrapperClassName="flex-1" label="Send test email to" type="email" placeholder="your@email.com" value={email.to} onChange={(e) => email.setTo(e.target.value)} required />
-              <Button type="submit" variant="primary" loading={email.sending}>📧 Send Test Email</Button>
+              <Button type="submit" variant="primary" loading={email.sending}><Mail /> Send Test Email</Button>
             </form>
             {email.result && <Alert variant={email.result.ok ? 'success' : 'danger'} className="mt-4">{email.result.text}</Alert>}
           </Card>
 
           <Card>
-            <CardHeader title="💬 WhatsApp Integration (Gupshup)" actions={<Badge>Approved templates</Badge>} />
+            <CardHeader title={<><MessageCircle /> WhatsApp Integration (Gupshup)</>} actions={<Badge>Approved templates</Badge>} />
             <p className="text-secondary mb-5">
               Messages are sent through <strong>Gupshup</strong> as approved WhatsApp templates. Each template is sent by its template ID from the Gupshup console.
             </p>
@@ -86,7 +85,7 @@ export default function SettingsPage() {
             </div>
 
             <details className="mb-5">
-              <summary className="cursor-pointer text-base text-secondary font-medium">📖 Where to find these in Gupshup</summary>
+              <summary className="cursor-pointer text-base text-secondary font-medium"><BookOpen /> Where to find these in Gupshup</summary>
               <ol className="steps-list">
                 <li>In the Gupshup console, copy the account <strong>API key</strong> → <code>GUPSHUP_API_KEY</code></li>
                 <li>Your registered <strong>business number</strong> (country code, digits only) → <code>GUPSHUP_SOURCE</code></li>
@@ -97,13 +96,13 @@ export default function SettingsPage() {
 
             <form onSubmit={whatsapp.submit} className="flex gap-3 items-end wrap">
               <PhoneField wrapperClassName="flex-1" label="Send test WhatsApp to" value={whatsapp.to} onValueChange={whatsapp.setTo} required />
-              <Button type="submit" variant="primary" loading={whatsapp.sending}>💬 Send Test WhatsApp</Button>
+              <Button type="submit" variant="primary" loading={whatsapp.sending}><MessageCircle /> Send Test WhatsApp</Button>
             </form>
             {whatsapp.result && <Alert variant={whatsapp.result.ok ? 'success' : 'danger'} className="mt-4">{whatsapp.result.text}</Alert>}
           </Card>
 
           <Card>
-            <CardHeader title="⚙️ App Configuration" />
+            <CardHeader title={<><Settings /> App Configuration</>} />
             <p className="text-secondary mb-4">Additional environment variables to configure in <code className="inline-code">.env.local</code>:</p>
             <div data-scroll className="config-sample">
               <div><span className="text-muted"># Application URL (used in document links sent via WhatsApp)</span></div>
@@ -114,7 +113,7 @@ export default function SettingsPage() {
               <div>TDS_THRESHOLD=<span className="text-warning">5000000</span></div>
             </div>
             <div className="mt-4">
-              <ButtonLink href="/communications" size="sm">💬 View Communications Inbox</ButtonLink>
+              <ButtonLink href="/communications" size="sm"><Inbox /> View Communications Inbox</ButtonLink>
             </div>
           </Card>
         </div>
