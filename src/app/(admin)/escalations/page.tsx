@@ -1,35 +1,13 @@
-import { prisma } from '@/lib/db'
 import TopNav from '@/components/layout/TopNav'
 import EscalationAlerts from '@/components/dashboard/EscalationAlerts'
 import { formatCurrency } from '@/lib/format'
-import { activeSale } from '@/lib/soft-delete'
+import { listEscalations } from '@/lib/escalations'
 import { Badge, Card, CardHeader, EmptyState, PageHeader } from '@/components/ui'
-import { plain } from '@/lib/plain'
-
-async function getEscalations() {
-  return prisma.paymentSchedule.findMany({
-    where: {
-      managementEscalated: true,
-      status: { notIn: ['PAID'] },
-      sale: activeSale,
-    },
-    include: {
-      sale: {
-        include: {
-          project: { select: { name: true } },
-          unit: { select: { unitNumber: true } },
-          buyers: { where: { isPrimary: true }, take: 1 },
-        },
-      },
-    },
-    orderBy: { demandGeneratedDate: 'asc' },
-  })
-}
 
 export default async function EscalationsPage() {
-  const escalations = await getEscalations()
-  const pendingApproval = escalations.filter((e) => !e.managementApprovedStern)
-  const sternSent = escalations.filter((e) => e.managementApprovedStern)
+  const escalations = await listEscalations()
+  const pendingApproval = escalations.filter((e) => !e.sternSent)
+  const sternSent = escalations.filter((e) => e.sternSent)
 
   return (
     <>
@@ -40,7 +18,7 @@ export default async function EscalationsPage() {
         {pendingApproval.length > 0 && (
           <div className="mb-6">
             <h3 className="mb-4 text-danger">⚠ Pending Management Approval</h3>
-            <EscalationAlerts escalations={plain(pendingApproval)} />
+            <EscalationAlerts escalations={pendingApproval} />
           </div>
         )}
 
@@ -51,10 +29,10 @@ export default async function EscalationsPage() {
               {sternSent.map((e) => (
                 <div key={e.id} className="list-row wrap">
                   <div className="list-row-main">
-                    <div className="font-medium">{e.sale?.project?.name} — {e.sale?.unit?.unitNumber}</div>
-                    <div className="text-sm text-muted">{e.sale?.buyers?.[0]?.fullName}</div>
+                    <div className="font-medium">{e.projectName} — {e.unitNumber}</div>
+                    <div className="text-sm text-muted">{e.buyerName} · {e.description}</div>
                   </div>
-                  <div className="font-semibold text-danger">{formatCurrency(Number(e.principalAmount) + Number(e.gstAmount) + Number(e.interestAmount))}</div>
+                  <div className="font-semibold text-danger">{formatCurrency(e.outstanding)}</div>
                   <Badge variant="warning">Stern sent ✓</Badge>
                 </div>
               ))}

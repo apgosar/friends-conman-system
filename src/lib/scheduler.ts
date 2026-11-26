@@ -26,7 +26,7 @@ export async function runDailyInterestAndStatus(asOf: Date = new Date()) {
       demandGeneratedDate: { not: null },
       sale: activeSale,
     },
-    select: { id: true, status: true, dueDate: true, demandGeneratedDate: true, managementEscalated: true },
+    select: { id: true, status: true, dueDate: true, demandGeneratedDate: true },
   })
 
   for (const schedule of schedules) {
@@ -36,7 +36,7 @@ export async function runDailyInterestAndStatus(asOf: Date = new Date()) {
         where: { id: schedule.id },
         data: {
           status: newStatus,
-          managementEscalated: newStatus === 'OVERDUE_30' || newStatus === 'OVERDUE_30PLUS' || schedule.managementEscalated,
+          managementEscalated: newStatus === 'OVERDUE_30PLUS', // more than 30 days late (ESCALATION_AFTER_DAYS)
         },
       })
       await syncAccruals(tx, schedule.id, asOf)

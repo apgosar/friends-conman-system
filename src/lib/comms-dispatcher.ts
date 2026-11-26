@@ -12,7 +12,7 @@
 
 import { prisma } from '@/lib/db'
 import { sendEmail } from '@/lib/email'
-import { DEMAND_TEMPLATE, sendWhatsApp } from '@/lib/whatsapp'
+import { DEMAND_TEMPLATE, STERN_TEMPLATE, sendWhatsApp } from '@/lib/whatsapp'
 import { formatPhoneList, whatsappDigits } from '@/lib/phone'
 import { internalAuthHeaders } from '@/lib/internal-auth'
 import { publishPublicCopy } from '@/lib/storage/files'
@@ -101,7 +101,8 @@ function formatMessageAsHtml(text: string, attachments: CommAttachment[]): strin
   `
 }
 
-function extractSubject(content: string, type: string): string {
+/** The subject line of the email of a message. */
+export function emailSubject(content: string, type: string): string {
   if (type === 'DEMAND_LETTER') {
     const milestoneMatch = content.match(/milestone '(.*?)' is now complete/)
     const paymentMatch = content.match(/Payment for '(.*?)' is now due/)
@@ -109,6 +110,7 @@ function extractSubject(content: string, type: string): string {
     return `Demand Letter — ${name}`
   }
   if (type === 'PAYMENT_REMINDER') return `Payment Reminder — ${content.match(/payment for '(.*?)'/i)?.[1] ?? 'Pending payment'}`
+  if (type === 'STERN_REMINDER') return `Final Payment Reminder — ${content.match(/payment for '(.*?)'/i)?.[1] ?? 'Overdue payment'}`
   if (type === 'RECEIPT') return 'Payment Receipt — Thank You!'
   return `Important Update from ${companyName()}`
 }
@@ -213,7 +215,7 @@ async function sendClaimed(logId: string): Promise<DispatchResult> {
 
       const result = await sendEmail({
         to: email,
-        subject: extractSubject(text, log.type),
+        subject: emailSubject(text, log.type),
         html: formatMessageAsHtml(text, attachments),
         attachments: emailAttachments.length > 0 ? emailAttachments : undefined,
       })
@@ -298,7 +300,7 @@ async function sendClaimed(logId: string): Promise<DispatchResult> {
         const mm = plainText.match(/milestone '(.*?)' is now complete/i)
         const pm = plainText.match(/Payment for '(.*?)' is now due/i)
         milestonePurpose = mm?.[1] ?? pm?.[1] ?? 'Scheduled Payment'
-      } else if (log.type === 'PAYMENT_REMINDER') {
+      } else if (log.type === 'PAYMENT_REMINDER' || log.type === 'STERN_REMINDER') {
         milestonePurpose = plainText.match(/payment for '(.*?)'/i)?.[1] ?? 'Pending Payment'
       } else if (log.type === 'RECEIPT') {
         const rcm = plainText.match(/received for '(.*?)'/i)
@@ -338,16 +340,23 @@ async function sendClaimed(logId: string): Promise<DispatchResult> {
 
       const cleanPhone = whatsappDigits(phone) // with the country code: a bare 10-digit number is never delivered
 
+      // A stern reminder has a template of its own, with its own variables
+      const daysLate = plainText.match(/overdue by (\d+) days?/i)?.[1]
+      const useStern = log.type === 'STERN_REMINDER'
+      const dueOn = plainText.match(/Due\s*Date[:\s]+([^\n]+?)\.?(?:\n|$)/i)?.[1] ?? '-'
+
       // Send the approved template with the PDF attached as a document header.
       // NOTE: The template (DEMAND_TEMPLATE, see lib/whatsapp.ts) has a DOCUMENT header, which carries the PDF. When no public link is available the header is left out.
       const result = await sendWhatsApp({
         to: cleanPhone,
         message: plainText,
-        templateName: DEMAND_TEMPLATE,
+        templateName: useStern ? STERN_TEMPLATE : DEMAND_TEMPLATE,
         // Pass document as header only when URL is available and publicly accessible
         documentHeaderUrl: finalDocUrl,
         documentHeaderFilename: finalDocFilename,
-        templateBodyParams: [
+        templateBodyParams: useStern ? [
+          buyerName, projectName, unitNumber, milestonePurpose, amount, dueOn, daysLate ?? '-', companyName(), contactNumbers,
+        ] : [
           buyerName,                               // {{1}}
           projectName,                             // {{2}}
           unitNumber,                              // {{3}}

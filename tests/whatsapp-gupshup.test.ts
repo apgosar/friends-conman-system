@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
-import { DEMAND_TEMPLATE, QUOTATION_TEMPLATE, sendWhatsApp } from '@/lib/whatsapp'
+import { DEMAND_TEMPLATE, QUOTATION_TEMPLATE, STERN_TEMPLATE, sendWhatsApp } from '@/lib/whatsapp'
 
 const env = { GUPSHUP_API_KEY: 'key-123', GUPSHUP_SOURCE: '+91 98765 43210', GUPSHUP_APP_NAME: 'NeevApp', GUPSHUP_TEMPLATE_DEMANDS_AND_RECEIPTS: 'tpl-demand', GUPSHUP_TEMPLATE_QUOTATION: 'tpl-quote' }
 const msg = { to: '919000000001', message: 'x', templateName: DEMAND_TEMPLATE, templateBodyParams: ['Asha', 'Sea View'], documentHeaderUrl: 'https://x.test/a.pdf', documentHeaderFilename: 'A.pdf' }
@@ -38,6 +38,18 @@ describe('sending WhatsApp through Gupshup', () => {
     const form = new URLSearchParams(String((fetchMock.mock.calls[0] as unknown as [string, RequestInit])[1].body))
     expect(JSON.parse(form.get('template')!).id).toBe('tpl-quote')
     expect(form.has('message')).toBe(false)
+  })
+
+  it('sends the stern reminder with its built-in template id, unless one is set', async () => {
+    const fetchMock = vi.fn(async () => new Response(JSON.stringify({ status: 'submitted', messageId: 'm-3' }), { status: 200 }))
+    vi.stubGlobal('fetch', fetchMock)
+    const idOfCall = (n: number) => JSON.parse(new URLSearchParams(String((fetchMock.mock.calls[n] as unknown as [string, RequestInit])[1].body)).get('template')!).id
+    delete process.env.GUPSHUP_TEMPLATE_STERN_REMINDER
+    await sendWhatsApp({ ...msg, templateName: STERN_TEMPLATE })
+    expect(idOfCall(0)).toBe('d0aadc3f-6934-4ef9-8f7c-3fd156538f56')
+    process.env.GUPSHUP_TEMPLATE_STERN_REMINDER = 'tpl-other'
+    await sendWhatsApp({ ...msg, templateName: STERN_TEMPLATE })
+    expect(idOfCall(1)).toBe('tpl-other')
   })
 
   it('fails with a readable reason when Gupshup refuses, and when the template id is missing', async () => {

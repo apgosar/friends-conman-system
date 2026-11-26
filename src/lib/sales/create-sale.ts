@@ -206,13 +206,13 @@ export async function createSale(input: SaleCreateInput, actorId: string) {
     // 4. Payment schedule (+ a demand notice for the booking, and for milestones already completed)
     if (schedules.length > 0) {
       const milestoneIds = schedules.map((ps) => ps.milestoneId).filter((id): id is string => !!id)
-      const completed = new Map<string, Date | null>()
+      const completed = new Set<string>()
       if (milestoneIds.length > 0) {
         const done = await tx.constructionMilestone.findMany({
           where: { id: { in: milestoneIds }, projectId: input.projectId, status: 'COMPLETED' },
-          select: { id: true, actualDate: true },
+          select: { id: true },
         })
-        done.forEach((m) => completed.set(m.id, m.actualDate))
+        done.forEach((m) => completed.add(m.id))
       }
 
       const created = await tx.paymentSchedule.createManyAndReturn({
@@ -220,10 +220,10 @@ export async function createSale(input: SaleCreateInput, actorId: string) {
           const isCompleted = !!ps.milestoneId && completed.has(ps.milestoneId)
           // The booking is not a construction milestone: its demand goes out with the sale, and it is due the project's booking due days later
           const isBooking = ps.isBooking === true && !ps.milestoneId
-          const actualDate = isCompleted ? (completed.get(ps.milestoneId!) || new Date()) : null
           let dueDate = ps.dueDate ? new Date(ps.dueDate) : null
           if (isBooking) dueDate = dueDateAfter(new Date(), project.bookingDueDays)
-          if (isCompleted && actualDate) dueDate = dueDateAfter(actualDate, project.demandDueDays)
+          // Raised now, even when the milestone was completed earlier: the buyer gets the full number of days from today
+          if (isCompleted) dueDate = dueDateAfter(new Date(), project.demandDueDays)
           return {
             saleId: newSale.id,
             milestoneId: ps.milestoneId || null,

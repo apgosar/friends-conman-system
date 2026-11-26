@@ -41,6 +41,7 @@ const ENV_VARS: EnvVar[] = [
   { key: 'GUPSHUP_APP_NAME', required: false, description: 'Gupshup app name of that number' },
   { key: 'GUPSHUP_TEMPLATE_DEMANDS_AND_RECEIPTS', required: false, description: 'Gupshup template ID of demands_and_receipts_v2' },
   { key: 'GUPSHUP_TEMPLATE_QUOTATION', required: false, description: 'Gupshup template ID of quotation_share' },
+  { key: 'GUPSHUP_TEMPLATE_STERN_REMINDER', required: false, description: 'Gupshup template ID of overdue_final_reminder (blank = the ID built into the app; set only for another Gupshup account)' },
   { key: 'GUPSHUP_WEBHOOK_SECRET', required: false, description: 'Secret in the callback address given to Gupshup (16+ characters): delivery and read times, and messages people send to the number' },
   { key: 'GUPSHUP_AUTO_REPLY_TEXT', required: false, description: 'Auto-reply to a message sent to the WhatsApp number (blank = the default wording, off = no reply)' },
 

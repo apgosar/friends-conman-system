@@ -3,6 +3,7 @@ import { requireRole } from '@/lib/guard'
 import { prisma } from '@/lib/db'
 import { OUTSTANDING_SCHEDULE_STATUSES, TDS_MODE, UNIT_STATUS_ORDER, isSaleable, isUnsold } from '@/lib/status'
 import { activeSale } from '@/lib/soft-delete'
+import { daysOverdue, outstandingAmount, OUTSTANDING_PAYMENTS } from '@/lib/receivables'
 import { formatMonthYear } from '@/lib/format'
 
 export async function GET() {
@@ -97,16 +98,17 @@ export async function GET() {
       paymentByMode[mode] = (paymentByMode[mode] ?? 0) + p.amount
     }
 
-    // Overdue schedules — use principalAmount + gstAmount as the "amount" field
+    // Overdue demands: what is still owed on each
     const overdueSchedules = await prisma.paymentSchedule.findMany({
       where: { status: { in: OUTSTANDING_SCHEDULE_STATUSES }, dueDate: { lt: today }, sale: activeSale },
-      select: { principalAmount: true, gstAmount: true, dueDate: true },
+      select: { principalAmount: true, gstAmount: true, interestAmount: true, dueDate: true, payments: OUTSTANDING_PAYMENTS },
     })
 
     const aging = { '0-30': 0, '31-60': 0, '61-90': 0, '90+': 0 }
     for (const s of overdueSchedules) {
-      const totalDue = (s.principalAmount ?? 0) + (s.gstAmount ?? 0)
-      const days = Math.floor((today.getTime() - new Date(s.dueDate!).getTime()) / 86400000)
+      const totalDue = outstandingAmount(s)
+      const days = daysOverdue(s, today)
+      if (days <= 0) continue // due today: not late yet
       if (days <= 30) aging['0-30'] += totalDue
       else if (days <= 60) aging['31-60'] += totalDue
       else if (days <= 90) aging['61-90'] += totalDue
@@ -117,7 +119,7 @@ export async function GET() {
     const next90 = new Date(today.getTime() + 90 * 86400000)
     const upcoming = await prisma.paymentSchedule.findMany({
       where: { status: 'UPCOMING', dueDate: { gte: today, lte: next90 }, sale: activeSale },
-      select: { principalAmount: true, gstAmount: true, dueDate: true, description: true },
+      select: { principalAmount: true, gstAmount: true, interestAmount: true, dueDate: true, description: true, payments: OUTSTANDING_PAYMENTS },
       orderBy: { dueDate: 'asc' },
       take: 10,
     })
@@ -154,7 +156,7 @@ export async function GET() {
       upcomingReceivables: upcoming.map(u => ({
         dueDate: u.dueDate,
         description: u.description,
-        amount: (u.principalAmount ?? 0) + (u.gstAmount ?? 0),
+        amount: outstandingAmount(u),
       })),
     })
   } catch (err) {

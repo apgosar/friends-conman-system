@@ -169,7 +169,7 @@ export async function updateSale(saleId: string, input: SaleEditInput, actorId: 
     }
 
     const changed: { description: string; balance: number; dueDate: Date | null; raised: boolean }[] = []
-    const completedIds = new Map((await tx.constructionMilestone.findMany({ where: { projectId: sale.projectId, status: 'COMPLETED' }, select: { id: true, actualDate: true } })).map((m) => [m.id, m.actualDate]))
+    const completedIds = new Set((await tx.constructionMilestone.findMany({ where: { projectId: sale.projectId, status: 'COMPLETED' }, select: { id: true } })).map((m) => m.id))
     for (const r of rows) {
       const principalPaise = toPaise(r.principalAmount)
       const gstPaise = toPaise(r.gstAmount ?? 0)
@@ -198,8 +198,8 @@ export async function updateSale(saleId: string, input: SaleEditInput, actorId: 
         changed.push({ description: s.description, balance: fromPaise(balance), dueDate: s.dueDate, raised: !!s.demandGeneratedDate })
       } else {
         const done = !!r.milestoneId && completedIds.has(r.milestoneId)
-        const actualDate = done ? completedIds.get(r.milestoneId!) || asOf : null
-        const dueDate = done && actualDate ? dueDateAfter(actualDate, project.demandDueDays) : r.dueDate ? new Date(r.dueDate) : null
+        // A demand raised now is due from today, even when its milestone was completed earlier
+        const dueDate = done ? dueDateAfter(asOf, project.demandDueDays) : r.dueDate ? new Date(r.dueDate) : null
         await tx.paymentSchedule.create({
           data: {
             saleId: sale.id, milestoneId: r.milestoneId || null, description: r.description, principalAmount: r.principalAmount, gstAmount: r.gstAmount ?? 0, dueDate,

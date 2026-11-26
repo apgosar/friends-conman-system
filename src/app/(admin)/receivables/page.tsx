@@ -6,6 +6,8 @@ import { dueDateText } from '@/lib/payment-plans'
 import TopNav from '@/components/layout/TopNav'
 import { redirect } from 'next/navigation'
 import { activeSale } from '@/lib/soft-delete'
+import { agingBucket, daysOverdue, outstandingAmount, OUTSTANDING_PAYMENTS } from '@/lib/receivables'
+import { sumRupees } from '@/lib/money'
 import { Badge, ButtonLink, Card, CardHeader, EmptyState, Table, Td } from '@/components/ui'
 
 export default async function ReceivablesPage(props: PageProps<'/receivables'>) {
@@ -19,6 +21,7 @@ export default async function ReceivablesPage(props: PageProps<'/receivables'>) 
   const allSchedules = await prisma.paymentSchedule.findMany({
     where: { status: { in: OUTSTANDING_SCHEDULE_STATUSES }, sale: activeSale },
     include: {
+      payments: OUTSTANDING_PAYMENTS,
       sale: {
         include: {
           unit: { select: { unitNumber: true } },
@@ -36,14 +39,7 @@ export default async function ReceivablesPage(props: PageProps<'/receivables'>) 
   let pageTitle = 'All Receivables'
 
   if (bucket !== 'all') {
-    filtered = allSchedules.filter(s => {
-      const daysPast = s.dueDate ? Math.floor((now.getTime() - new Date(s.dueDate).getTime()) / 86400000) : 0
-      if (bucket === 'current') return daysPast <= 7
-      if (bucket === '8-15') return daysPast > 7 && daysPast <= 15
-      if (bucket === '16-30') return daysPast > 15 && daysPast <= 30
-      if (bucket === '30plus') return daysPast > 30
-      return true
-    })
+    filtered = allSchedules.filter((s) => agingBucket(daysOverdue(s, now)) === bucket)
 
     if (bucket === 'current') pageTitle = 'Receivables: Current Due (0-7 Days)'
     if (bucket === '8-15') pageTitle = 'Receivables: Overdue 8-15 Days'
@@ -52,7 +48,7 @@ export default async function ReceivablesPage(props: PageProps<'/receivables'>) 
   }
 
   // 3. Compute total
-  const totalAmount = filtered.reduce((acc, s) => acc + Number(s.principalAmount) + Number(s.gstAmount) + Number(s.interestAmount), 0)
+  const totalAmount = sumRupees(filtered.map(outstandingAmount))
 
   return (
     <>
@@ -72,12 +68,12 @@ export default async function ReceivablesPage(props: PageProps<'/receivables'>) 
           ) : (
             <Table flush stack>
               <thead>
-                <tr><th>Project</th><th>Unit</th><th>Buyer</th><th>Description</th><th>Due Date</th><th>Days Overdue</th><th className="text-right">Amount</th><th>Action</th></tr>
+                <tr><th>Project</th><th>Unit</th><th>Buyer</th><th>Description</th><th>Due Date</th><th>Days Overdue</th><th className="text-right">Outstanding</th><th>Action</th></tr>
               </thead>
               <tbody>
                 {filtered.map(s => {
-                  const daysPast = s.dueDate ? Math.floor((now.getTime() - new Date(s.dueDate).getTime()) / 86400000) : 0
-                  const amt = Number(s.principalAmount) + Number(s.gstAmount) + Number(s.interestAmount)
+                  const daysPast = daysOverdue(s, now)
+                  const amt = outstandingAmount(s)
                   const lateness = daysPast > 30 ? 'danger' : daysPast > 15 ? 'orange' : daysPast > 7 ? 'warning' : 'primary'
                   return (
                     <tr key={s.id}>
@@ -87,7 +83,7 @@ export default async function ReceivablesPage(props: PageProps<'/receivables'>) 
                       <Td label="Description" className="text-secondary">{s.description || s.milestone?.name}</Td>
                       <Td label="Due date" className="text-muted">{dueDateText(s)}</Td>
                       <Td label="Overdue">{daysPast > 0 ? <Badge variant={lateness}>{daysPast} days</Badge> : <Badge variant="success">Current</Badge>}</Td>
-                      <Td label="Amount" className="text-right font-semibold">{formatCurrency(amt)}</Td>
+                      <Td label="Outstanding" className="text-right font-semibold">{formatCurrency(amt)}</Td>
                       <Td label=""><ButtonLink href={`/sales/${s.saleId}`} variant="primary" size="sm">View Sale</ButtonLink></Td>
                     </tr>
                   )

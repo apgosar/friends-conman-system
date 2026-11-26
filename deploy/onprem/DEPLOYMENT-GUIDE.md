@@ -906,7 +906,7 @@ docker compose up -d web
 |---|---|
 | Email through Gmail (needs 2-step verification and an *app password*) | `GMAIL_USER="accounts@customer.com"`, `GMAIL_APP_PASSWORD="abcd efgh ijkl mnop"` |
 | Email through any SMTP server | `SMTP_HOST`, `SMTP_PORT`, `SMTP_SECURE`, `SMTP_USER`, `SMTP_PASS`, optionally `SMTP_FROM_ADDRESS` |
-| WhatsApp through Gupshup | `GUPSHUP_API_KEY`, `GUPSHUP_SOURCE`, `GUPSHUP_APP_NAME`, `GUPSHUP_TEMPLATE_DEMANDS_AND_RECEIPTS`, `GUPSHUP_TEMPLATE_QUOTATION`; for delivered / read times and the auto-reply also `GUPSHUP_WEBHOOK_SECRET` and the callback address `https://<site>/api/webhooks/gupshup?token=<secret>` in the Gupshup console |
+| WhatsApp through Gupshup | `GUPSHUP_API_KEY`, `GUPSHUP_SOURCE`, `GUPSHUP_APP_NAME`, `GUPSHUP_TEMPLATE_DEMANDS_AND_RECEIPTS`, `GUPSHUP_TEMPLATE_QUOTATION`, (`GUPSHUP_TEMPLATE_STERN_REMINDER` only on another Gupshup account: the stern reminder template ID is built in); for delivered / read times and the auto-reply also `GUPSHUP_WEBHOOK_SECRET` and the callback address `https://<site>/api/webhooks/gupshup?token=<secret>` in the Gupshup console |
 | PAN / Aadhaar card reading (OCR) | `AZAPI_TOKEN` |
 
 The startup log prints "No email provider configured" until email is set; that is only a warning. The Settings page's email badge is decided when the image is built, so it can read "not configured" on a prebuilt image even when email works: send a real test email to confirm.

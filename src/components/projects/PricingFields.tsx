@@ -57,7 +57,7 @@ export default function PricingFields({ values = {} }: { values?: Values }) {
         <div className="form-group">
           <label className="form-label" htmlFor="demandDueDays">Days to pay a demand</label>
           <Input id="demandDueDays" name="demandDueDays" type="number" min="0" max="365" step="1" defaultValue={v(values.demandDueDays, DEMAND_DUE_DAYS)} />
-          <span className="form-hint">A milestone demand falls due this many days after the milestone is completed</span>
+          <span className="form-hint">A milestone demand falls due this many days after it is raised</span>
         </div>
         <div className="form-group">
           <label className="form-label" htmlFor="bookingDueDays">Days to pay the booking amount</label>

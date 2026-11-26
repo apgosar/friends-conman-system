@@ -865,6 +865,9 @@ tbody tr.row-overdue:hover { background: rgba(239, 68, 68, 0.18); }
 /* The amount in words under a figure (AmountInWords): small, quiet, wraps inside its cell */
 .amount-words { font-size: var(--text-xs); font-weight: 400; color: var(--text-muted); line-height: 1.35; margin-top: 2px; }
 
+/* A message as it will be sent: its line breaks kept */
+.message-preview { padding: var(--space-4); font-size: var(--text-sm); line-height: 1.6; border-radius: var(--radius-md); border: 1px solid var(--border-color); background: var(--bg-surface); white-space: pre-wrap; overflow-wrap: anywhere; }
+
 /* JSON / diff blocks */
 .code-block { margin: 0; padding: var(--space-4); font-family: var(--font-mono, ui-monospace, monospace); font-size: var(--text-sm); overflow-x: auto; border-radius: var(--radius-md); border: 1px solid var(--border-color); background: var(--bg-surface); white-space: pre-wrap; overflow-wrap: anywhere; }
 .code-block-old { color: var(--color-danger); background: var(--color-danger-light); border-color: var(--color-danger); }

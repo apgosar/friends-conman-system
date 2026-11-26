@@ -7,22 +7,31 @@ import { logger } from '@/lib/logger'
  *   GUPSHUP_API_KEY   — the account's API key
  *   GUPSHUP_SOURCE    — the WhatsApp business number the messages come from, with country code, digits only
  *   GUPSHUP_APP_NAME  — the name of that number's app in the Gupshup console
- * and the template ID of each template (see TEMPLATE_ENV below).
+ * and the template ID of each template (see TEMPLATE_ENV below; the stern reminder has one built in).
  */
 
 /**
  * The approved templates the app sends, by the name they are known by here. The body variables are filled in this order:
  * DEMAND_TEMPLATE: {{1}} buyer, {{2}} project, {{3}} unit, {{4}} configuration, {{5}} purpose, {{6}} document type, {{7}} amount,
  * {{8}} extra info, {{9}} company, {{10}} contact numbers. QUOTATION_TEMPLATE: {{1}} name, {{2}} project, {{3}} unit,
- * {{4}} configuration, {{5}} total cost, {{6}} valid until, {{7}} sender. Both have a PDF as the header.
+ * {{4}} configuration, {{5}} total cost, {{6}} valid until, {{7}} sender. STERN_TEMPLATE: {{1}} buyer, {{2}} project,
+ * {{3}} unit, {{4}} payment name, {{5}} amount outstanding, {{6}} due date, {{7}} days overdue, {{8}} company, {{9}} contact
+ * numbers. All have a PDF as the header.
  */
 export const DEMAND_TEMPLATE = 'demands_and_receipts_v2'
 export const QUOTATION_TEMPLATE = 'quotation_share'
+export const STERN_TEMPLATE = 'overdue_final_reminder'
 
 /** The env var that holds the Gupshup template ID (a UUID) of each template. */
 export const TEMPLATE_ENV: Record<string, string> = {
   [DEMAND_TEMPLATE]: 'GUPSHUP_TEMPLATE_DEMANDS_AND_RECEIPTS',
   [QUOTATION_TEMPLATE]: 'GUPSHUP_TEMPLATE_QUOTATION',
+  [STERN_TEMPLATE]: 'GUPSHUP_TEMPLATE_STERN_REMINDER',
+}
+
+/** Template IDs built into the app, used when the env var is blank. An ID is no secret: sending needs the account's API key. */
+const BUILT_IN_TEMPLATE_IDS: Record<string, string> = {
+  [STERN_TEMPLATE]: 'd0aadc3f-6934-4ef9-8f7c-3fd156538f56',
 }
 
 const SEND_URL = 'https://api.gupshup.io/wa/api/v1/template/msg'
@@ -55,7 +64,7 @@ export async function sendWhatsApp(msg: WhatsAppMessage): Promise<WhatsAppResult
   }
 
   const envName = TEMPLATE_ENV[msg.templateName]
-  const templateId = envName ? process.env[envName]?.trim() : undefined
+  const templateId = (envName ? process.env[envName]?.trim() : undefined) || BUILT_IN_TEMPLATE_IDS[msg.templateName]
   if (!templateId) throw new Error(`WhatsApp template ID is not set for ${msg.templateName}`)
 
   const form = new URLSearchParams({

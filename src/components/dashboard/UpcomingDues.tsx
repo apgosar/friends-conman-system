@@ -2,6 +2,7 @@ import Link from 'next/link'
 import { Card, CardHeader, EmptyState } from '@/components/ui'
 import { formatCurrency } from '@/lib/format'
 import { dueDateText } from '@/lib/payment-plans'
+import { outstandingAmount } from '@/lib/receivables'
 
 export default function UpcomingDues({ dues }: { dues: any[] }) {
   return (
@@ -18,7 +19,7 @@ export default function UpcomingDues({ dues }: { dues: any[] }) {
                 <div className="text-sm text-muted truncate">{d.description} · {d.sale?.project?.name}</div>
               </div>
               <div className="text-right shrink-0">
-                <div className="font-bold">{formatCurrency(Number(d.principalAmount) + Number(d.gstAmount))}</div>
+                <div className="font-bold">{formatCurrency(outstandingAmount(d))}</div>
                 <div className="text-xs text-muted">Due {dueDateText(d)}</div>
               </div>
             </Link>

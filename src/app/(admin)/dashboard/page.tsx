@@ -8,8 +8,10 @@ import RecentPayments from '@/components/dashboard/RecentPayments'
 import UpcomingDues from '@/components/dashboard/UpcomingDues'
 import EscalationAlerts from '@/components/dashboard/EscalationAlerts'
 import { activeSale } from '@/lib/soft-delete'
+import { listEscalations } from '@/lib/escalations'
+import { agingBucket, daysOverdue, outstandingOf, OUTSTANDING_PAYMENTS } from '@/lib/receivables'
+import { fromPaise } from '@/lib/money'
 import { Badge, Card, Figure, StatCard, cn } from '@/components/ui'
-import { plain } from '@/lib/plain'
 
 async function getDashboardData() {
   const now = new Date()
@@ -24,7 +26,8 @@ async function getDashboardData() {
         gstAmount: true,
         interestAmount: true,
         dueDate: true,
-        status: true,
+        demandGeneratedDate: true,
+        payments: OUTSTANDING_PAYMENTS,
       },
     }),
     prisma.payment.findMany({
@@ -41,41 +44,19 @@ async function getDashboardData() {
         },
       },
     }),
-    prisma.paymentSchedule.findMany({
-      where: { managementEscalated: true, managementApprovedStern: false, status: { notIn: ['PAID'] }, sale: activeSale },
-      include: {
-        sale: {
-          include: {
-            unit: { select: { unitNumber: true } },
-            buyers: { where: { isPrimary: true }, take: 1 },
-            project: { select: { name: true } },
-          },
-        },
-      },
-      orderBy: { demandGeneratedDate: 'asc' },
-    }),
+    listEscalations(now),
   ])
 
-  // ── Compute aging buckets from dueDate diff ──────────────────────────────
-  let totalOutstanding = 0, current = 0, o15 = 0, o30 = 0, o30plus = 0, interestAccrued = 0
-
+  // ── What is still owed (payments taken off), grouped by how late it is. Added up in paise ──
+  const aging = { current: 0, '8-15': 0, '16-30': 0, '30plus': 0 }
+  let interestPaise = 0
   for (const s of schedules) {
-    const principal = Number(s.principalAmount)
-    const gst       = Number(s.gstAmount)
-    const interest  = Number(s.interestAmount)
-    const total     = principal + gst + interest
-    totalOutstanding += total
-    interestAccrued  += interest
-
-    if (!s.dueDate) { current += total; continue }
-
-    const daysPast = Math.floor((now.getTime() - new Date(s.dueDate).getTime()) / 86400000)
-
-    if (daysPast <= 7)        current  += total
-    else if (daysPast <= 15)  o15      += total
-    else if (daysPast <= 30)  o30      += total
-    else                      o30plus  += total
+    const owed = outstandingOf(s)
+    interestPaise += owed.interest
+    aging[agingBucket(daysOverdue(s, now))] += owed.total
   }
+  const totalOutstanding = fromPaise(Object.values(aging).reduce((total, paise) => total + paise, 0))
+  const interestAccrued = fromPaise(interestPaise)
 
   const [collectedThisMonth, tdsPending] = await Promise.all([
     prisma.payment.aggregate({
@@ -101,6 +82,7 @@ async function getDashboardData() {
       sale: activeSale,
     },
     include: {
+      payments: OUTSTANDING_PAYMENTS,
       sale: {
         include: {
           unit: { select: { unitNumber: true } },
@@ -117,18 +99,18 @@ async function getDashboardData() {
   return {
     stats: {
       totalOutstanding,
-      current,
-      overdue15: o15,
-      overdue30: o30,
-      overdue30Plus: o30plus,
+      current: fromPaise(aging.current),
+      overdue15: fromPaise(aging['8-15']),
+      overdue30: fromPaise(aging['16-30']),
+      overdue30Plus: fromPaise(aging['30plus']),
       collectedThisMonth: collectedAmt,
       interestAccrued,
       tdsPending,
       collectionEfficiency: efficiency,
     },
     recentPayments,
-    escalations,
-    upcomingDues,
+    escalations: escalations.filter((e) => !e.sternSent),
+    upcomingDues: upcomingDues.filter((d) => outstandingOf(d).total > 0),
   }
 }
 
@@ -163,7 +145,7 @@ export default async function DashboardPage() {
 
         {escalations.length > 0 && (
           <div className="mb-6">
-            <EscalationAlerts escalations={plain(escalations)} />
+            <EscalationAlerts escalations={escalations} />
           </div>
         )}
 
