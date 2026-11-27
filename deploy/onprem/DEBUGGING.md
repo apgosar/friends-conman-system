@@ -216,6 +216,17 @@ docker compose logs web --since 24h | grep -i "could not be sent"
 SELECT description, status, "reminderCount", "lastReminderAt" FROM payment_schedules WHERE "lastReminderAt" IS NOT NULL ORDER BY "lastReminderAt" DESC LIMIT 20;
 ```
 
+**f. An approved update did not install.** The daily job runs the update check last; its lines in `daily-job.log` follow `approved update check, exit code …`.
+
+| What the log or Settings shows | Meaning |
+|---|---|
+| `No update has been approved.` | Nothing is waiting. Approve it in Settings → Server Update (and check `UPDATE_APPROVER_EMAIL`) |
+| Nothing under `approved update check` | `update.sh` in the app folder is older than this feature: update once with `Update-NeevCMS.bat` |
+| `Could not ask the app for an approved update.` | The app is down, or `CRON_SECRET` is empty or still the placeholder |
+| Settings says the server has not asked for updates | The `.bat` on the server is an old copy, or the scheduled task is not running (b) |
+| `Failed`, with the updater's messages | Same causes as a manual update; the full log is in `update-logs/` in the app folder |
+| No e-mail, but Settings shows the result | Check `UPDATE_NOTIFICATION_EMAIL` in `.env` (blank sends it to the sign-in e-mail) and the spam folder, then send a test e-mail from Settings |
+
 ## What to send when asking for help
 
 The output of these three, taken right after repeating the problem:

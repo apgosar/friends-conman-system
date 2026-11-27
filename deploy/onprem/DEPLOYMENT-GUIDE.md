@@ -840,6 +840,8 @@ C:\NeevCMS\Update-NeevCMS.bat v0.0.40
 ```
 It should end with `Checked v0.0.40 - everything is up to date.`
 
+**Remote updates (optional).** An update can instead be approved in the app and installed by the daily job, with the result e-mailed. It needs `UPDATE_APPROVER_EMAIL` (and usually `UPDATE_NOTIFICATION_EMAIL`) in `.env` and the daily job from E2; see `README.md`, "Remote updates".
+
 ## E4. Backups
 
 The updater takes a database backup before every update and keeps the last 10 in `~/neev-cms/backups`. That is not enough on its own: take regular copies **off the server** too. There is no automatic nightly backup yet.

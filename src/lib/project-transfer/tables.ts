@@ -66,6 +66,7 @@ export const LEFT_BEHIND: Record<string, string> = {
   AuditLog: 'the history of the old server stays there; the import records its own entry',
   NumberSequence: 'counters belong to a server; they are moved past the imported numbers',
   RateLimitBucket: 'working data of a server',
+  UpdateState: 'which version a server is to install',
 }
 
 /** Where the quotation PDF of an inquiry is stored (there is no column for it: the name is the inquiry's id). */

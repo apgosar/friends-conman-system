@@ -3,6 +3,7 @@
 import { BookOpen, Inbox, Mail, MessageCircle, Settings } from 'lucide-react'
 import { useState } from 'react'
 import TopNav from '@/components/layout/TopNav'
+import ServerUpdateCard from '@/components/settings/ServerUpdateCard'
 import { Alert, Badge, Button, ButtonLink, Card, CardHeader, PhoneField, TextField } from '@/components/ui'
 import { errorMessage, fetchJson, jsonRequest } from '@/lib/client/api'
 
@@ -40,6 +41,8 @@ export default function SettingsPage() {
       <TopNav title="Settings" subtitle="Configure and test communication integrations" />
       <div className="admin-content">
         <div className="grid gap-6 max-w-xl">
+          <ServerUpdateCard />
+
           <Card>
             <CardHeader title={<><Mail /> Email Integration (Gmail SMTP)</>} actions={<Badge variant={process.env.NEXT_PUBLIC_EMAIL_CONFIGURED === 'true' ? 'success' : 'muted'}>Configured via .env.local</Badge>} />
             <p className="text-secondary mb-5">

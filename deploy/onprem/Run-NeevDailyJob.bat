@@ -19,6 +19,8 @@ rem The request is made from inside the web container to 127.0.0.1, not "localho
 rem app listens on IPv4 only, so "localhost" can fail with "fetch failed" / ECONNREFUSED.
 rem The script has no > < | & or %: cmd sees it outside quotes (after the \") and would treat those as redirects or pipes,
 rem so it uses function(){} and not arrow functions.
+rem Afterwards it installs an update, but only one approved in the app (Settings, "Server Update"; README.md, "Remote
+rem updates"). With nothing approved, nothing changes.
 set "WSLARGS=-d %DISTRO% --cd ~"
 if defined WSLUSER set "WSLARGS=%WSLARGS% -u %WSLUSER%"
 set "LOG=%~dp0daily-job.log"
@@ -47,4 +49,15 @@ goto attempt
 :done
 
 if "%RC%"=="0" (echo   Daily job done.) else (echo   The daily job did not complete ^(code %RC%^). Check that the app is running: docker compose ps)
+if "%RC%"=="91" exit /b %RC%
+
+rem Once, not retried: one approval is one attempt. The test for --approved skips an update.sh from before this feature,
+rem which would stop to ask for a version.
+wsl %WSLARGS% -e bash -c "cd %APPDIR% || exit 91; grep -qe --approved update.sh || exit 0; bash <(tr -d '\r' < update.sh) --approved" > "%OUT%" 2>&1
+set "UPDATE_RC=%ERRORLEVEL%"
+type "%OUT%"
+>>"%LOG%" echo [%date% %time%] approved update check, exit code %UPDATE_RC%
+>>"%LOG%" type "%OUT%"
+del "%OUT%" 2>nul
+if "%RC%"=="0" set "RC=%UPDATE_RC%"
 exit /b %RC%

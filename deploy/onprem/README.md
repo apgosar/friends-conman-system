@@ -180,6 +180,26 @@ The app posts each late demand's interest once a day, moves overdue demands to t
 
 **Checking it** (the full set of commands is in [DEBUGGING.md](DEBUGGING.md), section 9). Every run adds a line to `C:NeevCMSdaily-job.log` (date, time, exit code and the app's answer, for example `200 {"success":true,"message":"Daily job complete: 42 demands checked, 3 reminded (6 messages)"}`). Exit code `0` is a good run, `1` means the app answered with an error or could not be reached, `91` means `APPDIR` is wrong. Windows keeps the last result too: `schtasks /query /tn "Neev CMS daily job" /v /fo list`. The app's own log has a `Daily job complete` line per run (and `Daily cron failed` with the reason if it failed): `docker compose logs web --since 24h | grep -i "daily"` in WSL. The reminders themselves are on the Communications page (type Payment Reminder), with their status and Retry.
 
+## Remote updates (approve in the app, the daily job installs)
+
+Nothing is ever updated automatically. The approver names a version in **Settings → Server Update**; at its next run the daily job asks the app what is approved, installs it with the same `update.sh` as a manual update (backup, database changes, health check, roll-back), and the app e-mails the result with the end of the output.
+
+- **Who may approve:** only the Super Admin whose sign-in e-mail is `UPDATE_APPROVER_EMAIL` in the server's `.env`. Blank means the feature is off, and also holds back an approval that is waiting. Nobody else sees the card. Keep that account's password strong, and remember that another Super Admin who can reset passwords could take it over.
+- **Where the result goes:** `UPDATE_NOTIFICATION_EMAIL`, so the sign-in e-mail need not be a real or watched mailbox (several addresses: separate with commas). Blank means it goes to the approver's sign-in e-mail.
+- **What can be approved:** a release newer than the installed one. A version that does not exist fails that night and is reported.
+- **One approval, one attempt.** A failed update is not tried again until it is approved again. **Cancel Approval** works until the daily job has started on it.
+- **The e-mail** uses the app's own mail settings. If the app is down (a roll-back also failed), the result waits in `update-report.pending` in the app folder and is sent by the next run. An update that never reports is marked failed (or installed, if that version is running) after 2 hours, at the next run.
+- **Still by hand on the server:** changes to `docker-compose.yml`, `.env` or the `.bat` files, a downgrade, and renewing the registry login.
+
+**Set it up once:**
+
+1. Add two lines to `.env` in the app folder *(Ubuntu window)*: `UPDATE_APPROVER_EMAIL="login@example.com"`, the e-mail that person signs in with, and `UPDATE_NOTIFICATION_EMAIL="inbox@example.com"`, a mailbox that is read.
+2. Update once by hand (`Update-NeevCMS.bat`) to a release that has this feature. That also restarts the app with the new setting.
+3. Replace `C:\NeevCMS\Run-NeevDailyJob.bat` with that release's copy and set `DISTRO`, `APPDIR` and `WSLUSER` again. The scheduled task stays as it is.
+4. Run it once by hand: after `Daily job done.` it prints `No update has been approved.`, and Settings shows when the server last checked.
+
+To install at once instead of waiting for the night, run the daily job by hand (it is safe to run twice in a day).
+
 ## ⚠ One-time: lock down the package's visibility
 
 The first time `release-onprem.yml` runs, it creates a new GHCR package (`ghcr.io/apgosar/friends-conman-system`). **A freshly created GHCR package can default to public visibility even when the parent repo is private** — GHCR's visibility is a separate setting from the repo's. Before shipping this to any customer, go to the package's settings (from the repo page: right sidebar → Packages → the package → Package settings, or `github.com/users/apgosar/packages/container/friends-conman-system/settings`) and confirm/set it to **Private**. Do this after the very first tag push, before you rely on it being private.

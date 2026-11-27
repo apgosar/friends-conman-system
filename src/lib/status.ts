@@ -227,6 +227,16 @@ export const PROJECT_TYPE: Record<string, StatusStyle> = {
 /** A mixed project (fresh and redevelopment sales) shows no type badge: only a single kind is worth pointing out. */
 export const showsProjectType = (type: string) => type !== 'MIXED'
 
+// ── On-prem server update ──────────────────────────────────────────────────────
+
+export const UPDATE_STATUS: Record<string, StatusStyle> = {
+  APPROVED:  { label: 'Waiting for the daily job', badge: 'badge-warning' },
+  RUNNING:   { label: 'Installing',                badge: 'badge-info' },
+  SUCCEEDED: { label: 'Installed',                 badge: 'badge-success' },
+  FAILED:    { label: 'Failed',                    badge: 'badge-danger' },
+  CANCELLED: { label: 'Cancelled',                 badge: 'badge-muted' },
+}
+
 // ── Helpers ────────────────────────────────────────────────────────────────────
 
 const humanize = (s: string) => s.replace(/_/g, ' ').toLowerCase().replace(/\b\w/g, (c) => c.toUpperCase())

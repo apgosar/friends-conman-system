@@ -22,6 +22,15 @@ export const can = (role: unknown, permission: Permission): boolean =>
   (PERMISSIONS[permission] as readonly Role[]).includes(normalizeRole(role))
 
 /**
+ * Approving an update of an on-prem server is narrower than a role: only the Super Admin whose e-mail the server's
+ * operator named (UPDATE_APPROVER_EMAIL). Nobody may when no address is named.
+ */
+export const mayApproveUpdates = (user: { role: unknown; email: string }, approverEmail: string | undefined): boolean => {
+  const named = approverEmail?.trim().toLowerCase()
+  return !!named && can(user.role, 'superadmin') && user.email.trim().toLowerCase() === named
+}
+
+/**
  * Pages that need more than a signed-in user. First match wins; everything not listed is open to any signed-in user.
  * (The API routes behind these pages enforce their own permission as well; this is what stops a read-only user
  * simply typing the URL, which used to work because only the sidebar hid the links.)

@@ -1,7 +1,7 @@
 import type { ReactNode } from 'react'
 import { cn } from './cn'
 import {
-  COMM_STATUS, DOCUMENT_STATUS, KYC_STATUS, MILESTONE_STATUS, PARKING_STATUS, PROJECT_STATUS, PROJECT_TYPE, SALE_STATUS, SCHEDULE_STATUS, UNIT_STATUS,
+  COMM_STATUS, DOCUMENT_STATUS, KYC_STATUS, MILESTONE_STATUS, PARKING_STATUS, PROJECT_STATUS, PROJECT_TYPE, SALE_STATUS, SCHEDULE_STATUS, UNIT_STATUS, UPDATE_STATUS,
   type StatusStyle,
 } from '@/lib/status'
 
@@ -22,6 +22,7 @@ const REGISTRIES = {
   kyc: KYC_STATUS,
   project: PROJECT_STATUS,
   projectType: PROJECT_TYPE,
+  update: UPDATE_STATUS,
 } as const satisfies Record<string, Record<string, StatusStyle>>
 
 const humanize = (s: string) => s.replace(/_/g, ' ').toLowerCase().replace(/\b\w/g, (c) => c.toUpperCase())

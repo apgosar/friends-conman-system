@@ -31,6 +31,10 @@ const ENV_VARS: EnvVar[] = [
   // Cron
   { key: 'CRON_SECRET', required: false, description: 'Bearer token for cron job endpoint', checkPlaceholder: true },
 
+  // On-prem: updates approved in Settings (deploy/onprem/README.md, "Remote updates")
+  { key: 'UPDATE_APPROVER_EMAIL', required: false, description: 'E-mail of the one Super Admin who may approve a server update in Settings (blank = off)' },
+  { key: 'UPDATE_NOTIFICATION_EMAIL', required: false, description: 'Where the result of a server update is e-mailed (blank = UPDATE_APPROVER_EMAIL)' },
+
   // Email — one of these sets must be present
   { key: 'GMAIL_USER', required: false, description: 'Gmail sender address' },
   { key: 'GMAIL_APP_PASSWORD', required: false, description: 'Gmail App Password' },

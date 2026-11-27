@@ -766,6 +766,22 @@ model NumberSequence {
   @@map("number_sequences")
 }
 
+/// The approved or last on-prem update and when the server last asked for one: a single row, id "server" (lib/app-update.ts)
+model UpdateState {
+  id            String    @id
+  status        String    @default("NONE") // NONE, APPROVED, RUNNING, SUCCEEDED, FAILED, CANCELLED
+  version       String?
+  fromVersion   String?
+  requestedById String?
+  requestedAt   DateTime?
+  startedAt     DateTime?
+  finishedAt    DateTime?
+  log           String?   @db.Text
+  lastCheckedAt DateTime?
+
+  @@map("update_state")
+}
+
 /// Fixed-window rate-limit counters shared by every app instance (login, uploads, OCR, comms).
 model RateLimitBucket {
   key     String   @id

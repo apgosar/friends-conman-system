@@ -4,6 +4,9 @@
 #   Customer:  double-click Update-NeevCMS.bat (it runs this script inside WSL).
 #   Manual:    cd to the folder holding docker-compose.yml and .env, then
 #                bash update.sh [vX.Y.Z] [-y]
+#   Remote:    bash update.sh --approved
+#              (the daily job runs it: installs the version approved in the app's Settings,
+#              if any, and tells the app how it went; see "Remote updates" in README.md)
 #
 # Order of operations: check the machine -> choose the release tag -> download the
 # new image (the running app is untouched if this fails) -> back up the database ->
@@ -14,6 +17,7 @@
 
 # ---- Vendor settings ---------------------------------------------------------
 IMAGE_REPO="ghcr.io/apgosar/friends-conman-system"
+SOURCE_URL="https://raw.githubusercontent.com/apgosar/friends-conman-system"   # where --approved gets that release's update.sh
 SUPPORT="your Neev CMS vendor"
 HEALTH_TIMEOUT=180   # seconds to wait for the new version to become healthy
 KEEP_BACKUPS=10
@@ -23,10 +27,12 @@ set -u
 set -o pipefail
 
 ASSUME_YES="${NEEV_ASSUME_YES:-0}"
+APPROVED=0
 TAG_ARG=""
 for arg in "$@"; do
   case "$arg" in
     -y|--yes) ASSUME_YES=1 ;;
+    --approved) APPROVED=1 ;;
     *) TAG_ARG="$arg" ;;
   esac
 done
@@ -380,6 +386,91 @@ main() {
   say " Log file        : $APP_DIR/$LOG"
   say "============================================================"
 }
+
+# ---- Updates approved in the app (--approved) --------------------------------
+# The app only records what was approved. This asks it, runs the normal update above for
+# that version, and tells it the result (the app e-mails the approver). The result is kept
+# in $REPORT until the app has received it, so a report is not lost while the app is down.
+REPORT="update-report.pending"   # line 1: version, line 2: 1 worked / 0 failed, then the end of the output
+
+# Runs inside the app's container, like the daily job: it has CRON_SECRET, and 127.0.0.1
+# (not "localhost", which may try IPv6 first). "claim" prints the approved version, if any;
+# "report <version> <1|0>" reads the output of the update from stdin.
+APP_CALL='
+const [action, version, ok] = process.argv.slice(1)
+const send = (body) => fetch("http://127.0.0.1:8080/api/cron/update", {
+  method: "POST",
+  headers: { authorization: "Bearer " + process.env.CRON_SECRET, "content-type": "application/json" },
+  body: JSON.stringify(body),
+}).then(async (r) => {
+  if (!r.ok) throw new Error("the app answered " + r.status)
+  const answer = await r.json()
+  if (answer.version) console.log(answer.version)
+}).catch((e) => { console.error(e.message); process.exit(1) })
+if (action === "claim") send({ action })
+else {
+  let log = ""
+  process.stdin.setEncoding("utf8")
+  process.stdin.on("data", (part) => { log += part })
+  process.stdin.on("end", () => send({ action, version, ok: ok === "1", log }))
+}'
+
+send_report() {
+  [ -f "$REPORT" ] || return 0
+  local version worked
+  { read -r version; read -r worked; } < "$REPORT"
+  if tail -n +3 "$REPORT" | docker compose exec -T web node -e "$APP_CALL" report "$version" "$worked"; then
+    rm -f "$REPORT"
+    say "The app has the result of the update to $version."
+    return 0
+  fi
+  warn "Could not give the app the result of the update to $version; it will be sent next time."
+  return 1
+}
+
+# The updater that belongs to a release, kept only if it is a valid script (Update-NeevCMS.bat does the same).
+fetch_updater() {
+  if curl -fsSL --max-time 60 -o update.sh.new "$SOURCE_URL/$1/deploy/onprem/update.sh" \
+      && bash -n update.sh.new && head -c 2 update.sh.new | grep -q '#!'; then
+    [ -f update.sh ] && cp update.sh update.sh.previous
+    mv update.sh.new update.sh
+    say "Updater downloaded for $1"
+  else
+    rm -f update.sh.new
+    say "Could not download the updater for $1 - using the copy already on this server."
+  fi
+}
+
+run_approved() {
+  command -v docker >/dev/null 2>&1 || { warn "Docker is not installed."; return 1; }
+  send_report
+  local answer
+  if ! answer="$(docker compose exec -T web node -e "$APP_CALL" claim </dev/null)"; then
+    warn "Could not ask the app for an approved update."
+    return 1
+  fi
+  answer="$(printf '%s' "$answer" | tr -d '[:space:]')"
+  if [ -z "$answer" ]; then say "No update has been approved."; return 0; fi
+  [[ "$answer" =~ $TAG_RE ]] || { warn "The app did not answer with a version number; nothing was done."; return 1; }
+
+  say "Approved in the app: $answer"
+  local out rc
+  out="$(mktemp)"; TMPFILES+=("$out")
+  {
+    fetch_updater "$answer"
+    bash <(tr -d '\r' < update.sh) "$answer" -y </dev/null
+  } 2>&1 | tee "$out"
+  rc="${PIPESTATUS[0]}"
+  { printf '%s\n%s\n' "$answer" "$([ "$rc" -eq 0 ] && echo 1 || echo 0)"; tail -n 100 "$out"; } > "$REPORT"
+  send_report
+  return "$rc"
+}
+
+if [ "$APPROVED" = "1" ]; then
+  trap cleanup EXIT
+  run_approved 2>&1
+  exit $?
+fi
 
 main "$@" 2>&1 | tee -i -a "$LOG"
 exit "${PIPESTATUS[0]}"
