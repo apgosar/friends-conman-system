@@ -2,6 +2,7 @@ import { kindForStatus } from '@/lib/errors'
 import { apiError } from '@/lib/api-error'
 import { NextRequest } from 'next/server'
 import { prisma } from '@/lib/db'
+import { RECEIVED_PAYMENTS, receiptCount } from '@/lib/payments/receipt-count'
 import { requireRole } from '@/lib/guard'
 import { dispatchAllPending } from '@/lib/comms-dispatcher'
 import { parseBody } from '@/lib/validate'
@@ -20,11 +21,12 @@ export async function GET(req: NextRequest) {
       project: { select: { name: true } },
       unit: { select: { unitNumber: true, configuration: true } },
       buyers: true, paymentSchedules: true,
-      _count: { select: { payments: true } },
+      payments: RECEIVED_PAYMENTS,
     },
     orderBy: { createdAt: 'desc' },
   })
-  return Response.json({ success: true, data: sales })
+  const data = sales.map(({ payments, ...sale }) => ({ ...sale, _count: { payments: receiptCount(payments) } }))
+  return Response.json({ success: true, data })
 }
 
 export async function POST(req: NextRequest) {

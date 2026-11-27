@@ -1,5 +1,6 @@
 import { Plus } from 'lucide-react'
 import { prisma } from '@/lib/db'
+import { RECEIVED_PAYMENTS, receiptCount } from '@/lib/payments/receipt-count'
 import TopNav from '@/components/layout/TopNav'
 import { formatCurrency, formatDate } from '@/lib/format'
 import ClickableRow from '@/components/sales/ClickableRow'
@@ -27,7 +28,7 @@ async function getSales(q: string, projectId: string) {
       project: { select: { name: true } },
       unit: { select: { unitNumber: true, configuration: true } },
       buyers: { where: { isPrimary: true }, take: 1 },
-      _count: { select: { payments: true } },
+      payments: RECEIVED_PAYMENTS,
     },
     orderBy: { createdAt: 'desc' },
   })
@@ -74,7 +75,7 @@ export default async function SalesPage(props: PageProps<'/sales'>) {
                   <Td label="Agreement value" className="font-semibold">{formatCurrency(Number(sale.agreementValue))}</Td>
                   <Td label="Status"><StatusBadge kind="sale" status={sale.status} /></Td>
                   <Td label="Booked" className="text-muted">{formatDate(sale.bookingDate)}</Td>
-                  <Td label="Payments" className="text-center">{sale._count.payments}</Td>
+                  <Td label="Payments" className="text-center">{receiptCount(sale.payments)}</Td>
                 </ClickableRow>
               ))}
             </tbody>

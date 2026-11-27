@@ -1,5 +1,8 @@
-import { it, expect, beforeEach } from 'vitest'
+import { it, expect, beforeEach, vi } from 'vitest'
+import { NextRequest } from 'next/server'
 import { describeDb, resetDb, getPrisma, seedProject, seedUser } from './helpers/db'
+
+vi.mock('@/lib/guard', () => ({ requireRole: async () => ({ user: { id: 'reader', role: 'ADMIN' } }) }))
 
 async function setup(opts: { principal?: number; gst?: number; receiveComms?: boolean; projectName?: string } = {}) {
   const prisma = await getPrisma()
@@ -106,6 +109,31 @@ describeDb('recording payments', () => {
     const rows = await prisma.paymentSchedule.findMany({ where: { saleId: sale.id }, orderBy: SCHEDULE_ORDER })
     expect(rows.map((r) => r.description)).toEqual(['First', 'Second', 'Third'])
     void schedule
+  })
+
+  it('counts the payments of a sale by receipt, leaving out reversed ones and TDS credits', async () => {
+    const { recordPayment, recordReceipt } = await import('@/lib/payments/record-payment')
+    const { recordTds } = await import('@/lib/payments/record-tds')
+    const { reversePayment } = await import('@/lib/payments/reverse-payment')
+    const { GET } = await import('@/app/api/sales/route')
+    const { prisma, user, sale, schedule } = await setup()
+    const next = await prisma.paymentSchedule.create({ data: { saleId: sale.id, description: 'Plinth', principalAmount: 500, gstAmount: 0, status: 'DUE', createdAt: new Date(Date.now() + 1000) } })
+    const wrong = await recordPayment(pay({ scheduleId: schedule.id, saleId: sale.id, amount: 10 }), user.id)
+    await recordPayment(pay({ scheduleId: schedule.id, saleId: sale.id, amount: 20 }), user.id)
+    const counted = async () => (await (await GET(new NextRequest('http://localhost/api/sales'))).json()).data[0]._count.payments
+    expect(await counted()).toBe(2)
+    await reversePayment({ paymentId: wrong.id, reason: 'Entered twice' }, user.id)
+    expect(await counted()).toBe(1)
+
+    await recordTds({ scheduleId: next.id, saleId: sale.id, amount: 5, date: '2026-10-05' }, user.id)
+    expect(await counted()).toBe(1)
+
+    // one amount that settles the first demand and carries on to the next: two payment rows, one receipt
+    const spread = await recordReceipt({ scheduleId: schedule.id, saleId: sale.id, kind: 'PRINCIPAL', amount: 100, mode: 'NEFT', paymentDate: '2026-10-05' }, user.id)
+    expect(spread.allocations).toHaveLength(2)
+    expect(await counted()).toBe(2)
+    await reversePayment({ paymentId: spread.paymentId, reason: 'Cheque returned' }, user.id)
+    expect(await counted()).toBe(1)
   })
 
   it('refuses a payment against a cancelled sale', async () => {
